@@ -1,5 +1,8 @@
 # Changelog App Magazzino
 
+## v1.1.2 - 2025-10-29 (PRODUZIONE) ✅
+fix ripristinato app.js funzionante
+
 ## v1.1.1 - 2025-10-29 (PRODUZIONE) ✅
 icone nuove ok
 
