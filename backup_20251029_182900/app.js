@@ -299,8 +299,8 @@ function renderInventoryBySupplier(articles) {
             }
             
             const ivaPerc = article.iva_percentuale || 22;
-            const editBtn = currentUserRole === 'admin' ? `<button onclick="openEditModal(${article.id})" class="btn-edit">✏️</button>` : '';
-            const deleteBtn = currentUserRole === 'admin' ? `<button onclick="deleteArticle(${article.id})" class="btn-delete">🗑️</button>` : '';
+            const editBtn = currentUserRole === 'admin' ? `<button onclick="openEditModal(${article.id})" class="btn-edit">âœï¸</button>` : '';
+            const deleteBtn = currentUserRole === 'admin' ? `<button onclick="deleteArticle(${article.id})" class="btn-delete">ðŸ—‘ï¸</button>` : '';
             
             row.innerHTML = `
                 <td><strong>${article.nome}</strong></td>
@@ -313,8 +313,8 @@ function renderInventoryBySupplier(articles) {
                 <td>${article.codice_barre}</td>
                 <td>${article.note || '-'}</td>
                 <td>
-                    <button onclick="openMovementModal(${article.id}, 'carico')" class="btn-success" style="padding: 10px 16px; margin-right: 5px;">➕</button>
-                    <button onclick="openMovementModal(${article.id}, 'scarico')" class="btn-danger" style="padding: 10px 16px; margin-right: 5px;">➖</button>
+                    <button onclick="openMovementModal(${article.id}, 'carico')" class="btn-success" style="padding: 10px 16px; margin-right: 5px;">âž•</button>
+                    <button onclick="openMovementModal(${article.id}, 'scarico')" class="btn-danger" style="padding: 10px 16px; margin-right: 5px;">âž–</button>
                     ${editBtn}
                     ${deleteBtn}
                 </td>
@@ -357,8 +357,8 @@ function renderInventoryFlat(articles) {
     articles.forEach(article => {
         const rowClass = article.quantita <= article.soglia_minima ? 'class="low-stock"' : '';
         const ivaPerc = article.iva_percentuale || 22;
-        const editBtn = currentUserRole === 'admin' ? `<button onclick="openEditModal(${article.id})" class="btn-edit">✏️</button>` : '';
-        const deleteBtn = currentUserRole === 'admin' ? `<button onclick="deleteArticle(${article.id})" class="btn-delete">🗑️</button>` : '';
+        const editBtn = currentUserRole === 'admin' ? `<button onclick="openEditModal(${article.id})" class="btn-edit">âœï¸</button>` : '';
+        const deleteBtn = currentUserRole === 'admin' ? `<button onclick="deleteArticle(${article.id})" class="btn-delete">ðŸ—‘ï¸</button>` : '';
         
         html += `
             <tr ${rowClass}>
@@ -373,8 +373,8 @@ function renderInventoryFlat(articles) {
                 <td>${article.marca_fornitore || '-'}</td>
                 <td>${article.note || '-'}</td>
                 <td>
-                    <button onclick="openMovementModal(${article.id}, 'carico')" class="btn-success" style="padding: 10px 16px; margin-right: 5px;">➕</button>
-                    <button onclick="openMovementModal(${article.id}, 'scarico')" class="btn-danger" style="padding: 10px 16px; margin-right: 5px;">➖</button>
+                    <button onclick="openMovementModal(${article.id}, 'carico')" class="btn-success" style="padding: 10px 16px; margin-right: 5px;">âž•</button>
+                    <button onclick="openMovementModal(${article.id}, 'scarico')" class="btn-danger" style="padding: 10px 16px; margin-right: 5px;">âž–</button>
                     ${editBtn}
                     ${deleteBtn}
                 </td>
@@ -562,7 +562,7 @@ function openMovementModal(articleId, type) {
     currentArticleForMovement = { article, type };
     
     document.getElementById('modal-title').textContent = 
-        type === 'carico' ? '➕ Carico Magazzino' : '➖ Scarico Magazzino';
+        type === 'carico' ? 'âž• Carico Magazzino' : 'âž– Scarico Magazzino';
     document.getElementById('modal-article-name').textContent = article.nome;
     document.getElementById('modal-current-qty').textContent = article.quantita;
     document.getElementById('modal-quantity').value = 1;

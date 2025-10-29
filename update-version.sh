@@ -16,7 +16,7 @@ read -p "Descrizione modifiche: " DESCRIPTION
 DATE=$(date +"%Y-%m-%d")
 
 echo ""
-echo "📝 Aggiornamento alla versione v$NEW_VERSION..."
+echo "🔍 Aggiornamento alla versione v$NEW_VERSION..."
 echo ""
 
 # 1. Aggiorna index.html

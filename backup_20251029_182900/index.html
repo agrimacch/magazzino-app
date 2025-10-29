@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestione Magazzino</title>
+    
+    <!-- PWA Meta Tags -->
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/png" href="favicon.png">
+    <link rel="apple-touch-icon" href="icon180.png">
+    <meta name="theme-color" content="#16a34a">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Magazzino">
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css?v=2.2.0">
+</head>
+
+<body>
+    <!-- Version badge -->
+    <div class="version-badge">v2.2.1</div>
+
+    <!-- SCHERMATA LOGIN -->
+    <div id="login-screen" class="screen active">
+        <div class="container">
+            <div class="logo-container">
+                <img src="logo.png" alt="Logo Azienda" class="logo">
+            </div>
+            <h1>📦 Gestione Magazzino</h1>
+            <div class="card">
+                <h2>Accedi</h2>
+                <form id="login-form">
+                    <input type="email" id="login-email" placeholder="Email" required>
+                    <input type="password" id="login-password" placeholder="Password" required>
+                    <button type="submit" class="btn-primary">Accedi</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- SCHERMATA PRINCIPALE -->
+    <div id="main-screen" class="screen">
+        <!-- Header con logout -->
+        <header>
+            <div class="logo-container-header">
+                <img src="logo.png" alt="Logo" class="logo-header">
+            </div>
+            <h1>📦 Gestione Magazzino</h1>
+            <div class="user-info">
+                <span id="user-role" class="role-badge"></span>
+                <span id="user-email"></span>
+                <button id="logout-btn" class="btn-secondary">Logout</button>
+            </div>
+        </header>
+
+        <!-- Navigazione tab -->
+        <nav class="tabs">
+            <button class="tab-btn active" data-tab="inventario">📊 Inventario</button>
+            <button class="tab-btn" data-tab="nuovo" id="tab-nuovo-btn">➕ Nuovo Articolo</button>
+            <button class="tab-btn" data-tab="movimenti">📋 Movimenti</button>
+            <button class="tab-btn" data-tab="report" id="tab-report-btn">📄 Report</button>
+            <button class="tab-btn" data-tab="gestione" id="tab-gestione-btn">👥 Gestione Utenti</button>
+            <button class="tab-btn" data-tab="scanner">📷 Scanner</button>
+        </nav>
+
+        <!-- TAB 1: INVENTARIO -->
+        <div id="tab-inventario" class="tab-content active">
+            <div class="container">
+                <div class="filters-bar">
+                    <input type="text" id="search-input" placeholder="🔍 Cerca articolo...">
+                    <select id="filter-brand">
+                        <option value="">Tutti i fornitori</option>
+                    </select>
+                    <select id="sort-select">
+                        <option value="fornitore-asc">Fornitore (A-Z)</option>
+                        <option value="nome-asc">Nome (A-Z)</option>
+                        <option value="nome-desc">Nome (Z-A)</option>
+                        <option value="quantita-asc">QuantitÃ  (crescente)</option>
+                        <option value="quantita-desc">QuantitÃ  (decrescente)</option>
+                    </select>
+                    <label class="switch-label">
+                        <input type="checkbox" id="group-by-supplier" checked>
+                        <span>Raggruppa per fornitore</span>
+                    </label>
+                </div>
+                <div id="inventory-container">
+                    <!-- Contenuto dinamico -->
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 2: NUOVO ARTICOLO -->
+        <div id="tab-nuovo" class="tab-content">
+            <div class="container">
+                <div class="card">
+                    <h2>Aggiungi Nuovo Articolo</h2>
+                    <form id="new-article-form">
+                        <div class="form-row">
+                            <div class="form-col">
+                                <label>Nome Articolo *</label>
+                                <input type="text" id="new-name" placeholder="Nome articolo" required>
+                            </div>
+                            <div class="form-col">
+                                <label>Codice Articolo *</label>
+                                <input type="text" id="new-code" placeholder="Codice articolo" required>
+                            </div>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-col">
+                                <label>Codice a Barre *</label>
+                                <input type="text" id="new-barcode" placeholder="Codice a barre" required>
+                            </div>
+                            <div class="form-col">
+                                <label>Marca/Fornitore</label>
+                                <input type="text" id="new-brand" placeholder="Marca/Fornitore">
+                            </div>
+                        </div>
+                        
+                        <label>Descrizione</label>
+                        <textarea id="new-description" placeholder="Descrizione (opzionale)" rows="3"></textarea>
+                        
+                        <label>Note (es: confezione da 25 pz)</label>
+                        <textarea id="new-notes" placeholder="Note sulla confezione (opzionale)" rows="2"></textarea>
+                        
+                        <div class="form-row">
+                            <div class="form-col">
+                                <label>QuantitÃ  Iniziale *</label>
+                                <input type="number" id="new-quantity" placeholder="QuantitÃ  iniziale" value="0" required>
+                            </div>
+                            <div class="form-col">
+                                <label>Soglia Minima *</label>
+                                <input type="number" id="new-threshold" placeholder="Soglia minima" value="10" required>
+                            </div>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-col">
+                                <label>Prezzo Acquisto NETTO â‚¬ (no IVA) *</label>
+                                <input type="number" step="0.01" id="new-price-buy" placeholder="0.00" required>
+                            </div>
+                            <div class="form-col">
+                                <label>IVA % *</label>
+                                <input type="number" step="0.01" id="new-iva" placeholder="22" value="22" required>
+                            </div>
+                        </div>
+                        
+                        <label>Prezzo Vendita â‚¬ (IVA inclusa) *</label>
+                        <input type="number" step="0.01" id="new-price" placeholder="0.00" required>
+                        
+                        <button type="submit" class="btn-primary">Salva Articolo</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 3: MOVIMENTI -->
+        <div id="tab-movimenti" class="tab-content">
+            <div class="container">
+                <h2>Storico Movimenti</h2>
+                <div class="filters-bar">
+                    <select id="filter-movement-type">
+                        <option value="">Tutti i tipi</option>
+                        <option value="carico">Solo Carichi</option>
+                        <option value="scarico">Solo Scarichi</option>
+                    </select>
+                    <input type="date" id="filter-date-from" placeholder="Da">
+                    <input type="date" id="filter-date-to" placeholder="A">
+                    <button id="apply-movement-filters" class="btn-primary">Applica Filtri</button>
+                </div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Data</th>
+                                <th>Articolo</th>
+                                <th>Codice</th>
+                                <th>Tipo</th>
+                                <th>QuantitÃ </th>
+                                <th>Utente</th>
+                                <th>Note</th>
+                            </tr>
+                        </thead>
+                        <tbody id="movements-tbody">
+                            <!-- Movimenti caricati dinamicamente -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 4: REPORT -->
+        <div id="tab-report" class="tab-content">
+            <div class="container">
+                <div class="card">
+                    <h2>Genera Report</h2>
+                    <div class="report-options">
+                        <label>Tipo Report:</label>
+                        <select id="report-type">
+                            <option value="articolo">Report per Articolo</option>
+                            <option value="fornitore">Report per Fornitore</option>
+                            <option value="inventario">Report Inventario Completo</option>
+                        </select>
+
+                        <div id="report-article-select" class="report-field">
+                            <label>Seleziona Articolo:</label>
+                            <select id="report-article">
+                                <option value="">-- Seleziona articolo --</option>
+                            </select>
+                        </div>
+
+                        <div id="report-supplier-select" class="report-field hidden">
+                            <label>Seleziona Fornitore:</label>
+                            <select id="report-supplier">
+                                <option value="">-- Seleziona fornitore --</option>
+                            </select>
+                        </div>
+
+                        <label>Periodo:</label>
+                        <div class="form-row">
+                            <div class="form-col">
+                                <label>Da:</label>
+                                <input type="date" id="report-date-from">
+                            </div>
+                            <div class="form-col">
+                                <label>A:</label>
+                                <input type="date" id="report-date-to">
+                            </div>
+                        </div>
+
+                        <button id="generate-report" class="btn-primary">Genera Report</button>
+                    </div>
+                </div>
+
+                <div id="report-result" class="card hidden">
+                    <div class="report-header">
+                        <h2>Report Generato</h2>
+                        <button id="print-report" class="btn-primary">ðŸ–¨ï¸ Stampa</button>
+                    </div>
+                    <div id="report-content"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 5: GESTIONE UTENTI (solo admin) -->
+        <div id="tab-gestione" class="tab-content">
+            <div class="container">
+                <div class="card">
+                    <h2>Aggiungi Nuovo Utente</h2>
+                    <form id="add-user-form">
+                        <div class="form-row">
+                            <div class="form-col">
+                                <label>Email *</label>
+                                <input type="email" id="new-user-email" placeholder="email@esempio.com" required>
+                            </div>
+                            <div class="form-col">
+                                <label>Password *</label>
+                                <input type="password" id="new-user-password" placeholder="Min 6 caratteri" required>
+                            </div>
+                        </div>
+                        <label>Ruolo *</label>
+                        <select id="new-user-role" required>
+                            <option value="operatore">Operatore (solo carico/scarico)</option>
+                            <option value="admin">Amministratore (controllo completo)</option>
+                        </select>
+                        <button type="submit" class="btn-primary">Crea Utente</button>
+                    </form>
+                </div>
+
+                <div class="card">
+                    <h2>Utenti Registrati</h2>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Email</th>
+                                    <th>Ruolo</th>
+                                    <th>Azioni</th>
+                                </tr>
+                            </thead>
+                            <tbody id="users-tbody">
+                                <!-- Utenti caricati dinamicamente -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 6: SCANNER -->
+        <div id="tab-scanner" class="tab-content">
+            <div class="container">
+                <div class="card">
+                    <h2>Scanner Codice a Barre</h2>
+                    <div id="scanner-container">
+                        <div id="reader"></div>
+                    </div>
+                    <div id="scanner-result" class="hidden">
+                        <h3>Articolo trovato:</h3>
+                        <p id="scanned-article"></p>
+                        <div class="action-buttons">
+                            <button id="btn-carico" class="btn-success">âž• Carico</button>
+                            <button id="btn-scarico" class="btn-danger">âž– Scarico</button>
+                        </div>
+                        <button id="btn-rescan" class="btn-secondary" style="width: 100%; margin-top: 10px;">ðŸ“· Scansiona Altro</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal per carico/scarico -->
+    <div id="movement-modal" class="modal hidden">
+        <div class="modal-content">
+            <h3 id="modal-title">Carico/Scarico</h3>
+            <p id="modal-article-name"></p>
+            <p>QuantitÃ  attuale: <strong id="modal-current-qty"></strong></p>
+            <input type="number" id="modal-quantity" placeholder="QuantitÃ " value="1" min="1">
+            <textarea id="modal-notes" placeholder="Note (opzionale)" rows="3"></textarea>
+            <div class="modal-buttons">
+                <button id="modal-confirm" class="btn-primary">Conferma</button>
+                <button id="modal-cancel" class="btn-secondary">Annulla</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal per modifica articolo -->
+    <div id="edit-modal" class="modal hidden">
+        <div class="modal-content">
+            <h3>Modifica Articolo</h3>
+            <form id="edit-article-form">
+                <input type="hidden" id="edit-id">
+                
+                <div class="form-row">
+                    <div class="form-col">
+                        <label>Nome Articolo *</label>
+                        <input type="text" id="edit-name" placeholder="Nome articolo" required>
+                    </div>
+                    <div class="form-col">
+                        <label>Codice Articolo *</label>
+                        <input type="text" id="edit-code" placeholder="Codice articolo" required>
+                    </div>
+                </div>
+                
+                <label>Codice a Barre *</label>
+                <input type="text" id="edit-barcode" placeholder="Codice a barre" required>
+                
+                <label>Marca/Fornitore</label>
+                <input type="text" id="edit-brand" placeholder="Marca/Fornitore">
+                
+                <label>Descrizione</label>
+                <textarea id="edit-description" placeholder="Descrizione (opzionale)" rows="3"></textarea>
+                
+                <label>Note (es: confezione da 25 pz)</label>
+                <textarea id="edit-notes" placeholder="Note sulla confezione (opzionale)" rows="2"></textarea>
+                
+                <div class="form-row">
+                    <div class="form-col">
+                        <label>QuantitÃ  *</label>
+                        <input type="number" id="edit-quantity" placeholder="QuantitÃ " required>
+                    </div>
+                    <div class="form-col">
+                        <label>Soglia Minima *</label>
+                        <input type="number" id="edit-threshold" placeholder="Soglia minima" required>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-col">
+                        <label>Prezzo Acquisto NETTO â‚¬ (no IVA) *</label>
+                        <input type="number" step="0.01" id="edit-price-buy" placeholder="0.00" required>
+                    </div>
+                    <div class="form-col">
+                        <label>IVA % *</label>
+                        <input type="number" step="0.01" id="edit-iva" placeholder="22" required>
+                    </div>
+                </div>
+                
+                <label>Prezzo Vendita â‚¬ (IVA inclusa) *</label>
+                <input type="number" step="0.01" id="edit-price" placeholder="0.00" required>
+                
+                <div class="modal-buttons">
+                    <button type="submit" class="btn-primary">Salva Modifiche</button>
+                    <button type="button" id="edit-cancel" class="btn-secondary">Annulla</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Librerie esterne -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <script src="app.js?v=2.2.0"></script>
+</body>
+</html>

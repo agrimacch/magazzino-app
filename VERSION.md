@@ -1,7 +1,7 @@
 # Changelog App Magazzino
 
 ## v2.2.1 - 2025-10-29 (PRODUZIONE) ✅
-Fix trasparenze + nuovi stili pulsanti
+Fix emoji + bordo rosso articoli sotto soglia
 
 ## v2.2.0 - 2025-10-29 (PRODUZIONE) ✅
 Aggiunto campo IVA, prezzi netto/lordo separati
@@ -81,3 +81,4 @@ Quando aggiorni il codice:
 │  - Dati persistenti                 │
 │  - Stesso per locale E online       │
 └─────────────────────────────────────┘
+```
