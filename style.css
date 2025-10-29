@@ -226,12 +226,16 @@ input, textarea, select {
     font-family: 'Roboto Mono', monospace;
     transition: border-color 0.2s ease;
     background: white;
+    color: var(--dark);
+    opacity: 1;
 }
 
 input:focus, textarea:focus, select:focus {
     outline: none;
     border-color: var(--primary);
     box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.1);
+    color: var(--dark);
+    opacity: 1;
 }
 
 .form-row {
@@ -280,18 +284,21 @@ input:focus, textarea:focus, select:focus {
 }
 
 .btn-success {
-    background: var(--success);
-    color: white;
+    background: white;
+    color: var(--success);
+    border: 2px solid var(--success);
 }
 
 .btn-danger {
-    background: var(--danger);
-    color: white;
+    background: white;
+    color: var(--danger);
+    border: 2px solid var(--danger);
 }
 
 .btn-edit {
-    background: var(--warning);
-    color: white;
+    background: white;
+    color: var(--warning);
+    border: 2px solid var(--warning);
     padding: 8px 12px;
     font-size: 12px;
     width: auto;
@@ -299,8 +306,9 @@ input:focus, textarea:focus, select:focus {
 }
 
 .btn-delete {
-    background: var(--danger);
-    color: white;
+    background: white;
+    color: var(--danger);
+    border: 2px solid var(--danger);
     padding: 8px 12px;
     font-size: 12px;
     width: auto;
@@ -475,11 +483,12 @@ tbody tr:active {
 }
 
 tbody tr.low-stock {
-    background: #fee2e2;
+    border: 3px solid var(--danger);
+    background: white;
 }
 
 tbody tr.low-stock:active {
-    background: #fecaca;
+    background: var(--green-light);
 }
 
 /* Actions column with stacked buttons */
@@ -707,6 +716,11 @@ td:last-child button {
     display: none;
 }
 
+/* Fix opacità elementi */
+button, input, textarea, select, label, span, div, td, th, p, h1, h2, h3, h4 {
+    opacity: 1 !important;
+}
+
 /* Scrollbar personalizzata */
 ::-webkit-scrollbar {
     width: 6px;
@@ -894,6 +908,30 @@ td:last-child button {
         padding: 8px 12px;
         font-size: 14px;
         margin-right: 5px;
+    }
+    
+    .btn-success:hover {
+        background: var(--success);
+        color: white;
+        transform: translateY(-1px);
+    }
+    
+    .btn-danger:hover {
+        background: var(--danger);
+        color: white;
+        transform: translateY(-1px);
+    }
+    
+    .btn-edit:hover {
+        background: var(--warning);
+        color: white;
+        transform: translateY(-1px);
+    }
+    
+    .btn-delete:hover {
+        background: var(--danger);
+        color: white;
+        transform: translateY(-1px);
     }
     
     tbody tr:hover {
