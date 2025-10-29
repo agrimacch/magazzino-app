@@ -4,21 +4,26 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gestione Magazzino</title>
+    
+    <!-- PWA Meta Tags -->
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/png" href="favicon.png">
+    <link rel="apple-touch-icon" href="icon180.png">
+    <meta name="theme-color" content="#16a34a">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Magazzino">
+    
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=2.0.0">
+    <link rel="stylesheet" href="style.css?v=2.1.0">
 </head>
 
-<!-- Version badge -->
-<div class="version-badge">v2.0.0</div>
-
-    <!-- Librerie esterne -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-
-
 <body>
+    <!-- Version badge -->
+    <div class="version-badge">v2.1.0</div>
+
     <!-- SCHERMATA LOGIN -->
     <div id="login-screen" class="screen active">
         <div class="container">
@@ -118,6 +123,9 @@
                         
                         <label>Descrizione</label>
                         <textarea id="new-description" placeholder="Descrizione (opzionale)" rows="3"></textarea>
+                        
+                        <label>Note (es: confezione da 25 pz)</label>
+                        <textarea id="new-notes" placeholder="Note sulla confezione (opzionale)" rows="2"></textarea>
                         
                         <div class="form-row">
                             <div class="form-col">
@@ -295,16 +303,7 @@
                             <button id="btn-carico" class="btn-success">➕ Carico</button>
                             <button id="btn-scarico" class="btn-danger">➖ Scarico</button>
                         </div>
-<div id="scanner-result" class="hidden">
-    <h3>Articolo trovato:</h3>
-    <p id="scanned-article"></p>
-    <div class="action-buttons">
-        <button id="btn-carico" class="btn-success">➕ Carico</button>
-        <button id="btn-scarico" class="btn-danger">➖ Scarico</button>
-    </div>
-    <button id="btn-rescan" class="btn-secondary" style="width: 100%; margin-top: 10px;">📷 Scansiona Altro</button>
-</div>
-
+                        <button id="btn-rescan" class="btn-secondary" style="width: 100%; margin-top: 10px;">📷 Scansiona Altro</button>
                     </div>
                 </div>
             </div>
@@ -353,6 +352,9 @@
                 <label>Descrizione</label>
                 <textarea id="edit-description" placeholder="Descrizione (opzionale)" rows="3"></textarea>
                 
+                <label>Note (es: confezione da 25 pz)</label>
+                <textarea id="edit-notes" placeholder="Note sulla confezione (opzionale)" rows="2"></textarea>
+                
                 <div class="form-row">
                     <div class="form-col">
                         <label>Quantità *</label>
@@ -386,6 +388,6 @@
     <!-- Librerie esterne -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
-    <script src="app.js?v=2.0.0"></script>
+    <script src="app.js?v=2.1.0"></script>
 </body>
 </html>

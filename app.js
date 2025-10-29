@@ -171,7 +171,8 @@ function applyFiltersAndSort() {
             article.codice_articolo.toLowerCase().includes(searchQuery) ||
             article.codice_barre.includes(searchQuery) ||
             (article.marca_fornitore && article.marca_fornitore.toLowerCase().includes(searchQuery)) ||
-            (article.descrizione && article.descrizione.toLowerCase().includes(searchQuery));
+            (article.descrizione && article.descrizione.toLowerCase().includes(searchQuery)) ||
+            (article.note && article.note.toLowerCase().includes(searchQuery));
         
         const matchesBrand = !brandFilter || article.marca_fornitore === brandFilter;
         
@@ -264,6 +265,7 @@ function renderInventoryBySupplier(articles) {
                             <th>Prezzo Acq.</th>
                             <th>Prezzo Vend.</th>
                             <th>Codice Barre</th>
+                            <th>Note</th>
                             <th>Azioni</th>
                         </tr>
                     </thead>
@@ -294,6 +296,7 @@ function renderInventoryBySupplier(articles) {
                 <td>€ ${parseFloat(article.prezzo_acquisto).toFixed(2)}</td>
                 <td>€ ${parseFloat(article.prezzo_vendita).toFixed(2)}</td>
                 <td>${article.codice_barre}</td>
+                <td>${article.note || '-'}</td>
                 <td>
                     <button onclick="openMovementModal(${article.id}, 'carico')" class="btn-success" style="padding: 10px 16px; margin-right: 5px;">➕</button>
                     <button onclick="openMovementModal(${article.id}, 'scarico')" class="btn-danger" style="padding: 10px 16px; margin-right: 5px;">➖</button>
@@ -328,6 +331,7 @@ function renderInventoryFlat(articles) {
                         <th>Prezzo Vend.</th>
                         <th>Codice Barre</th>
                         <th>Fornitore</th>
+                        <th>Note</th>
                         <th>Azioni</th>
                     </tr>
                 </thead>
@@ -349,6 +353,7 @@ function renderInventoryFlat(articles) {
                 <td>€ ${parseFloat(article.prezzo_vendita).toFixed(2)}</td>
                 <td>${article.codice_barre}</td>
                 <td>${article.marca_fornitore || '-'}</td>
+                <td>${article.note || '-'}</td>
                 <td>
                     <button onclick="openMovementModal(${article.id}, 'carico')" class="btn-success" style="padding: 10px 16px; margin-right: 5px;">➕</button>
                     <button onclick="openMovementModal(${article.id}, 'scarico')" class="btn-danger" style="padding: 10px 16px; margin-right: 5px;">➖</button>
@@ -376,6 +381,7 @@ async function handleNewArticle(e) {
     const barcode = document.getElementById('new-barcode').value;
     const brand = document.getElementById('new-brand').value;
     const description = document.getElementById('new-description').value.trim();
+    const notes = document.getElementById('new-notes').value.trim();
     const quantity = parseInt(document.getElementById('new-quantity').value);
     const threshold = parseInt(document.getElementById('new-threshold').value);
     const priceBuy = parseFloat(document.getElementById('new-price-buy').value);
@@ -411,6 +417,7 @@ async function handleNewArticle(e) {
             codice_barre: barcode,
             marca_fornitore: brand || null,
             descrizione: description || null,
+            note: notes || null,
             quantita: quantity,
             soglia_minima: threshold,
             prezzo_acquisto: priceBuy,
@@ -442,6 +449,7 @@ function openEditModal(articleId) {
     document.getElementById('edit-barcode').value = article.codice_barre;
     document.getElementById('edit-brand').value = article.marca_fornitore || '';
     document.getElementById('edit-description').value = article.descrizione || '';
+    document.getElementById('edit-notes').value = article.note || '';
     document.getElementById('edit-quantity').value = article.quantita;
     document.getElementById('edit-threshold').value = article.soglia_minima;
     document.getElementById('edit-price-buy').value = article.prezzo_acquisto;
@@ -459,6 +467,7 @@ async function handleEditArticle(e) {
     const barcode = document.getElementById('edit-barcode').value;
     const brand = document.getElementById('edit-brand').value;
     const description = document.getElementById('edit-description').value.trim();
+    const notes = document.getElementById('edit-notes').value.trim();
     const quantity = parseInt(document.getElementById('edit-quantity').value);
     const threshold = parseInt(document.getElementById('edit-threshold').value);
     const priceBuy = parseFloat(document.getElementById('edit-price-buy').value);
@@ -472,6 +481,7 @@ async function handleEditArticle(e) {
             codice_barre: barcode,
             marca_fornitore: brand || null,
             descrizione: description || null,
+            note: notes || null,
             quantita: quantity,
             soglia_minima: threshold,
             prezzo_acquisto: priceBuy,
@@ -771,6 +781,7 @@ async function generateArticleReport(articleId, dateFrom, dateTo) {
         <p><strong>Codice Articolo:</strong> ${article.codice_articolo}</p>
         <p><strong>Codice a Barre:</strong> ${article.codice_barre}</p>
         <p><strong>Fornitore:</strong> ${article.marca_fornitore || 'N/D'}</p>
+        <p><strong>Note:</strong> ${article.note || 'N/D'}</p>
         <p><strong>Quantità Attuale:</strong> ${article.quantita}</p>
         <p><strong>Prezzo Acquisto (IVA inc.):</strong> € ${parseFloat(article.prezzo_acquisto).toFixed(2)}</p>
         <p><strong>Prezzo Vendita:</strong> € ${parseFloat(article.prezzo_vendita).toFixed(2)}</p>
@@ -846,6 +857,7 @@ function generateSupplierReport(supplier, dateFrom, dateTo) {
                     <th>Soglia</th>
                     <th>Prezzo Acq.</th>
                     <th>Valore Tot</th>
+                    <th>Note</th>
                     <th>Stato</th>
                 </tr>
             </thead>
@@ -865,6 +877,7 @@ function generateSupplierReport(supplier, dateFrom, dateTo) {
                 <td>${article.soglia_minima}</td>
                 <td>€ ${parseFloat(article.prezzo_acquisto).toFixed(2)}</td>
                 <td>€ ${totalArticleValue.toFixed(2)}</td>
+                <td>${article.note || '-'}</td>
                 <td>${stato}</td>
             </tr>
         `;
@@ -926,6 +939,7 @@ function generateInventoryReport() {
                     <th>Soglia</th>
                     <th>Prezzo Acq.</th>
                     <th>Valore</th>
+                    <th>Note</th>
                     <th>Stato</th>
                 </tr>
             </thead>
@@ -946,6 +960,7 @@ function generateInventoryReport() {
                 <td>${article.soglia_minima}</td>
                 <td>€ ${parseFloat(article.prezzo_acquisto).toFixed(2)}</td>
                 <td>€ ${totalArticleValue.toFixed(2)}</td>
+                <td>${article.note || '-'}</td>
                 <td>${stato}</td>
             </tr>
         `;
@@ -1205,9 +1220,9 @@ function setupEventListeners() {
     document.getElementById('add-user-form').addEventListener('submit', handleAddUser);
 
     document.getElementById('btn-rescan').addEventListener('click', () => {
-    document.getElementById('scanner-result').classList.add('hidden');
-    document.getElementById('reader').style.display = 'block';
-    window.scannedArticle = null;
-    initScanner();
-});
+        document.getElementById('scanner-result').classList.add('hidden');
+        document.getElementById('reader').style.display = 'block';
+        window.scannedArticle = null;
+        initScanner();
+    });
 }
