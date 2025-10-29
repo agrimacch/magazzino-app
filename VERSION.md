@@ -1,5 +1,8 @@
 # Changelog App Magazzino
 
+## v1.1.0 - 2025-10-29 (PRODUZIONE) ✅
+Bottoni azioni visibili + PWA icon + Note e Confezione
+
 ## v1.0.3 - 2025-10-29 (PRODUZIONE) ✅
 Test script automatico
 
