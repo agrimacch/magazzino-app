@@ -447,7 +447,9 @@ function openEditModal(articleId) {
     document.getElementById('edit-code').value = article.codice_articolo;
     document.getElementById('edit-barcode').value = article.codice_barre;
     document.getElementById('edit-brand').value = article.marca_fornitore || '';
+    document.getElementById('edit-package').value = article.confezione || '';
     document.getElementById('edit-description').value = article.descrizione || '';
+    document.getElementById('edit-notes').value = article.note || '';
     document.getElementById('edit-quantity').value = article.quantita;
     document.getElementById('edit-threshold').value = article.soglia_minima;
     document.getElementById('edit-price-buy').value = article.prezzo_acquisto;
@@ -464,7 +466,9 @@ async function handleEditArticle(e) {
     const code = document.getElementById('edit-code').value;
     const barcode = document.getElementById('edit-barcode').value;
     const brand = document.getElementById('edit-brand').value;
+    const packageInfo = document.getElementById('edit-package').value;
     const description = document.getElementById('edit-description').value.trim();
+    const notes = document.getElementById('edit-notes').value.trim();
     const quantity = parseInt(document.getElementById('edit-quantity').value);
     const threshold = parseInt(document.getElementById('edit-threshold').value);
     const priceBuy = parseFloat(document.getElementById('edit-price-buy').value);
@@ -477,7 +481,9 @@ async function handleEditArticle(e) {
             codice_articolo: code,
             codice_barre: barcode,
             marca_fornitore: brand || null,
+            confezione: packageInfo || null,
             descrizione: description || null,
+            note: notes || null,
             quantita: quantity,
             soglia_minima: threshold,
             prezzo_acquisto: priceBuy,
@@ -1175,49 +1181,89 @@ function switchTab(tabName) {
 // EVENT LISTENERS
 // ========================================
 function setupEventListeners() {
-    document.getElementById('login-form').addEventListener('submit', handleLogin);
-    document.getElementById('logout-btn').addEventListener('click', handleLogout);
+    // Autenticazione
+    const loginForm = document.getElementById('login-form');
+    const logoutBtn = document.getElementById('logout-btn');
     
-    document.getElementById('new-article-form').addEventListener('submit', );
+    if (loginForm) loginForm.addEventListener('submit', handleLogin);
+    if (logoutBtn) logoutBtn.addEventListener('click', handleLogout);
     
-    document.getElementById('edit-article-form').addEventListener('submit', handleEditArticle);
-    document.getElementById('edit-cancel').addEventListener('click', closeEditModal);
+    // Nuovo articolo
+    const newArticleForm = document.getElementById('new-article-form');
+    if (newArticleForm) newArticleForm.addEventListener('submit', handleNewArticle);
     
+    // Modifica articolo
+    const editArticleForm = document.getElementById('edit-article-form');
+    const editCancel = document.getElementById('edit-cancel');
+    if (editArticleForm) editArticleForm.addEventListener('submit', handleEditArticle);
+    if (editCancel) editCancel.addEventListener('click', closeEditModal);
+    
+    // Navigazione tab
     document.querySelectorAll('.tab-btn').forEach(btn => {
         btn.addEventListener('click', () => switchTab(btn.dataset.tab));
     });
     
-    document.getElementById('modal-confirm').addEventListener('click', confirmMovement);
-    document.getElementById('modal-cancel').addEventListener('click', closeMovementModal);
+    // Modal movimenti
+    const modalConfirm = document.getElementById('modal-confirm');
+    const modalCancel = document.getElementById('modal-cancel');
+    if (modalConfirm) modalConfirm.addEventListener('click', confirmMovement);
+    if (modalCancel) modalCancel.addEventListener('click', closeMovementModal);
     
-    document.getElementById('btn-carico').addEventListener('click', () => {
-        if (window.scannedArticle) {
-            openMovementModal(window.scannedArticle.id, 'carico');
-        }
-    });
-    document.getElementById('btn-scarico').addEventListener('click', () => {
-        if (window.scannedArticle) {
-            openMovementModal(window.scannedArticle.id, 'scarico');
-        }
-    });
+    // Scanner buttons
+    const btnCarico = document.getElementById('btn-carico');
+    const btnScarico = document.getElementById('btn-scarico');
+    const btnRescan = document.getElementById('btn-rescan');
     
-    document.getElementById('search-input').addEventListener('input', applyFiltersAndSort);
-    document.getElementById('filter-brand').addEventListener('change', applyFiltersAndSort);
-    document.getElementById('sort-select').addEventListener('change', applyFiltersAndSort);
-    document.getElementById('group-by-supplier').addEventListener('change', applyFiltersAndSort);
+    if (btnCarico) {
+        btnCarico.addEventListener('click', () => {
+            if (window.scannedArticle) {
+                openMovementModal(window.scannedArticle.id, 'carico');
+            }
+        });
+    }
     
-    document.getElementById('apply-movement-filters').addEventListener('click', applyMovementFilters);
+    if (btnScarico) {
+        btnScarico.addEventListener('click', () => {
+            if (window.scannedArticle) {
+                openMovementModal(window.scannedArticle.id, 'scarico');
+            }
+        });
+    }
     
-    document.getElementById('report-type').addEventListener('change', handleReportTypeChange);
-    document.getElementById('generate-report').addEventListener('click', generateReport);
-    document.getElementById('print-report').addEventListener('click', printReport);
+    if (btnRescan) {
+        btnRescan.addEventListener('click', () => {
+            document.getElementById('scanner-result').classList.add('hidden');
+            document.getElementById('reader').style.display = 'block';
+            window.scannedArticle = null;
+            initScanner();
+        });
+    }
     
-    document.getElementById('add-user-form').addEventListener('submit', handleAddUser);
-
-    document.getElementById('btn-rescan').addEventListener('click', () => {
-    document.getElementById('scanner-result').classList.add('hidden');
-    document.getElementById('reader').style.display = 'block';
-    window.scannedArticle = null;
-    initScanner();
-});
+    // Ricerca e filtri
+    const searchInput = document.getElementById('search-input');
+    const filterBrand = document.getElementById('filter-brand');
+    const sortSelect = document.getElementById('sort-select');
+    const groupBySupplier = document.getElementById('group-by-supplier');
+    
+    if (searchInput) searchInput.addEventListener('input', applyFiltersAndSort);
+    if (filterBrand) filterBrand.addEventListener('change', applyFiltersAndSort);
+    if (sortSelect) sortSelect.addEventListener('change', applyFiltersAndSort);
+    if (groupBySupplier) groupBySupplier.addEventListener('change', applyFiltersAndSort);
+    
+    // Filtri movimenti
+    const applyMovementFiltersBtn = document.getElementById('apply-movement-filters');
+    if (applyMovementFiltersBtn) applyMovementFiltersBtn.addEventListener('click', applyMovementFilters);
+    
+    // Report
+    const reportType = document.getElementById('report-type');
+    const generateReport = document.getElementById('generate-report');
+    const printReport = document.getElementById('print-report');
+    
+    if (reportType) reportType.addEventListener('change', handleReportTypeChange);
+    if (generateReport) generateReport.addEventListener('click', generateReport);
+    if (printReport) printReport.addEventListener('click', printReport);
+    
+    // Gestione utenti
+    const addUserForm = document.getElementById('add-user-form');
+    if (addUserForm) addUserForm.addEventListener('submit', handleAddUser);
 }
