@@ -1,5 +1,8 @@
 # Changelog App Magazzino
 
+## v1.1.4 - 2025-10-29 (PRODUZIONE) ✅
+fix id tab corretti
+
 ## v1.1.3 - 2025-10-29 (PRODUZIONE) ✅
 Fix: errore setupEventListeners - controlli null
 
