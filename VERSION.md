@@ -1,5 +1,8 @@
 # Changelog App Magazzino
 
+## v2.2.4 - 2025-10-29 (PRODUZIONE) ✅
+fix icone
+
 ## v2.2.1 - 2025-10-29 (PRODUZIONE) ✅
 Fix emoji + bordo rosso articoli sotto soglia
 
