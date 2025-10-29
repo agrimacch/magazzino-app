@@ -1107,18 +1107,29 @@ function stopScanner() {
 }
 
 async function onScanSuccess(decodedText) {
+    // Ferma lo scanner immediatamente dopo la scansione
+    if (html5QrCode && html5QrCode.isScanning) {
+        await html5QrCode.stop();
+        html5QrCode = null;
+    }
+    
     const article = allArticles.find(a => a.codice_barre === decodedText);
     
     if (!article) {
         alert('Articolo non trovato nel database!');
+        // Riavvia lo scanner
+        setTimeout(() => initScanner(), 500);
         return;
     }
     
     document.getElementById('scanned-article').textContent = 
-        `${article.nome} (${article.codice_articolo}) - Quantità: ${article.quantita}`;
+        `${article.nome} (${article.codice_articolo})\nQuantità: ${article.quantita}`;
     document.getElementById('scanner-result').classList.remove('hidden');
     
     window.scannedArticle = article;
+    
+    // Nascondi il reader video
+    document.getElementById('reader').style.display = 'none';
 }
 
 function onScanError(errorMessage) {
@@ -1192,4 +1203,11 @@ function setupEventListeners() {
     document.getElementById('print-report').addEventListener('click', printReport);
     
     document.getElementById('add-user-form').addEventListener('submit', handleAddUser);
+
+    document.getElementById('btn-rescan').addEventListener('click', () => {
+    document.getElementById('scanner-result').classList.add('hidden');
+    document.getElementById('reader').style.display = 'block';
+    window.scannedArticle = null;
+    initScanner();
+});
 }

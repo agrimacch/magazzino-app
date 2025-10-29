@@ -9,6 +9,15 @@
     <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
+
+<!-- Version badge -->
+    <div class="version-badge">v1.0.0</div>
+
+    <!-- Librerie esterne -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+
+
 <body>
     <!-- SCHERMATA LOGIN -->
     <div id="login-screen" class="screen active">
@@ -286,6 +295,16 @@
                             <button id="btn-carico" class="btn-success">➕ Carico</button>
                             <button id="btn-scarico" class="btn-danger">➖ Scarico</button>
                         </div>
+<div id="scanner-result" class="hidden">
+    <h3>Articolo trovato:</h3>
+    <p id="scanned-article"></p>
+    <div class="action-buttons">
+        <button id="btn-carico" class="btn-success">➕ Carico</button>
+        <button id="btn-scarico" class="btn-danger">➖ Scarico</button>
+    </div>
+    <button id="btn-rescan" class="btn-secondary" style="width: 100%; margin-top: 10px;">📷 Scansiona Altro</button>
+</div>
+
                     </div>
                 </div>
             </div>

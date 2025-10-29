@@ -1,0 +1,59 @@
+# Changelog App Magazzino
+
+## v1.0.0 - 2025-01-XX (PRODUZIONE)
+✅ Prima versione stabile
+- Sistema login/autenticazione
+- Gestione articoli completa
+- Carico/scarico magazzino
+- Scanner codici a barre
+- Report per articolo/fornitore
+- Gestione utenti (admin/operatore)
+- Inventario raggruppato per fornitore
+
+## v1.1.0 - In sviluppo (LOCALE)
+🚧 Prossime migliorie...
+```
+
+---
+
+## 🔄 FIX 4: Workflow Locale → Online
+
+### Il database NON si perde mai!
+
+✅ **IMPORTANTE**: Il database è su **Supabase** (cloud), NON sul tuo computer!
+
+Quando aggiorni il codice:
+- Il **codice** (HTML/CSS/JS) si aggiorna
+- Il **database** rimane identico con tutti i dati
+
+### Workflow consigliato:
+```
+┌─────────────────────────────────────┐
+│  AMBIENTE LOCALE (tuo Mac)          │
+│  - Fai modifiche                    │
+│  - Testi tutto                      │
+│  - Quando è stabile...              │
+└──────────────┬──────────────────────┘
+               │
+               │ git push
+               ▼
+┌─────────────────────────────────────┐
+│  GITHUB (repository)                │
+│  - Codice versionato                │
+└──────────────┬──────────────────────┘
+               │
+               │ deploy automatico
+               ▼
+┌─────────────────────────────────────┐
+│  NETLIFY (sito online)              │
+│  - App in produzione                │
+│  - Usata dagli utenti               │
+└──────────────┬──────────────────────┘
+               │
+               │ API
+               ▼
+┌─────────────────────────────────────┐
+│  SUPABASE (database cloud)          │
+│  - Dati persistenti                 │
+│  - Stesso per locale E online       │
+└─────────────────────────────────────┘
