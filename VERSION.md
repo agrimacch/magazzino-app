@@ -1,6 +1,16 @@
 # Changelog App Magazzino
 
-## v1.0.0 - 2025-01-XX (PRODUZIONE)
+## v1.0.1 - 2025-01-09 (PRODUZIONE) ✅
+🎨 Miglioramenti responsive
+- Ottimizzato layout per iPhone
+- Header sticky compatto
+- Tabelle con scroll fluido
+- Form a colonna singola su mobile
+- Statistiche fornitori in griglia 3 colonne
+- Touch feedback migliorato
+- Fix scanner che si bloccava
+
+## v1.0.0 - 2025-01-08 (PRODUZIONE)
 ✅ Prima versione stabile
 - Sistema login/autenticazione
 - Gestione articoli completa
@@ -12,7 +22,6 @@
 
 ## v1.1.0 - In sviluppo (LOCALE)
 🚧 Prossime migliorie...
-```
 
 ---
 
