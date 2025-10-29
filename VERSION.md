@@ -1,5 +1,8 @@
 # Changelog App Magazzino
 
+## v2.2.6 - 2025-10-29 (PRODUZIONE) ✅
+fix v6
+
 ## v2.2.5 - 2025-10-29 (PRODUZIONE) ✅
 fix v5
 
