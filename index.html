@@ -4,37 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gestione Magazzino</title>
-
-<!-- PWA Manifest -->
-<link rel="manifest" href="manifest.json">
-
-<!-- Favicon standard -->
-<link rel="icon" type="image/png" href="favicon.png">
-
-<!-- Apple Touch Icons -->
-<link rel="apple-touch-icon" href="icon-180.png">
-<link rel="apple-touch-icon" sizes="152x152" href="icon-152.png">
-<link rel="apple-touch-icon" sizes="180x180" href="icon-180.png">
-
-<!-- Apple PWA -->
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Magazzino">
-
-<!-- Theme color -->
-<meta name="theme-color" content="#16a34a">
-
-<!-- Font -->
-<link rel="preconnect" href="https://fonts.googleapis.com">
-
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=1.1.4">
+    <link rel="stylesheet" href="style.css?v=1.0.3">
 </head>
 
 <!-- Version badge -->
-<div class="version-badge">v1.1.4</div>
+<div class="version-badge">v1.0.3</div>
 
     <!-- Librerie esterne -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -75,7 +52,7 @@
             </div>
         </header>
 
-    <!-- Navigazione tab -->
+        <!-- Navigazione tab -->
         <nav class="tabs">
             <button class="tab-btn active" data-tab="inventario">📊 Inventario</button>
             <button class="tab-btn" data-tab="nuovo" id="tab-nuovo-btn">➕ Nuovo Articolo</button>
@@ -139,14 +116,8 @@
                             </div>
                         </div>
                         
-                        <label>Confezione</label>
-                        <input type="text" id="new-package" placeholder="es: Cartone da 25 pz">
-                        
                         <label>Descrizione</label>
                         <textarea id="new-description" placeholder="Descrizione (opzionale)" rows="3"></textarea>
-                        
-                        <label>Note</label>
-                        <textarea id="new-notes" placeholder="Note aggiuntive (opzionale)" rows="2"></textarea>
                         
                         <div class="form-row">
                             <div class="form-col">
@@ -264,7 +235,7 @@
             </div>
         </div>
 
-        <!-- TAB 5: GESTIONE UTENTI -->
+        <!-- TAB 5: GESTIONE UTENTI (solo admin) -->
         <div id="tab-gestione" class="tab-content">
             <div class="container">
                 <div class="card">
@@ -324,13 +295,22 @@
                             <button id="btn-carico" class="btn-success">➕ Carico</button>
                             <button id="btn-scarico" class="btn-danger">➖ Scarico</button>
                         </div>
-                        <button id="btn-rescan" class="btn-secondary" style="width: 100%; margin-top: 10px;">📷 Scansiona Altro</button>
+<div id="scanner-result" class="hidden">
+    <h3>Articolo trovato:</h3>
+    <p id="scanned-article"></p>
+    <div class="action-buttons">
+        <button id="btn-carico" class="btn-success">➕ Carico</button>
+        <button id="btn-scarico" class="btn-danger">➖ Scarico</button>
+    </div>
+    <button id="btn-rescan" class="btn-secondary" style="width: 100%; margin-top: 10px;">📷 Scansiona Altro</button>
+</div>
+
                     </div>
                 </div>
             </div>
         </div>
     </div>
-    
+
     <!-- Modal per carico/scarico -->
     <div id="movement-modal" class="modal hidden">
         <div class="modal-content">
@@ -406,6 +386,6 @@
     <!-- Librerie esterne -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
-    <script src="app.js?v=1.1.4"></script>
+    <script src="app.js?v=1.0.3"></script>
 </body>
 </html>
