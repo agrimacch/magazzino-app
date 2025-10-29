@@ -299,8 +299,8 @@ function renderInventoryBySupplier(articles) {
             }
             
             const ivaPerc = article.iva_percentuale || 22;
-            const editBtn = currentUserRole === 'admin' ? `<button onclick="openEditModal(${article.id})" class="btn-edit">âœï¸</button>` : '';
-            const deleteBtn = currentUserRole === 'admin' ? `<button onclick="deleteArticle(${article.id})" class="btn-delete">ðŸ—‘ï¸</button>` : '';
+            const editBtn = currentUserRole === 'admin' ? `<button onclick="openEditModal(${article.id})" class="btn-edit">✏️</button>` : '';
+            const deleteBtn = currentUserRole === 'admin' ? `<button onclick="deleteArticle(${article.id})" class="btn-delete">🗑️</button>` : '';
             
             row.innerHTML = `
                 <td><strong>${article.nome}</strong></td>
@@ -357,8 +357,8 @@ function renderInventoryFlat(articles) {
     articles.forEach(article => {
         const rowClass = article.quantita <= article.soglia_minima ? 'class="low-stock"' : '';
         const ivaPerc = article.iva_percentuale || 22;
-        const editBtn = currentUserRole === 'admin' ? `<button onclick="openEditModal(${article.id})" class="btn-edit">âœï¸</button>` : '';
-        const deleteBtn = currentUserRole === 'admin' ? `<button onclick="deleteArticle(${article.id})" class="btn-delete">ðŸ—‘ï¸</button>` : '';
+        const editBtn = currentUserRole === 'admin' ? `<button onclick="openEditModal(${article.id})" class="btn-edit">✏️</button>` : '';
+        const deleteBtn = currentUserRole === 'admin' ? `<button onclick="deleteArticle(${article.id})" class="btn-delete">🗑️</button>` : '';
         
         html += `
             <tr ${rowClass}>
@@ -908,7 +908,7 @@ function generateSupplierReport(supplier, dateFrom, dateTo) {
         const prezzoConIVA = calcolaPrezzoConIVA(article.prezzo_acquisto, ivaPerc);
         const totalArticleValue = article.quantita * prezzoConIVA;
         const rowStyle = article.quantita <= article.soglia_minima ? 'background: #fee2e2;' : '';
-        const stato = article.quantita <= article.soglia_minima ? '⚠️ DA ORDINARE' : '✅ OK';
+        const stato = article.quantita <= article.soglia_minima ? 'âš ï¸ DA ORDINARE' : 'âœ… OK';
         
         html += `
             <tr style="${rowStyle}">
