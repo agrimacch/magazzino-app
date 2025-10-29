@@ -1,5 +1,8 @@
 # Changelog App Magazzino
 
+## v1.1.1 - 2025-10-29 (PRODUZIONE) ✅
+icone nuove ok
+
 ## v1.1.0 - 2025-10-29 (PRODUZIONE) ✅
 Bottoni azioni visibili + PWA icon + Note e Confezione
 
