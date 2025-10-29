@@ -17,12 +17,12 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=2.1.0">
+    <link rel="stylesheet" href="style.css?v=2.2.0">
 </head>
 
 <body>
     <!-- Version badge -->
-    <div class="version-badge">v2.1.0</div>
+    <div class="version-badge">v2.2.0</div>
 
     <!-- SCHERMATA LOGIN -->
     <div id="login-screen" class="screen active">
@@ -140,14 +140,17 @@
                         
                         <div class="form-row">
                             <div class="form-col">
-                                <label>Prezzo Acquisto (IVA compresa) € *</label>
+                                <label>Prezzo Acquisto NETTO € (no IVA) *</label>
                                 <input type="number" step="0.01" id="new-price-buy" placeholder="0.00" required>
                             </div>
                             <div class="form-col">
-                                <label>Prezzo Vendita € *</label>
-                                <input type="number" step="0.01" id="new-price" placeholder="0.00" required>
+                                <label>IVA % *</label>
+                                <input type="number" step="0.01" id="new-iva" placeholder="22" value="22" required>
                             </div>
                         </div>
+                        
+                        <label>Prezzo Vendita € (IVA inclusa) *</label>
+                        <input type="number" step="0.01" id="new-price" placeholder="0.00" required>
                         
                         <button type="submit" class="btn-primary">Salva Articolo</button>
                     </form>
@@ -368,14 +371,17 @@
                 
                 <div class="form-row">
                     <div class="form-col">
-                        <label>Prezzo Acquisto € *</label>
+                        <label>Prezzo Acquisto NETTO € (no IVA) *</label>
                         <input type="number" step="0.01" id="edit-price-buy" placeholder="0.00" required>
                     </div>
                     <div class="form-col">
-                        <label>Prezzo Vendita € *</label>
-                        <input type="number" step="0.01" id="edit-price" placeholder="0.00" required>
+                        <label>IVA % *</label>
+                        <input type="number" step="0.01" id="edit-iva" placeholder="22" required>
                     </div>
                 </div>
+                
+                <label>Prezzo Vendita € (IVA inclusa) *</label>
+                <input type="number" step="0.01" id="edit-price" placeholder="0.00" required>
                 
                 <div class="modal-buttons">
                     <button type="submit" class="btn-primary">Salva Modifiche</button>
@@ -388,6 +394,6 @@
     <!-- Librerie esterne -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
-    <script src="app.js?v=2.1.0"></script>
+    <script src="app.js?v=2.2.0"></script>
 </body>
 </html>

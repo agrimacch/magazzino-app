@@ -137,10 +137,10 @@ header h1 {
     color: white;
 }
 
-/* Version badge - SPOSTATO IN ALTO A DESTRA */
+/* Version badge */
 .version-badge {
     position: fixed;
-    top: 8px;
+    bottom: 8px;
     right: 8px;
     background: var(--primary);
     color: white;
@@ -440,7 +440,7 @@ table {
     background: white;
     overflow: hidden;
     font-size: 11px;
-    min-width: 800px;
+    min-width: 700px;
 }
 
 thead {
@@ -777,8 +777,6 @@ td:last-child button {
     .version-badge {
         font-size: 11px;
         padding: 6px 12px;
-        top: 15px;
-        right: 15px;
     }
     
     .tabs {

@@ -18,6 +18,13 @@ let currentArticleForMovement = null;
 let html5QrCode = null;
 
 // ========================================
+// FUNZIONE HELPER PER CALCOLO PREZZO CON IVA
+// ========================================
+function calcolaPrezzoConIVA(prezzoNetto, ivaPercentuale) {
+    return prezzoNetto * (1 + (ivaPercentuale / 100));
+}
+
+// ========================================
 // INIZIALIZZAZIONE
 // ========================================
 document.addEventListener('DOMContentLoaded', async () => {
@@ -230,7 +237,12 @@ function renderInventoryBySupplier(articles) {
     
     Object.keys(groupedBySupplier).sort().forEach(supplier => {
         const supplierArticles = groupedBySupplier[supplier];
-        const totalValue = supplierArticles.reduce((sum, a) => sum + (a.quantita * a.prezzo_acquisto), 0);
+        // Calcolo valore magazzino con IVA inclusa
+        const totalValue = supplierArticles.reduce((sum, a) => {
+            const ivaPerc = a.iva_percentuale || 22;
+            const prezzoConIVA = calcolaPrezzoConIVA(a.prezzo_acquisto, ivaPerc);
+            return sum + (a.quantita * prezzoConIVA);
+        }, 0);
         const lowStockCount = supplierArticles.filter(a => a.quantita <= a.soglia_minima).length;
         
         const section = document.createElement('div');
@@ -259,12 +271,13 @@ function renderInventoryBySupplier(articles) {
                     <thead>
                         <tr>
                             <th>Nome</th>
-                            <th>Codice Articolo</th>
-                            <th>Quantità</th>
+                            <th>Codice</th>
+                            <th>Qty</th>
                             <th>Soglia</th>
-                            <th>Prezzo Acq.</th>
-                            <th>Prezzo Vend.</th>
-                            <th>Codice Barre</th>
+                            <th>Pr. Acq. NETTO</th>
+                            <th>IVA %</th>
+                            <th>Pr. Vend.</th>
+                            <th>Barcode</th>
                             <th>Note</th>
                             <th>Azioni</th>
                         </tr>
@@ -285,6 +298,7 @@ function renderInventoryBySupplier(articles) {
                 row.classList.add('low-stock');
             }
             
+            const ivaPerc = article.iva_percentuale || 22;
             const editBtn = currentUserRole === 'admin' ? `<button onclick="openEditModal(${article.id})" class="btn-edit">✏️</button>` : '';
             const deleteBtn = currentUserRole === 'admin' ? `<button onclick="deleteArticle(${article.id})" class="btn-delete">🗑️</button>` : '';
             
@@ -294,6 +308,7 @@ function renderInventoryBySupplier(articles) {
                 <td><strong>${article.quantita}</strong></td>
                 <td>${article.soglia_minima}</td>
                 <td>€ ${parseFloat(article.prezzo_acquisto).toFixed(2)}</td>
+                <td>${ivaPerc}%</td>
                 <td>€ ${parseFloat(article.prezzo_vendita).toFixed(2)}</td>
                 <td>${article.codice_barre}</td>
                 <td>${article.note || '-'}</td>
@@ -324,12 +339,13 @@ function renderInventoryFlat(articles) {
                 <thead>
                     <tr>
                         <th>Nome</th>
-                        <th>Codice Articolo</th>
-                        <th>Quantità</th>
+                        <th>Codice</th>
+                        <th>Qty</th>
                         <th>Soglia</th>
-                        <th>Prezzo Acq.</th>
-                        <th>Prezzo Vend.</th>
-                        <th>Codice Barre</th>
+                        <th>Pr. Acq. NETTO</th>
+                        <th>IVA %</th>
+                        <th>Pr. Vend.</th>
+                        <th>Barcode</th>
                         <th>Fornitore</th>
                         <th>Note</th>
                         <th>Azioni</th>
@@ -340,6 +356,7 @@ function renderInventoryFlat(articles) {
     
     articles.forEach(article => {
         const rowClass = article.quantita <= article.soglia_minima ? 'class="low-stock"' : '';
+        const ivaPerc = article.iva_percentuale || 22;
         const editBtn = currentUserRole === 'admin' ? `<button onclick="openEditModal(${article.id})" class="btn-edit">✏️</button>` : '';
         const deleteBtn = currentUserRole === 'admin' ? `<button onclick="deleteArticle(${article.id})" class="btn-delete">🗑️</button>` : '';
         
@@ -350,6 +367,7 @@ function renderInventoryFlat(articles) {
                 <td><strong>${article.quantita}</strong></td>
                 <td>${article.soglia_minima}</td>
                 <td>€ ${parseFloat(article.prezzo_acquisto).toFixed(2)}</td>
+                <td>${ivaPerc}%</td>
                 <td>€ ${parseFloat(article.prezzo_vendita).toFixed(2)}</td>
                 <td>${article.codice_barre}</td>
                 <td>${article.marca_fornitore || '-'}</td>
@@ -385,6 +403,7 @@ async function handleNewArticle(e) {
     const quantity = parseInt(document.getElementById('new-quantity').value);
     const threshold = parseInt(document.getElementById('new-threshold').value);
     const priceBuy = parseFloat(document.getElementById('new-price-buy').value);
+    const iva = parseFloat(document.getElementById('new-iva').value);
     const price = parseFloat(document.getElementById('new-price').value);
     
     const { data: existingCode } = await supabase
@@ -421,6 +440,7 @@ async function handleNewArticle(e) {
             quantita: quantity,
             soglia_minima: threshold,
             prezzo_acquisto: priceBuy,
+            iva_percentuale: iva,
             prezzo_vendita: price
         }]);
     
@@ -431,6 +451,10 @@ async function handleNewArticle(e) {
     
     alert('Articolo aggiunto con successo!');
     document.getElementById('new-article-form').reset();
+    // Reset valori default
+    document.getElementById('new-quantity').value = 0;
+    document.getElementById('new-threshold').value = 10;
+    document.getElementById('new-iva').value = 22;
     loadInventory();
     
     switchTab('inventario');
@@ -453,6 +477,7 @@ function openEditModal(articleId) {
     document.getElementById('edit-quantity').value = article.quantita;
     document.getElementById('edit-threshold').value = article.soglia_minima;
     document.getElementById('edit-price-buy').value = article.prezzo_acquisto;
+    document.getElementById('edit-iva').value = article.iva_percentuale || 22;
     document.getElementById('edit-price').value = article.prezzo_vendita;
     
     document.getElementById('edit-modal').classList.remove('hidden');
@@ -471,6 +496,7 @@ async function handleEditArticle(e) {
     const quantity = parseInt(document.getElementById('edit-quantity').value);
     const threshold = parseInt(document.getElementById('edit-threshold').value);
     const priceBuy = parseFloat(document.getElementById('edit-price-buy').value);
+    const iva = parseFloat(document.getElementById('edit-iva').value);
     const price = parseFloat(document.getElementById('edit-price').value);
     
     const { error } = await supabase
@@ -485,6 +511,7 @@ async function handleEditArticle(e) {
             quantita: quantity,
             soglia_minima: threshold,
             prezzo_acquisto: priceBuy,
+            iva_percentuale: iva,
             prezzo_vendita: price
         })
         .eq('id', id);
@@ -773,7 +800,10 @@ async function generateArticleReport(articleId, dateFrom, dateTo) {
     
     const totalCarico = movements.filter(m => m.tipo === 'carico').reduce((sum, m) => sum + m.quantita, 0);
     const totalScarico = movements.filter(m => m.tipo === 'scarico').reduce((sum, m) => sum + m.quantita, 0);
-    const valoreMagazzino = article.quantita * article.prezzo_acquisto;
+    
+    const ivaPerc = article.iva_percentuale || 22;
+    const prezzoConIVA = calcolaPrezzoConIVA(article.prezzo_acquisto, ivaPerc);
+    const valoreMagazzino = article.quantita * prezzoConIVA;
     
     let html = `
         <h3>REPORT ARTICOLO</h3>
@@ -783,9 +813,11 @@ async function generateArticleReport(articleId, dateFrom, dateTo) {
         <p><strong>Fornitore:</strong> ${article.marca_fornitore || 'N/D'}</p>
         <p><strong>Note:</strong> ${article.note || 'N/D'}</p>
         <p><strong>Quantità Attuale:</strong> ${article.quantita}</p>
-        <p><strong>Prezzo Acquisto (IVA inc.):</strong> € ${parseFloat(article.prezzo_acquisto).toFixed(2)}</p>
+        <p><strong>Prezzo Acquisto NETTO:</strong> € ${parseFloat(article.prezzo_acquisto).toFixed(2)}</p>
+        <p><strong>IVA:</strong> ${ivaPerc}%</p>
+        <p><strong>Prezzo Acquisto IVA inclusa:</strong> € ${prezzoConIVA.toFixed(2)}</p>
         <p><strong>Prezzo Vendita:</strong> € ${parseFloat(article.prezzo_vendita).toFixed(2)}</p>
-        <p><strong>Valore Magazzino:</strong> € ${valoreMagazzino.toFixed(2)}</p>
+        <p><strong>Valore Magazzino (IVA inc.):</strong> € ${valoreMagazzino.toFixed(2)}</p>
         <hr>
         <h4>RIEPILOGO MOVIMENTI</h4>
         <p><strong>Periodo:</strong> ${dateFrom || 'Inizio'} - ${dateTo || 'Oggi'}</p>
@@ -831,7 +863,13 @@ async function generateArticleReport(articleId, dateFrom, dateTo) {
 function generateSupplierReport(supplier, dateFrom, dateTo) {
     const supplierArticles = allArticles.filter(a => a.marca_fornitore === supplier);
     
-    const totalValue = supplierArticles.reduce((sum, a) => sum + (a.quantita * a.prezzo_acquisto), 0);
+    // Calcolo valore con IVA inclusa
+    const totalValue = supplierArticles.reduce((sum, a) => {
+        const ivaPerc = a.iva_percentuale || 22;
+        const prezzoConIVA = calcolaPrezzoConIVA(a.prezzo_acquisto, ivaPerc);
+        return sum + (a.quantita * prezzoConIVA);
+    }, 0);
+    
     const lowStockCount = supplierArticles.filter(a => a.quantita <= a.soglia_minima).length;
     const totalQuantity = supplierArticles.reduce((sum, a) => sum + a.quantita, 0);
     
@@ -844,7 +882,7 @@ function generateSupplierReport(supplier, dateFrom, dateTo) {
         <h4>RIEPILOGO</h4>
         <p><strong>Numero Articoli:</strong> ${supplierArticles.length}</p>
         <p><strong>Quantità Totale:</strong> ${totalQuantity} pezzi</p>
-        <p><strong>Valore Totale Magazzino (prezzi netti):</strong> € ${totalValue.toFixed(2)}</p>
+        <p><strong>Valore Totale Magazzino (IVA inc.):</strong> € ${totalValue.toFixed(2)}</p>
         <p><strong>Articoli sotto soglia:</strong> ${lowStockCount}</p>
         <hr>
         <h4>DETTAGLIO ARTICOLI</h4>
@@ -853,9 +891,10 @@ function generateSupplierReport(supplier, dateFrom, dateTo) {
                 <tr style="background: var(--primary); color: white;">
                     <th>Nome</th>
                     <th>Codice</th>
-                    <th>Quantità</th>
+                    <th>Qty</th>
                     <th>Soglia</th>
-                    <th>Prezzo Acq.</th>
+                    <th>Pr. Acq. Netto</th>
+                    <th>IVA %</th>
                     <th>Valore Tot</th>
                     <th>Note</th>
                     <th>Stato</th>
@@ -865,7 +904,9 @@ function generateSupplierReport(supplier, dateFrom, dateTo) {
     `;
     
     supplierArticles.forEach(article => {
-        const totalArticleValue = article.quantita * article.prezzo_acquisto;
+        const ivaPerc = article.iva_percentuale || 22;
+        const prezzoConIVA = calcolaPrezzoConIVA(article.prezzo_acquisto, ivaPerc);
+        const totalArticleValue = article.quantita * prezzoConIVA;
         const rowStyle = article.quantita <= article.soglia_minima ? 'background: #fee2e2;' : '';
         const stato = article.quantita <= article.soglia_minima ? '⚠️ DA ORDINARE' : '✅ OK';
         
@@ -876,6 +917,7 @@ function generateSupplierReport(supplier, dateFrom, dateTo) {
                 <td><strong>${article.quantita}</strong></td>
                 <td>${article.soglia_minima}</td>
                 <td>€ ${parseFloat(article.prezzo_acquisto).toFixed(2)}</td>
+                <td>${ivaPerc}%</td>
                 <td>€ ${totalArticleValue.toFixed(2)}</td>
                 <td>${article.note || '-'}</td>
                 <td>${stato}</td>
@@ -894,7 +936,14 @@ function generateSupplierReport(supplier, dateFrom, dateTo) {
 function generateInventoryReport() {
     const totalArticles = allArticles.length;
     const totalQuantity = allArticles.reduce((sum, a) => sum + a.quantita, 0);
-    const totalValue = allArticles.reduce((sum, a) => sum + (a.quantita * a.prezzo_acquisto), 0);
+    
+    // Calcolo valore con IVA inclusa
+    const totalValue = allArticles.reduce((sum, a) => {
+        const ivaPerc = a.iva_percentuale || 22;
+        const prezzoConIVA = calcolaPrezzoConIVA(a.prezzo_acquisto, ivaPerc);
+        return sum + (a.quantita * prezzoConIVA);
+    }, 0);
+    
     const lowStockCount = allArticles.filter(a => a.quantita <= a.soglia_minima).length;
     
     const suppliers = [...new Set(allArticles.map(a => a.marca_fornitore).filter(Boolean))];
@@ -906,7 +955,7 @@ function generateInventoryReport() {
         <h4>RIEPILOGO GENERALE</h4>
         <p><strong>Totale Articoli:</strong> ${totalArticles}</p>
         <p><strong>Quantità Totale Pezzi:</strong> ${totalQuantity}</p>
-        <p><strong>Valore Totale Magazzino (prezzi netti):</strong> € ${totalValue.toFixed(2)}</p>
+        <p><strong>Valore Totale Magazzino (IVA inc.):</strong> € ${totalValue.toFixed(2)}</p>
         <p><strong>Articoli sotto soglia:</strong> ${lowStockCount}</p>
         <p><strong>Numero Fornitori:</strong> ${suppliers.length}</p>
         <hr>
@@ -915,7 +964,11 @@ function generateInventoryReport() {
     
     suppliers.sort().forEach(supplier => {
         const supplierArticles = allArticles.filter(a => a.marca_fornitore === supplier);
-        const supplierValue = supplierArticles.reduce((sum, a) => sum + (a.quantita * a.prezzo_acquisto), 0);
+        const supplierValue = supplierArticles.reduce((sum, a) => {
+            const ivaPerc = a.iva_percentuale || 22;
+            const prezzoConIVA = calcolaPrezzoConIVA(a.prezzo_acquisto, ivaPerc);
+            return sum + (a.quantita * prezzoConIVA);
+        }, 0);
         const supplierLowStock = supplierArticles.filter(a => a.quantita <= a.soglia_minima).length;
         
         html += `
@@ -937,7 +990,8 @@ function generateInventoryReport() {
                     <th>Fornitore</th>
                     <th>Qty</th>
                     <th>Soglia</th>
-                    <th>Prezzo Acq.</th>
+                    <th>Pr. Acq. Netto</th>
+                    <th>IVA %</th>
                     <th>Valore</th>
                     <th>Note</th>
                     <th>Stato</th>
@@ -947,7 +1001,9 @@ function generateInventoryReport() {
     `;
     
     allArticles.forEach(article => {
-        const totalArticleValue = article.quantita * article.prezzo_acquisto;
+        const ivaPerc = article.iva_percentuale || 22;
+        const prezzoConIVA = calcolaPrezzoConIVA(article.prezzo_acquisto, ivaPerc);
+        const totalArticleValue = article.quantita * prezzoConIVA;
         const rowStyle = article.quantita <= article.soglia_minima ? 'background: #fee2e2;' : '';
         const stato = article.quantita <= article.soglia_minima ? '⚠️' : '✅';
         
@@ -959,6 +1015,7 @@ function generateInventoryReport() {
                 <td><strong>${article.quantita}</strong></td>
                 <td>${article.soglia_minima}</td>
                 <td>€ ${parseFloat(article.prezzo_acquisto).toFixed(2)}</td>
+                <td>${ivaPerc}%</td>
                 <td>€ ${totalArticleValue.toFixed(2)}</td>
                 <td>${article.note || '-'}</td>
                 <td>${stato}</td>
