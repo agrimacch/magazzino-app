@@ -1,5 +1,8 @@
 # Changelog App Magazzino
 
+## v1.1.3 - 2025-10-29 (PRODUZIONE) ✅
+Fix: errore setupEventListeners - controlli null
+
 ## v1.1.2 - 2025-10-29 (PRODUZIONE) ✅
 fix ripristinato app.js funzionante
 
