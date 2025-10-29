@@ -1,5 +1,8 @@
 # Changelog App Magazzino
 
+## v2.1.0 - 2025-10-29 (PRODUZIONE) ✅
+Aggiunto campo note
+
 ## v2.0.0 - 2025-10-29 (PRODUZIONE) ✅
 restore
 
