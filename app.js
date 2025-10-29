@@ -45,6 +45,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         showLoginScreen();
     }
     
+    // Nascondi il loader dopo aver controllato la sessione
+    setTimeout(() => {
+        const loader = document.getElementById('app-loader');
+        if (loader) {
+            loader.classList.add('hidden');
+        }
+    }, 300);
+    
     setupEventListeners();
     
     // Listener per cambi di stato autenticazione
