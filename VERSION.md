@@ -1,5 +1,8 @@
 # Changelog App Magazzino
 
+## v1.0.3 - 2025-10-29 (PRODUZIONE) ✅
+Test script automatico
+
 ## v1.0.1 - 2025-01-09 (PRODUZIONE) ✅
 🎨 Miglioramenti responsive
 - Ottimizzato layout per iPhone
