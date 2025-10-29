@@ -45,13 +45,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         showLoginScreen();
     }
     
-    // Nascondi il loader dopo aver controllato la sessione
-    setTimeout(() => {
-        const loader = document.getElementById('app-loader');
-        if (loader) {
-            loader.classList.add('hidden');
-        }
-    }, 300);
+    // Rendi il body visibile con transizione
+    document.body.classList.remove('loading');
+    document.body.classList.add('ready');
     
     setupEventListeners();
     
