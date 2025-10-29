@@ -1,5 +1,8 @@
 # Changelog App Magazzino
 
+## v2.2.0 - 2025-10-29 (PRODUZIONE) ✅
+Aggiunto campo IVA, prezzi netto/lordo separati
+
 ## v2.1.0 - 2025-10-29 (PRODUZIONE) ✅
 Aggiunto campo note
 
