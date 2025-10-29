@@ -290,31 +290,21 @@ input:focus, textarea:focus, select:focus {
 }
 
 .btn-edit {
-    background: white;
-    color: var(--warning);
-    border: 2px solid var(--warning);
-    padding: 8px 14px;
-    font-size: 13px;
-    font-weight: 700;
-}
-
-.btn-edit:active {
     background: var(--warning);
     color: white;
+    padding: 8px 12px;
+    font-size: 12px;
+    width: auto;
+    display: inline-block;
 }
 
 .btn-delete {
-    background: white;
-    color: var(--danger);
-    border: 2px solid var(--danger);
-    padding: 8px 14px;
-    font-size: 13px;
-    font-weight: 700;
-}
-
-.btn-delete:active {
     background: var(--danger);
     color: white;
+    padding: 8px 12px;
+    font-size: 12px;
+    width: auto;
+    display: inline-block;
 }
 
 /* Switch checkbox */
@@ -978,42 +968,4 @@ td:last-child button {
     header {
         padding-top: max(12px, env(safe-area-inset-top));
     }
-}
-
-
-/* Bottoni carico/scarico nell'inventario */
-.btn-action-carico {
-    background: white;
-    color: var(--success);
-    border: 2px solid var(--success);
-    padding: 10px 16px;
-    font-size: 14px;
-    font-weight: 700;
-    border-radius: var(--border-radius-sm);
-    cursor: pointer;
-    transition: all 0.2s ease;
-    margin-right: 5px;
-}
-
-.btn-action-carico:active {
-    background: var(--success);
-    color: white;
-}
-
-.btn-action-scarico {
-    background: white;
-    color: var(--danger);
-    border: 2px solid var(--danger);
-    padding: 10px 16px;
-    font-size: 14px;
-    font-weight: 700;
-    border-radius: var(--border-radius-sm);
-    cursor: pointer;
-    transition: all 0.2s ease;
-    margin-right: 5px;
-}
-
-.btn-action-scarico:active {
-    background: var(--danger);
-    color: white;
 }

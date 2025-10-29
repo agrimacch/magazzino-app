@@ -255,19 +255,18 @@ function renderInventoryBySupplier(articles) {
             </div>
             <div class="table-container">
                 <table>
-                   <thead>
-    <tr>
-        <th>Nome</th>
-        <th>Codice Articolo</th>
-        <th>Confezione</th>
-        <th>Quantità</th>
-        <th>Soglia</th>
-        <th>Prezzo Acq.</th>
-        <th>Prezzo Vend.</th>
-        <th>Codice Barre</th>
-        <th>Azioni</th>
-    </tr>
-</thead>
+                    <thead>
+                        <tr>
+                            <th>Nome</th>
+                            <th>Codice Articolo</th>
+                            <th>Quantità</th>
+                            <th>Soglia</th>
+                            <th>Prezzo Acq.</th>
+                            <th>Prezzo Vend.</th>
+                            <th>Codice Barre</th>
+                            <th>Azioni</th>
+                        </tr>
+                    </thead>
                     <tbody id="supplier-tbody-${supplier.replace(/\s+/g, '-')}">
                     </tbody>
                 </table>
@@ -284,25 +283,24 @@ function renderInventoryBySupplier(articles) {
                 row.classList.add('low-stock');
             }
             
-          const editBtn = currentUserRole === 'admin' ? `<button onclick="openEditModal(${article.id})" class="btn-edit">✏️</button>` : '';
-const deleteBtn = currentUserRole === 'admin' ? `<button onclick="deleteArticle(${article.id})" class="btn-delete">🗑️</button>` : '';
-
-row.innerHTML = `
-    <td><strong>${article.nome}</strong></td>
-    <td>${article.codice_articolo}</td>
-    <td>${article.confezione || '-'}</td>
-    <td><strong>${article.quantita}</strong></td>
-    <td>${article.soglia_minima}</td>
-    <td>€ ${parseFloat(article.prezzo_acquisto).toFixed(2)}</td>
-    <td>€ ${parseFloat(article.prezzo_vendita).toFixed(2)}</td>
-    <td>${article.codice_barre}</td>
-    <td>
-        <button onclick="openMovementModal(${article.id}, 'carico')" class="btn-action-carico">➕</button>
-        <button onclick="openMovementModal(${article.id}, 'scarico')" class="btn-action-scarico">➖</button>
-        ${editBtn}
-        ${deleteBtn}
-    </td>
-`;
+            const editBtn = currentUserRole === 'admin' ? `<button onclick="openEditModal(${article.id})" class="btn-edit">✏️</button>` : '';
+            const deleteBtn = currentUserRole === 'admin' ? `<button onclick="deleteArticle(${article.id})" class="btn-delete">🗑️</button>` : '';
+            
+            row.innerHTML = `
+                <td><strong>${article.nome}</strong></td>
+                <td>${article.codice_articolo}</td>
+                <td><strong>${article.quantita}</strong></td>
+                <td>${article.soglia_minima}</td>
+                <td>€ ${parseFloat(article.prezzo_acquisto).toFixed(2)}</td>
+                <td>€ ${parseFloat(article.prezzo_vendita).toFixed(2)}</td>
+                <td>${article.codice_barre}</td>
+                <td>
+                    <button onclick="openMovementModal(${article.id}, 'carico')" class="btn-success" style="padding: 10px 16px; margin-right: 5px;">➕</button>
+                    <button onclick="openMovementModal(${article.id}, 'scarico')" class="btn-danger" style="padding: 10px 16px; margin-right: 5px;">➖</button>
+                    ${editBtn}
+                    ${deleteBtn}
+                </td>
+            `;
             
             tbody.appendChild(row);
         });
@@ -320,43 +318,45 @@ function renderInventoryFlat(articles) {
     let html = `
         <div class="table-container">
             <table>
-               <thead>
-    <tr>
-        <th>Nome</th>
-        <th>Codice Articolo</th>
-        <th>Confezione</th>
-        <th>Quantità</th>
-        <th>Soglia</th>
-        <th>Prezzo Acq.</th>
-        <th>Prezzo Vend.</th>
-        <th>Codice Barre</th>
-        <th>Azioni</th>
-    </tr>
-</thead>
+                <thead>
+                    <tr>
+                        <th>Nome</th>
+                        <th>Codice Articolo</th>
+                        <th>Quantità</th>
+                        <th>Soglia</th>
+                        <th>Prezzo Acq.</th>
+                        <th>Prezzo Vend.</th>
+                        <th>Codice Barre</th>
+                        <th>Fornitore</th>
+                        <th>Azioni</th>
+                    </tr>
+                </thead>
                 <tbody>
     `;
     
     articles.forEach(article => {
         const rowClass = article.quantita <= article.soglia_minima ? 'class="low-stock"' : '';
         const editBtn = currentUserRole === 'admin' ? `<button onclick="openEditModal(${article.id})" class="btn-edit">✏️</button>` : '';
-const deleteBtn = currentUserRole === 'admin' ? `<button onclick="deleteArticle(${article.id})" class="btn-delete">🗑️</button>` : '';
-
-row.innerHTML = `
-    <td><strong>${article.nome}</strong></td>
-    <td>${article.codice_articolo}</td>
-    <td>${article.confezione || '-'}</td>
-    <td><strong>${article.quantita}</strong></td>
-    <td>${article.soglia_minima}</td>
-    <td>€ ${parseFloat(article.prezzo_acquisto).toFixed(2)}</td>
-    <td>€ ${parseFloat(article.prezzo_vendita).toFixed(2)}</td>
-    <td>${article.codice_barre}</td>
-    <td>
-        <button onclick="openMovementModal(${article.id}, 'carico')" class="btn-action-carico">➕</button>
-        <button onclick="openMovementModal(${article.id}, 'scarico')" class="btn-action-scarico">➖</button>
-        ${editBtn}
-        ${deleteBtn}
-    </td>
-`;
+        const deleteBtn = currentUserRole === 'admin' ? `<button onclick="deleteArticle(${article.id})" class="btn-delete">🗑️</button>` : '';
+        
+        html += `
+            <tr ${rowClass}>
+                <td><strong>${article.nome}</strong></td>
+                <td>${article.codice_articolo}</td>
+                <td><strong>${article.quantita}</strong></td>
+                <td>${article.soglia_minima}</td>
+                <td>€ ${parseFloat(article.prezzo_acquisto).toFixed(2)}</td>
+                <td>€ ${parseFloat(article.prezzo_vendita).toFixed(2)}</td>
+                <td>${article.codice_barre}</td>
+                <td>${article.marca_fornitore || '-'}</td>
+                <td>
+                    <button onclick="openMovementModal(${article.id}, 'carico')" class="btn-success" style="padding: 10px 16px; margin-right: 5px;">➕</button>
+                    <button onclick="openMovementModal(${article.id}, 'scarico')" class="btn-danger" style="padding: 10px 16px; margin-right: 5px;">➖</button>
+                    ${editBtn}
+                    ${deleteBtn}
+                </td>
+            </tr>
+        `;
     });
     
     html += `
@@ -368,8 +368,6 @@ row.innerHTML = `
     container.innerHTML = html;
 }
 
-
-
 async function handleNewArticle(e) {
     e.preventDefault();
     
@@ -377,9 +375,7 @@ async function handleNewArticle(e) {
     const code = document.getElementById('new-code').value;
     const barcode = document.getElementById('new-barcode').value;
     const brand = document.getElementById('new-brand').value;
-    const packageInfo = document.getElementById('new-package').value;
     const description = document.getElementById('new-description').value.trim();
-    const notes = document.getElementById('new-notes').value.trim();
     const quantity = parseInt(document.getElementById('new-quantity').value);
     const threshold = parseInt(document.getElementById('new-threshold').value);
     const priceBuy = parseFloat(document.getElementById('new-price-buy').value);
@@ -414,9 +410,7 @@ async function handleNewArticle(e) {
             codice_articolo: code,
             codice_barre: barcode,
             marca_fornitore: brand || null,
-            confezione: packageInfo || null,
             descrizione: description || null,
-            note: notes || null,
             quantita: quantity,
             soglia_minima: threshold,
             prezzo_acquisto: priceBuy,
@@ -447,9 +441,7 @@ function openEditModal(articleId) {
     document.getElementById('edit-code').value = article.codice_articolo;
     document.getElementById('edit-barcode').value = article.codice_barre;
     document.getElementById('edit-brand').value = article.marca_fornitore || '';
-    document.getElementById('edit-package').value = article.confezione || '';
     document.getElementById('edit-description').value = article.descrizione || '';
-    document.getElementById('edit-notes').value = article.note || '';
     document.getElementById('edit-quantity').value = article.quantita;
     document.getElementById('edit-threshold').value = article.soglia_minima;
     document.getElementById('edit-price-buy').value = article.prezzo_acquisto;
@@ -466,9 +458,7 @@ async function handleEditArticle(e) {
     const code = document.getElementById('edit-code').value;
     const barcode = document.getElementById('edit-barcode').value;
     const brand = document.getElementById('edit-brand').value;
-    const packageInfo = document.getElementById('edit-package').value;
     const description = document.getElementById('edit-description').value.trim();
-    const notes = document.getElementById('edit-notes').value.trim();
     const quantity = parseInt(document.getElementById('edit-quantity').value);
     const threshold = parseInt(document.getElementById('edit-threshold').value);
     const priceBuy = parseFloat(document.getElementById('edit-price-buy').value);
@@ -481,9 +471,7 @@ async function handleEditArticle(e) {
             codice_articolo: code,
             codice_barre: barcode,
             marca_fornitore: brand || null,
-            confezione: packageInfo || null,
             descrizione: description || null,
-            note: notes || null,
             quantita: quantity,
             soglia_minima: threshold,
             prezzo_acquisto: priceBuy,
@@ -850,19 +838,17 @@ function generateSupplierReport(supplier, dateFrom, dateTo) {
         <hr>
         <h4>DETTAGLIO ARTICOLI</h4>
         <table style="width: 100%; margin-top: 10px;">
-    <thead>
-    <tr>
-        <th>Nome</th>
-        <th>Codice Articolo</th>
-        <th>Confezione</th>
-        <th>Quantità</th>
-        <th>Soglia</th>
-        <th>Prezzo Acq.</th>
-        <th>Prezzo Vend.</th>
-        <th>Codice Barre</th>
-        <th>Azioni</th>
-    </tr>
-</thead>
+            <thead>
+                <tr style="background: var(--primary); color: white;">
+                    <th>Nome</th>
+                    <th>Codice</th>
+                    <th>Quantità</th>
+                    <th>Soglia</th>
+                    <th>Prezzo Acq.</th>
+                    <th>Valore Tot</th>
+                    <th>Stato</th>
+                </tr>
+            </thead>
             <tbody>
     `;
     
@@ -875,7 +861,6 @@ function generateSupplierReport(supplier, dateFrom, dateTo) {
             <tr style="${rowStyle}">
                 <td><strong>${article.nome}</strong></td>
                 <td>${article.codice_articolo}</td>
-                <td>${article.confezione || '-'}</td>
                 <td><strong>${article.quantita}</strong></td>
                 <td>${article.soglia_minima}</td>
                 <td>€ ${parseFloat(article.prezzo_acquisto).toFixed(2)}</td>
@@ -933,18 +918,18 @@ function generateInventoryReport() {
         <h4>TUTTI GLI ARTICOLI</h4>
         <table style="width: 100%; margin-top: 10px; font-size: 12px;">
             <thead>
-    <tr>
-        <th>Nome</th>
-        <th>Codice Articolo</th>
-        <th>Confezione</th>
-        <th>Quantità</th>
-        <th>Soglia</th>
-        <th>Prezzo Acq.</th>
-        <th>Prezzo Vend.</th>
-        <th>Codice Barre</th>
-        <th>Azioni</th>
-    </tr>
-</thead>
+                <tr style="background: var(--primary); color: white;">
+                    <th>Nome</th>
+                    <th>Codice</th>
+                    <th>Fornitore</th>
+                    <th>Qty</th>
+                    <th>Soglia</th>
+                    <th>Prezzo Acq.</th>
+                    <th>Valore</th>
+                    <th>Stato</th>
+                </tr>
+            </thead>
+            <tbody>
     `;
     
     allArticles.forEach(article => {
@@ -956,7 +941,6 @@ function generateInventoryReport() {
             <tr style="${rowStyle}">
                 <td><strong>${article.nome}</strong></td>
                 <td>${article.codice_articolo}</td>
-                <td>${article.confezione || '-'}</td>
                 <td>${article.marca_fornitore || '-'}</td>
                 <td><strong>${article.quantita}</strong></td>
                 <td>${article.soglia_minima}</td>
@@ -1181,89 +1165,49 @@ function switchTab(tabName) {
 // EVENT LISTENERS
 // ========================================
 function setupEventListeners() {
-    // Autenticazione
-    const loginForm = document.getElementById('login-form');
-    const logoutBtn = document.getElementById('logout-btn');
+    document.getElementById('login-form').addEventListener('submit', handleLogin);
+    document.getElementById('logout-btn').addEventListener('click', handleLogout);
     
-    if (loginForm) loginForm.addEventListener('submit', handleLogin);
-    if (logoutBtn) logoutBtn.addEventListener('click', handleLogout);
+    document.getElementById('new-article-form').addEventListener('submit', handleNewArticle);
     
-    // Nuovo articolo
-    const newArticleForm = document.getElementById('new-article-form');
-    if (newArticleForm) newArticleForm.addEventListener('submit', handleNewArticle);
+    document.getElementById('edit-article-form').addEventListener('submit', handleEditArticle);
+    document.getElementById('edit-cancel').addEventListener('click', closeEditModal);
     
-    // Modifica articolo
-    const editArticleForm = document.getElementById('edit-article-form');
-    const editCancel = document.getElementById('edit-cancel');
-    if (editArticleForm) editArticleForm.addEventListener('submit', handleEditArticle);
-    if (editCancel) editCancel.addEventListener('click', closeEditModal);
-    
-    // Navigazione tab
     document.querySelectorAll('.tab-btn').forEach(btn => {
         btn.addEventListener('click', () => switchTab(btn.dataset.tab));
     });
     
-    // Modal movimenti
-    const modalConfirm = document.getElementById('modal-confirm');
-    const modalCancel = document.getElementById('modal-cancel');
-    if (modalConfirm) modalConfirm.addEventListener('click', confirmMovement);
-    if (modalCancel) modalCancel.addEventListener('click', closeMovementModal);
+    document.getElementById('modal-confirm').addEventListener('click', confirmMovement);
+    document.getElementById('modal-cancel').addEventListener('click', closeMovementModal);
     
-    // Scanner buttons
-    const btnCarico = document.getElementById('btn-carico');
-    const btnScarico = document.getElementById('btn-scarico');
-    const btnRescan = document.getElementById('btn-rescan');
+    document.getElementById('btn-carico').addEventListener('click', () => {
+        if (window.scannedArticle) {
+            openMovementModal(window.scannedArticle.id, 'carico');
+        }
+    });
+    document.getElementById('btn-scarico').addEventListener('click', () => {
+        if (window.scannedArticle) {
+            openMovementModal(window.scannedArticle.id, 'scarico');
+        }
+    });
     
-    if (btnCarico) {
-        btnCarico.addEventListener('click', () => {
-            if (window.scannedArticle) {
-                openMovementModal(window.scannedArticle.id, 'carico');
-            }
-        });
-    }
+    document.getElementById('search-input').addEventListener('input', applyFiltersAndSort);
+    document.getElementById('filter-brand').addEventListener('change', applyFiltersAndSort);
+    document.getElementById('sort-select').addEventListener('change', applyFiltersAndSort);
+    document.getElementById('group-by-supplier').addEventListener('change', applyFiltersAndSort);
     
-    if (btnScarico) {
-        btnScarico.addEventListener('click', () => {
-            if (window.scannedArticle) {
-                openMovementModal(window.scannedArticle.id, 'scarico');
-            }
-        });
-    }
+    document.getElementById('apply-movement-filters').addEventListener('click', applyMovementFilters);
     
-    if (btnRescan) {
-        btnRescan.addEventListener('click', () => {
-            document.getElementById('scanner-result').classList.add('hidden');
-            document.getElementById('reader').style.display = 'block';
-            window.scannedArticle = null;
-            initScanner();
-        });
-    }
+    document.getElementById('report-type').addEventListener('change', handleReportTypeChange);
+    document.getElementById('generate-report').addEventListener('click', generateReport);
+    document.getElementById('print-report').addEventListener('click', printReport);
     
-    // Ricerca e filtri
-    const searchInput = document.getElementById('search-input');
-    const filterBrand = document.getElementById('filter-brand');
-    const sortSelect = document.getElementById('sort-select');
-    const groupBySupplier = document.getElementById('group-by-supplier');
-    
-    if (searchInput) searchInput.addEventListener('input', applyFiltersAndSort);
-    if (filterBrand) filterBrand.addEventListener('change', applyFiltersAndSort);
-    if (sortSelect) sortSelect.addEventListener('change', applyFiltersAndSort);
-    if (groupBySupplier) groupBySupplier.addEventListener('change', applyFiltersAndSort);
-    
-    // Filtri movimenti
-    const applyMovementFiltersBtn = document.getElementById('apply-movement-filters');
-    if (applyMovementFiltersBtn) applyMovementFiltersBtn.addEventListener('click', applyMovementFilters);
-    
-    // Report
-    const reportType = document.getElementById('report-type');
-    const generateReport = document.getElementById('generate-report');
-    const printReport = document.getElementById('print-report');
-    
-    if (reportType) reportType.addEventListener('change', handleReportTypeChange);
-    if (generateReport) generateReport.addEventListener('click', generateReport);
-    if (printReport) printReport.addEventListener('click', printReport);
-    
-    // Gestione utenti
-    const addUserForm = document.getElementById('add-user-form');
-    if (addUserForm) addUserForm.addEventListener('submit', handleAddUser);
+    document.getElementById('add-user-form').addEventListener('submit', handleAddUser);
+
+    document.getElementById('btn-rescan').addEventListener('click', () => {
+    document.getElementById('scanner-result').classList.add('hidden');
+    document.getElementById('reader').style.display = 'block';
+    window.scannedArticle = null;
+    initScanner();
+});
 }

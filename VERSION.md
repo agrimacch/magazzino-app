@@ -1,19 +1,7 @@
 # Changelog App Magazzino
 
-## v1.1.4 - 2025-10-29 (PRODUZIONE) ✅
-fix id tab corretti
-
-## v1.1.3 - 2025-10-29 (PRODUZIONE) ✅
-Fix: errore setupEventListeners - controlli null
-
-## v1.1.2 - 2025-10-29 (PRODUZIONE) ✅
-fix ripristinato app.js funzionante
-
-## v1.1.1 - 2025-10-29 (PRODUZIONE) ✅
-icone nuove ok
-
-## v1.1.0 - 2025-10-29 (PRODUZIONE) ✅
-Bottoni azioni visibili + PWA icon + Note e Confezione
+## v2.0.0 - 2025-10-29 (PRODUZIONE) ✅
+restore
 
 ## v1.0.3 - 2025-10-29 (PRODUZIONE) ✅
 Test script automatico
