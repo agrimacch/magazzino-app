@@ -255,18 +255,19 @@ function renderInventoryBySupplier(articles) {
             </div>
             <div class="table-container">
                 <table>
-                    <thead>
-                        <tr>
-                            <th>Nome</th>
-                            <th>Codice Articolo</th>
-                            <th>Quantità</th>
-                            <th>Soglia</th>
-                            <th>Prezzo Acq.</th>
-                            <th>Prezzo Vend.</th>
-                            <th>Codice Barre</th>
-                            <th>Azioni</th>
-                        </tr>
-                    </thead>
+                   <thead>
+    <tr>
+        <th>Nome</th>
+        <th>Codice Articolo</th>
+        <th>Confezione</th>
+        <th>Quantità</th>
+        <th>Soglia</th>
+        <th>Prezzo Acq.</th>
+        <th>Prezzo Vend.</th>
+        <th>Codice Barre</th>
+        <th>Azioni</th>
+    </tr>
+</thead>
                     <tbody id="supplier-tbody-${supplier.replace(/\s+/g, '-')}">
                     </tbody>
                 </table>
@@ -283,24 +284,25 @@ function renderInventoryBySupplier(articles) {
                 row.classList.add('low-stock');
             }
             
-            const editBtn = currentUserRole === 'admin' ? `<button onclick="openEditModal(${article.id})" class="btn-edit">✏️</button>` : '';
-            const deleteBtn = currentUserRole === 'admin' ? `<button onclick="deleteArticle(${article.id})" class="btn-delete">🗑️</button>` : '';
-            
-            row.innerHTML = `
-                <td><strong>${article.nome}</strong></td>
-                <td>${article.codice_articolo}</td>
-                <td><strong>${article.quantita}</strong></td>
-                <td>${article.soglia_minima}</td>
-                <td>€ ${parseFloat(article.prezzo_acquisto).toFixed(2)}</td>
-                <td>€ ${parseFloat(article.prezzo_vendita).toFixed(2)}</td>
-                <td>${article.codice_barre}</td>
-                <td>
-                    <button onclick="openMovementModal(${article.id}, 'carico')" class="btn-success" style="padding: 10px 16px; margin-right: 5px;">➕</button>
-                    <button onclick="openMovementModal(${article.id}, 'scarico')" class="btn-danger" style="padding: 10px 16px; margin-right: 5px;">➖</button>
-                    ${editBtn}
-                    ${deleteBtn}
-                </td>
-            `;
+          const editBtn = currentUserRole === 'admin' ? `<button onclick="openEditModal(${article.id})" class="btn-edit">✏️</button>` : '';
+const deleteBtn = currentUserRole === 'admin' ? `<button onclick="deleteArticle(${article.id})" class="btn-delete">🗑️</button>` : '';
+
+row.innerHTML = `
+    <td><strong>${article.nome}</strong></td>
+    <td>${article.codice_articolo}</td>
+    <td>${article.confezione || '-'}</td>
+    <td><strong>${article.quantita}</strong></td>
+    <td>${article.soglia_minima}</td>
+    <td>€ ${parseFloat(article.prezzo_acquisto).toFixed(2)}</td>
+    <td>€ ${parseFloat(article.prezzo_vendita).toFixed(2)}</td>
+    <td>${article.codice_barre}</td>
+    <td>
+        <button onclick="openMovementModal(${article.id}, 'carico')" class="btn-action-carico">➕</button>
+        <button onclick="openMovementModal(${article.id}, 'scarico')" class="btn-action-scarico">➖</button>
+        ${editBtn}
+        ${deleteBtn}
+    </td>
+`;
             
             tbody.appendChild(row);
         });
@@ -318,45 +320,43 @@ function renderInventoryFlat(articles) {
     let html = `
         <div class="table-container">
             <table>
-                <thead>
-                    <tr>
-                        <th>Nome</th>
-                        <th>Codice Articolo</th>
-                        <th>Quantità</th>
-                        <th>Soglia</th>
-                        <th>Prezzo Acq.</th>
-                        <th>Prezzo Vend.</th>
-                        <th>Codice Barre</th>
-                        <th>Fornitore</th>
-                        <th>Azioni</th>
-                    </tr>
-                </thead>
+               <thead>
+    <tr>
+        <th>Nome</th>
+        <th>Codice Articolo</th>
+        <th>Confezione</th>
+        <th>Quantità</th>
+        <th>Soglia</th>
+        <th>Prezzo Acq.</th>
+        <th>Prezzo Vend.</th>
+        <th>Codice Barre</th>
+        <th>Azioni</th>
+    </tr>
+</thead>
                 <tbody>
     `;
     
     articles.forEach(article => {
         const rowClass = article.quantita <= article.soglia_minima ? 'class="low-stock"' : '';
         const editBtn = currentUserRole === 'admin' ? `<button onclick="openEditModal(${article.id})" class="btn-edit">✏️</button>` : '';
-        const deleteBtn = currentUserRole === 'admin' ? `<button onclick="deleteArticle(${article.id})" class="btn-delete">🗑️</button>` : '';
-        
-        html += `
-            <tr ${rowClass}>
-                <td><strong>${article.nome}</strong></td>
-                <td>${article.codice_articolo}</td>
-                <td><strong>${article.quantita}</strong></td>
-                <td>${article.soglia_minima}</td>
-                <td>€ ${parseFloat(article.prezzo_acquisto).toFixed(2)}</td>
-                <td>€ ${parseFloat(article.prezzo_vendita).toFixed(2)}</td>
-                <td>${article.codice_barre}</td>
-                <td>${article.marca_fornitore || '-'}</td>
-                <td>
-                    <button onclick="openMovementModal(${article.id}, 'carico')" class="btn-success" style="padding: 10px 16px; margin-right: 5px;">➕</button>
-                    <button onclick="openMovementModal(${article.id}, 'scarico')" class="btn-danger" style="padding: 10px 16px; margin-right: 5px;">➖</button>
-                    ${editBtn}
-                    ${deleteBtn}
-                </td>
-            </tr>
-        `;
+const deleteBtn = currentUserRole === 'admin' ? `<button onclick="deleteArticle(${article.id})" class="btn-delete">🗑️</button>` : '';
+
+row.innerHTML = `
+    <td><strong>${article.nome}</strong></td>
+    <td>${article.codice_articolo}</td>
+    <td>${article.confezione || '-'}</td>
+    <td><strong>${article.quantita}</strong></td>
+    <td>${article.soglia_minima}</td>
+    <td>€ ${parseFloat(article.prezzo_acquisto).toFixed(2)}</td>
+    <td>€ ${parseFloat(article.prezzo_vendita).toFixed(2)}</td>
+    <td>${article.codice_barre}</td>
+    <td>
+        <button onclick="openMovementModal(${article.id}, 'carico')" class="btn-action-carico">➕</button>
+        <button onclick="openMovementModal(${article.id}, 'scarico')" class="btn-action-scarico">➖</button>
+        ${editBtn}
+        ${deleteBtn}
+    </td>
+`;
     });
     
     html += `
@@ -368,6 +368,8 @@ function renderInventoryFlat(articles) {
     container.innerHTML = html;
 }
 
+
+
 async function handleNewArticle(e) {
     e.preventDefault();
     
@@ -375,7 +377,9 @@ async function handleNewArticle(e) {
     const code = document.getElementById('new-code').value;
     const barcode = document.getElementById('new-barcode').value;
     const brand = document.getElementById('new-brand').value;
+    const packageInfo = document.getElementById('new-package').value;
     const description = document.getElementById('new-description').value.trim();
+    const notes = document.getElementById('new-notes').value.trim();
     const quantity = parseInt(document.getElementById('new-quantity').value);
     const threshold = parseInt(document.getElementById('new-threshold').value);
     const priceBuy = parseFloat(document.getElementById('new-price-buy').value);
@@ -410,7 +414,9 @@ async function handleNewArticle(e) {
             codice_articolo: code,
             codice_barre: barcode,
             marca_fornitore: brand || null,
+            confezione: packageInfo || null,
             descrizione: description || null,
+            note: notes || null,
             quantita: quantity,
             soglia_minima: threshold,
             prezzo_acquisto: priceBuy,
@@ -838,17 +844,19 @@ function generateSupplierReport(supplier, dateFrom, dateTo) {
         <hr>
         <h4>DETTAGLIO ARTICOLI</h4>
         <table style="width: 100%; margin-top: 10px;">
-            <thead>
-                <tr style="background: var(--primary); color: white;">
-                    <th>Nome</th>
-                    <th>Codice</th>
-                    <th>Quantità</th>
-                    <th>Soglia</th>
-                    <th>Prezzo Acq.</th>
-                    <th>Valore Tot</th>
-                    <th>Stato</th>
-                </tr>
-            </thead>
+    <thead>
+    <tr>
+        <th>Nome</th>
+        <th>Codice Articolo</th>
+        <th>Confezione</th>
+        <th>Quantità</th>
+        <th>Soglia</th>
+        <th>Prezzo Acq.</th>
+        <th>Prezzo Vend.</th>
+        <th>Codice Barre</th>
+        <th>Azioni</th>
+    </tr>
+</thead>
             <tbody>
     `;
     
@@ -861,6 +869,7 @@ function generateSupplierReport(supplier, dateFrom, dateTo) {
             <tr style="${rowStyle}">
                 <td><strong>${article.nome}</strong></td>
                 <td>${article.codice_articolo}</td>
+                <td>${article.confezione || '-'}</td>
                 <td><strong>${article.quantita}</strong></td>
                 <td>${article.soglia_minima}</td>
                 <td>€ ${parseFloat(article.prezzo_acquisto).toFixed(2)}</td>
@@ -918,18 +927,18 @@ function generateInventoryReport() {
         <h4>TUTTI GLI ARTICOLI</h4>
         <table style="width: 100%; margin-top: 10px; font-size: 12px;">
             <thead>
-                <tr style="background: var(--primary); color: white;">
-                    <th>Nome</th>
-                    <th>Codice</th>
-                    <th>Fornitore</th>
-                    <th>Qty</th>
-                    <th>Soglia</th>
-                    <th>Prezzo Acq.</th>
-                    <th>Valore</th>
-                    <th>Stato</th>
-                </tr>
-            </thead>
-            <tbody>
+    <tr>
+        <th>Nome</th>
+        <th>Codice Articolo</th>
+        <th>Confezione</th>
+        <th>Quantità</th>
+        <th>Soglia</th>
+        <th>Prezzo Acq.</th>
+        <th>Prezzo Vend.</th>
+        <th>Codice Barre</th>
+        <th>Azioni</th>
+    </tr>
+</thead>
     `;
     
     allArticles.forEach(article => {
@@ -941,6 +950,7 @@ function generateInventoryReport() {
             <tr style="${rowStyle}">
                 <td><strong>${article.nome}</strong></td>
                 <td>${article.codice_articolo}</td>
+                <td>${article.confezione || '-'}</td>
                 <td>${article.marca_fornitore || '-'}</td>
                 <td><strong>${article.quantita}</strong></td>
                 <td>${article.soglia_minima}</td>
@@ -1168,7 +1178,7 @@ function setupEventListeners() {
     document.getElementById('login-form').addEventListener('submit', handleLogin);
     document.getElementById('logout-btn').addEventListener('click', handleLogout);
     
-    document.getElementById('new-article-form').addEventListener('submit', handleNewArticle);
+    document.getElementById('new-article-form').addEventListener('submit', );
     
     document.getElementById('edit-article-form').addEventListener('submit', handleEditArticle);
     document.getElementById('edit-cancel').addEventListener('click', closeEditModal);
