@@ -69,7 +69,7 @@ async function loadUserRole() {
 
 function applyRolePermissions() {
     const roleBadge = document.getElementById('user-role');
-    roleBadge.textContent = currentUserRole === 'admin' ? 'ðŸ‘‘ Admin' : 'ðŸ‘¤ Operatore';
+    roleBadge.textContent = currentUserRole === 'admin' ? '👑 Admin' : '👤 Operatore';
     roleBadge.classList.add(currentUserRole);
     
     if (currentUserRole === 'operatore') {
@@ -250,7 +250,7 @@ function renderInventoryBySupplier(articles) {
         
         section.innerHTML = `
             <div class="supplier-header">
-                <h3>ðŸ¢ ${supplier}</h3>
+                <h3>🏢 ${supplier}</h3>
                 <div class="supplier-stats">
                     <div class="stat-item">
                         <span class="stat-label">Articoli</span>
@@ -258,7 +258,7 @@ function renderInventoryBySupplier(articles) {
                     </div>
                     <div class="stat-item">
                         <span class="stat-label">Valore Magazzino</span>
-                        <span class="stat-value">â‚¬ ${totalValue.toFixed(2)}</span>
+                        <span class="stat-value">€ ${totalValue.toFixed(2)}</span>
                     </div>
                     <div class="stat-item">
                         <span class="stat-label">Sotto Soglia</span>
@@ -299,22 +299,22 @@ function renderInventoryBySupplier(articles) {
             }
             
             const ivaPerc = article.iva_percentuale || 22;
-            const editBtn = currentUserRole === 'admin' ? `<button onclick="openEditModal(${article.id})" class="btn-edit">✏️</button>` : '';
-            const deleteBtn = currentUserRole === 'admin' ? `<button onclick="deleteArticle(${article.id})" class="btn-delete">🗑️</button>` : '';
+            const editBtn = currentUserRole === 'admin' ? `<button onclick="openEditModal(${article.id})" class="btn-edit">âœï¸</button>` : '';
+            const deleteBtn = currentUserRole === 'admin' ? `<button onclick="deleteArticle(${article.id})" class="btn-delete">ðŸ—‘ï¸</button>` : '';
             
             row.innerHTML = `
                 <td><strong>${article.nome}</strong></td>
                 <td>${article.codice_articolo}</td>
                 <td><strong>${article.quantita}</strong></td>
                 <td>${article.soglia_minima}</td>
-                <td>â‚¬ ${parseFloat(article.prezzo_acquisto).toFixed(2)}</td>
+                <td>€ ${parseFloat(article.prezzo_acquisto).toFixed(2)}</td>
                 <td>${ivaPerc}%</td>
-                <td>â‚¬ ${parseFloat(article.prezzo_vendita).toFixed(2)}</td>
+                <td>€ ${parseFloat(article.prezzo_vendita).toFixed(2)}</td>
                 <td>${article.codice_barre}</td>
                 <td>${article.note || '-'}</td>
                 <td>
-                    <button onclick="openMovementModal(${article.id}, 'carico')" class="btn-success" style="padding: 10px 16px; margin-right: 5px;">➕</button>
-                    <button onclick="openMovementModal(${article.id}, 'scarico')" class="btn-danger" style="padding: 10px 16px; margin-right: 5px;">➖</button>
+                    <button onclick="openMovementModal(${article.id}, 'carico')" class="btn-success" style="padding: 10px 16px; margin-right: 5px;">âž•</button>
+                    <button onclick="openMovementModal(${article.id}, 'scarico')" class="btn-danger" style="padding: 10px 16px; margin-right: 5px;">âž–</button>
                     ${editBtn}
                     ${deleteBtn}
                 </td>
@@ -357,8 +357,8 @@ function renderInventoryFlat(articles) {
     articles.forEach(article => {
         const rowClass = article.quantita <= article.soglia_minima ? 'class="low-stock"' : '';
         const ivaPerc = article.iva_percentuale || 22;
-        const editBtn = currentUserRole === 'admin' ? `<button onclick="openEditModal(${article.id})" class="btn-edit">✏️</button>` : '';
-        const deleteBtn = currentUserRole === 'admin' ? `<button onclick="deleteArticle(${article.id})" class="btn-delete">🗑️</button>` : '';
+        const editBtn = currentUserRole === 'admin' ? `<button onclick="openEditModal(${article.id})" class="btn-edit">âœï¸</button>` : '';
+        const deleteBtn = currentUserRole === 'admin' ? `<button onclick="deleteArticle(${article.id})" class="btn-delete">ðŸ—‘ï¸</button>` : '';
         
         html += `
             <tr ${rowClass}>
@@ -366,15 +366,15 @@ function renderInventoryFlat(articles) {
                 <td>${article.codice_articolo}</td>
                 <td><strong>${article.quantita}</strong></td>
                 <td>${article.soglia_minima}</td>
-                <td>â‚¬ ${parseFloat(article.prezzo_acquisto).toFixed(2)}</td>
+                <td>€ ${parseFloat(article.prezzo_acquisto).toFixed(2)}</td>
                 <td>${ivaPerc}%</td>
-                <td>â‚¬ ${parseFloat(article.prezzo_vendita).toFixed(2)}</td>
+                <td>€ ${parseFloat(article.prezzo_vendita).toFixed(2)}</td>
                 <td>${article.codice_barre}</td>
                 <td>${article.marca_fornitore || '-'}</td>
                 <td>${article.note || '-'}</td>
                 <td>
-                    <button onclick="openMovementModal(${article.id}, 'carico')" class="btn-success" style="padding: 10px 16px; margin-right: 5px;">➕</button>
-                    <button onclick="openMovementModal(${article.id}, 'scarico')" class="btn-danger" style="padding: 10px 16px; margin-right: 5px;">➖</button>
+                    <button onclick="openMovementModal(${article.id}, 'carico')" class="btn-success" style="padding: 10px 16px; margin-right: 5px;">âž•</button>
+                    <button onclick="openMovementModal(${article.id}, 'scarico')" class="btn-danger" style="padding: 10px 16px; margin-right: 5px;">âž–</button>
                     ${editBtn}
                     ${deleteBtn}
                 </td>
@@ -562,7 +562,7 @@ function openMovementModal(articleId, type) {
     currentArticleForMovement = { article, type };
     
     document.getElementById('modal-title').textContent = 
-        type === 'carico' ? '➕ Carico Magazzino' : '➖ Scarico Magazzino';
+        type === 'carico' ? 'âž• Carico Magazzino' : 'âž– Scarico Magazzino';
     document.getElementById('modal-article-name').textContent = article.nome;
     document.getElementById('modal-current-qty').textContent = article.quantita;
     document.getElementById('modal-quantity').value = 1;
@@ -813,11 +813,11 @@ async function generateArticleReport(articleId, dateFrom, dateTo) {
         <p><strong>Fornitore:</strong> ${article.marca_fornitore || 'N/D'}</p>
         <p><strong>Note:</strong> ${article.note || 'N/D'}</p>
         <p><strong>QuantitÃ  Attuale:</strong> ${article.quantita}</p>
-        <p><strong>Prezzo Acquisto NETTO:</strong> â‚¬ ${parseFloat(article.prezzo_acquisto).toFixed(2)}</p>
+        <p><strong>Prezzo Acquisto NETTO:</strong> € ${parseFloat(article.prezzo_acquisto).toFixed(2)}</p>
         <p><strong>IVA:</strong> ${ivaPerc}%</p>
-        <p><strong>Prezzo Acquisto IVA inclusa:</strong> â‚¬ ${prezzoConIVA.toFixed(2)}</p>
-        <p><strong>Prezzo Vendita:</strong> â‚¬ ${parseFloat(article.prezzo_vendita).toFixed(2)}</p>
-        <p><strong>Valore Magazzino (IVA inc.):</strong> â‚¬ ${valoreMagazzino.toFixed(2)}</p>
+        <p><strong>Prezzo Acquisto IVA inclusa:</strong> € ${prezzoConIVA.toFixed(2)}</p>
+        <p><strong>Prezzo Vendita:</strong> € ${parseFloat(article.prezzo_vendita).toFixed(2)}</p>
+        <p><strong>Valore Magazzino (IVA inc.):</strong> € ${valoreMagazzino.toFixed(2)}</p>
         <hr>
         <h4>RIEPILOGO MOVIMENTI</h4>
         <p><strong>Periodo:</strong> ${dateFrom || 'Inizio'} - ${dateTo || 'Oggi'}</p>
@@ -882,7 +882,7 @@ function generateSupplierReport(supplier, dateFrom, dateTo) {
         <h4>RIEPILOGO</h4>
         <p><strong>Numero Articoli:</strong> ${supplierArticles.length}</p>
         <p><strong>QuantitÃ  Totale:</strong> ${totalQuantity} pezzi</p>
-        <p><strong>Valore Totale Magazzino (IVA inc.):</strong> â‚¬ ${totalValue.toFixed(2)}</p>
+        <p><strong>Valore Totale Magazzino (IVA inc.):</strong> € ${totalValue.toFixed(2)}</p>
         <p><strong>Articoli sotto soglia:</strong> ${lowStockCount}</p>
         <hr>
         <h4>DETTAGLIO ARTICOLI</h4>
@@ -908,7 +908,7 @@ function generateSupplierReport(supplier, dateFrom, dateTo) {
         const prezzoConIVA = calcolaPrezzoConIVA(article.prezzo_acquisto, ivaPerc);
         const totalArticleValue = article.quantita * prezzoConIVA;
         const rowStyle = article.quantita <= article.soglia_minima ? 'background: #fee2e2;' : '';
-        const stato = article.quantita <= article.soglia_minima ? 'âš ï¸ DA ORDINARE' : 'âœ… OK';
+        const stato = article.quantita <= article.soglia_minima ? '⚠️ DA ORDINARE' : '✅ OK';
         
         html += `
             <tr style="${rowStyle}">
@@ -916,9 +916,9 @@ function generateSupplierReport(supplier, dateFrom, dateTo) {
                 <td>${article.codice_articolo}</td>
                 <td><strong>${article.quantita}</strong></td>
                 <td>${article.soglia_minima}</td>
-                <td>â‚¬ ${parseFloat(article.prezzo_acquisto).toFixed(2)}</td>
+                <td>€ ${parseFloat(article.prezzo_acquisto).toFixed(2)}</td>
                 <td>${ivaPerc}%</td>
-                <td>â‚¬ ${totalArticleValue.toFixed(2)}</td>
+                <td>€ ${totalArticleValue.toFixed(2)}</td>
                 <td>${article.note || '-'}</td>
                 <td>${stato}</td>
             </tr>
@@ -955,7 +955,7 @@ function generateInventoryReport() {
         <h4>RIEPILOGO GENERALE</h4>
         <p><strong>Totale Articoli:</strong> ${totalArticles}</p>
         <p><strong>QuantitÃ  Totale Pezzi:</strong> ${totalQuantity}</p>
-        <p><strong>Valore Totale Magazzino (IVA inc.):</strong> â‚¬ ${totalValue.toFixed(2)}</p>
+        <p><strong>Valore Totale Magazzino (IVA inc.):</strong> € ${totalValue.toFixed(2)}</p>
         <p><strong>Articoli sotto soglia:</strong> ${lowStockCount}</p>
         <p><strong>Numero Fornitori:</strong> ${suppliers.length}</p>
         <hr>
@@ -974,7 +974,7 @@ function generateInventoryReport() {
         html += `
             <div style="margin: 20px 0; padding: 15px; background: var(--green-light); border-radius: 12px; border-left: 4px solid var(--primary);">
                 <h4 style="margin-bottom: 10px;">ðŸ¢ ${supplier}</h4>
-                <p><strong>Articoli:</strong> ${supplierArticles.length} | <strong>Valore:</strong> â‚¬ ${supplierValue.toFixed(2)} | <strong>Da Ordinare:</strong> ${supplierLowStock}</p>
+                <p><strong>Articoli:</strong> ${supplierArticles.length} | <strong>Valore:</strong> € ${supplierValue.toFixed(2)} | <strong>Da Ordinare:</strong> ${supplierLowStock}</p>
             </div>
         `;
     });
@@ -1014,9 +1014,9 @@ function generateInventoryReport() {
                 <td>${article.marca_fornitore || '-'}</td>
                 <td><strong>${article.quantita}</strong></td>
                 <td>${article.soglia_minima}</td>
-                <td>â‚¬ ${parseFloat(article.prezzo_acquisto).toFixed(2)}</td>
+                <td>€ ${parseFloat(article.prezzo_acquisto).toFixed(2)}</td>
                 <td>${ivaPerc}%</td>
-                <td>â‚¬ ${totalArticleValue.toFixed(2)}</td>
+                <td>€ ${totalArticleValue.toFixed(2)}</td>
                 <td>${article.note || '-'}</td>
                 <td>${stato}</td>
             </tr>
@@ -1064,7 +1064,7 @@ function renderUsers() {
     
     allUsers.forEach(user => {
         const row = document.createElement('tr');
-        const roleBadge = user.role === 'admin' ? '<span class="role-badge admin">Admin</span>' : '<span class="role-badge operatore">Operatore</span>';
+        const roleBadge = user.role === 'admin' ? '<span class="role-badge admin">👑 Admin</span>' : '<span class="role-badge operatore">👤 Operatore</span>';
         
         row.innerHTML = `
             <td>${user.email}</td>
