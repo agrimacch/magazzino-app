@@ -28,24 +28,44 @@ function calcolaPrezzoConIVA(prezzoNetto, ivaPercentuale) {
 // INIZIALIZZAZIONE
 // ========================================
 document.addEventListener('DOMContentLoaded', async () => {
+    console.log('🚀 Inizializzazione app...');
+    
+    // Controlla la sessione corrente
     const { data: { session } } = await supabase.auth.getSession();
+    
+    console.log('📋 Sessione trovata:', session ? 'SÌ' : 'NO');
     
     if (session) {
         currentUser = session.user;
+        console.log('👤 Utente:', currentUser.email);
         await loadUserRole();
         showMainScreen();
     } else {
+        console.log('🔐 Nessuna sessione, mostro login');
         showLoginScreen();
     }
     
     setupEventListeners();
+    
+    // Listener per cambi di stato autenticazione
+    supabase.auth.onAuthStateChange((event, session) => {
+        console.log('🔄 Auth state changed:', event);
+        if (event === 'SIGNED_OUT') {
+            currentUser = null;
+            currentUserRole = null;
+            showLoginScreen();
+        } else if (event === 'SIGNED_IN' && session) {
+            currentUser = session.user;
+            loadUserRole().then(() => showMainScreen());
+        }
+    });
 });
 
 // ========================================
 // GESTIONE RUOLI
 // ========================================
 async function loadUserRole() {
-    console.log('ðŸ” Caricamento ruolo per:', currentUser.email);
+    console.log('👔 Caricamento ruolo per:', currentUser.email);
     
     const { data, error } = await supabase
         .from('user_roles')
@@ -53,17 +73,17 @@ async function loadUserRole() {
         .eq('email', currentUser.email)
         .single();
     
-    console.log('ðŸ“Š Risultato query ruolo:', data, error);
+    console.log('📊 Risultato query ruolo:', data, error);
     
     if (error || !data) {
-        console.log('âš ï¸ Nessun ruolo trovato, imposto operatore');
+        console.log('⚠️ Nessun ruolo trovato, imposto operatore');
         currentUserRole = 'operatore';
     } else {
-        console.log('âœ… Ruolo trovato:', data.role);
+        console.log('✅ Ruolo trovato:', data.role);
         currentUserRole = data.role;
     }
     
-    console.log('ðŸ‘¤ Ruolo finale assegnato:', currentUserRole);
+    console.log('🎭 Ruolo finale assegnato:', currentUserRole);
     applyRolePermissions();
 }
 
@@ -112,22 +132,27 @@ async function handleLogin(e) {
     const email = document.getElementById('login-email').value;
     const password = document.getElementById('login-password').value;
     
+    console.log('🔐 Tentativo login per:', email);
+    
     const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password
     });
     
     if (error) {
+        console.error('❌ Errore login:', error);
         alert('Errore login: ' + error.message);
         return;
     }
     
+    console.log('✅ Login riuscito');
     currentUser = data.user;
     await loadUserRole();
     showMainScreen();
 }
 
 async function handleLogout() {
+    console.log('🚪 Logout...');
     await supabase.auth.signOut();
     currentUser = null;
     currentUserRole = null;
@@ -313,8 +338,8 @@ function renderInventoryBySupplier(articles) {
                 <td>${article.codice_barre}</td>
                 <td>${article.note || '-'}</td>
                 <td>
-                    <button onclick="openMovementModal(${article.id}, 'carico')" class="btn-success" style="padding: 10px 16px; margin-right: 5px;">âž•</button>
-                    <button onclick="openMovementModal(${article.id}, 'scarico')" class="btn-danger" style="padding: 10px 16px; margin-right: 5px;">âž–</button>
+                    <button onclick="openMovementModal(${article.id}, 'carico')" class="btn-success" style="padding: 10px 16px; margin-right: 5px;">⬆️</button>
+                    <button onclick="openMovementModal(${article.id}, 'scarico')" class="btn-danger" style="padding: 10px 16px; margin-right: 5px;">⬇️</button>
                     ${editBtn}
                     ${deleteBtn}
                 </td>
@@ -373,8 +398,8 @@ function renderInventoryFlat(articles) {
                 <td>${article.marca_fornitore || '-'}</td>
                 <td>${article.note || '-'}</td>
                 <td>
-                    <button onclick="openMovementModal(${article.id}, 'carico')" class="btn-success" style="padding: 10px 16px; margin-right: 5px;">âž•</button>
-                    <button onclick="openMovementModal(${article.id}, 'scarico')" class="btn-danger" style="padding: 10px 16px; margin-right: 5px;">âž–</button>
+                    <button onclick="openMovementModal(${article.id}, 'carico')" class="btn-success" style="padding: 10px 16px; margin-right: 5px;">⬆️</button>
+                    <button onclick="openMovementModal(${article.id}, 'scarico')" class="btn-danger" style="padding: 10px 16px; margin-right: 5px;">⬇️</button>
                     ${editBtn}
                     ${deleteBtn}
                 </td>
@@ -413,7 +438,7 @@ async function handleNewArticle(e) {
         .single();
     
     if (existingCode) {
-        alert('Codice articolo giÃ  esistente!');
+        alert('Codice articolo già esistente!');
         return;
     }
     
@@ -424,7 +449,7 @@ async function handleNewArticle(e) {
         .single();
     
     if (existingBarcode) {
-        alert('Codice a barre giÃ  esistente!');
+        alert('Codice a barre già esistente!');
         return;
     }
     
@@ -534,7 +559,7 @@ async function deleteArticle(articleId) {
     const article = allArticles.find(a => a.id === articleId);
     if (!article) return;
     
-    const confirm = window.confirm(`Sei sicuro di voler eliminare "${article.nome}"?\n\nQuesta azione non puÃ² essere annullata.`);
+    const confirm = window.confirm(`Sei sicuro di voler eliminare "${article.nome}"?\n\nQuesta azione non può essere annullata.`);
     
     if (!confirm) return;
     
@@ -562,7 +587,7 @@ function openMovementModal(articleId, type) {
     currentArticleForMovement = { article, type };
     
     document.getElementById('modal-title').textContent = 
-        type === 'carico' ? 'âž• Carico Magazzino' : 'âž– Scarico Magazzino';
+        type === 'carico' ? '⬆️ Carico Magazzino' : '⬇️ Scarico Magazzino';
     document.getElementById('modal-article-name').textContent = article.nome;
     document.getElementById('modal-current-qty').textContent = article.quantita;
     document.getElementById('modal-quantity').value = 1;
@@ -579,7 +604,7 @@ async function confirmMovement() {
     const notes = document.getElementById('modal-notes').value.trim();
     
     if (quantity <= 0) {
-        alert('QuantitÃ  non valida');
+        alert('Quantità non valida');
         return;
     }
     
@@ -589,7 +614,7 @@ async function confirmMovement() {
     } else {
         newQuantity -= quantity;
         if (newQuantity < 0) {
-            alert('QuantitÃ  insufficiente in magazzino!');
+            alert('Quantità insufficiente in magazzino!');
             return;
         }
     }
@@ -812,7 +837,7 @@ async function generateArticleReport(articleId, dateFrom, dateTo) {
         <p><strong>Codice a Barre:</strong> ${article.codice_barre}</p>
         <p><strong>Fornitore:</strong> ${article.marca_fornitore || 'N/D'}</p>
         <p><strong>Note:</strong> ${article.note || 'N/D'}</p>
-        <p><strong>QuantitÃ  Attuale:</strong> ${article.quantita}</p>
+        <p><strong>Quantità Attuale:</strong> ${article.quantita}</p>
         <p><strong>Prezzo Acquisto NETTO:</strong> € ${parseFloat(article.prezzo_acquisto).toFixed(2)}</p>
         <p><strong>IVA:</strong> ${ivaPerc}%</p>
         <p><strong>Prezzo Acquisto IVA inclusa:</strong> € ${prezzoConIVA.toFixed(2)}</p>
@@ -831,7 +856,7 @@ async function generateArticleReport(articleId, dateFrom, dateTo) {
                 <tr style="background: var(--primary); color: white;">
                     <th>Data</th>
                     <th>Tipo</th>
-                    <th>QuantitÃ </th>
+                    <th>Quantità</th>
                     <th>Utente</th>
                     <th>Note</th>
                 </tr>
@@ -881,7 +906,7 @@ function generateSupplierReport(supplier, dateFrom, dateTo) {
         <hr>
         <h4>RIEPILOGO</h4>
         <p><strong>Numero Articoli:</strong> ${supplierArticles.length}</p>
-        <p><strong>QuantitÃ  Totale:</strong> ${totalQuantity} pezzi</p>
+        <p><strong>Quantità Totale:</strong> ${totalQuantity} pezzi</p>
         <p><strong>Valore Totale Magazzino (IVA inc.):</strong> € ${totalValue.toFixed(2)}</p>
         <p><strong>Articoli sotto soglia:</strong> ${lowStockCount}</p>
         <hr>
@@ -908,7 +933,7 @@ function generateSupplierReport(supplier, dateFrom, dateTo) {
         const prezzoConIVA = calcolaPrezzoConIVA(article.prezzo_acquisto, ivaPerc);
         const totalArticleValue = article.quantita * prezzoConIVA;
         const rowStyle = article.quantita <= article.soglia_minima ? 'background: #fee2e2;' : '';
-        const stato = article.quantita <= article.soglia_minima ? 'âš ï¸ DA ORDINARE' : 'âœ… OK';
+        const stato = article.quantita <= article.soglia_minima ? '⚠️ DA ORDINARE' : '✅ OK';
         
         html += `
             <tr style="${rowStyle}">
@@ -954,7 +979,7 @@ function generateInventoryReport() {
         <hr>
         <h4>RIEPILOGO GENERALE</h4>
         <p><strong>Totale Articoli:</strong> ${totalArticles}</p>
-        <p><strong>QuantitÃ  Totale Pezzi:</strong> ${totalQuantity}</p>
+        <p><strong>Quantità Totale Pezzi:</strong> ${totalQuantity}</p>
         <p><strong>Valore Totale Magazzino (IVA inc.):</strong> € ${totalValue.toFixed(2)}</p>
         <p><strong>Articoli sotto soglia:</strong> ${lowStockCount}</p>
         <p><strong>Numero Fornitori:</strong> ${suppliers.length}</p>
@@ -973,7 +998,7 @@ function generateInventoryReport() {
         
         html += `
             <div style="margin: 20px 0; padding: 15px; background: var(--green-light); border-radius: 12px; border-left: 4px solid var(--primary);">
-                <h4 style="margin-bottom: 10px;">ðŸ¢ ${supplier}</h4>
+                <h4 style="margin-bottom: 10px;">🏢 ${supplier}</h4>
                 <p><strong>Articoli:</strong> ${supplierArticles.length} | <strong>Valore:</strong> € ${supplierValue.toFixed(2)} | <strong>Da Ordinare:</strong> ${supplierLowStock}</p>
             </div>
         `;
@@ -1005,7 +1030,7 @@ function generateInventoryReport() {
         const prezzoConIVA = calcolaPrezzoConIVA(article.prezzo_acquisto, ivaPerc);
         const totalArticleValue = article.quantita * prezzoConIVA;
         const rowStyle = article.quantita <= article.soglia_minima ? 'background: #fee2e2;' : '';
-        const stato = article.quantita <= article.soglia_minima ? 'âš ï¸' : 'âœ…';
+        const stato = article.quantita <= article.soglia_minima ? '⚠️' : '✅';
         
         html += `
             <tr style="${rowStyle}">
@@ -1097,7 +1122,7 @@ async function handleAddUser(e) {
         .single();
     
     if (existingUser) {
-        alert('Utente giÃ  registrato!');
+        alert('Utente già registrato!');
         return;
     }
     
@@ -1195,7 +1220,7 @@ async function onScanSuccess(decodedText) {
     }
     
     document.getElementById('scanned-article').textContent = 
-        `${article.nome} (${article.codice_articolo})\nQuantitÃ : ${article.quantita}`;
+        `${article.nome} (${article.codice_articolo})\nQuantità: ${article.quantita}`;
     document.getElementById('scanner-result').classList.remove('hidden');
     
     window.scannedArticle = article;
