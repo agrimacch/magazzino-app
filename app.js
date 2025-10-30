@@ -29,27 +29,21 @@ function calcolaPrezzoConIVA(prezzoNetto, ivaPercentuale) {
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('🚀 Inizializzazione app...');
     
-    // Controlla se l'utente ha scelto "Resta connesso"
-    const rememberMe = localStorage.getItem('rememberMe') === 'true';
-    
-    // Controlla la sessione corrente
+    // Controlla se c'è una sessione valida in Supabase
+    // Supabase mantiene GIÀ la sessione persistente di default!
     const { data: { session } } = await supabase.auth.getSession();
     
     console.log('📋 Sessione trovata:', session ? 'SÌ' : 'NO');
-    console.log('💾 Resta connesso:', rememberMe);
     
-    if (session && rememberMe) {
+    if (session) {
+        // Sessione valida: mantieni l'utente loggato
         currentUser = session.user;
         console.log('👤 Utente:', currentUser.email);
         await loadUserRole();
         showMainScreen();
-    } else if (session && !rememberMe) {
-        // Sessione presente ma utente non ha chiesto di restare connesso
-        // Logout automatico
-        await supabase.auth.signOut();
-        showLoginScreen();
     } else {
-        console.log('🔑 Nessuna sessione, mostro login');
+        // Nessuna sessione: mostra login
+        console.log('🔒 Nessuna sessione, mostro login');
         showLoginScreen();
     }
     
@@ -65,7 +59,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (event === 'SIGNED_OUT') {
             currentUser = null;
             currentUserRole = null;
-            localStorage.removeItem('rememberMe');
             showLoginScreen();
         } else if (event === 'SIGNED_IN' && session) {
             currentUser = session.user;
@@ -142,10 +135,8 @@ async function handleLogin(e) {
     e.preventDefault();
     const email = document.getElementById('login-email').value;
     const password = document.getElementById('login-password').value;
-    const rememberMe = document.getElementById('remember-me').checked;
     
     console.log('🔐 Tentativo login per:', email);
-    console.log('💾 Resta connesso:', rememberMe);
     
     const { data, error } = await supabase.auth.signInWithPassword({
         email,
@@ -158,14 +149,7 @@ async function handleLogin(e) {
         return;
     }
     
-    // Salva preferenza "Resta connesso"
-    if (rememberMe) {
-        localStorage.setItem('rememberMe', 'true');
-    } else {
-        localStorage.removeItem('rememberMe');
-    }
-    
-    console.log('✅ Login riuscito');
+    console.log('✅ Login riuscito - Supabase manterrà la sessione');
     currentUser = data.user;
     await loadUserRole();
     showMainScreen();
@@ -173,7 +157,6 @@ async function handleLogin(e) {
 
 async function handleLogout() {
     console.log('🚪 Logout...');
-    localStorage.removeItem('rememberMe');
     await supabase.auth.signOut();
     currentUser = null;
     currentUserRole = null;
@@ -374,10 +357,12 @@ function renderInventoryBySupplier(articles) {
                 <td>${article.codice_barre}</td>
                 <td>${article.note || '-'}</td>
                 <td>
-                    <button onclick="openMovementModal(${article.id}, 'carico')" class="btn-success" style="padding: 10px 16px; margin-right: 5px;">⬆️</button>
-                    <button onclick="openMovementModal(${article.id}, 'scarico')" class="btn-danger" style="padding: 10px 16px; margin-right: 5px;">⬇️</button>
-                    ${editBtn}
-                    ${deleteBtn}
+                    <div class="action-buttons-grid">
+                        <button onclick="openMovementModal(${article.id}, 'carico')" class="btn-success">⬆️</button>
+                        <button onclick="openMovementModal(${article.id}, 'scarico')" class="btn-danger">⬇️</button>
+                        ${editBtn}
+                        ${deleteBtn}
+                    </div>
                 </td>
             `;
             
@@ -434,10 +419,12 @@ function renderInventoryFlat(articles) {
                 <td>${article.marca_fornitore || '-'}</td>
                 <td>${article.note || '-'}</td>
                 <td>
-                    <button onclick="openMovementModal(${article.id}, 'carico')" class="btn-success" style="padding: 10px 16px; margin-right: 5px;">⬆️</button>
-                    <button onclick="openMovementModal(${article.id}, 'scarico')" class="btn-danger" style="padding: 10px 16px; margin-right: 5px;">⬇️</button>
-                    ${editBtn}
-                    ${deleteBtn}
+                    <div class="action-buttons-grid">
+                        <button onclick="openMovementModal(${article.id}, 'carico')" class="btn-success">⬆️</button>
+                        <button onclick="openMovementModal(${article.id}, 'scarico')" class="btn-danger">⬇️</button>
+                        ${editBtn}
+                        ${deleteBtn}
+                    </div>
                 </td>
             </tr>
         `;
