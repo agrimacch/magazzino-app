@@ -1,5 +1,8 @@
 # Changelog App Magazzino
 
+## v2.3.1 - 2025-10-30 (PRODUZIONE) ✅
+2.3.1 - Miglioramento carattere e proporzioni
+
 ## v2.3.0 - 2025-10-30 (PRODUZIONE) ✅
 🎉 **MAJOR UPDATE: Report Prestagionale + Login Migliorato + Alert Sotto Soglia**
 
