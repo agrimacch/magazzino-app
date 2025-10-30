@@ -17,7 +17,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=2.2.9">
+    <link rel="stylesheet" href="style.css?v=2.3.0">
     
     <style>
         /* Nascondi tutte le schermate all'inizio */
@@ -44,7 +44,7 @@
 
 <body class="loading">
     <!-- Version badge -->
-    <div class="version-badge">v2.2.9</div>
+    <div class="version-badge">v2.3.0</div>
 
     <!-- SCHERMATA LOGIN -->
     <div id="login-screen" class="screen">
@@ -57,7 +57,14 @@
                 <h2>Accedi</h2>
                 <form id="login-form">
                     <input type="email" id="login-email" placeholder="Email" required>
-                    <input type="password" id="login-password" placeholder="Password" required>
+                    <div style="position: relative; margin-bottom: 12px;">
+                        <input type="password" id="login-password" placeholder="Password" required style="padding-right: 50px; margin-bottom: 0;">
+                        <button type="button" id="toggle-password" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; font-size: 22px; padding: 0; width: 35px; height: 35px; display: flex; align-items: center; justify-content: center;">👁️</button>
+                    </div>
+                    <label class="checkbox-label" style="display: flex; align-items: center; gap: 10px; margin: 15px 0; cursor: pointer; user-select: none;">
+                        <input type="checkbox" id="remember-me" style="width: 20px; height: 20px; cursor: pointer; margin: 0;">
+                        <span style="font-size: 14px; font-weight: 500;">Resta connesso</span>
+                    </label>
                     <button type="submit" class="btn-primary">Accedi</button>
                 </form>
             </div>
@@ -84,8 +91,7 @@
             <button class="tab-btn active" data-tab="inventario">📊 Inventario</button>
             <button class="tab-btn" data-tab="nuovo" id="tab-nuovo-btn">➕ Nuovo Articolo</button>
             <button class="tab-btn" data-tab="movimenti">📋 Movimenti</button>
-            <button class="tab-btn" data-tab="report" id="tab-report-btn">📄 Report</button>
-            <button class="tab-btn" data-tab="gestione" id="tab-gestione-btn">👥 Gestione Utenti</button>
+            <button class="tab-btn" data-tab="report" id="tab-report-btn">📊 Report Ordini</button>
             <button class="tab-btn" data-tab="scanner">📷 Scanner</button>
         </nav>
 
@@ -215,25 +221,22 @@
             </div>
         </div>
 
-        <!-- TAB 4: REPORT -->
+        <!-- TAB 4: REPORT ORDINI -->
         <div id="tab-report" class="tab-content">
             <div class="container">
                 <div class="card">
-                    <h2>Genera Report</h2>
+                    <h2>📊 Report Prestagionale Ordini/Vendite</h2>
+                    <p style="color: var(--gray); font-size: 14px; margin-bottom: 20px;">
+                        Analizza quanto materiale hai ordinato (caricato) e venduto (scaricato) per programmare ordini futuri.
+                    </p>
+                    
                     <div class="report-options">
                         <label>Tipo Report:</label>
                         <select id="report-type">
-                            <option value="articolo">Report per Articolo</option>
-                            <option value="fornitore">Report per Fornitore</option>
-                            <option value="inventario">Report Inventario Completo</option>
+                            <option value="generale">Report Generale (Tutti i Fornitori)</option>
+                            <option value="fornitore">Report per Fornitore Specifico</option>
+                            <option value="articolo">Report per Articolo Specifico</option>
                         </select>
-
-                        <div id="report-article-select" class="report-field">
-                            <label>Seleziona Articolo:</label>
-                            <select id="report-article">
-                                <option value="">-- Seleziona articolo --</option>
-                            </select>
-                        </div>
 
                         <div id="report-supplier-select" class="report-field hidden">
                             <label>Seleziona Fornitore:</label>
@@ -242,7 +245,14 @@
                             </select>
                         </div>
 
-                        <label>Periodo:</label>
+                        <div id="report-article-select" class="report-field hidden">
+                            <label>Seleziona Articolo:</label>
+                            <select id="report-article">
+                                <option value="">-- Seleziona articolo --</option>
+                            </select>
+                        </div>
+
+                        <label>Periodo Analisi:</label>
                         <div class="form-row">
                             <div class="form-col">
                                 <label>Da:</label>
@@ -268,52 +278,7 @@
             </div>
         </div>
 
-        <!-- TAB 5: GESTIONE UTENTI (solo admin) -->
-        <div id="tab-gestione" class="tab-content">
-            <div class="container">
-                <div class="card">
-                    <h2>Aggiungi Nuovo Utente</h2>
-                    <form id="add-user-form">
-                        <div class="form-row">
-                            <div class="form-col">
-                                <label>Email *</label>
-                                <input type="email" id="new-user-email" placeholder="email@esempio.com" required>
-                            </div>
-                            <div class="form-col">
-                                <label>Password *</label>
-                                <input type="password" id="new-user-password" placeholder="Min 6 caratteri" required>
-                            </div>
-                        </div>
-                        <label>Ruolo *</label>
-                        <select id="new-user-role" required>
-                            <option value="operatore">Operatore (solo carico/scarico)</option>
-                            <option value="admin">Amministratore (controllo completo)</option>
-                        </select>
-                        <button type="submit" class="btn-primary">Crea Utente</button>
-                    </form>
-                </div>
-
-                <div class="card">
-                    <h2>Utenti Registrati</h2>
-                    <div class="table-container">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Email</th>
-                                    <th>Ruolo</th>
-                                    <th>Azioni</th>
-                                </tr>
-                            </thead>
-                            <tbody id="users-tbody">
-                                <!-- Utenti caricati dinamicamente -->
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- TAB 6: SCANNER -->
+        <!-- TAB 5: SCANNER -->
         <div id="tab-scanner" class="tab-content">
             <div class="container">
                 <div class="card">
@@ -416,6 +381,6 @@
     <!-- Librerie esterne -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
-    <script src="app.js?v=2.2.9"></script>
+    <script src="app.js?v=2.3.0"></script>
 </body>
 </html>

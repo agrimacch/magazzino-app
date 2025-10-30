@@ -13,7 +13,6 @@ let currentUser = null;
 let currentUserRole = null;
 let allArticles = [];
 let allMovements = [];
-let allUsers = [];
 let currentArticleForMovement = null;
 let html5QrCode = null;
 
@@ -30,18 +29,27 @@ function calcolaPrezzoConIVA(prezzoNetto, ivaPercentuale) {
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('🚀 Inizializzazione app...');
     
+    // Controlla se l'utente ha scelto "Resta connesso"
+    const rememberMe = localStorage.getItem('rememberMe') === 'true';
+    
     // Controlla la sessione corrente
     const { data: { session } } = await supabase.auth.getSession();
     
     console.log('📋 Sessione trovata:', session ? 'SÌ' : 'NO');
+    console.log('💾 Resta connesso:', rememberMe);
     
-    if (session) {
+    if (session && rememberMe) {
         currentUser = session.user;
         console.log('👤 Utente:', currentUser.email);
         await loadUserRole();
         showMainScreen();
+    } else if (session && !rememberMe) {
+        // Sessione presente ma utente non ha chiesto di restare connesso
+        // Logout automatico
+        await supabase.auth.signOut();
+        showLoginScreen();
     } else {
-        console.log('🔐 Nessuna sessione, mostro login');
+        console.log('🔑 Nessuna sessione, mostro login');
         showLoginScreen();
     }
     
@@ -57,6 +65,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (event === 'SIGNED_OUT') {
             currentUser = null;
             currentUserRole = null;
+            localStorage.removeItem('rememberMe');
             showLoginScreen();
         } else if (event === 'SIGNED_IN' && session) {
             currentUser = session.user;
@@ -69,7 +78,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 // GESTIONE RUOLI
 // ========================================
 async function loadUserRole() {
-    console.log('👔 Caricamento ruolo per:', currentUser.email);
+    console.log('🔍 Caricamento ruolo per:', currentUser.email);
     
     const { data, error } = await supabase
         .from('user_roles')
@@ -99,7 +108,6 @@ function applyRolePermissions() {
     if (currentUserRole === 'operatore') {
         document.getElementById('tab-nuovo-btn').style.display = 'none';
         document.getElementById('tab-report-btn').style.display = 'none';
-        document.getElementById('tab-gestione-btn').style.display = 'none';
         
         document.querySelectorAll('.btn-edit, .btn-delete').forEach(btn => {
             btn.style.display = 'none';
@@ -124,7 +132,6 @@ function showMainScreen() {
     
     if (currentUserRole === 'admin') {
         populateReportSelects();
-        loadUsers();
     }
 }
 
@@ -135,8 +142,10 @@ async function handleLogin(e) {
     e.preventDefault();
     const email = document.getElementById('login-email').value;
     const password = document.getElementById('login-password').value;
+    const rememberMe = document.getElementById('remember-me').checked;
     
     console.log('🔐 Tentativo login per:', email);
+    console.log('💾 Resta connesso:', rememberMe);
     
     const { data, error } = await supabase.auth.signInWithPassword({
         email,
@@ -149,6 +158,13 @@ async function handleLogin(e) {
         return;
     }
     
+    // Salva preferenza "Resta connesso"
+    if (rememberMe) {
+        localStorage.setItem('rememberMe', 'true');
+    } else {
+        localStorage.removeItem('rememberMe');
+    }
+    
     console.log('✅ Login riuscito');
     currentUser = data.user;
     await loadUserRole();
@@ -157,10 +173,27 @@ async function handleLogin(e) {
 
 async function handleLogout() {
     console.log('🚪 Logout...');
+    localStorage.removeItem('rememberMe');
     await supabase.auth.signOut();
     currentUser = null;
     currentUserRole = null;
     showLoginScreen();
+}
+
+// ========================================
+// TOGGLE PASSWORD VISIBILITY
+// ========================================
+function togglePasswordVisibility() {
+    const passwordInput = document.getElementById('login-password');
+    const toggleBtn = document.getElementById('toggle-password');
+    
+    if (passwordInput.type === 'password') {
+        passwordInput.type = 'text';
+        toggleBtn.textContent = '🙈';
+    } else {
+        passwordInput.type = 'password';
+        toggleBtn.textContent = '👁️';
+    }
 }
 
 // ========================================
@@ -266,7 +299,6 @@ function renderInventoryBySupplier(articles) {
     
     Object.keys(groupedBySupplier).sort().forEach(supplier => {
         const supplierArticles = groupedBySupplier[supplier];
-        // Calcolo valore magazzino con IVA inclusa
         const totalValue = supplierArticles.reduce((sum, a) => {
             const ivaPerc = a.iva_percentuale || 22;
             const prezzoConIVA = calcolaPrezzoConIVA(a.prezzo_acquisto, ivaPerc);
@@ -480,7 +512,6 @@ async function handleNewArticle(e) {
     
     alert('Articolo aggiunto con successo!');
     document.getElementById('new-article-form').reset();
-    // Reset valori default
     document.getElementById('new-quantity').value = 0;
     document.getElementById('new-threshold').value = 10;
     document.getElementById('new-iva').value = 22;
@@ -651,6 +682,13 @@ async function confirmMovement() {
     loadInventory();
     loadMovements();
     
+    // ALERT SOTTO SOGLIA
+    if (type === 'scarico' && newQuantity <= article.soglia_minima) {
+        setTimeout(() => {
+            alert(`⚠️ ATTENZIONE!\n\nL'articolo "${article.nome}" è SOTTO SOGLIA!\n\nQuantità attuale: ${newQuantity}\nSoglia minima: ${article.soglia_minima}\n\n🛒 È necessario riordinare!`);
+        }, 300);
+    }
+    
     alert(`${type === 'carico' ? 'Carico' : 'Scarico'} completato!`);
 }
 
@@ -738,7 +776,7 @@ function applyMovementFilters() {
 }
 
 // ========================================
-// REPORT
+// REPORT PRESTAGIONALE
 // ========================================
 function populateReportSelects() {
     const articleSelect = document.getElementById('report-article');
@@ -782,31 +820,274 @@ async function generateReport() {
     
     let reportContent = '';
     
-    if (reportType === 'articolo') {
-        const articleId = parseInt(document.getElementById('report-article').value);
-        if (!articleId) {
-            alert('Seleziona un articolo');
-            return;
-        }
-        reportContent = await generateArticleReport(articleId, dateFrom, dateTo);
-        
+    if (reportType === 'generale') {
+        reportContent = await generateGeneralOrderReport(dateFrom, dateTo);
     } else if (reportType === 'fornitore') {
         const supplier = document.getElementById('report-supplier').value;
         if (!supplier) {
             alert('Seleziona un fornitore');
             return;
         }
-        reportContent = generateSupplierReport(supplier, dateFrom, dateTo);
-        
-    } else if (reportType === 'inventario') {
-        reportContent = generateInventoryReport();
+        reportContent = await generateSupplierOrderReport(supplier, dateFrom, dateTo);
+    } else if (reportType === 'articolo') {
+        const articleId = parseInt(document.getElementById('report-article').value);
+        if (!articleId) {
+            alert('Seleziona un articolo');
+            return;
+        }
+        reportContent = await generateArticleOrderReport(articleId, dateFrom, dateTo);
     }
     
     document.getElementById('report-content').innerHTML = reportContent;
     document.getElementById('report-result').classList.remove('hidden');
 }
 
-async function generateArticleReport(articleId, dateFrom, dateTo) {
+async function generateGeneralOrderReport(dateFrom, dateTo) {
+    // Recupera tutti i movimenti nel periodo
+    let query = supabase
+        .from('movimenti')
+        .select('*')
+        .order('created_at', { ascending: false });
+    
+    if (dateFrom) {
+        query = query.gte('created_at', new Date(dateFrom).toISOString());
+    }
+    if (dateTo) {
+        const endDate = new Date(dateTo);
+        endDate.setHours(23, 59, 59);
+        query = query.lte('created_at', endDate.toISOString());
+    }
+    
+    const { data: movements } = await query;
+    
+    // Calcola totali per fornitore
+    const supplierData = {};
+    
+    movements.forEach(movement => {
+        const article = allArticles.find(a => a.id === movement.articolo_id);
+        if (!article) return;
+        
+        const supplier = article.marca_fornitore || 'Senza Fornitore';
+        
+        if (!supplierData[supplier]) {
+            supplierData[supplier] = {
+                totalCarico: 0,
+                totalScarico: 0,
+                articoli: new Set()
+            };
+        }
+        
+        if (movement.tipo === 'carico') {
+            supplierData[supplier].totalCarico += movement.quantita;
+        } else {
+            supplierData[supplier].totalScarico += movement.quantita;
+        }
+        
+        supplierData[supplier].articoli.add(article.id);
+    });
+    
+    // Genera HTML
+    let html = `
+        <h3>📊 REPORT GENERALE ORDINI/VENDITE</h3>
+        <p><strong>Periodo:</strong> ${dateFrom || 'Inizio'} → ${dateTo || 'Oggi'}</p>
+        <p><strong>Data Generazione:</strong> ${new Date().toLocaleString('it-IT')}</p>
+        <hr>
+        <h4>📦 RIEPILOGO PER FORNITORE</h4>
+        <p style="color: var(--gray); font-size: 13px; margin-bottom: 15px;">
+            Questo report mostra quanto materiale hai <strong style="color: var(--success);">ORDINATO (caricato)</strong> e 
+            <strong style="color: var(--danger);">VENDUTO (scaricato)</strong> per ogni fornitore.
+        </p>
+    `;
+    
+    Object.keys(supplierData).sort().forEach(supplier => {
+        const data = supplierData[supplier];
+        const differenza = data.totalCarico - data.totalScarico;
+        const differenzaColor = differenza >= 0 ? 'var(--success)' : 'var(--danger)';
+        
+        // Calcola articoli sotto soglia
+        const supplierArticles = allArticles.filter(a => (a.marca_fornitore || 'Senza Fornitore') === supplier);
+        const lowStockCount = supplierArticles.filter(a => a.quantita <= a.soglia_minima).length;
+        
+        html += `
+            <div style="background: var(--light); padding: 15px; border-radius: 12px; margin-bottom: 15px; border-left: 4px solid var(--primary);">
+                <h4 style="margin-bottom: 10px; color: var(--primary);">🏢 ${supplier}</h4>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; font-size: 13px;">
+                    <div>
+                        <strong>Articoli gestiti:</strong> ${data.articoli.size}
+                    </div>
+                    <div style="color: var(--success);">
+                        <strong>📥 Ordinato (Carico):</strong> +${data.totalCarico} pz
+                    </div>
+                    <div style="color: var(--danger);">
+                        <strong>📤 Venduto (Scarico):</strong> -${data.totalScarico} pz
+                    </div>
+                    <div style="color: ${differenzaColor};">
+                        <strong>💰 Differenza:</strong> ${differenza >= 0 ? '+' : ''}${differenza} pz
+                    </div>
+                    <div style="color: ${lowStockCount > 0 ? 'var(--danger)' : 'var(--success)'};">
+                        <strong>⚠️ Sotto soglia:</strong> ${lowStockCount} articoli
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    
+    html += `
+        <hr>
+        <h4>💡 COSA SIGNIFICA</h4>
+        <ul style="list-style: none; padding-left: 0; font-size: 13px; line-height: 1.8;">
+            <li>📥 <strong>Ordinato (Carico):</strong> Quanti pezzi hai ricevuto dai fornitori</li>
+            <li>📤 <strong>Venduto (Scarico):</strong> Quanti pezzi hai venduto/utilizzato</li>
+            <li>💰 <strong>Differenza:</strong> Se positiva, hai ancora stock. Se negativa, hai venduto più di quanto ordinato</li>
+            <li>⚠️ <strong>Sotto soglia:</strong> Articoli da riordinare immediatamente</li>
+        </ul>
+    `;
+    
+    return html;
+}
+
+async function generateSupplierOrderReport(supplier, dateFrom, dateTo) {
+    // Recupera movimenti del fornitore
+    let query = supabase
+        .from('movimenti')
+        .select('*')
+        .order('created_at', { ascending: false });
+    
+    if (dateFrom) {
+        query = query.gte('created_at', new Date(dateFrom).toISOString());
+    }
+    if (dateTo) {
+        const endDate = new Date(dateTo);
+        endDate.setHours(23, 59, 59);
+        query = query.lte('created_at', endDate.toISOString());
+    }
+    
+    const { data: movements } = await query;
+    
+    const supplierArticles = allArticles.filter(a => a.marca_fornitore === supplier);
+    const supplierArticleIds = supplierArticles.map(a => a.id);
+    
+    const supplierMovements = movements.filter(m => supplierArticleIds.includes(m.articolo_id));
+    
+    // Calcola per articolo
+    const articleData = {};
+    
+    supplierArticles.forEach(article => {
+        articleData[article.id] = {
+            nome: article.nome,
+            codice: article.codice_articolo,
+            quantitaAttuale: article.quantita,
+            soglia: article.soglia_minima,
+            carico: 0,
+            scarico: 0
+        };
+    });
+    
+    supplierMovements.forEach(movement => {
+        if (articleData[movement.articolo_id]) {
+            if (movement.tipo === 'carico') {
+                articleData[movement.articolo_id].carico += movement.quantita;
+            } else {
+                articleData[movement.articolo_id].scarico += movement.quantita;
+            }
+        }
+    });
+    
+    const totalCarico = Object.values(articleData).reduce((sum, a) => sum + a.carico, 0);
+    const totalScarico = Object.values(articleData).reduce((sum, a) => sum + a.scarico, 0);
+    const lowStockCount = supplierArticles.filter(a => a.quantita <= a.soglia_minima).length;
+    
+    let html = `
+        <h3>📊 REPORT FORNITORE: ${supplier}</h3>
+        <p><strong>Periodo:</strong> ${dateFrom || 'Inizio'} → ${dateTo || 'Oggi'}</p>
+        <p><strong>Data Generazione:</strong> ${new Date().toLocaleString('it-IT')}</p>
+        <hr>
+        <h4>📦 RIEPILOGO</h4>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin: 15px 0;">
+            <div style="background: var(--light); padding: 12px; border-radius: 8px;">
+                <div style="color: var(--gray); font-size: 12px;">Articoli Totali</div>
+                <div style="font-size: 22px; font-weight: 700;">${supplierArticles.length}</div>
+            </div>
+            <div style="background: var(--green-light); padding: 12px; border-radius: 8px;">
+                <div style="color: var(--success); font-size: 12px;">📥 Ordinato</div>
+                <div style="font-size: 22px; font-weight: 700; color: var(--success);">+${totalCarico}</div>
+            </div>
+            <div style="background: #fee2e2; padding: 12px; border-radius: 8px;">
+                <div style="color: var(--danger); font-size: 12px;">📤 Venduto</div>
+                <div style="font-size: 22px; font-weight: 700; color: var(--danger);">-${totalScarico}</div>
+            </div>
+            <div style="background: ${lowStockCount > 0 ? '#fee2e2' : 'var(--green-light)'}; padding: 12px; border-radius: 8px;">
+                <div style="color: ${lowStockCount > 0 ? 'var(--danger)' : 'var(--success)'}; font-size: 12px;">⚠️ Sotto Soglia</div>
+                <div style="font-size: 22px; font-weight: 700; color: ${lowStockCount > 0 ? 'var(--danger)' : 'var(--success)'};">${lowStockCount}</div>
+            </div>
+        </div>
+        <hr>
+        <h4>📋 DETTAGLIO ARTICOLI</h4>
+        <table style="width: 100%; font-size: 12px; margin-top: 10px;">
+            <thead>
+                <tr style="background: var(--primary); color: white;">
+                    <th style="padding: 10px; text-align: left;">Nome</th>
+                    <th style="padding: 10px;">Codice</th>
+                    <th style="padding: 10px;">Qty Attuale</th>
+                    <th style="padding: 10px;">Soglia</th>
+                    <th style="padding: 10px; color: #dcfce7;">Ordinato</th>
+                    <th style="padding: 10px; color: #fee2e2;">Venduto</th>
+                    <th style="padding: 10px;">Diff.</th>
+                    <th style="padding: 10px;">Stato</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
+    
+    Object.values(articleData).forEach(article => {
+        const diff = article.carico - article.scarico;
+        const diffColor = diff >= 0 ? 'var(--success)' : 'var(--danger)';
+        const rowStyle = article.quantitaAttuale <= article.soglia ? 'background: #fee2e2;' : '';
+        const stato = article.quantitaAttuale <= article.soglia ? '⚠️ DA ORDINARE' : '✅ OK';
+        
+        html += `
+            <tr style="${rowStyle}">
+                <td style="padding: 8px;"><strong>${article.nome}</strong></td>
+                <td style="padding: 8px; text-align: center;">${article.codice}</td>
+                <td style="padding: 8px; text-align: center;"><strong>${article.quantitaAttuale}</strong></td>
+                <td style="padding: 8px; text-align: center;">${article.soglia}</td>
+                <td style="padding: 8px; text-align: center; color: var(--success);"><strong>+${article.carico}</strong></td>
+                <td style="padding: 8px; text-align: center; color: var(--danger);"><strong>-${article.scarico}</strong></td>
+                <td style="padding: 8px; text-align: center; color: ${diffColor};"><strong>${diff >= 0 ? '+' : ''}${diff}</strong></td>
+                <td style="padding: 8px; text-align: center;">${stato}</td>
+            </tr>
+        `;
+    });
+    
+    html += `
+            </tbody>
+        </table>
+        <hr>
+        <div style="background: var(--green-light); padding: 15px; border-radius: 12px; margin-top: 15px;">
+            <h4 style="color: var(--primary); margin-bottom: 10px;">💡 CONSIGLI PER L'ORDINE</h4>
+            <ul style="list-style: none; padding-left: 0; font-size: 13px; line-height: 1.8;">
+    `;
+    
+    if (lowStockCount > 0) {
+        html += `<li>🛒 <strong>${lowStockCount} articoli</strong> sono sotto soglia e vanno riordinati SUBITO</li>`;
+    } else {
+        html += `<li>✅ Tutti gli articoli sono sopra la soglia minima</li>`;
+    }
+    
+    const articoliConDiffNegativa = Object.values(articleData).filter(a => (a.carico - a.scarico) < 0);
+    if (articoliConDiffNegativa.length > 0) {
+        html += `<li>⚠️ <strong>${articoliConDiffNegativa.length} articoli</strong> hanno venduto più di quanto ordinato nel periodo</li>`;
+    }
+    
+    html += `
+            </ul>
+        </div>
+    `;
+    
+    return html;
+}
+
+async function generateArticleOrderReport(articleId, dateFrom, dateTo) {
     const article = allArticles.find(a => a.id === articleId);
     if (!article) return '<p>Articolo non trovato</p>';
     
@@ -829,40 +1110,49 @@ async function generateArticleReport(articleId, dateFrom, dateTo) {
     
     const totalCarico = movements.filter(m => m.tipo === 'carico').reduce((sum, m) => sum + m.quantita, 0);
     const totalScarico = movements.filter(m => m.tipo === 'scarico').reduce((sum, m) => sum + m.quantita, 0);
-    
-    const ivaPerc = article.iva_percentuale || 22;
-    const prezzoConIVA = calcolaPrezzoConIVA(article.prezzo_acquisto, ivaPerc);
-    const valoreMagazzino = article.quantita * prezzoConIVA;
+    const differenza = totalCarico - totalScarico;
     
     let html = `
-        <h3>REPORT ARTICOLO</h3>
-        <p><strong>Articolo:</strong> ${article.nome}</p>
-        <p><strong>Codice Articolo:</strong> ${article.codice_articolo}</p>
-        <p><strong>Codice a Barre:</strong> ${article.codice_barre}</p>
-        <p><strong>Fornitore:</strong> ${article.marca_fornitore || 'N/D'}</p>
-        <p><strong>Note:</strong> ${article.note || 'N/D'}</p>
-        <p><strong>Quantità Attuale:</strong> ${article.quantita}</p>
-        <p><strong>Prezzo Acquisto NETTO:</strong> € ${parseFloat(article.prezzo_acquisto).toFixed(2)}</p>
-        <p><strong>IVA:</strong> ${ivaPerc}%</p>
-        <p><strong>Prezzo Acquisto IVA inclusa:</strong> € ${prezzoConIVA.toFixed(2)}</p>
-        <p><strong>Prezzo Vendita:</strong> € ${parseFloat(article.prezzo_vendita).toFixed(2)}</p>
-        <p><strong>Valore Magazzino (IVA inc.):</strong> € ${valoreMagazzino.toFixed(2)}</p>
+        <h3>📊 REPORT ARTICOLO: ${article.nome}</h3>
+        <p><strong>Codice:</strong> ${article.codice_articolo} | <strong>Fornitore:</strong> ${article.marca_fornitore || 'N/D'}</p>
+        <p><strong>Periodo:</strong> ${dateFrom || 'Inizio'} → ${dateTo || 'Oggi'}</p>
         <hr>
-        <h4>RIEPILOGO MOVIMENTI</h4>
-        <p><strong>Periodo:</strong> ${dateFrom || 'Inizio'} - ${dateTo || 'Oggi'}</p>
-        <p><strong>Totale Carico:</strong> +${totalCarico}</p>
-        <p><strong>Totale Scarico:</strong> -${totalScarico}</p>
-        <p><strong>Differenza:</strong> ${totalCarico - totalScarico}</p>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin: 15px 0;">
+            <div style="background: var(--light); padding: 12px; border-radius: 8px;">
+                <div style="color: var(--gray); font-size: 12px;">Qty Attuale</div>
+                <div style="font-size: 22px; font-weight: 700;">${article.quantita}</div>
+            </div>
+            <div style="background: var(--light); padding: 12px; border-radius: 8px;">
+                <div style="color: var(--gray); font-size: 12px;">Soglia Minima</div>
+                <div style="font-size: 22px; font-weight: 700;">${article.soglia_minima}</div>
+            </div>
+            <div style="background: var(--green-light); padding: 12px; border-radius: 8px;">
+                <div style="color: var(--success); font-size: 12px;">📥 Ordinato</div>
+                <div style="font-size: 22px; font-weight: 700; color: var(--success);">+${totalCarico}</div>
+            </div>
+            <div style="background: #fee2e2; padding: 12px; border-radius: 8px;">
+                <div style="color: var(--danger); font-size: 12px;">📤 Venduto</div>
+                <div style="font-size: 22px; font-weight: 700; color: var(--danger);">-${totalScarico}</div>
+            </div>
+            <div style="background: var(--light); padding: 12px; border-radius: 8px;">
+                <div style="color: var(--gray); font-size: 12px;">💰 Differenza</div>
+                <div style="font-size: 22px; font-weight: 700; color: ${differenza >= 0 ? 'var(--success)' : 'var(--danger)'};">${differenza >= 0 ? '+' : ''}${differenza}</div>
+            </div>
+            <div style="background: ${article.quantita <= article.soglia_minima ? '#fee2e2' : 'var(--green-light)'}; padding: 12px; border-radius: 8px;">
+                <div style="color: ${article.quantita <= article.soglia_minima ? 'var(--danger)' : 'var(--success)'}; font-size: 12px;">Stato</div>
+                <div style="font-size: 18px; font-weight: 700;">${article.quantita <= article.soglia_minima ? '⚠️ ORDINARE' : '✅ OK'}</div>
+            </div>
+        </div>
         <hr>
-        <h4>DETTAGLIO MOVIMENTI</h4>
-        <table style="width: 100%; margin-top: 10px;">
+        <h4>📋 STORICO MOVIMENTI</h4>
+        <table style="width: 100%; font-size: 12px; margin-top: 10px;">
             <thead>
                 <tr style="background: var(--primary); color: white;">
-                    <th>Data</th>
-                    <th>Tipo</th>
-                    <th>Quantità</th>
-                    <th>Utente</th>
-                    <th>Note</th>
+                    <th style="padding: 10px;">Data</th>
+                    <th style="padding: 10px;">Tipo</th>
+                    <th style="padding: 10px;">Quantità</th>
+                    <th style="padding: 10px;">Utente</th>
+                    <th style="padding: 10px;">Note</th>
                 </tr>
             </thead>
             <tbody>
@@ -870,184 +1160,15 @@ async function generateArticleReport(articleId, dateFrom, dateTo) {
     
     movements.forEach(m => {
         const date = new Date(m.created_at).toLocaleString('it-IT');
+        const typeColor = m.tipo === 'carico' ? 'var(--success)' : 'var(--danger)';
+        
         html += `
             <tr>
-                <td>${date}</td>
-                <td style="color: ${m.tipo === 'carico' ? 'green' : 'red'}; font-weight: bold;">${m.tipo.toUpperCase()}</td>
-                <td>${m.quantita}</td>
-                <td>${m.utente}</td>
-                <td>${m.note || '-'}</td>
-            </tr>
-        `;
-    });
-    
-    html += `
-            </tbody>
-        </table>
-    `;
-    
-    return html;
-}
-
-function generateSupplierReport(supplier, dateFrom, dateTo) {
-    const supplierArticles = allArticles.filter(a => a.marca_fornitore === supplier);
-    
-    // Calcolo valore con IVA inclusa
-    const totalValue = supplierArticles.reduce((sum, a) => {
-        const ivaPerc = a.iva_percentuale || 22;
-        const prezzoConIVA = calcolaPrezzoConIVA(a.prezzo_acquisto, ivaPerc);
-        return sum + (a.quantita * prezzoConIVA);
-    }, 0);
-    
-    const lowStockCount = supplierArticles.filter(a => a.quantita <= a.soglia_minima).length;
-    const totalQuantity = supplierArticles.reduce((sum, a) => sum + a.quantita, 0);
-    
-    let html = `
-        <h3>REPORT FORNITORE</h3>
-        <p><strong>Fornitore:</strong> ${supplier}</p>
-        <p><strong>Data Report:</strong> ${new Date().toLocaleDateString('it-IT')}</p>
-        <p><strong>Periodo:</strong> ${dateFrom || 'Inizio'} - ${dateTo || 'Oggi'}</p>
-        <hr>
-        <h4>RIEPILOGO</h4>
-        <p><strong>Numero Articoli:</strong> ${supplierArticles.length}</p>
-        <p><strong>Quantità Totale:</strong> ${totalQuantity} pezzi</p>
-        <p><strong>Valore Totale Magazzino (IVA inc.):</strong> € ${totalValue.toFixed(2)}</p>
-        <p><strong>Articoli sotto soglia:</strong> ${lowStockCount}</p>
-        <hr>
-        <h4>DETTAGLIO ARTICOLI</h4>
-        <table style="width: 100%; margin-top: 10px;">
-            <thead>
-                <tr style="background: var(--primary); color: white;">
-                    <th>Nome</th>
-                    <th>Codice</th>
-                    <th>Qty</th>
-                    <th>Soglia</th>
-                    <th>Pr. Acq. Netto</th>
-                    <th>IVA %</th>
-                    <th>Valore Tot</th>
-                    <th>Note</th>
-                    <th>Stato</th>
-                </tr>
-            </thead>
-            <tbody>
-    `;
-    
-    supplierArticles.forEach(article => {
-        const ivaPerc = article.iva_percentuale || 22;
-        const prezzoConIVA = calcolaPrezzoConIVA(article.prezzo_acquisto, ivaPerc);
-        const totalArticleValue = article.quantita * prezzoConIVA;
-        const rowStyle = article.quantita <= article.soglia_minima ? 'background: #fee2e2;' : '';
-        const stato = article.quantita <= article.soglia_minima ? '⚠️ DA ORDINARE' : '✅ OK';
-        
-        html += `
-            <tr style="${rowStyle}">
-                <td><strong>${article.nome}</strong></td>
-                <td>${article.codice_articolo}</td>
-                <td><strong>${article.quantita}</strong></td>
-                <td>${article.soglia_minima}</td>
-                <td>€ ${parseFloat(article.prezzo_acquisto).toFixed(2)}</td>
-                <td>${ivaPerc}%</td>
-                <td>€ ${totalArticleValue.toFixed(2)}</td>
-                <td>${article.note || '-'}</td>
-                <td>${stato}</td>
-            </tr>
-        `;
-    });
-    
-    html += `
-            </tbody>
-        </table>
-    `;
-    
-    return html;
-}
-
-function generateInventoryReport() {
-    const totalArticles = allArticles.length;
-    const totalQuantity = allArticles.reduce((sum, a) => sum + a.quantita, 0);
-    
-    // Calcolo valore con IVA inclusa
-    const totalValue = allArticles.reduce((sum, a) => {
-        const ivaPerc = a.iva_percentuale || 22;
-        const prezzoConIVA = calcolaPrezzoConIVA(a.prezzo_acquisto, ivaPerc);
-        return sum + (a.quantita * prezzoConIVA);
-    }, 0);
-    
-    const lowStockCount = allArticles.filter(a => a.quantita <= a.soglia_minima).length;
-    
-    const suppliers = [...new Set(allArticles.map(a => a.marca_fornitore).filter(Boolean))];
-    
-    let html = `
-        <h3>REPORT INVENTARIO COMPLETO</h3>
-        <p><strong>Data:</strong> ${new Date().toLocaleString('it-IT')}</p>
-        <hr>
-        <h4>RIEPILOGO GENERALE</h4>
-        <p><strong>Totale Articoli:</strong> ${totalArticles}</p>
-        <p><strong>Quantità Totale Pezzi:</strong> ${totalQuantity}</p>
-        <p><strong>Valore Totale Magazzino (IVA inc.):</strong> € ${totalValue.toFixed(2)}</p>
-        <p><strong>Articoli sotto soglia:</strong> ${lowStockCount}</p>
-        <p><strong>Numero Fornitori:</strong> ${suppliers.length}</p>
-        <hr>
-        <h4>DETTAGLIO PER FORNITORE</h4>
-    `;
-    
-    suppliers.sort().forEach(supplier => {
-        const supplierArticles = allArticles.filter(a => a.marca_fornitore === supplier);
-        const supplierValue = supplierArticles.reduce((sum, a) => {
-            const ivaPerc = a.iva_percentuale || 22;
-            const prezzoConIVA = calcolaPrezzoConIVA(a.prezzo_acquisto, ivaPerc);
-            return sum + (a.quantita * prezzoConIVA);
-        }, 0);
-        const supplierLowStock = supplierArticles.filter(a => a.quantita <= a.soglia_minima).length;
-        
-        html += `
-            <div style="margin: 20px 0; padding: 15px; background: var(--green-light); border-radius: 12px; border-left: 4px solid var(--primary);">
-                <h4 style="margin-bottom: 10px;">🏢 ${supplier}</h4>
-                <p><strong>Articoli:</strong> ${supplierArticles.length} | <strong>Valore:</strong> € ${supplierValue.toFixed(2)} | <strong>Da Ordinare:</strong> ${supplierLowStock}</p>
-            </div>
-        `;
-    });
-    
-    html += `
-        <hr>
-        <h4>TUTTI GLI ARTICOLI</h4>
-        <table style="width: 100%; margin-top: 10px; font-size: 12px;">
-            <thead>
-                <tr style="background: var(--primary); color: white;">
-                    <th>Nome</th>
-                    <th>Codice</th>
-                    <th>Fornitore</th>
-                    <th>Qty</th>
-                    <th>Soglia</th>
-                    <th>Pr. Acq. Netto</th>
-                    <th>IVA %</th>
-                    <th>Valore</th>
-                    <th>Note</th>
-                    <th>Stato</th>
-                </tr>
-            </thead>
-            <tbody>
-    `;
-    
-    allArticles.forEach(article => {
-        const ivaPerc = article.iva_percentuale || 22;
-        const prezzoConIVA = calcolaPrezzoConIVA(article.prezzo_acquisto, ivaPerc);
-        const totalArticleValue = article.quantita * prezzoConIVA;
-        const rowStyle = article.quantita <= article.soglia_minima ? 'background: #fee2e2;' : '';
-        const stato = article.quantita <= article.soglia_minima ? '⚠️' : '✅';
-        
-        html += `
-            <tr style="${rowStyle}">
-                <td><strong>${article.nome}</strong></td>
-                <td>${article.codice_articolo}</td>
-                <td>${article.marca_fornitore || '-'}</td>
-                <td><strong>${article.quantita}</strong></td>
-                <td>${article.soglia_minima}</td>
-                <td>€ ${parseFloat(article.prezzo_acquisto).toFixed(2)}</td>
-                <td>${ivaPerc}%</td>
-                <td>€ ${totalArticleValue.toFixed(2)}</td>
-                <td>${article.note || '-'}</td>
-                <td>${stato}</td>
+                <td style="padding: 8px;">${date}</td>
+                <td style="padding: 8px; text-align: center; color: ${typeColor}; font-weight: 700;">${m.tipo.toUpperCase()}</td>
+                <td style="padding: 8px; text-align: center;"><strong>${m.quantita}</strong></td>
+                <td style="padding: 8px;">${m.utente}</td>
+                <td style="padding: 8px;">${m.note || '-'}</td>
             </tr>
         `;
     });
@@ -1062,119 +1183,6 @@ function generateInventoryReport() {
 
 function printReport() {
     window.print();
-}
-
-// ========================================
-// GESTIONE UTENTI (solo admin)
-// ========================================
-async function loadUsers() {
-    const { data, error } = await supabase
-        .from('user_roles')
-        .select('*')
-        .order('email');
-    
-    if (error) {
-        console.error('Errore caricamento utenti:', error);
-        return;
-    }
-    
-    allUsers = data || [];
-    renderUsers();
-}
-
-function renderUsers() {
-    const tbody = document.getElementById('users-tbody');
-    tbody.innerHTML = '';
-    
-    if (allUsers.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="3" style="text-align:center">Nessun utente registrato</td></tr>';
-        return;
-    }
-    
-    allUsers.forEach(user => {
-        const row = document.createElement('tr');
-        const roleBadge = user.role === 'admin' ? '<span class="role-badge admin">👑 Admin</span>' : '<span class="role-badge operatore">👤 Operatore</span>';
-        
-        row.innerHTML = `
-            <td>${user.email}</td>
-            <td>${roleBadge}</td>
-            <td>
-                ${user.email !== currentUser.email ? `<button onclick="deleteUser('${user.email}')" class="btn-delete">Elimina</button>` : '<em>Tu</em>'}
-            </td>
-        `;
-        
-        tbody.appendChild(row);
-    });
-}
-
-async function handleAddUser(e) {
-    e.preventDefault();
-    
-    const email = document.getElementById('new-user-email').value;
-    const password = document.getElementById('new-user-password').value;
-    const role = document.getElementById('new-user-role').value;
-    
-    if (password.length < 6) {
-        alert('La password deve essere di almeno 6 caratteri');
-        return;
-    }
-    
-    const { data: existingUser } = await supabase
-        .from('user_roles')
-        .select('email')
-        .eq('email', email)
-        .single();
-    
-    if (existingUser) {
-        alert('Utente già registrato!');
-        return;
-    }
-    
-    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-        email: email,
-        password: password,
-        email_confirm: true
-    });
-    
-    if (authError) {
-        alert('Errore creazione utente: ' + authError.message);
-        return;
-    }
-    
-    const { error: roleError } = await supabase
-        .from('user_roles')
-        .insert([{
-            email: email,
-            role: role
-        }]);
-    
-    if (roleError) {
-        alert('Errore assegnazione ruolo: ' + roleError.message);
-        return;
-    }
-    
-    alert('Utente creato con successo!');
-    document.getElementById('add-user-form').reset();
-    loadUsers();
-}
-
-async function deleteUser(email) {
-    const confirm = window.confirm(`Sei sicuro di voler eliminare l'utente ${email}?`);
-    
-    if (!confirm) return;
-    
-    const { error } = await supabase
-        .from('user_roles')
-        .delete()
-        .eq('email', email);
-    
-    if (error) {
-        alert('Errore eliminazione utente: ' + error.message);
-        return;
-    }
-    
-    alert('Utente eliminato con successo!');
-    loadUsers();
 }
 
 // ========================================
@@ -1208,7 +1216,6 @@ function stopScanner() {
 }
 
 async function onScanSuccess(decodedText) {
-    // Ferma lo scanner immediatamente dopo la scansione
     if (html5QrCode && html5QrCode.isScanning) {
         await html5QrCode.stop();
         html5QrCode = null;
@@ -1218,7 +1225,6 @@ async function onScanSuccess(decodedText) {
     
     if (!article) {
         alert('Articolo non trovato nel database!');
-        // Riavvia lo scanner
         setTimeout(() => initScanner(), 500);
         return;
     }
@@ -1229,7 +1235,6 @@ async function onScanSuccess(decodedText) {
     
     window.scannedArticle = article;
     
-    // Nascondi il reader video
     document.getElementById('reader').style.display = 'none';
 }
 
@@ -1256,10 +1261,6 @@ function switchTab(tabName) {
     if (tabName === 'report' && currentUserRole === 'admin') {
         populateReportSelects();
     }
-    
-    if (tabName === 'gestione' && currentUserRole === 'admin') {
-        loadUsers();
-    }
 }
 
 // ========================================
@@ -1268,6 +1269,7 @@ function switchTab(tabName) {
 function setupEventListeners() {
     document.getElementById('login-form').addEventListener('submit', handleLogin);
     document.getElementById('logout-btn').addEventListener('click', handleLogout);
+    document.getElementById('toggle-password').addEventListener('click', togglePasswordVisibility);
     
     document.getElementById('new-article-form').addEventListener('submit', handleNewArticle);
     
@@ -1302,8 +1304,6 @@ function setupEventListeners() {
     document.getElementById('report-type').addEventListener('change', handleReportTypeChange);
     document.getElementById('generate-report').addEventListener('click', generateReport);
     document.getElementById('print-report').addEventListener('click', printReport);
-    
-    document.getElementById('add-user-form').addEventListener('submit', handleAddUser);
 
     document.getElementById('btn-rescan').addEventListener('click', () => {
         document.getElementById('scanner-result').classList.add('hidden');
