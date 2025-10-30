@@ -1,9 +1,6 @@
 # Changelog App Magazzino
 
 ## v2.3.0 - 2025-10-30 (PRODUZIONE) ✅
-rimozione gestione utenti e miglioramento report
-
-## v2.3.0 - 2025-10-30 (PRODUZIONE) ✅
 🎉 **MAJOR UPDATE: Report Prestagionale + Login Migliorato + Alert Sotto Soglia**
 
 ### 🆕 Nuove Funzionalità

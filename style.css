@@ -26,6 +26,7 @@ body {
     color: var(--dark);
     -webkit-font-smoothing: antialiased;
     font-size: 14px;
+    overflow-x: hidden;
 }
 
 /* Logo */
@@ -67,6 +68,13 @@ body {
     max-width: 1400px;
     margin: 0 auto;
     padding: 12px;
+}
+
+@media (min-width: 1024px) {
+    .container {
+        max-width: 96%;
+        padding: 20px;
+    }
 }
 
 /* Card */
@@ -435,20 +443,31 @@ input:focus, textarea:focus, select:focus {
     color: var(--danger);
 }
 
-/* Table */
+/* ============================================ */
+/* TABELLE OTTIMIZZATE */
+/* ============================================ */
+
 .table-container {
     overflow-x: auto;
+    overflow-y: visible;
     border-radius: var(--border-radius-sm);
     -webkit-overflow-scrolling: touch;
     margin: 0 -12px;
+    position: relative;
+}
+
+@media (min-width: 1024px) {
+    .table-container {
+        margin: 0;
+    }
 }
 
 table {
     width: 100%;
     background: white;
-    overflow: hidden;
-    font-size: 11px;
-    min-width: 700px;
+    font-size: 12px;
+    border-collapse: separate;
+    border-spacing: 0;
 }
 
 thead {
@@ -457,21 +476,35 @@ thead {
     position: sticky;
     top: 0;
     z-index: 10;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
 th {
-    padding: 10px 6px;
+    padding: 10px 8px;
     text-align: left;
     white-space: nowrap;
     font-weight: 600;
-    font-size: 11px;
+    font-size: 12px;
+    background: var(--primary);
+    vertical-align: middle;
 }
 
 td {
-    padding: 10px 6px;
+    padding: 10px 8px;
     text-align: left;
     white-space: nowrap;
     border-bottom: 1px solid var(--light);
+    font-size: 12px;
+    vertical-align: middle;
+}
+
+/* SOLO colonna Nome articolo: può andare a capo */
+table tbody td:nth-child(1),
+table thead th:nth-child(1) {
+    white-space: normal;
+    word-wrap: break-word;
+    max-width: 180px;
+    min-width: 100px;
 }
 
 tbody tr {
@@ -503,16 +536,92 @@ tbody tr.low-stock:active {
     background: var(--green-light);
 }
 
-/* Actions column with stacked buttons */
+/* Colonna Azioni: GRID per pulsanti uguali */
 td:last-child {
     white-space: normal;
-    min-width: 100px;
+    min-width: 150px;
 }
 
 td:last-child button {
-    margin: 2px;
     padding: 6px 10px;
-    font-size: 11px;
+    font-size: 12px;
+    margin: 2px;
+    min-width: 36px;
+}
+
+/* GRID per i pulsanti azioni su desktop */
+@media (min-width: 768px) {
+    td:last-child {
+        white-space: nowrap;
+    }
+    
+    td:last-child button {
+        padding: 7px 11px;
+        font-size: 13px;
+        margin-right: 4px;
+        min-width: 40px;
+    }
+}
+
+/* ============================================ */
+/* RESPONSIVE MOBILE */
+/* ============================================ */
+
+/* Mobile Verticale: Nome, Codice, Qty, Azioni */
+@media (max-width: 767px) and (orientation: portrait) {
+    .col-threshold,
+    .col-price-buy,
+    .col-iva,
+    .col-price-sell,
+    .col-barcode,
+    .col-notes {
+        display: none !important;
+    }
+    
+    table {
+        font-size: 10px;
+    }
+    
+    th, td {
+        padding: 8px 5px;
+    }
+    
+    td:last-child button {
+        padding: 5px 8px;
+        font-size: 10px;
+        margin: 1px;
+    }
+}
+
+/* Mobile Orizzontale */
+@media (max-width: 767px) and (orientation: landscape) {
+    .col-iva,
+    .col-price-sell,
+    .col-barcode,
+    .col-notes {
+        display: none !important;
+    }
+}
+
+/* Tablet Portrait */
+@media (min-width: 768px) and (max-width: 1023px) and (orientation: portrait) {
+    .col-notes {
+        display: none !important;
+    }
+}
+
+/* Tablet Landscape */
+@media (min-width: 768px) and (max-width: 1023px) and (orientation: landscape) {
+    .col-notes {
+        display: none !important;
+    }
+}
+
+/* Desktop Small */
+@media (min-width: 1024px) and (max-width: 1279px) {
+    .col-notes {
+        display: none !important;
+    }
 }
 
 /* Report */
@@ -555,6 +664,7 @@ td:last-child button {
     border-radius: var(--border-radius-sm);
     font-size: 12px;
     line-height: 1.5;
+    overflow-x: auto;
 }
 
 #report-content h3 {
@@ -607,6 +717,11 @@ td:last-child button {
     
     .report-header button {
         display: none;
+    }
+    
+    thead {
+        position: relative;
+        top: 0;
     }
 }
 
@@ -757,10 +872,6 @@ button, input, textarea, select, label, span, div, td, th, p, h1, h2, h3, h4 {
         font-size: 16px;
     }
     
-    .container {
-        padding: 20px;
-    }
-    
     .card {
         padding: 30px;
     }
@@ -808,7 +919,8 @@ button, input, textarea, select, label, span, div, td, th, p, h1, h2, h3, h4 {
     .tabs {
         padding: 15px 20px;
         gap: 10px;
-        position: static;
+        position: sticky;
+        top: 95px;
     }
     
     .tab-btn {
@@ -892,34 +1004,6 @@ button, input, textarea, select, label, span, div, td, th, p, h1, h2, h3, h4 {
     
     .stat-value {
         font-size: 18px;
-    }
-    
-    .table-container {
-        margin: 0;
-    }
-    
-    table {
-        font-size: 14px;
-        min-width: auto;
-    }
-    
-    th {
-        font-size: 14px;
-        padding: 16px;
-    }
-    
-    td {
-        padding: 16px;
-    }
-    
-    td:last-child {
-        white-space: nowrap;
-    }
-    
-    td:last-child button {
-        padding: 8px 12px;
-        font-size: 14px;
-        margin-right: 5px;
     }
     
     .btn-success:hover {
