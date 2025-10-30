@@ -64,7 +64,7 @@ body {
 
 /* Container */
 .container {
-    max-width: 1400px;
+    max-width: 1800px;
     margin: 0 auto;
     padding: 12px;
 }
@@ -440,15 +440,16 @@ input:focus, textarea:focus, select:focus {
     overflow-x: auto;
     border-radius: var(--border-radius-sm);
     -webkit-overflow-scrolling: touch;
-    margin: 0 -12px;
+    margin: 0;
 }
 
 table {
     width: 100%;
     background: white;
     overflow: hidden;
-    font-size: 11px;
-    min-width: 700px;
+    font-size: 12px;
+    min-width: 800px;
+    table-layout: auto;
 }
 
 thead {
@@ -460,18 +461,29 @@ thead {
 }
 
 th {
-    padding: 10px 6px;
+    padding: 10px 8px;
     text-align: left;
     white-space: nowrap;
     font-weight: 600;
-    font-size: 11px;
+    font-size: 12px;
 }
 
 td {
-    padding: 10px 6px;
+    padding: 10px 8px;
     text-align: left;
     white-space: nowrap;
     border-bottom: 1px solid var(--light);
+    vertical-align: top;
+}
+
+/* Colonna Nome: PERMETTI WRAP */
+td:first-child,
+th:first-child {
+    white-space: normal !important;
+    word-wrap: break-word;
+    word-break: break-word;
+    min-width: 120px;
+    max-width: 250px;
 }
 
 tbody tr {
@@ -503,16 +515,26 @@ tbody tr.low-stock:active {
     background: var(--green-light);
 }
 
-/* Actions column with stacked buttons */
+/* Actions column - LAYOUT A DUE A DUE */
 td:last-child {
-    white-space: normal;
-    min-width: 100px;
+    white-space: normal !important;
+    min-width: 140px;
+    max-width: 180px;
 }
 
-td:last-child button {
-    margin: 2px;
-    padding: 6px 10px;
-    font-size: 11px;
+.action-buttons-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px;
+    width: 100%;
+}
+
+.action-buttons-grid button {
+    margin: 0 !important;
+    padding: 8px 6px !important;
+    font-size: 11px !important;
+    width: 100%;
+    display: block;
 }
 
 /* Report */
@@ -905,21 +927,31 @@ button, input, textarea, select, label, span, div, td, th, p, h1, h2, h3, h4 {
     
     th {
         font-size: 14px;
-        padding: 16px;
+        padding: 16px 12px;
     }
     
     td {
-        padding: 16px;
+        padding: 16px 12px;
+    }
+    
+    td:first-child,
+    th:first-child {
+        max-width: 300px;
+        min-width: 150px;
     }
     
     td:last-child {
-        white-space: nowrap;
+        min-width: 160px;
+        max-width: 200px;
     }
     
-    td:last-child button {
-        padding: 8px 12px;
-        font-size: 14px;
-        margin-right: 5px;
+    .action-buttons-grid {
+        gap: 6px;
+    }
+    
+    .action-buttons-grid button {
+        padding: 10px 8px !important;
+        font-size: 13px !important;
     }
     
     .btn-success:hover {
@@ -1004,6 +1036,35 @@ button, input, textarea, select, label, span, div, td, th, p, h1, h2, h3, h4 {
 @media (min-width: 1400px) {
     .supplier-section {
         padding: 25px;
+    }
+    
+    table {
+        font-size: 15px;
+    }
+    
+    th {
+        font-size: 15px;
+        padding: 18px 14px;
+    }
+    
+    td {
+        padding: 18px 14px;
+    }
+    
+    td:first-child,
+    th:first-child {
+        max-width: 400px;
+        min-width: 180px;
+    }
+    
+    td:last-child {
+        min-width: 180px;
+        max-width: 220px;
+    }
+    
+    .action-buttons-grid button {
+        padding: 11px 10px !important;
+        font-size: 14px !important;
     }
 }
 
