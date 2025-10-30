@@ -1,5 +1,32 @@
 # Changelog App Magazzino
 
+## v2.3.0 - 2025-10-30 (PRODUZIONE) ✅
+rimozione gestione utenti e miglioramento report
+
+## v2.3.0 - 2025-10-30 (PRODUZIONE) ✅
+🎉 **MAJOR UPDATE: Report Prestagionale + Login Migliorato + Alert Sotto Soglia**
+
+### 🆕 Nuove Funzionalità
+- **Report Prestagionale Ordini/Vendite**: Nuovo sistema di report che mostra quanto materiale hai ordinato (caricato) vs quanto venduto (scaricato) per programmare ordini futuri
+  - Report Generale (tutti i fornitori)
+  - Report per Fornitore Specifico
+  - Report per Articolo Specifico
+  - Grafici e statistiche dettagliate
+- **Login Migliorato**:
+  - 👁️ Occhietto per visualizzare password durante la digitazione
+  - ☑️ Checkbox "Resta connesso" per mantenere la sessione attiva
+- **Alert Sotto Soglia**: Quando scarichi un articolo e va sotto la soglia minima, compare un popup di avviso automatico
+
+### ❌ Funzioni Rimosse
+- Tab "Gestione Utenti" rimosso (gestione utenti ora solo da Supabase Dashboard)
+
+### 🎨 Miglioramenti UX
+- Report molto più leggibile con statistiche visive
+- Consigli automatici per riordino merce
+- Feedback immediato quando articoli vanno sotto soglia
+
+---
+
 ## v2.2.9 - 2025-10-29 (PRODUZIONE) ✅
 fix ref
 
@@ -49,51 +76,3 @@ Test script automatico
 - Report per articolo/fornitore
 - Gestione utenti (admin/operatore)
 - Inventario raggruppato per fornitore
-
-## v1.1.0 - In sviluppo (LOCALE)
-🚧 Prossime migliorie...
-
----
-
-## 🔄 FIX 4: Workflow Locale → Online
-
-### Il database NON si perde mai!
-
-✅ **IMPORTANTE**: Il database è su **Supabase** (cloud), NON sul tuo computer!
-
-Quando aggiorni il codice:
-- Il **codice** (HTML/CSS/JS) si aggiorna
-- Il **database** rimane identico con tutti i dati
-
-### Workflow consigliato:
-```
-┌─────────────────────────────────────┐
-│  AMBIENTE LOCALE (tuo Mac)          │
-│  - Fai modifiche                    │
-│  - Testi tutto                      │
-│  - Quando è stabile...              │
-└──────────────┬──────────────────────┘
-               │
-               │ git push
-               ▼
-┌─────────────────────────────────────┐
-│  GITHUB (repository)                │
-│  - Codice versionato                │
-└──────────────┬──────────────────────┘
-               │
-               │ deploy automatico
-               ▼
-┌─────────────────────────────────────┐
-│  NETLIFY (sito online)              │
-│  - App in produzione                │
-│  - Usata dagli utenti               │
-└──────────────┬──────────────────────┘
-               │
-               │ API
-               ▼
-┌─────────────────────────────────────┐
-│  SUPABASE (database cloud)          │
-│  - Dati persistenti                 │
-│  - Stesso per locale E online       │
-└─────────────────────────────────────┘
-```
