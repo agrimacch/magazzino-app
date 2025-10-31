@@ -322,7 +322,7 @@ function renderInventoryBySupplier(articles) {
                             <th class="hide-mobile">IVA %</th>
                             <th>Pr. Vend.</th>
                             <th class="hide-mobile">Barcode</th>
-                            <th>Note</th>
+                            <th class="hide-mobile">Note</th>
                             <th>Azioni</th>
                         </tr>
                     </thead>
@@ -355,7 +355,7 @@ function renderInventoryBySupplier(articles) {
                 <td class="hide-mobile">${ivaPerc}%</td>
                 <td>â‚¬ ${parseFloat(article.prezzo_vendita).toFixed(2)}</td>
                 <td class="hide-mobile">${article.codice_barre}</td>
-                <td>${article.note || '-'}</td>
+                <td class="hide-mobile">${article.note || '-'}</td>
                 <td>
                     <div class="action-buttons-grid">
                         <button onclick="openMovementModal(${article.id}, 'carico')" class="btn-success">â¬†ï¸</button>
@@ -393,7 +393,7 @@ function renderInventoryFlat(articles) {
                         <th>Pr. Vend.</th>
                         <th class="hide-mobile">Barcode</th>
                         <th class="hide-mobile">Fornitore</th>
-                        <th>Note</th>
+                        <th class="hide-mobile">Note</th>
                         <th>Azioni</th>
                     </tr>
                 </thead>
@@ -417,7 +417,7 @@ function renderInventoryFlat(articles) {
                 <td>â‚¬ ${parseFloat(article.prezzo_vendita).toFixed(2)}</td>
                 <td class="hide-mobile">${article.codice_barre}</td>
                 <td class="hide-mobile">${article.marca_fornitore || '-'}</td>
-                <td>${article.note || '-'}</td>
+                <td class="hide-mobile">${article.note || '-'}</td>
                 <td>
                     <div class="action-buttons-grid">
                         <button onclick="openMovementModal(${article.id}, 'carico')" class="btn-success">â¬†ï¸</button>
@@ -1328,29 +1328,45 @@ document.addEventListener('DOMContentLoaded', () => {
     
     if (installBtn) {
         installBtn.addEventListener('click', async () => {
-            if (!deferredPrompt) {
-                alert('L\'app è già installata o il browser non supporta l\'installazione.');
-                return;
-            }
-            
-            // Mostra il prompt di installazione
-            deferredPrompt.prompt();
-            
-            // Aspetta la risposta dell'utente
-            const { outcome } = await deferredPrompt.userChoice;
-            
-            if (outcome === 'accepted') {
-                console.log('✅ PWA installata');
+            // Verifica se è disponibile il prompt nativo
+            if (deferredPrompt) {
+                // Browser che supportano il prompt nativo (Android Chrome)
+                deferredPrompt.prompt();
+                const { outcome } = await deferredPrompt.userChoice;
+                
+                if (outcome === 'accepted') {
+                    console.log('✅ PWA installata');
+                } else {
+                    console.log('❌ Installazione PWA rifiutata');
+                }
+                
+                deferredPrompt = null;
+                if (pwaBanner) {
+                    pwaBanner.classList.add('hidden');
+                }
             } else {
-                console.log('❌ Installazione PWA rifiutata');
-            }
-            
-            // Resetta il prompt
-            deferredPrompt = null;
-            
-            // Nascondi il banner
-            if (pwaBanner) {
-                pwaBanner.classList.add('hidden');
+                // iOS e altri browser - mostra istruzioni
+                const userAgent = navigator.userAgent.toLowerCase();
+                const isIOS = /iphone|ipad|ipod/.test(userAgent);
+                const isSafari = /safari/.test(userAgent) && !/chrome/.test(userAgent);
+                
+                let message = '';
+                
+                if (isIOS || isSafari) {
+                    message = '📱 Per aggiungere l\'app alla Home:\n\n' +
+                              '1. Tocca il pulsante Condividi ⬆️ (in basso)\n' +
+                              '2. Scorri e tocca "Aggiungi a Home"\n' +
+                              '3. Tocca "Aggiungi" in alto a destra\n\n' +
+                              'L\'icona apparirà sulla tua schermata Home!';
+                } else {
+                    message = '📱 Per aggiungere l\'app alla Home:\n\n' +
+                              '1. Apri il menu del browser (⋮)\n' +
+                              '2. Seleziona "Aggiungi a schermata Home"\n' +
+                              '3. Conferma l\'aggiunta\n\n' +
+                              'L\'icona apparirà sulla tua schermata Home!';
+                }
+                
+                alert(message);
             }
         });
     }
