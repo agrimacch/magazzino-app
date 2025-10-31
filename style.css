@@ -750,7 +750,7 @@ td:last-child {
     display: none;
 }
 
-/* Fix opacità elementi */
+/* Fix opacitÃ  elementi */
 button, input, textarea, select, label, span, div, td, th, p, h1, h2, h3, h4 {
     opacity: 1 !important;
 }
@@ -768,6 +768,64 @@ button, input, textarea, select, label, span, div, td, th, p, h1, h2, h3, h4 {
 ::-webkit-scrollbar-thumb {
     background: var(--primary);
     border-radius: 10px;
+}
+
+/* ============================================ */
+/* MOBILE WARNING BOX */
+/* ============================================ */
+
+.mobile-warning {
+    display: none; /* Nascosto di default */
+    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+    border: 2px solid #f59e0b;
+    border-radius: var(--border-radius);
+    padding: 16px;
+    margin: 20px 0;
+    box-shadow: 0 4px 12px rgba(245, 158, 11, 0.2);
+}
+
+.mobile-warning-icon {
+    font-size: 32px;
+    text-align: center;
+    margin-bottom: 10px;
+}
+
+.mobile-warning-content {
+    text-align: center;
+}
+
+.mobile-warning-content strong {
+    display: block;
+    font-size: 16px;
+    color: #92400e;
+    margin-bottom: 8px;
+    font-weight: 700;
+}
+
+.mobile-warning-content p {
+    font-size: 13px;
+    color: #78350f;
+    line-height: 1.5;
+    margin-bottom: 8px;
+}
+
+.mobile-warning-note {
+    font-size: 12px !important;
+    color: #92400e !important;
+    font-style: italic;
+    margin-top: 8px !important;
+}
+
+/* Mostra l'avviso SOLO su mobile */
+@media (max-width: 768px) {
+    .mobile-warning {
+        display: block;
+    }
+    
+    /* Nascondi colonne su mobile */
+    .hide-mobile {
+        display: none !important;
+    }
 }
 
 /* ============================================ */
@@ -1078,5 +1136,127 @@ button, input, textarea, select, label, span, div, td, th, p, h1, h2, h3, h4 {
     
     header {
         padding-top: max(12px, env(safe-area-inset-top));
+    }
+}
+/* ============================================ */
+/* PWA BANNER */
+/* ============================================ */
+
+.pwa-banner {
+    display: none;
+    background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
+    color: white;
+    border-radius: var(--border-radius);
+    padding: 20px;
+    margin-top: 20px;
+    box-shadow: 0 4px 20px rgba(22, 163, 74, 0.3);
+    animation: slideIn 0.5s ease-out;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.pwa-banner-icon {
+    font-size: 48px;
+    text-align: center;
+    margin-bottom: 15px;
+}
+
+.pwa-banner-content h3 {
+    color: white;
+    font-size: 20px;
+    margin-bottom: 10px;
+    text-align: center;
+}
+
+.pwa-banner-content p {
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 14px;
+    line-height: 1.6;
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.pwa-banner-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.pwa-banner-buttons .btn-primary {
+    background: white;
+    color: var(--primary);
+    font-weight: 700;
+}
+
+.pwa-banner-buttons .btn-secondary {
+    background: transparent;
+    border: 2px solid white;
+    color: white;
+}
+
+.pwa-banner.hidden {
+    display: none !important;
+}
+
+/* ============================================ */
+/* MOBILE: NASCONDI COLONNE E MOSTRA PWA */
+/* ============================================ */
+
+@media (max-width: 768px) {
+    /* Mostra banner PWA */
+    .pwa-banner {
+        display: block;
+    }
+    
+    /* Nascondi colonne */
+    .hide-mobile {
+        display: none !important;
+    }
+    
+    /* Ottimizza tabella */
+    table {
+        font-size: 11px;
+        min-width: auto;
+    }
+    
+    th, td {
+        padding: 8px 4px;
+    }
+    
+    /* Nome: wrap abilitato */
+    td:first-child,
+    th:first-child {
+        min-width: 100px;
+        max-width: 140px;
+    }
+    
+    /* Note: wrap abilitato */
+    td:nth-last-child(2),
+    th:nth-last-child(2) {
+        min-width: 80px;
+        max-width: 120px;
+        white-space: normal !important;
+        word-wrap: break-word;
+        font-size: 10px;
+    }
+    
+    /* Azioni */
+    td:last-child {
+        min-width: 90px;
+        max-width: 100px;
+    }
+    
+    .action-buttons-grid button {
+        padding: 6px 4px !important;
+        font-size: 10px !important;
     }
 }
