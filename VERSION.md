@@ -1,8 +1,5 @@
 # Changelog App Magazzino
 
-## v2.4.1 - 2025-10-31 (PRODUZIONE) ✅
-messaggio login
-
 ## v2.3.5 - 2025-10-31 (PRODUZIONE) ✅
 aggiornamento metodo caricamento aggiornamento e versione
 

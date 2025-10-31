@@ -53,82 +53,6 @@ body {
     filter: drop-shadow(0 2px 4px rgba(22, 163, 74, 0.2));
 }
 
-/* Avviso dispositivo consigliato (login) */
-.device-notice {
-    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
-    border: 2px solid #f59e0b;
-    border-radius: var(--border-radius);
-    padding: 15px;
-    margin: 0 auto 20px;
-    max-width: 500px;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    box-shadow: 0 4px 12px rgba(245, 158, 11, 0.2);
-}
-
-.notice-icon {
-    font-size: 32px;
-    flex-shrink: 0;
-}
-
-.notice-content {
-    flex: 1;
-}
-
-.notice-content strong {
-    display: block;
-    color: #92400e;
-    font-size: 14px;
-    margin-bottom: 4px;
-}
-
-.notice-content p {
-    color: #78350f;
-    font-size: 12px;
-    line-height: 1.4;
-    margin: 0;
-}
-
-/* Pulsante installazione PWA */
-.install-button {
-    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
-    color: white;
-    border: none;
-    border-radius: var(--border-radius);
-    padding: 15px 20px;
-    font-family: 'Roboto Mono', monospace;
-    font-size: 15px;
-    font-weight: 600;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-    margin: 0 auto 20px;
-    max-width: 500px;
-    width: calc(100% - 30px);
-    box-shadow: 0 4px 12px rgba(22, 163, 74, 0.3);
-    transition: all 0.3s ease;
-}
-
-.install-button:active {
-    transform: scale(0.98);
-    box-shadow: 0 2px 8px rgba(22, 163, 74, 0.3);
-}
-
-.install-icon {
-    font-size: 24px;
-}
-
-.install-text {
-    font-size: 14px;
-}
-
-.install-button.hidden {
-    display: none;
-}
-
 /* Schermate */
 .screen {
     display: none;
@@ -826,7 +750,7 @@ td:last-child {
     display: none;
 }
 
-/* Fix opacitÃ  elementi */
+/* Fix opacità elementi */
 button, input, textarea, select, label, span, div, td, th, p, h1, h2, h3, h4 {
     opacity: 1 !important;
 }

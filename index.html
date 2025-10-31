@@ -17,7 +17,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=2.4.1">
+    <link rel="stylesheet" href="style.css?v=2.3.5">
     
     <style>
         /* Nascondi tutte le schermate all'inizio */
@@ -44,7 +44,7 @@
 
 <body class="loading">
     <!-- Version badge -->
-    <div class="version-badge">v2.4.1</div>
+    <div class="version-badge">v2.3.5</div>
 
     <!-- SCHERMATA LOGIN -->
     <div id="login-screen" class="screen">
@@ -53,22 +53,6 @@
                 <img src="logo.png" alt="Logo Azienda" class="logo">
             </div>
             <h1>📦 Gestione Magazzino</h1>
-            
-            <!-- AVVISO DISPOSITIVO CONSIGLIATO -->
-            <div class="device-notice">
-                <div class="notice-icon">💻</div>
-                <div class="notice-content">
-                    <strong>Per un'esperienza ottimale</strong>
-                    <p>Consigliamo l'uso da PC o Tablet. Su smartphone alcune funzionalità potrebbero essere limitate.</p>
-                </div>
-            </div>
-            
-            <!-- PULSANTE INSTALLA APP (nascosto di default, mostrato solo se supportato) -->
-            <button id="install-button" class="install-button hidden">
-                <span class="install-icon">📱</span>
-                <span class="install-text">Installa App in Home</span>
-            </button>
-            
             <div class="card">
                 <h2>Accedi</h2>
                 <form id="login-form">
@@ -108,7 +92,7 @@
             <button class="tab-btn" data-tab="nuovo" id="tab-nuovo-btn">➕ Nuovo Articolo</button>
             <button class="tab-btn" data-tab="movimenti">📋 Movimenti</button>
             <button class="tab-btn" data-tab="report" id="tab-report-btn">📊 Report Ordini</button>
-            <button class="tab-btn" data-tab="scanner" id="tab-scanner-btn">📷 Scanner</button>
+            <button class="tab-btn" data-tab="scanner">📷 Scanner</button>
         </nav>
 
         <!-- TAB 1: INVENTARIO -->
@@ -397,6 +381,6 @@
     <!-- Librerie esterne -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
-    <script src="app.js?v=2.4.1"></script>
+    <script src="app.js?v=2.3.5"></script>
 </body>
 </html>
