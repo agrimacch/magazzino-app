@@ -1,5 +1,8 @@
 # Changelog App Magazzino
 
+## v2.3.3 - 2025-10-31 (PRODUZIONE) ✅
+migliorato responsive
+
 ## v2.3.2 - 2025-10-30 (PRODUZIONE) ✅
 responsive migliorato
 
