@@ -15,6 +15,65 @@ let allArticles = [];
 let allMovements = [];
 let currentArticleForMovement = null;
 let html5QrCode = null;
+let deferredPrompt = null; // Per PWA install prompt
+
+// ========================================
+// PWA INSTALLATION
+// ========================================
+// Intercetta l'evento di installazione PWA
+window.addEventListener('beforeinstallprompt', (e) => {
+    console.log('📱 PWA installabile!');
+    // Previene il mini-infobar automatico su mobile
+    e.preventDefault();
+    // Salva l'evento per usarlo dopo
+    deferredPrompt = e;
+    // Mostra il pulsante di installazione
+    const installButton = document.getElementById('install-button');
+    if (installButton) {
+        installButton.classList.remove('hidden');
+    }
+});
+
+// Gestione click sul pulsante di installazione
+function handleInstallClick() {
+    const installButton = document.getElementById('install-button');
+    
+    // Nascondi il pulsante (verrà mostrato di nuovo se l'utente rifiuta)
+    installButton.classList.add('hidden');
+    
+    if (!deferredPrompt) {
+        alert('L\'app è già installata o l\'installazione non è disponibile su questo dispositivo.');
+        return;
+    }
+    
+    // Mostra il prompt di installazione
+    deferredPrompt.prompt();
+    
+    // Aspetta la scelta dell'utente
+    deferredPrompt.userChoice.then((choiceResult) => {
+        if (choiceResult.outcome === 'accepted') {
+            console.log('✅ Utente ha accettato l\'installazione');
+        } else {
+            console.log('❌ Utente ha rifiutato l\'installazione');
+            // Rimostra il pulsante dopo 3 secondi se rifiutato
+            setTimeout(() => {
+                installButton.classList.remove('hidden');
+            }, 3000);
+        }
+        // Resetta il prompt
+        deferredPrompt = null;
+    });
+}
+
+// Nasconde il pulsante dopo l'installazione
+window.addEventListener('appinstalled', () => {
+    console.log('✅ PWA installata con successo!');
+    const installButton = document.getElementById('install-button');
+    if (installButton) {
+        installButton.classList.add('hidden');
+    }
+    deferredPrompt = null;
+});
 
 // ========================================
 // FUNZIONE HELPER PER CALCOLO PREZZO CON IVA
@@ -27,23 +86,23 @@ function calcolaPrezzoConIVA(prezzoNetto, ivaPercentuale) {
 // INIZIALIZZAZIONE
 // ========================================
 document.addEventListener('DOMContentLoaded', async () => {
-    console.log('🚀 Inizializzazione app...');
+    console.log('ðŸš€ Inizializzazione app...');
     
-    // Controlla se c'è una sessione valida in Supabase
-    // Supabase mantiene GIÀ la sessione persistente di default!
+    // Controlla se c'Ã¨ una sessione valida in Supabase
+    // Supabase mantiene GIÃ€ la sessione persistente di default!
     const { data: { session } } = await supabase.auth.getSession();
     
-    console.log('📋 Sessione trovata:', session ? 'SÌ' : 'NO');
+    console.log('ðŸ“‹ Sessione trovata:', session ? 'SÃŒ' : 'NO');
     
     if (session) {
         // Sessione valida: mantieni l'utente loggato
         currentUser = session.user;
-        console.log('👤 Utente:', currentUser.email);
+        console.log('ðŸ‘¤ Utente:', currentUser.email);
         await loadUserRole();
         showMainScreen();
     } else {
         // Nessuna sessione: mostra login
-        console.log('🔒 Nessuna sessione, mostro login');
+        console.log('ðŸ”’ Nessuna sessione, mostro login');
         showLoginScreen();
     }
     
@@ -55,7 +114,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     // Listener per cambi di stato autenticazione
     supabase.auth.onAuthStateChange((event, session) => {
-        console.log('🔄 Auth state changed:', event);
+        console.log('ðŸ”„ Auth state changed:', event);
         if (event === 'SIGNED_OUT') {
             currentUser = null;
             currentUserRole = null;
@@ -71,7 +130,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 // GESTIONE RUOLI
 // ========================================
 async function loadUserRole() {
-    console.log('🔍 Caricamento ruolo per:', currentUser.email);
+    console.log('ðŸ” Caricamento ruolo per:', currentUser.email);
     
     const { data, error } = await supabase
         .from('user_roles')
@@ -79,23 +138,23 @@ async function loadUserRole() {
         .eq('email', currentUser.email)
         .single();
     
-    console.log('📊 Risultato query ruolo:', data, error);
+    console.log('ðŸ“Š Risultato query ruolo:', data, error);
     
     if (error || !data) {
-        console.log('⚠️ Nessun ruolo trovato, imposto operatore');
+        console.log('âš ï¸ Nessun ruolo trovato, imposto operatore');
         currentUserRole = 'operatore';
     } else {
-        console.log('✅ Ruolo trovato:', data.role);
+        console.log('âœ… Ruolo trovato:', data.role);
         currentUserRole = data.role;
     }
     
-    console.log('🎭 Ruolo finale assegnato:', currentUserRole);
+    console.log('ðŸŽ­ Ruolo finale assegnato:', currentUserRole);
     applyRolePermissions();
 }
 
 function applyRolePermissions() {
     const roleBadge = document.getElementById('user-role');
-    roleBadge.textContent = currentUserRole === 'admin' ? '👑 Admin' : '👤 Operatore';
+    roleBadge.textContent = currentUserRole === 'admin' ? 'ðŸ‘‘ Admin' : 'ðŸ‘¤ Operatore';
     roleBadge.classList.add(currentUserRole);
     
     if (currentUserRole === 'operatore') {
@@ -136,7 +195,7 @@ async function handleLogin(e) {
     const email = document.getElementById('login-email').value;
     const password = document.getElementById('login-password').value;
     
-    console.log('🔐 Tentativo login per:', email);
+    console.log('ðŸ” Tentativo login per:', email);
     
     const { data, error } = await supabase.auth.signInWithPassword({
         email,
@@ -144,19 +203,19 @@ async function handleLogin(e) {
     });
     
     if (error) {
-        console.error('❌ Errore login:', error);
+        console.error('âŒ Errore login:', error);
         alert('Errore login: ' + error.message);
         return;
     }
     
-    console.log('✅ Login riuscito - Supabase manterrà la sessione');
+    console.log('âœ… Login riuscito - Supabase manterrÃ  la sessione');
     currentUser = data.user;
     await loadUserRole();
     showMainScreen();
 }
 
 async function handleLogout() {
-    console.log('🚪 Logout...');
+    console.log('ðŸšª Logout...');
     await supabase.auth.signOut();
     currentUser = null;
     currentUserRole = null;
@@ -172,10 +231,10 @@ function togglePasswordVisibility() {
     
     if (passwordInput.type === 'password') {
         passwordInput.type = 'text';
-        toggleBtn.textContent = '🙈';
+        toggleBtn.textContent = 'ðŸ™ˆ';
     } else {
         passwordInput.type = 'password';
-        toggleBtn.textContent = '👁️';
+        toggleBtn.textContent = 'ðŸ‘ï¸';
     }
 }
 
@@ -294,7 +353,7 @@ function renderInventoryBySupplier(articles) {
         
         section.innerHTML = `
             <div class="supplier-header">
-                <h3>🏢 ${supplier}</h3>
+                <h3>ðŸ¢ ${supplier}</h3>
                 <div class="supplier-stats">
                     <div class="stat-item">
                         <span class="stat-label">Articoli</span>
@@ -302,7 +361,7 @@ function renderInventoryBySupplier(articles) {
                     </div>
                     <div class="stat-item">
                         <span class="stat-label">Valore Magazzino</span>
-                        <span class="stat-value">€ ${totalValue.toFixed(2)}</span>
+                        <span class="stat-value">â‚¬ ${totalValue.toFixed(2)}</span>
                     </div>
                     <div class="stat-item">
                         <span class="stat-label">Sotto Soglia</span>
@@ -322,7 +381,7 @@ function renderInventoryBySupplier(articles) {
                             <th>IVA %</th>
                             <th>Pr. Vend.</th>
                             <th>Barcode</th>
-                            <th class="hide-mobile">Note</th>
+                            <th>Note</th>
                             <th>Azioni</th>
                         </tr>
                     </thead>
@@ -343,23 +402,23 @@ function renderInventoryBySupplier(articles) {
             }
             
             const ivaPerc = article.iva_percentuale || 22;
-            const editBtn = currentUserRole === 'admin' ? `<button onclick="openEditModal(${article.id})" class="btn-edit">✏️</button>` : '';
-            const deleteBtn = currentUserRole === 'admin' ? `<button onclick="deleteArticle(${article.id})" class="btn-delete">🗑️</button>` : '';
+            const editBtn = currentUserRole === 'admin' ? `<button onclick="openEditModal(${article.id})" class="btn-edit">âœï¸</button>` : '';
+            const deleteBtn = currentUserRole === 'admin' ? `<button onclick="deleteArticle(${article.id})" class="btn-delete">ðŸ—‘ï¸</button>` : '';
             
             row.innerHTML = `
                 <td><strong>${article.nome}</strong></td>
                 <td>${article.codice_articolo}</td>
                 <td><strong>${article.quantita}</strong></td>
                 <td>${article.soglia_minima}</td>
-                <td>€ ${parseFloat(article.prezzo_acquisto).toFixed(2)}</td>
+                <td>â‚¬ ${parseFloat(article.prezzo_acquisto).toFixed(2)}</td>
                 <td>${ivaPerc}%</td>
-                <td>€ ${parseFloat(article.prezzo_vendita).toFixed(2)}</td>
+                <td>â‚¬ ${parseFloat(article.prezzo_vendita).toFixed(2)}</td>
                 <td>${article.codice_barre}</td>
-                <td class="hide-mobile">${article.note || '-'}</td>
+                <td>${article.note || '-'}</td>
                 <td>
                     <div class="action-buttons-grid">
-                        <button onclick="openMovementModal(${article.id}, 'carico')" class="btn-success">⬆️</button>
-                        <button onclick="openMovementModal(${article.id}, 'scarico')" class="btn-danger">⬇️</button>
+                        <button onclick="openMovementModal(${article.id}, 'carico')" class="btn-success">â¬†ï¸</button>
+                        <button onclick="openMovementModal(${article.id}, 'scarico')" class="btn-danger">â¬‡ï¸</button>
                         ${editBtn}
                         ${deleteBtn}
                     </div>
@@ -393,7 +452,7 @@ function renderInventoryFlat(articles) {
                         <th>Pr. Vend.</th>
                         <th>Barcode</th>
                         <th>Fornitore</th>
-                        <th class="hide-mobile">Note</th>
+                        <th>Note</th>
                         <th>Azioni</th>
                     </tr>
                 </thead>
@@ -403,8 +462,8 @@ function renderInventoryFlat(articles) {
     articles.forEach(article => {
         const rowClass = article.quantita <= article.soglia_minima ? 'class="low-stock"' : '';
         const ivaPerc = article.iva_percentuale || 22;
-        const editBtn = currentUserRole === 'admin' ? `<button onclick="openEditModal(${article.id})" class="btn-edit">✏️</button>` : '';
-        const deleteBtn = currentUserRole === 'admin' ? `<button onclick="deleteArticle(${article.id})" class="btn-delete">🗑️</button>` : '';
+        const editBtn = currentUserRole === 'admin' ? `<button onclick="openEditModal(${article.id})" class="btn-edit">âœï¸</button>` : '';
+        const deleteBtn = currentUserRole === 'admin' ? `<button onclick="deleteArticle(${article.id})" class="btn-delete">ðŸ—‘ï¸</button>` : '';
         
         html += `
             <tr ${rowClass}>
@@ -412,16 +471,16 @@ function renderInventoryFlat(articles) {
                 <td>${article.codice_articolo}</td>
                 <td><strong>${article.quantita}</strong></td>
                 <td>${article.soglia_minima}</td>
-                <td>€ ${parseFloat(article.prezzo_acquisto).toFixed(2)}</td>
+                <td>â‚¬ ${parseFloat(article.prezzo_acquisto).toFixed(2)}</td>
                 <td>${ivaPerc}%</td>
-                <td>€ ${parseFloat(article.prezzo_vendita).toFixed(2)}</td>
+                <td>â‚¬ ${parseFloat(article.prezzo_vendita).toFixed(2)}</td>
                 <td>${article.codice_barre}</td>
                 <td>${article.marca_fornitore || '-'}</td>
-                <td class="hide-mobile">${article.note || '-'}</td>
+                <td>${article.note || '-'}</td>
                 <td>
                     <div class="action-buttons-grid">
-                        <button onclick="openMovementModal(${article.id}, 'carico')" class="btn-success">⬆️</button>
-                        <button onclick="openMovementModal(${article.id}, 'scarico')" class="btn-danger">⬇️</button>
+                        <button onclick="openMovementModal(${article.id}, 'carico')" class="btn-success">â¬†ï¸</button>
+                        <button onclick="openMovementModal(${article.id}, 'scarico')" class="btn-danger">â¬‡ï¸</button>
                         ${editBtn}
                         ${deleteBtn}
                     </div>
@@ -461,7 +520,7 @@ async function handleNewArticle(e) {
         .single();
     
     if (existingCode) {
-        alert('Codice articolo già esistente!');
+        alert('Codice articolo giÃ  esistente!');
         return;
     }
     
@@ -472,7 +531,7 @@ async function handleNewArticle(e) {
         .single();
     
     if (existingBarcode) {
-        alert('Codice a barre già esistente!');
+        alert('Codice a barre giÃ  esistente!');
         return;
     }
     
@@ -581,7 +640,7 @@ async function deleteArticle(articleId) {
     const article = allArticles.find(a => a.id === articleId);
     if (!article) return;
     
-    const confirm = window.confirm(`Sei sicuro di voler eliminare "${article.nome}"?\n\nQuesta azione non può essere annullata.`);
+    const confirm = window.confirm(`Sei sicuro di voler eliminare "${article.nome}"?\n\nQuesta azione non puÃ² essere annullata.`);
     
     if (!confirm) return;
     
@@ -609,7 +668,7 @@ function openMovementModal(articleId, type) {
     currentArticleForMovement = { article, type };
     
     document.getElementById('modal-title').textContent = 
-        type === 'carico' ? '⬆️ Carico Magazzino' : '⬇️ Scarico Magazzino';
+        type === 'carico' ? 'â¬†ï¸ Carico Magazzino' : 'â¬‡ï¸ Scarico Magazzino';
     document.getElementById('modal-article-name').textContent = article.nome;
     document.getElementById('modal-current-qty').textContent = article.quantita;
     document.getElementById('modal-quantity').value = 1;
@@ -626,7 +685,7 @@ async function confirmMovement() {
     const notes = document.getElementById('modal-notes').value.trim();
     
     if (quantity <= 0) {
-        alert('Quantità non valida');
+        alert('QuantitÃ  non valida');
         return;
     }
     
@@ -636,7 +695,7 @@ async function confirmMovement() {
     } else {
         newQuantity -= quantity;
         if (newQuantity < 0) {
-            alert('Quantità insufficiente in magazzino!');
+            alert('QuantitÃ  insufficiente in magazzino!');
             return;
         }
     }
@@ -672,7 +731,7 @@ async function confirmMovement() {
     // ALERT SOTTO SOGLIA
     if (type === 'scarico' && newQuantity <= article.soglia_minima) {
         setTimeout(() => {
-            alert(`⚠️ ATTENZIONE!\n\nL'articolo "${article.nome}" è SOTTO SOGLIA!\n\nQuantità attuale: ${newQuantity}\nSoglia minima: ${article.soglia_minima}\n\n🛒 È necessario riordinare!`);
+            alert(`âš ï¸ ATTENZIONE!\n\nL'articolo "${article.nome}" Ã¨ SOTTO SOGLIA!\n\nQuantitÃ  attuale: ${newQuantity}\nSoglia minima: ${article.soglia_minima}\n\nðŸ›’ Ãˆ necessario riordinare!`);
         }, 300);
     }
     
@@ -875,11 +934,11 @@ async function generateGeneralOrderReport(dateFrom, dateTo) {
     
     // Genera HTML
     let html = `
-        <h3>📊 REPORT GENERALE ORDINI/VENDITE</h3>
-        <p><strong>Periodo:</strong> ${dateFrom || 'Inizio'} → ${dateTo || 'Oggi'}</p>
+        <h3>ðŸ“Š REPORT GENERALE ORDINI/VENDITE</h3>
+        <p><strong>Periodo:</strong> ${dateFrom || 'Inizio'} â†’ ${dateTo || 'Oggi'}</p>
         <p><strong>Data Generazione:</strong> ${new Date().toLocaleString('it-IT')}</p>
         <hr>
-        <h4>📦 RIEPILOGO PER FORNITORE</h4>
+        <h4>ðŸ“¦ RIEPILOGO PER FORNITORE</h4>
         <p style="color: var(--gray); font-size: 13px; margin-bottom: 15px;">
             Questo report mostra quanto materiale hai <strong style="color: var(--success);">ORDINATO (caricato)</strong> e 
             <strong style="color: var(--danger);">VENDUTO (scaricato)</strong> per ogni fornitore.
@@ -897,22 +956,22 @@ async function generateGeneralOrderReport(dateFrom, dateTo) {
         
         html += `
             <div style="background: var(--light); padding: 15px; border-radius: 12px; margin-bottom: 15px; border-left: 4px solid var(--primary);">
-                <h4 style="margin-bottom: 10px; color: var(--primary);">🏢 ${supplier}</h4>
+                <h4 style="margin-bottom: 10px; color: var(--primary);">ðŸ¢ ${supplier}</h4>
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; font-size: 13px;">
                     <div>
                         <strong>Articoli gestiti:</strong> ${data.articoli.size}
                     </div>
                     <div style="color: var(--success);">
-                        <strong>📥 Ordinato (Carico):</strong> +${data.totalCarico} pz
+                        <strong>ðŸ“¥ Ordinato (Carico):</strong> +${data.totalCarico} pz
                     </div>
                     <div style="color: var(--danger);">
-                        <strong>📤 Venduto (Scarico):</strong> -${data.totalScarico} pz
+                        <strong>ðŸ“¤ Venduto (Scarico):</strong> -${data.totalScarico} pz
                     </div>
                     <div style="color: ${differenzaColor};">
-                        <strong>💰 Differenza:</strong> ${differenza >= 0 ? '+' : ''}${differenza} pz
+                        <strong>ðŸ’° Differenza:</strong> ${differenza >= 0 ? '+' : ''}${differenza} pz
                     </div>
                     <div style="color: ${lowStockCount > 0 ? 'var(--danger)' : 'var(--success)'};">
-                        <strong>⚠️ Sotto soglia:</strong> ${lowStockCount} articoli
+                        <strong>âš ï¸ Sotto soglia:</strong> ${lowStockCount} articoli
                     </div>
                 </div>
             </div>
@@ -921,12 +980,12 @@ async function generateGeneralOrderReport(dateFrom, dateTo) {
     
     html += `
         <hr>
-        <h4>💡 COSA SIGNIFICA</h4>
+        <h4>ðŸ’¡ COSA SIGNIFICA</h4>
         <ul style="list-style: none; padding-left: 0; font-size: 13px; line-height: 1.8;">
-            <li>📥 <strong>Ordinato (Carico):</strong> Quanti pezzi hai ricevuto dai fornitori</li>
-            <li>📤 <strong>Venduto (Scarico):</strong> Quanti pezzi hai venduto/utilizzato</li>
-            <li>💰 <strong>Differenza:</strong> Se positiva, hai ancora stock. Se negativa, hai venduto più di quanto ordinato</li>
-            <li>⚠️ <strong>Sotto soglia:</strong> Articoli da riordinare immediatamente</li>
+            <li>ðŸ“¥ <strong>Ordinato (Carico):</strong> Quanti pezzi hai ricevuto dai fornitori</li>
+            <li>ðŸ“¤ <strong>Venduto (Scarico):</strong> Quanti pezzi hai venduto/utilizzato</li>
+            <li>ðŸ’° <strong>Differenza:</strong> Se positiva, hai ancora stock. Se negativa, hai venduto piÃ¹ di quanto ordinato</li>
+            <li>âš ï¸ <strong>Sotto soglia:</strong> Articoli da riordinare immediatamente</li>
         </ul>
     `;
     
@@ -985,31 +1044,31 @@ async function generateSupplierOrderReport(supplier, dateFrom, dateTo) {
     const lowStockCount = supplierArticles.filter(a => a.quantita <= a.soglia_minima).length;
     
     let html = `
-        <h3>📊 REPORT FORNITORE: ${supplier}</h3>
-        <p><strong>Periodo:</strong> ${dateFrom || 'Inizio'} → ${dateTo || 'Oggi'}</p>
+        <h3>ðŸ“Š REPORT FORNITORE: ${supplier}</h3>
+        <p><strong>Periodo:</strong> ${dateFrom || 'Inizio'} â†’ ${dateTo || 'Oggi'}</p>
         <p><strong>Data Generazione:</strong> ${new Date().toLocaleString('it-IT')}</p>
         <hr>
-        <h4>📦 RIEPILOGO</h4>
+        <h4>ðŸ“¦ RIEPILOGO</h4>
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin: 15px 0;">
             <div style="background: var(--light); padding: 12px; border-radius: 8px;">
                 <div style="color: var(--gray); font-size: 12px;">Articoli Totali</div>
                 <div style="font-size: 22px; font-weight: 700;">${supplierArticles.length}</div>
             </div>
             <div style="background: var(--green-light); padding: 12px; border-radius: 8px;">
-                <div style="color: var(--success); font-size: 12px;">📥 Ordinato</div>
+                <div style="color: var(--success); font-size: 12px;">ðŸ“¥ Ordinato</div>
                 <div style="font-size: 22px; font-weight: 700; color: var(--success);">+${totalCarico}</div>
             </div>
             <div style="background: #fee2e2; padding: 12px; border-radius: 8px;">
-                <div style="color: var(--danger); font-size: 12px;">📤 Venduto</div>
+                <div style="color: var(--danger); font-size: 12px;">ðŸ“¤ Venduto</div>
                 <div style="font-size: 22px; font-weight: 700; color: var(--danger);">-${totalScarico}</div>
             </div>
             <div style="background: ${lowStockCount > 0 ? '#fee2e2' : 'var(--green-light)'}; padding: 12px; border-radius: 8px;">
-                <div style="color: ${lowStockCount > 0 ? 'var(--danger)' : 'var(--success)'}; font-size: 12px;">⚠️ Sotto Soglia</div>
+                <div style="color: ${lowStockCount > 0 ? 'var(--danger)' : 'var(--success)'}; font-size: 12px;">âš ï¸ Sotto Soglia</div>
                 <div style="font-size: 22px; font-weight: 700; color: ${lowStockCount > 0 ? 'var(--danger)' : 'var(--success)'};">${lowStockCount}</div>
             </div>
         </div>
         <hr>
-        <h4>📋 DETTAGLIO ARTICOLI</h4>
+        <h4>ðŸ“‹ DETTAGLIO ARTICOLI</h4>
         <table style="width: 100%; font-size: 12px; margin-top: 10px;">
             <thead>
                 <tr style="background: var(--primary); color: white;">
@@ -1030,7 +1089,7 @@ async function generateSupplierOrderReport(supplier, dateFrom, dateTo) {
         const diff = article.carico - article.scarico;
         const diffColor = diff >= 0 ? 'var(--success)' : 'var(--danger)';
         const rowStyle = article.quantitaAttuale <= article.soglia ? 'background: #fee2e2;' : '';
-        const stato = article.quantitaAttuale <= article.soglia ? '⚠️ DA ORDINARE' : '✅ OK';
+        const stato = article.quantitaAttuale <= article.soglia ? 'âš ï¸ DA ORDINARE' : 'âœ… OK';
         
         html += `
             <tr style="${rowStyle}">
@@ -1051,19 +1110,19 @@ async function generateSupplierOrderReport(supplier, dateFrom, dateTo) {
         </table>
         <hr>
         <div style="background: var(--green-light); padding: 15px; border-radius: 12px; margin-top: 15px;">
-            <h4 style="color: var(--primary); margin-bottom: 10px;">💡 CONSIGLI PER L'ORDINE</h4>
+            <h4 style="color: var(--primary); margin-bottom: 10px;">ðŸ’¡ CONSIGLI PER L'ORDINE</h4>
             <ul style="list-style: none; padding-left: 0; font-size: 13px; line-height: 1.8;">
     `;
     
     if (lowStockCount > 0) {
-        html += `<li>🛒 <strong>${lowStockCount} articoli</strong> sono sotto soglia e vanno riordinati SUBITO</li>`;
+        html += `<li>ðŸ›’ <strong>${lowStockCount} articoli</strong> sono sotto soglia e vanno riordinati SUBITO</li>`;
     } else {
-        html += `<li>✅ Tutti gli articoli sono sopra la soglia minima</li>`;
+        html += `<li>âœ… Tutti gli articoli sono sopra la soglia minima</li>`;
     }
     
     const articoliConDiffNegativa = Object.values(articleData).filter(a => (a.carico - a.scarico) < 0);
     if (articoliConDiffNegativa.length > 0) {
-        html += `<li>⚠️ <strong>${articoliConDiffNegativa.length} articoli</strong> hanno venduto più di quanto ordinato nel periodo</li>`;
+        html += `<li>âš ï¸ <strong>${articoliConDiffNegativa.length} articoli</strong> hanno venduto piÃ¹ di quanto ordinato nel periodo</li>`;
     }
     
     html += `
@@ -1100,9 +1159,9 @@ async function generateArticleOrderReport(articleId, dateFrom, dateTo) {
     const differenza = totalCarico - totalScarico;
     
     let html = `
-        <h3>📊 REPORT ARTICOLO: ${article.nome}</h3>
+        <h3>ðŸ“Š REPORT ARTICOLO: ${article.nome}</h3>
         <p><strong>Codice:</strong> ${article.codice_articolo} | <strong>Fornitore:</strong> ${article.marca_fornitore || 'N/D'}</p>
-        <p><strong>Periodo:</strong> ${dateFrom || 'Inizio'} → ${dateTo || 'Oggi'}</p>
+        <p><strong>Periodo:</strong> ${dateFrom || 'Inizio'} â†’ ${dateTo || 'Oggi'}</p>
         <hr>
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin: 15px 0;">
             <div style="background: var(--light); padding: 12px; border-radius: 8px;">
@@ -1114,30 +1173,30 @@ async function generateArticleOrderReport(articleId, dateFrom, dateTo) {
                 <div style="font-size: 22px; font-weight: 700;">${article.soglia_minima}</div>
             </div>
             <div style="background: var(--green-light); padding: 12px; border-radius: 8px;">
-                <div style="color: var(--success); font-size: 12px;">📥 Ordinato</div>
+                <div style="color: var(--success); font-size: 12px;">ðŸ“¥ Ordinato</div>
                 <div style="font-size: 22px; font-weight: 700; color: var(--success);">+${totalCarico}</div>
             </div>
             <div style="background: #fee2e2; padding: 12px; border-radius: 8px;">
-                <div style="color: var(--danger); font-size: 12px;">📤 Venduto</div>
+                <div style="color: var(--danger); font-size: 12px;">ðŸ“¤ Venduto</div>
                 <div style="font-size: 22px; font-weight: 700; color: var(--danger);">-${totalScarico}</div>
             </div>
             <div style="background: var(--light); padding: 12px; border-radius: 8px;">
-                <div style="color: var(--gray); font-size: 12px;">💰 Differenza</div>
+                <div style="color: var(--gray); font-size: 12px;">ðŸ’° Differenza</div>
                 <div style="font-size: 22px; font-weight: 700; color: ${differenza >= 0 ? 'var(--success)' : 'var(--danger)'};">${differenza >= 0 ? '+' : ''}${differenza}</div>
             </div>
             <div style="background: ${article.quantita <= article.soglia_minima ? '#fee2e2' : 'var(--green-light)'}; padding: 12px; border-radius: 8px;">
                 <div style="color: ${article.quantita <= article.soglia_minima ? 'var(--danger)' : 'var(--success)'}; font-size: 12px;">Stato</div>
-                <div style="font-size: 18px; font-weight: 700;">${article.quantita <= article.soglia_minima ? '⚠️ ORDINARE' : '✅ OK'}</div>
+                <div style="font-size: 18px; font-weight: 700;">${article.quantita <= article.soglia_minima ? 'âš ï¸ ORDINARE' : 'âœ… OK'}</div>
             </div>
         </div>
         <hr>
-        <h4>📋 STORICO MOVIMENTI</h4>
+        <h4>ðŸ“‹ STORICO MOVIMENTI</h4>
         <table style="width: 100%; font-size: 12px; margin-top: 10px;">
             <thead>
                 <tr style="background: var(--primary); color: white;">
                     <th style="padding: 10px;">Data</th>
                     <th style="padding: 10px;">Tipo</th>
-                    <th style="padding: 10px;">Quantità</th>
+                    <th style="padding: 10px;">QuantitÃ </th>
                     <th style="padding: 10px;">Utente</th>
                     <th style="padding: 10px;">Note</th>
                 </tr>
@@ -1217,7 +1276,7 @@ async function onScanSuccess(decodedText) {
     }
     
     document.getElementById('scanned-article').textContent = 
-        `${article.nome} (${article.codice_articolo})\nQuantità: ${article.quantita}`;
+        `${article.nome} (${article.codice_articolo})\nQuantitÃ : ${article.quantita}`;
     document.getElementById('scanner-result').classList.remove('hidden');
     
     window.scannedArticle = article;
@@ -1257,6 +1316,12 @@ function setupEventListeners() {
     document.getElementById('login-form').addEventListener('submit', handleLogin);
     document.getElementById('logout-btn').addEventListener('click', handleLogout);
     document.getElementById('toggle-password').addEventListener('click', togglePasswordVisibility);
+    
+    // PWA Install button
+    const installButton = document.getElementById('install-button');
+    if (installButton) {
+        installButton.addEventListener('click', handleInstallClick);
+    }
     
     document.getElementById('new-article-form').addEventListener('submit', handleNewArticle);
     
