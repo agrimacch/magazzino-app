@@ -750,7 +750,7 @@ td:last-child {
     display: none;
 }
 
-/* Fix opacità elementi */
+/* Fix opacitÃ  elementi */
 button, input, textarea, select, label, span, div, td, th, p, h1, h2, h3, h4 {
     opacity: 1 !important;
 }
@@ -1078,5 +1078,125 @@ button, input, textarea, select, label, span, div, td, th, p, h1, h2, h3, h4 {
     
     header {
         padding-top: max(12px, env(safe-area-inset-top));
+    }
+}
+/* ============================================ */
+/* MOBILE WARNING E PWA INSTALL */
+/* ============================================ */
+
+/* Avviso dispositivo mobile */
+.mobile-warning {
+    background: linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%);
+    border: 2px solid #F59E0B;
+    border-radius: var(--border-radius);
+    padding: 15px;
+    margin: 15px 0;
+    animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.warning-content {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+}
+
+.warning-icon {
+    font-size: 28px;
+    flex-shrink: 0;
+}
+
+.warning-text {
+    flex: 1;
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--dark);
+}
+
+.warning-text strong {
+    color: #92400E;
+}
+
+/* Container pulsante installa */
+.install-container {
+    margin: 15px 0;
+}
+
+.btn-install {
+    width: 100%;
+    padding: 14px 20px;
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+    color: white;
+    border: none;
+    border-radius: var(--border-radius-sm);
+    font-size: 15px;
+    font-family: 'Roboto Mono', monospace;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(22, 163, 74, 0.3);
+    transition: all 0.3s ease;
+    animation: pulse 2s infinite;
+}
+
+.btn-install:active {
+    transform: scale(0.98);
+    box-shadow: 0 2px 8px rgba(22, 163, 74, 0.3);
+}
+
+@keyframes pulse {
+    0%, 100% {
+        box-shadow: 0 4px 12px rgba(22, 163, 74, 0.3);
+    }
+    50% {
+        box-shadow: 0 4px 20px rgba(22, 163, 74, 0.5);
+    }
+}
+
+/* Istruzioni installazione nel modale */
+.install-instructions {
+    margin: 15px 0;
+    padding: 15px;
+    background: var(--light);
+    border-radius: var(--border-radius-sm);
+    border-left: 4px solid var(--primary);
+}
+
+.install-instructions h4 {
+    color: var(--primary);
+    margin-bottom: 12px;
+    font-size: 16px;
+}
+
+.install-instructions ol {
+    font-size: 14px;
+}
+
+.install-instructions li {
+    margin-bottom: 10px;
+}
+
+/* Desktop hover per pulsante installa */
+@media (min-width: 769px) {
+    .btn-install:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(22, 163, 74, 0.4);
+    }
+    
+    .warning-text {
+        font-size: 14px;
+    }
+    
+    .warning-icon {
+        font-size: 32px;
     }
 }
