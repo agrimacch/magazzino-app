@@ -7,7 +7,7 @@ echo "========================================"
 echo ""
 
 # Chiedi la nuova versione
-read -p "Inserisci la nuova versione (es: 1.0.2): " NEW_VERSION
+read -p "Inserisci la nuova versione (es: 2.3.4 o 2.3.4.fix): " NEW_VERSION
 
 # Chiedi la descrizione delle modifiche
 read -p "Descrizione modifiche: " DESCRIPTION
@@ -16,19 +16,19 @@ read -p "Descrizione modifiche: " DESCRIPTION
 DATE=$(date +"%Y-%m-%d")
 
 echo ""
-echo "🔍 Aggiornamento alla versione v$NEW_VERSION..."
+echo "🔄 Aggiornamento alla versione v$NEW_VERSION..."
 echo ""
 
 # 1. Aggiorna index.html
 if [ -f "index.html" ]; then
-    # Aggiorna il badge versione
-    sed -i.bak "s/<div class=\"version-badge\">v[0-9]*\.[0-9]*\.[0-9]*<\/div>/<div class=\"version-badge\">v$NEW_VERSION<\/div>/g" index.html
+    # Aggiorna il badge versione (supporta anche suffissi come .fix)
+    sed -i.bak "s/<div class=\"version-badge\">v[0-9.a-zA-Z-]*<\/div>/<div class=\"version-badge\">v$NEW_VERSION<\/div>/g" index.html
     
-    # Aggiorna il parametro version nel CSS
-    sed -i.bak "s/style\.css?v=[0-9]*\.[0-9]*\.[0-9]*/style.css?v=$NEW_VERSION/g" index.html
+    # Aggiorna il parametro version nel CSS (supporta anche suffissi)
+    sed -i.bak "s/style\.css?v=[0-9.a-zA-Z-]*/style.css?v=$NEW_VERSION/g" index.html
     
-    # Aggiorna il parametro version nel JS
-    sed -i.bak "s/app\.js?v=[0-9]*\.[0-9]*\.[0-9]*/app.js?v=$NEW_VERSION/g" index.html
+    # Aggiorna il parametro version nel JS (supporta anche suffissi)
+    sed -i.bak "s/app\.js?v=[0-9.a-zA-Z-]*/app.js?v=$NEW_VERSION/g" index.html
     
     # Rimuovi i file di backup
     rm -f index.html.bak
@@ -77,7 +77,8 @@ if [ "$AUTO_PUSH" = "s" ] || [ "$AUTO_PUSH" = "S" ]; then
     git push
     echo ""
     echo "✅ Modifiche caricate su GitHub!"
-    echo "⏳ Attendi 1 minuto per vedere l'aggiornamento su Netlify"
+    echo "⏳ Attendi 1-2 minuti per vedere l'aggiornamento su Vercel"
+    echo "   Vercel rileverà automaticamente il push e farà il deploy"
 else
     echo ""
     echo "ℹ️  Ricorda di fare commit e push manualmente!"
