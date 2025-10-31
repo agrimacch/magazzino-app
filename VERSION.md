@@ -1,5 +1,8 @@
 # Changelog App Magazzino
 
+## v2.3.5 - 2025-10-31 (PRODUZIONE) ✅
+aggiornamento metodo caricamento aggiornamento e versione
+
 ## v2.3.4 - 2025-10-31 (PRODUZIONE) ✅
 aggiornamento completo
 
