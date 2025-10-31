@@ -1,5 +1,8 @@
 # Changelog App Magazzino
 
+## v2.3.7 - 2025-10-31 (PRODUZIONE) ✅
+miglioramento mobile + icone
+
 ## v2.3.61 - 2025-10-31 (PRODUZIONE) ✅
 miglioramento mobile
 
