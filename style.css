@@ -750,7 +750,7 @@ td:last-child {
     display: none;
 }
 
-/* Fix opacitÃ  elementi */
+/* Fix opacità elementi */
 button, input, textarea, select, label, span, div, td, th, p, h1, h2, h3, h4 {
     opacity: 1 !important;
 }
@@ -768,6 +768,89 @@ button, input, textarea, select, label, span, div, td, th, p, h1, h2, h3, h4 {
 ::-webkit-scrollbar-thumb {
     background: var(--primary);
     border-radius: 10px;
+}
+
+/* ============================================ */
+/* MOBILE OPTIMIZATION - SOLO COLONNE ESSENZIALI */
+/* ============================================ */
+
+@media (max-width: 768px) {
+    /* Riduci min-width tabella per evitare scroll eccessivo */
+    table {
+        min-width: 600px;
+    }
+    
+    /* NASCONDI colonne non essenziali su mobile:
+       - Soglia (4)
+       - Pr. Acq. NETTO (5)
+       - IVA % (6)
+       - Barcode (8)
+       - Note (9)
+    */
+    
+    /* Soglia */
+    th:nth-child(4),
+    td:nth-child(4) {
+        display: none;
+    }
+    
+    /* Pr. Acq. NETTO */
+    th:nth-child(5),
+    td:nth-child(5) {
+        display: none;
+    }
+    
+    /* IVA % */
+    th:nth-child(6),
+    td:nth-child(6) {
+        display: none;
+    }
+    
+    /* Barcode */
+    th:nth-child(8),
+    td:nth-child(8) {
+        display: none;
+    }
+    
+    /* Note */
+    th:nth-child(9),
+    td:nth-child(9) {
+        display: none;
+    }
+    
+    /* OTTIMIZZA colonne visibili su mobile */
+    
+    /* Nome - larghezza maggiore */
+    td:nth-child(1),
+    th:nth-child(1) {
+        min-width: 100px;
+        max-width: 180px;
+    }
+    
+    /* Codice */
+    td:nth-child(2),
+    th:nth-child(2) {
+        min-width: 70px;
+    }
+    
+    /* Quantità */
+    td:nth-child(3),
+    th:nth-child(3) {
+        min-width: 50px;
+        text-align: center;
+    }
+    
+    /* Prezzo Vendita */
+    td:nth-child(7),
+    th:nth-child(7) {
+        min-width: 70px;
+    }
+    
+    /* Azioni */
+    td:nth-child(10),
+    th:nth-child(10) {
+        min-width: 100px;
+    }
 }
 
 /* ============================================ */
@@ -1080,6 +1163,7 @@ button, input, textarea, select, label, span, div, td, th, p, h1, h2, h3, h4 {
         padding-top: max(12px, env(safe-area-inset-top));
     }
 }
+
 /* ============================================ */
 /* MOBILE WARNING E PWA INSTALL */
 /* ============================================ */
