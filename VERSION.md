@@ -1,5 +1,8 @@
 # Changelog App Magazzino
 
+## v2.3.81 - 2025-11-01 (PRODUZIONE) ✅
+fix tabelle
+
 ## v2.3.8 - 2025-11-01 (PRODUZIONE) ✅
 fix mobile
 
