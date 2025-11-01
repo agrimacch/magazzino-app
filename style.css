@@ -775,9 +775,10 @@ button, input, textarea, select, label, span, div, td, th, p, h1, h2, h3, h4 {
 /* ============================================ */
 
 @media (max-width: 768px) {
-    /* Riduci min-width tabella per evitare scroll eccessivo */
+    /* Elimina min-width per far stare tutto nello schermo */
     table {
-        min-width: 600px;
+        min-width: auto;
+        width: 100%;
     }
     
     /* NASCONDI colonne non essenziali su mobile:
@@ -818,38 +819,72 @@ button, input, textarea, select, label, span, div, td, th, p, h1, h2, h3, h4 {
         display: none;
     }
     
-    /* OTTIMIZZA colonne visibili su mobile */
+    /* OTTIMIZZA colonne visibili su mobile - COMPATTE */
     
-    /* Nome - larghezza maggiore */
+    /* Nome - più stretto, va a capo */
     td:nth-child(1),
     th:nth-child(1) {
-        min-width: 100px;
-        max-width: 180px;
+        min-width: 80px;
+        max-width: 120px;
+        white-space: normal !important;
+        word-wrap: break-word !important;
+        word-break: break-word !important;
+        font-size: 11px;
+        padding: 8px 4px !important;
     }
     
-    /* Codice */
+    /* Codice - compatto */
     td:nth-child(2),
     th:nth-child(2) {
-        min-width: 70px;
+        min-width: 45px;
+        max-width: 60px;
+        font-size: 10px;
+        padding: 8px 4px !important;
     }
     
-    /* Quantità */
+    /* Quantità - compatto centrato */
     td:nth-child(3),
     th:nth-child(3) {
-        min-width: 50px;
-        text-align: center;
+        min-width: 35px;
+        max-width: 45px;
+        text-align: center !important;
+        font-size: 11px;
+        padding: 8px 4px !important;
     }
     
-    /* Prezzo Vendita */
+    /* Prezzo Vendita - compatto */
     td:nth-child(7),
     th:nth-child(7) {
-        min-width: 70px;
+        min-width: 50px;
+        max-width: 65px;
+        font-size: 10px;
+        padding: 8px 4px !important;
     }
     
-    /* Azioni */
+    /* Azioni - compatto */
     td:nth-child(10),
     th:nth-child(10) {
-        min-width: 100px;
+        min-width: 80px;
+        max-width: 90px;
+        padding: 8px 4px !important;
+    }
+    
+    /* Riduci padding generale celle */
+    td, th {
+        padding: 8px 4px !important;
+        font-size: 11px;
+    }
+    
+    /* Pulsanti azioni più piccoli */
+    .action-buttons-grid button {
+        padding: 6px 4px !important;
+        font-size: 14px !important;
+    }
+    
+    /* Font header più piccolo */
+    th {
+        font-size: 10px;
+        font-weight: 700;
     }
 }
 
