@@ -48,7 +48,7 @@ body {
 }
 
 .logo-header {
-    max-width: 100px;
+    max-width: 150px;
     height: auto;
     filter: drop-shadow(0 2px 4px rgba(22, 163, 74, 0.2));
 }
@@ -95,9 +95,6 @@ header {
     align-items: center;
     gap: 8px;
     border-bottom: 3px solid var(--primary);
-    position: sticky;
-    top: 0;
-    z-index: 100;
 }
 
 header h1 {
@@ -105,6 +102,14 @@ header h1 {
     font-weight: 700;
     color: var(--primary);
     text-align: center;
+}
+
+.favicon-title {
+    height: 24px;
+    width: auto;
+    margin-right: 8px;
+    vertical-align: middle;
+    display: inline-block;
 }
 
 .user-info {
@@ -128,13 +133,13 @@ header h1 {
 }
 
 .role-badge.admin {
-    background: var(--primary);
-    color: white;
+    background: transparent;
+    color: var(--primary);
 }
 
 .role-badge.operatore {
-    background: var(--warning);
-    color: white;
+    background: transparent;
+    color: var(--warning);
 }
 
 /* Version badge */
@@ -161,9 +166,6 @@ header h1 {
     overflow-x: auto;
     box-shadow: 0 2px 6px rgba(22, 163, 74, 0.06);
     -webkit-overflow-scrolling: touch;
-    position: sticky;
-    top: 95px;
-    z-index: 99;
 }
 
 .tabs::-webkit-scrollbar {
@@ -279,8 +281,8 @@ input:focus, textarea:focus, select:focus {
 .btn-secondary {
     background: var(--gray);
     color: white;
-    font-size: 13px;
-    padding: 10px 14px;
+    font-size: 11px;
+    padding: 6px 10px;
 }
 
 .btn-success {
@@ -750,7 +752,7 @@ td:last-child {
     display: none;
 }
 
-/* Fix opacità elementi */
+/* Fix opacitÃ  elementi */
 button, input, textarea, select, label, span, div, td, th, p, h1, h2, h3, h4 {
     opacity: 1 !important;
 }
@@ -821,7 +823,7 @@ button, input, textarea, select, label, span, div, td, th, p, h1, h2, h3, h4 {
     
     /* OTTIMIZZA colonne visibili su mobile - COMPATTE */
     
-    /* Nome - più stretto, va a capo */
+    /* Nome - piÃ¹ stretto, va a capo */
     td:nth-child(1),
     th:nth-child(1) {
         min-width: 80px;
@@ -842,7 +844,7 @@ button, input, textarea, select, label, span, div, td, th, p, h1, h2, h3, h4 {
         padding: 8px 4px !important;
     }
     
-    /* Quantità - compatto centrato */
+    /* QuantitÃ  - compatto centrato */
     td:nth-child(3),
     th:nth-child(3) {
         min-width: 35px;
@@ -875,13 +877,13 @@ button, input, textarea, select, label, span, div, td, th, p, h1, h2, h3, h4 {
         font-size: 11px;
     }
     
-    /* Pulsanti azioni più piccoli */
+    /* Pulsanti azioni piÃ¹ piccoli */
     .action-buttons-grid button {
         padding: 6px 4px !important;
         font-size: 14px !important;
     }
     
-    /* Font header più piccolo */
+    /* Font header piÃ¹ piccolo */
     th {
         font-size: 10px;
         font-weight: 700;
@@ -919,6 +921,10 @@ button, input, textarea, select, label, span, div, td, th, p, h1, h2, h3, h4 {
         font-size: 24px;
     }
     
+    .favicon-title {
+        height: 28px;
+    }
+    
     .logo-container-header {
         position: absolute;
         left: 50%;
@@ -927,7 +933,7 @@ button, input, textarea, select, label, span, div, td, th, p, h1, h2, h3, h4 {
     }
     
     .logo-header {
-        max-width: 120px;
+        max-width: 180px;
     }
     
     .user-info {
@@ -1002,6 +1008,26 @@ button, input, textarea, select, label, span, div, td, th, p, h1, h2, h3, h4 {
     .filters-bar button {
         margin-top: 0;
         width: auto;
+    }
+    
+    .switch-label {
+        font-size: 14px;
+    }
+    
+    .switch-label input[type="checkbox"] {
+        width: 42px;
+        height: 22px;
+    }
+    
+    .switch-label input[type="checkbox"]::before {
+        width: 16px;
+        height: 16px;
+        top: 3px;
+        left: 3px;
+    }
+    
+    .switch-label input[type="checkbox"]:checked::before {
+        transform: translateX(20px);
     }
     
     .supplier-header {
