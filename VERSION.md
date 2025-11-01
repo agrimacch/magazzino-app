@@ -1,5 +1,8 @@
 # Changelog App Magazzino
 
+## v2.3.99 - 2025-11-01 (PRODUZIONE) ✅
+AGRIMAG FAVICON
+
 ## v2.3.9 - 2025-11-01 (PRODUZIONE) ✅
 modifica heder
 
