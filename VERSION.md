@@ -1,5 +1,8 @@
 # Changelog App Magazzino
 
+## v2.3.7 - 2025-11-01 (PRODUZIONE) ✅
+fix icone + avviso mobile
+
 ## v2.3.6 - 2025-10-31 (PRODUZIONE) ✅
 avviso mobile
 
