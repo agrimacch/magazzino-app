@@ -17,7 +17,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=2.3.6">
+    <link rel="stylesheet" href="style.css?v=2.3.7">
     
     <style>
         /* Nascondi tutte le schermate all'inizio */
@@ -30,7 +30,7 @@
             display: block;
         }
         
-        /* Previene il flash nascondendo il body fino a quando JS Ã¨ pronto */
+        /* Previene il flash nascondendo il body fino a quando JS è pronto */
         body.loading .screen {
             opacity: 0;
         }
@@ -44,7 +44,7 @@
 
 <body class="loading">
     <!-- Version badge -->
-    <div class="version-badge">v2.3.6</div>
+    <div class="version-badge">v2.3.7</div>
 
     <!-- SCHERMATA LOGIN -->
     <div id="login-screen" class="screen">
@@ -52,7 +52,7 @@
             <div class="logo-container">
                 <img src="logo.png" alt="Logo Azienda" class="logo">
             </div>
-            <h1>ðŸ“¦ Gestione Magazzino</h1>
+            <h1>📦 Gestione Magazzino</h1>
             
             <!-- Avviso dispositivo mobile -->
             <div id="mobile-warning" class="mobile-warning hidden">
@@ -71,13 +71,14 @@
                     ⬇️ Installa App sulla Home
                 </button>
             </div>
+            
             <div class="card">
                 <h2>Accedi</h2>
                 <form id="login-form">
                     <input type="email" id="login-email" placeholder="Email" required>
                     <div style="position: relative; margin-bottom: 12px;">
                         <input type="password" id="login-password" placeholder="Password" required style="padding-right: 50px; margin-bottom: 0;">
-                        <button type="button" id="toggle-password" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; font-size: 22px; padding: 0; width: 35px; height: 35px; display: flex; align-items: center; justify-content: center;">ðŸ‘ï¸</button>
+                        <button type="button" id="toggle-password" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; font-size: 22px; padding: 0; width: 35px; height: 35px; display: flex; align-items: center; justify-content: center;">👁️</button>
                     </div>
                     <label class="checkbox-label" style="display: flex; align-items: center; gap: 10px; margin: 15px 0; cursor: pointer; user-select: none;">
                         <input type="checkbox" id="remember-me" style="width: 20px; height: 20px; cursor: pointer; margin: 0;">
@@ -96,7 +97,7 @@
             <div class="logo-container-header">
                 <img src="logo.png" alt="Logo" class="logo-header">
             </div>
-            <h1>ðŸ“¦ Gestione Magazzino</h1>
+            <h1>📦 Gestione Magazzino</h1>
             <div class="user-info">
                 <span id="user-role" class="role-badge"></span>
                 <span id="user-email"></span>
@@ -106,18 +107,18 @@
 
         <!-- Navigazione tab -->
         <nav class="tabs">
-            <button class="tab-btn active" data-tab="inventario">ðŸ“Š Inventario</button>
-            <button class="tab-btn" data-tab="nuovo" id="tab-nuovo-btn">âž• Nuovo Articolo</button>
-            <button class="tab-btn" data-tab="movimenti">ðŸ“‹ Movimenti</button>
-            <button class="tab-btn" data-tab="report" id="tab-report-btn">ðŸ“Š Report Ordini</button>
-            <button class="tab-btn" data-tab="scanner">ðŸ“· Scanner</button>
+            <button class="tab-btn active" data-tab="inventario">📊 Inventario</button>
+            <button class="tab-btn" data-tab="nuovo" id="tab-nuovo-btn">➕ Nuovo Articolo</button>
+            <button class="tab-btn" data-tab="movimenti">📋 Movimenti</button>
+            <button class="tab-btn" data-tab="report" id="tab-report-btn">📄 Report Ordini</button>
+            <button class="tab-btn" data-tab="scanner">📷 Scanner</button>
         </nav>
 
         <!-- TAB 1: INVENTARIO -->
         <div id="tab-inventario" class="tab-content active">
             <div class="container">
                 <div class="filters-bar">
-                    <input type="text" id="search-input" placeholder="ðŸ” Cerca articolo...">
+                    <input type="text" id="search-input" placeholder="🔍 Cerca articolo...">
                     <select id="filter-brand">
                         <option value="">Tutti i fornitori</option>
                     </select>
@@ -125,8 +126,8 @@
                         <option value="fornitore-asc">Fornitore (A-Z)</option>
                         <option value="nome-asc">Nome (A-Z)</option>
                         <option value="nome-desc">Nome (Z-A)</option>
-                        <option value="quantita-asc">QuantitÃ  (crescente)</option>
-                        <option value="quantita-desc">QuantitÃ  (decrescente)</option>
+                        <option value="quantita-asc">Quantità (crescente)</option>
+                        <option value="quantita-desc">Quantità (decrescente)</option>
                     </select>
                     <label class="switch-label">
                         <input type="checkbox" id="group-by-supplier" checked>
@@ -175,8 +176,8 @@
                         
                         <div class="form-row">
                             <div class="form-col">
-                                <label>QuantitÃ  Iniziale *</label>
-                                <input type="number" id="new-quantity" placeholder="QuantitÃ  iniziale" value="0" required>
+                                <label>Quantità Iniziale *</label>
+                                <input type="number" id="new-quantity" placeholder="Quantità iniziale" value="0" required>
                             </div>
                             <div class="form-col">
                                 <label>Soglia Minima *</label>
@@ -186,7 +187,7 @@
                         
                         <div class="form-row">
                             <div class="form-col">
-                                <label>Prezzo Acquisto NETTO â‚¬ (no IVA) *</label>
+                                <label>Prezzo Acquisto NETTO € (no IVA) *</label>
                                 <input type="number" step="0.01" id="new-price-buy" placeholder="0.00" required>
                             </div>
                             <div class="form-col">
@@ -195,7 +196,7 @@
                             </div>
                         </div>
                         
-                        <label>Prezzo Vendita â‚¬ (IVA inclusa) *</label>
+                        <label>Prezzo Vendita € (IVA inclusa) *</label>
                         <input type="number" step="0.01" id="new-price" placeholder="0.00" required>
                         
                         <button type="submit" class="btn-primary">Salva Articolo</button>
@@ -226,7 +227,7 @@
                                 <th>Articolo</th>
                                 <th>Codice</th>
                                 <th>Tipo</th>
-                                <th>QuantitÃ </th>
+                                <th>Quantità</th>
                                 <th>Utente</th>
                                 <th>Note</th>
                             </tr>
@@ -243,7 +244,7 @@
         <div id="tab-report" class="tab-content">
             <div class="container">
                 <div class="card">
-                    <h2>ðŸ“Š Report Prestagionale Ordini/Vendite</h2>
+                    <h2>📄 Report Prestagionale Ordini/Vendite</h2>
                     <p style="color: var(--gray); font-size: 14px; margin-bottom: 20px;">
                         Analizza quanto materiale hai ordinato (caricato) e venduto (scaricato) per programmare ordini futuri.
                     </p>
@@ -289,7 +290,7 @@
                 <div id="report-result" class="card hidden">
                     <div class="report-header">
                         <h2>Report Generato</h2>
-                        <button id="print-report" class="btn-primary">ðŸ–¨ï¸ Stampa</button>
+                        <button id="print-report" class="btn-primary">🖨️ Stampa</button>
                     </div>
                     <div id="report-content"></div>
                 </div>
@@ -308,10 +309,10 @@
                         <h3>Articolo trovato:</h3>
                         <p id="scanned-article"></p>
                         <div class="action-buttons">
-                            <button id="btn-carico" class="btn-success">â¬†ï¸ Carico</button>
-                            <button id="btn-scarico" class="btn-danger">â¬‡ï¸ Scarico</button>
+                            <button id="btn-carico" class="btn-success">⬆️ Carico</button>
+                            <button id="btn-scarico" class="btn-danger">⬇️ Scarico</button>
                         </div>
-                        <button id="btn-rescan" class="btn-secondary" style="width: 100%; margin-top: 10px;">ðŸ”„ Scansiona Altro</button>
+                        <button id="btn-rescan" class="btn-secondary" style="width: 100%; margin-top: 10px;">🔄 Scansiona Altro</button>
                     </div>
                 </div>
             </div>
@@ -323,8 +324,8 @@
         <div class="modal-content">
             <h3 id="modal-title">Carico/Scarico</h3>
             <p id="modal-article-name"></p>
-            <p>QuantitÃ  attuale: <strong id="modal-current-qty"></strong></p>
-            <input type="number" id="modal-quantity" placeholder="QuantitÃ " value="1" min="1">
+            <p>Quantità attuale: <strong id="modal-current-qty"></strong></p>
+            <input type="number" id="modal-quantity" placeholder="Quantità" value="1" min="1">
             <textarea id="modal-notes" placeholder="Note (opzionale)" rows="3"></textarea>
             <div class="modal-buttons">
                 <button id="modal-confirm" class="btn-primary">Conferma</button>
@@ -365,8 +366,8 @@
                 
                 <div class="form-row">
                     <div class="form-col">
-                        <label>QuantitÃ  *</label>
-                        <input type="number" id="edit-quantity" placeholder="QuantitÃ " required>
+                        <label>Quantità *</label>
+                        <input type="number" id="edit-quantity" placeholder="Quantità" required>
                     </div>
                     <div class="form-col">
                         <label>Soglia Minima *</label>
@@ -376,7 +377,7 @@
                 
                 <div class="form-row">
                     <div class="form-col">
-                        <label>Prezzo Acquisto NETTO â‚¬ (no IVA) *</label>
+                        <label>Prezzo Acquisto NETTO € (no IVA) *</label>
                         <input type="number" step="0.01" id="edit-price-buy" placeholder="0.00" required>
                     </div>
                     <div class="form-col">
@@ -385,7 +386,7 @@
                     </div>
                 </div>
                 
-                <label>Prezzo Vendita â‚¬ (IVA inclusa) *</label>
+                <label>Prezzo Vendita € (IVA inclusa) *</label>
                 <input type="number" step="0.01" id="edit-price" placeholder="0.00" required>
                 
                 <div class="modal-buttons">
@@ -395,7 +396,6 @@
             </form>
         </div>
     </div>
-
 
     <!-- Modal Istruzioni Installazione -->
     <div id="install-instructions-modal" class="modal hidden">
@@ -441,6 +441,6 @@
     <!-- Librerie esterne -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
-    <script src="app.js?v=2.3.6"></script>
+    <script src="app.js?v=2.3.7"></script>
 </body>
 </html>
