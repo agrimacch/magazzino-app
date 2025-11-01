@@ -101,7 +101,7 @@ Per uscire dall'app, clicca sul pulsante **"Logout"** in alto a destra.
 L'app è divisa in sezioni accessibili tramite **tab** (linguette) nella barra di navigazione:
 ```
 ┌─────────────────────────────────────────────┐
-│  [Logo]  📦 Gestione Magazzino    👤 Email  │ ← Header
+│  [Logo]  📦 gazzino    👤 Email  │ ← Header
 ├─────────────────────────────────────────────┤
 │ 📊 Inventario │ ➕ Nuovo │ 📋 Movimenti │... │ ← Tab
 ├─────────────────────────────────────────────┤
