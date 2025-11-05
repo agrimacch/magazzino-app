@@ -7,15 +7,15 @@
 }
 
 :root {
-    --primary: #16a34a;
-    --primary-dark: #15803d;
-    --success: #22c55e;
+    --primary: #688E53;
+    --primary-dark: #4d6a3b;
+    --success: #7fa861;
     --danger: #ef4444;
     --warning: #f59e0b;
     --gray: #6b7280;
     --light: #f0fdf4;
     --dark: #000000;
-    --green-light: #dcfce7;
+    --green-light: #e8f3e0;
     --border-radius: 16px;
     --border-radius-sm: 10px;
 }
