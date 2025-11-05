@@ -96,7 +96,6 @@ header {
     justify-content: space-between;
     border-bottom: 3px solid var(--primary);
     position: relative;
-    gap: 8px;
 }
 
 .logo-container-header {
@@ -747,7 +746,7 @@ td:last-child {
     display: none;
 }
 
-/* Fix opacità elementi */
+/* Fix opacita elementi */
 button, input, textarea, select, label, span, div, td, th, p, h1, h2, h3, h4 {
     opacity: 1 !important;
 }
@@ -818,7 +817,7 @@ button, input, textarea, select, label, span, div, td, th, p, h1, h2, h3, h4 {
     
     /* OTTIMIZZA colonne visibili su mobile - COMPATTE */
     
-    /* Nome - più stretto, va a capo */
+    /* Nome - piu stretto, va a capo */
     td:nth-child(1),
     th:nth-child(1) {
         min-width: 80px;
@@ -839,7 +838,7 @@ button, input, textarea, select, label, span, div, td, th, p, h1, h2, h3, h4 {
         padding: 8px 4px !important;
     }
     
-    /* Quantità - compatto centrato */
+    /* Quantita - compatto centrato */
     td:nth-child(3),
     th:nth-child(3) {
         min-width: 35px;
@@ -872,16 +871,22 @@ button, input, textarea, select, label, span, div, td, th, p, h1, h2, h3, h4 {
         font-size: 11px;
     }
     
-    /* Pulsanti azioni più piccoli */
+    /* Pulsanti azioni piu piccoli */
     .action-buttons-grid button {
         padding: 6px 4px !important;
         font-size: 14px !important;
     }
     
-    /* Font header più piccolo */
+    /* Font header piu piccolo */
     th {
         font-size: 10px;
         font-weight: 700;
+    }
+    
+    /* Fix badge Operatore che esce dallo schermo */
+    .role-badge {
+        font-size: 9px !important;
+        padding: 4px 6px !important;
     }
 }
 
@@ -1335,38 +1340,41 @@ button, input, textarea, select, label, span, div, td, th, p, h1, h2, h3, h4 {
 }
 
 /* ============================================ */
-/* HAMBURGER MENU - INTEGRATO NELL'HEADER */
+/* HAMBURGER MENU - POSIZIONE FIXATA */
 /* ============================================ */
 
-/* Hamburger Button - ORA NELL'HEADER */
+/* Hamburger Button */
 .hamburger-btn {
     display: none;
+    position: fixed;
+    top: 60px;
+    left: 12px;
+    z-index: 1001;
     background: var(--primary);
     border: none;
-    width: 42px;
-    height: 42px;
-    border-radius: 8px;
+    width: 45px;
+    height: 45px;
+    border-radius: 10px;
     cursor: pointer;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 4px;
-    box-shadow: 0 2px 8px rgba(22, 163, 74, 0.3);
+    gap: 5px;
+    box-shadow: 0 4px 12px rgba(22, 163, 74, 0.3);
     transition: all 0.3s ease;
-    flex-shrink: 0;
 }
 
 .hamburger-btn span {
     display: block;
-    width: 22px;
-    height: 2.5px;
+    width: 24px;
+    height: 3px;
     background: white;
     border-radius: 3px;
     transition: all 0.3s ease;
 }
 
 .hamburger-btn.active span:nth-child(1) {
-    transform: rotate(45deg) translate(6px, 6px);
+    transform: rotate(45deg) translate(7px, 7px);
 }
 
 .hamburger-btn.active span:nth-child(2) {
@@ -1374,7 +1382,7 @@ button, input, textarea, select, label, span, div, td, th, p, h1, h2, h3, h4 {
 }
 
 .hamburger-btn.active span:nth-child(3) {
-    transform: rotate(-45deg) translate(6px, -6px);
+    transform: rotate(-45deg) translate(7px, -7px);
 }
 
 /* Mostra hamburger solo su mobile */
@@ -1383,7 +1391,7 @@ button, input, textarea, select, label, span, div, td, th, p, h1, h2, h3, h4 {
         display: flex;
     }
     
-    /* Nascondi tabs su mobile - MENU PIÙ ALTO */
+    /* Nascondi tabs su mobile */
     .tabs {
         position: fixed;
         top: 0;
@@ -1392,7 +1400,7 @@ button, input, textarea, select, label, span, div, td, th, p, h1, h2, h3, h4 {
         height: 100vh;
         background: white;
         flex-direction: column;
-        padding: 130px 15px 15px 15px; /* AUMENTATO DA 80px A 130px */
+        padding: 80px 15px 15px 15px;
         box-shadow: 4px 0 20px rgba(0, 0, 0, 0.15);
         z-index: 1000;
         transition: left 0.3s ease;
@@ -1434,7 +1442,7 @@ button, input, textarea, select, label, span, div, td, th, p, h1, h2, h3, h4 {
 }
 
 /* ============================================ */
-/* SEARCH BAR */
+/* SEARCH BAR - NUOVA SEZIONE */
 /* ============================================ */
 
 .search-bar {

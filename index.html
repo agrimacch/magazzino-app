@@ -30,7 +30,7 @@
             display: block;
         }
         
-        /* Previene il flash nascondendo il body fino a quando JS è pronto */
+        /* Previene il flash nascondendo il body fino a quando JS Ã¨ pronto */
         body.loading .screen {
             opacity: 0;
         }
@@ -60,7 +60,7 @@
                     <span class="warning-icon">&#128241;</span>
                     <div class="warning-text">
                         <strong>Consiglio:</strong> Per un'esperienza ottimale utilizza un PC o Tablet. 
-                        Su smartphone le funzionalità sono limitate.
+                        Su smartphone le funzionalitÃ  sono limitate.
                     </div>
                 </div>
             </div>
@@ -92,24 +92,23 @@
 
     <!-- SCHERMATA PRINCIPALE -->
     <div id="main-screen" class="screen">
-        <!-- Header con hamburger integrato -->
+        <!-- Header semplificato - SOLO LOGO + RUOLO + LOGOUT -->
         <header>
-            <!-- Hamburger button (solo mobile) - ORA NELL'HEADER -->
-            <button id="hamburger-btn" class="hamburger-btn">
-                <span></span>
-                <span></span>
-                <span></span>
-            </button>
-            
             <div class="logo-container-header">
                 <img src="logo.png" alt="Logo Agrimag" class="logo-header">
             </div>
-            
             <div class="user-info">
                 <span id="user-role" class="role-badge"></span>
                 <button id="logout-btn" class="btn-secondary">Logout</button>
             </div>
         </header>
+
+        <!-- Hamburger button (solo mobile) -->
+        <button id="hamburger-btn" class="hamburger-btn">
+            <span></span>
+            <span></span>
+            <span></span>
+        </button>
 
         <!-- Navigazione tab -->
         <nav class="tabs" id="main-tabs">
@@ -137,8 +136,8 @@
                         <option value="fornitore-asc">Fornitore (A-Z)</option>
                         <option value="nome-asc">Nome (A-Z)</option>
                         <option value="nome-desc">Nome (Z-A)</option>
-                        <option value="quantita-asc">Quantità (crescente)</option>
-                        <option value="quantita-desc">Quantità (decrescente)</option>
+                        <option value="quantita-asc">QuantitÃ  (crescente)</option>
+                        <option value="quantita-desc">QuantitÃ  (decrescente)</option>
                     </select>
                     
                     <!-- Toggle restyling -->
@@ -193,8 +192,8 @@
                         
                         <div class="form-row">
                             <div class="form-col">
-                                <label>Quantità Iniziale *</label>
-                                <input type="number" id="new-quantity" placeholder="Quantità iniziale" value="0" required>
+                                <label>QuantitÃ  Iniziale *</label>
+                                <input type="number" id="new-quantity" placeholder="QuantitÃ  iniziale" value="0" required>
                             </div>
                             <div class="form-col">
                                 <label>Soglia Minima *</label>
@@ -244,7 +243,7 @@
                                 <th>Articolo</th>
                                 <th>Codice</th>
                                 <th>Tipo</th>
-                                <th>Quantità</th>
+                                <th>QuantitÃ </th>
                                 <th>Utente</th>
                                 <th>Note</th>
                             </tr>
@@ -341,8 +340,8 @@
         <div class="modal-content">
             <h3 id="modal-title">Carico/Scarico</h3>
             <p id="modal-article-name"></p>
-            <p>Quantità attuale: <strong id="modal-current-qty"></strong></p>
-            <input type="number" id="modal-quantity" placeholder="Quantità" value="1" min="1">
+            <p>QuantitÃ  attuale: <strong id="modal-current-qty"></strong></p>
+            <input type="number" id="modal-quantity" placeholder="QuantitÃ " value="1" min="1">
             <textarea id="modal-notes" placeholder="Note (opzionale)" rows="3"></textarea>
             <div class="modal-buttons">
                 <button id="modal-confirm" class="btn-primary">Conferma</button>
@@ -383,8 +382,8 @@
                 
                 <div class="form-row">
                     <div class="form-col">
-                        <label>Quantità *</label>
-                        <input type="number" id="edit-quantity" placeholder="Quantità" required>
+                        <label>QuantitÃ  *</label>
+                        <input type="number" id="edit-quantity" placeholder="QuantitÃ " required>
                     </div>
                     <div class="form-col">
                         <label>Soglia Minima *</label>
@@ -427,7 +426,7 @@
                     <li>Scorri e seleziona <strong>"Aggiungi a Home"</strong> 
                         <span style="font-size: 18px;">&#10133;</span></li>
                     <li>Premi <strong>"Aggiungi"</strong> in alto a destra</li>
-                    <li>L'icona apparirà sulla tua schermata Home! &#127881;</li>
+                    <li>L'icona apparirÃ  sulla tua schermata Home! &#127881;</li>
                 </ol>
             </div>
             
@@ -439,7 +438,7 @@
                     <li>Seleziona <strong>"Installa app"</strong> o 
                         <strong>"Aggiungi a schermata Home"</strong></li>
                     <li>Conferma premendo <strong>"Installa"</strong></li>
-                    <li>L'icona apparirà sulla tua schermata Home! &#127881;</li>
+                    <li>L'icona apparirÃ  sulla tua schermata Home! &#127881;</li>
                 </ol>
             </div>
             

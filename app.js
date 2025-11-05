@@ -27,38 +27,31 @@ function calcolaPrezzoConIVA(prezzoNetto, ivaPercentuale) {
 // INIZIALIZZAZIONE
 // ========================================
 document.addEventListener('DOMContentLoaded', async () => {
-    console.log('🚀 Inizializzazione app...');
+    console.log('Inizializzazione app...');
     
-    // Controlla se c'è una sessione valida in Supabase
-    // Supabase mantiene GIÀ la sessione persistente di default!
     const { data: { session } } = await supabase.auth.getSession();
     
-    console.log('📋 Sessione trovata:', session ? 'SÌ' : 'NO');
+    console.log('Sessione trovata:', session ? 'SI' : 'NO');
     
     if (session) {
-        // Sessione valida: mantieni l'utente loggato
         currentUser = session.user;
-        console.log('👤 Utente:', currentUser.email);
+        console.log('Utente:', currentUser.email);
         await loadUserRole();
         showMainScreen();
     } else {
-        // Nessuna sessione: mostra login
-        console.log('🔓 Nessuna sessione, mostro login');
+        console.log('Nessuna sessione, mostro login');
         showLoginScreen();
     }
     
-    // Rendi il body visibile con transizione
     document.body.classList.remove('loading');
     document.body.classList.add('ready');
     
     setupEventListeners();
     
-    // Inizializza funzionalità PWA
     initPWAFeatures();
     
-    // Listener per cambi di stato autenticazione
     supabase.auth.onAuthStateChange((event, session) => {
-        console.log('🔐 Auth state changed:', event);
+        console.log('Auth state changed:', event);
         if (event === 'SIGNED_OUT') {
             currentUser = null;
             currentUserRole = null;
@@ -74,7 +67,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 // GESTIONE RUOLI
 // ========================================
 async function loadUserRole() {
-    console.log('👔 Caricamento ruolo per:', currentUser.email);
+    console.log('Caricamento ruolo per:', currentUser.email);
     
     const { data, error } = await supabase
         .from('user_roles')
@@ -82,23 +75,22 @@ async function loadUserRole() {
         .eq('email', currentUser.email)
         .single();
     
-    console.log('📊 Risultato query ruolo:', data, error);
+    console.log('Risultato query ruolo:', data, error);
     
     if (error || !data) {
-        console.log('⚠️ Nessun ruolo trovato, imposto operatore');
+        console.log('Nessun ruolo trovato, imposto operatore');
         currentUserRole = 'operatore';
     } else {
-        console.log('✅ Ruolo trovato:', data.role);
+        console.log('Ruolo trovato:', data.role);
         currentUserRole = data.role;
     }
     
-    console.log('🎭 Ruolo finale assegnato:', currentUserRole);
+    console.log('Ruolo finale assegnato:', currentUserRole);
     applyRolePermissions();
 }
 
 function applyRolePermissions() {
     const roleBadge = document.getElementById('user-role');
-    // USA HTML ENTITIES per le emoji
     roleBadge.innerHTML = currentUserRole === 'admin' ? '&#128081; Admin' : '&#128100; Operatore';
     roleBadge.classList.add(currentUserRole);
     
@@ -123,7 +115,6 @@ function showLoginScreen() {
 function showMainScreen() {
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
     document.getElementById('main-screen').classList.add('active');
-    // RIMOSSA LA RIGA CHE IMPOSTAVA L'EMAIL NELL'HEADER
     loadInventory();
     loadMovements();
     
@@ -140,7 +131,7 @@ async function handleLogin(e) {
     const email = document.getElementById('login-email').value;
     const password = document.getElementById('login-password').value;
     
-    console.log('🔐 Tentativo login per:', email);
+    console.log('Tentativo login per:', email);
     
     const { data, error } = await supabase.auth.signInWithPassword({
         email,
@@ -148,19 +139,19 @@ async function handleLogin(e) {
     });
     
     if (error) {
-        console.error('❌ Errore login:', error);
+        console.error('Errore login:', error);
         alert('Errore login: ' + error.message);
         return;
     }
     
-    console.log('✅ Login riuscito - Supabase manterrà la sessione');
+    console.log('Login riuscito - Supabase manterra la sessione');
     currentUser = data.user;
     await loadUserRole();
     showMainScreen();
 }
 
 async function handleLogout() {
-    console.log('🚪 Logout...');
+    console.log('Logout...');
     await supabase.auth.signOut();
     currentUser = null;
     currentUserRole = null;
@@ -186,7 +177,19 @@ function togglePasswordVisibility() {
 // ========================================
 // GESTIONE ARTICOLI
 // ========================================
-async function loadInventory() {
+async function loadInventory(keepFilters = false) {
+    let savedBrand = '';
+    let savedSearch = '';
+    let savedSort = '';
+    let savedGroup = true;
+    
+    if (keepFilters) {
+        savedBrand = document.getElementById('filter-brand')?.value || '';
+        savedSearch = document.getElementById('search-input')?.value || '';
+        savedSort = document.getElementById('sort-select')?.value || 'fornitore-asc';
+        savedGroup = document.getElementById('group-by-supplier')?.checked !== false;
+    }
+    
     const { data, error } = await supabase
         .from('articoli')
         .select('*')
@@ -199,12 +202,28 @@ async function loadInventory() {
     
     allArticles = data || [];
     populateBrandFilter();
+    
+    if (keepFilters) {
+        if (savedBrand) document.getElementById('filter-brand').value = savedBrand;
+        if (savedSearch) document.getElementById('search-input').value = savedSearch;
+        if (savedSort) document.getElementById('sort-select').value = savedSort;
+        document.getElementById('group-by-supplier').checked = savedGroup;
+    } else {
+        // RESET esplicito dei filtri
+        document.getElementById('filter-brand').value = '';
+        document.getElementById('search-input').value = '';
+        document.getElementById('sort-select').value = 'fornitore-asc';
+        document.getElementById('group-by-supplier').checked = true;
+    }
+    
     applyFiltersAndSort();
 }
 
 function populateBrandFilter() {
     const brands = [...new Set(allArticles.map(a => a.marca_fornitore).filter(Boolean))];
     const select = document.getElementById('filter-brand');
+    
+    const currentValue = select.value;
     
     select.innerHTML = '<option value="">Tutti i fornitori</option>';
     brands.sort().forEach(brand => {
@@ -213,6 +232,10 @@ function populateBrandFilter() {
         option.textContent = brand;
         select.appendChild(option);
     });
+    
+    if (currentValue && brands.includes(currentValue)) {
+        select.value = currentValue;
+    }
 }
 
 function applyFiltersAndSort() {
@@ -465,7 +488,7 @@ async function handleNewArticle(e) {
         .single();
     
     if (existingCode) {
-        alert('Codice articolo già esistente!');
+        alert('Codice articolo gia esistente!');
         return;
     }
     
@@ -476,7 +499,7 @@ async function handleNewArticle(e) {
         .single();
     
     if (existingBarcode) {
-        alert('Codice a barre già esistente!');
+        alert('Codice a barre gia esistente!');
         return;
     }
     
@@ -574,7 +597,7 @@ async function handleEditArticle(e) {
     
     alert('Articolo modificato con successo!');
     closeEditModal();
-    loadInventory();
+    loadInventory(true);
 }
 
 function closeEditModal() {
@@ -585,7 +608,7 @@ async function deleteArticle(articleId) {
     const article = allArticles.find(a => a.id === articleId);
     if (!article) return;
     
-    const confirm = window.confirm(`Sei sicuro di voler eliminare "${article.nome}"?\n\nQuesta azione non può essere annullata.`);
+    const confirm = window.confirm(`Sei sicuro di voler eliminare "${article.nome}"?\n\nQuesta azione non puo essere annullata.`);
     
     if (!confirm) return;
     
@@ -600,7 +623,7 @@ async function deleteArticle(articleId) {
     }
     
     alert('Articolo eliminato con successo!');
-    loadInventory();
+    loadInventory(true);
 }
 
 // ========================================
@@ -612,7 +635,7 @@ function openMovementModal(articleId, type) {
     
     currentArticleForMovement = { article, type };
     
-    document.getElementById('modal-title').textContent = 
+    document.getElementById('modal-title').innerHTML = 
         type === 'carico' ? '&#10133; Carico Magazzino' : '&#10134; Scarico Magazzino';
     document.getElementById('modal-article-name').textContent = article.nome;
     document.getElementById('modal-current-qty').textContent = article.quantita;
@@ -630,7 +653,7 @@ async function confirmMovement() {
     const notes = document.getElementById('modal-notes').value.trim();
     
     if (quantity <= 0) {
-        alert('Quantità non valida');
+        alert('Quantita non valida');
         return;
     }
     
@@ -640,7 +663,7 @@ async function confirmMovement() {
     } else {
         newQuantity -= quantity;
         if (newQuantity < 0) {
-            alert('Quantità insufficiente in magazzino!');
+            alert('Quantita insufficiente in magazzino!');
             return;
         }
     }
@@ -670,13 +693,13 @@ async function confirmMovement() {
     }
     
     closeMovementModal();
-    loadInventory();
+    loadInventory(true);
     loadMovements();
     
-    // ALERT SOTTO SOGLIA
+    // ALERT SOTTO SOGLIA - EMOJI UNICODE CORRETTE
     if (type === 'scarico' && newQuantity <= article.soglia_minima) {
         setTimeout(() => {
-            alert(`⚠️ ATTENZIONE!\n\nL'articolo "${article.nome}" è SOTTO SOGLIA!\n\nQuantità attuale: ${newQuantity}\nSoglia minima: ${article.soglia_minima}\n\n🛒 È necessario riordinare!`);
+            alert('\u26A0\uFE0F ATTENZIONE!\n\nL\'articolo "' + article.nome + '" \u00C8 SOTTO SOGLIA!\n\nQuantit\u00E0 attuale: ' + newQuantity + '\nSoglia minima: ' + article.soglia_minima + '\n\n\uD83D\uDED2 \u00C8 necessario riordinare!');
         }, 300);
     }
     
@@ -834,7 +857,6 @@ async function generateReport() {
 }
 
 async function generateGeneralOrderReport(dateFrom, dateTo) {
-    // Recupera tutti i movimenti nel periodo
     let query = supabase
         .from('movimenti')
         .select('*')
@@ -851,7 +873,6 @@ async function generateGeneralOrderReport(dateFrom, dateTo) {
     
     const { data: movements } = await query;
     
-    // Calcola totali per fornitore
     const supplierData = {};
     
     movements.forEach(movement => {
@@ -877,7 +898,6 @@ async function generateGeneralOrderReport(dateFrom, dateTo) {
         supplierData[supplier].articoli.add(article.id);
     });
     
-    // Genera HTML
     let html = `
         <h3>&#128202; REPORT GENERALE ORDINI/VENDITE</h3>
         <p><strong>Periodo:</strong> ${dateFrom || 'Inizio'} &#8594; ${dateTo || 'Oggi'}</p>
@@ -895,7 +915,6 @@ async function generateGeneralOrderReport(dateFrom, dateTo) {
         const differenza = data.totalCarico - data.totalScarico;
         const differenzaColor = differenza >= 0 ? 'var(--success)' : 'var(--danger)';
         
-        // Calcola articoli sotto soglia
         const supplierArticles = allArticles.filter(a => (a.marca_fornitore || 'Senza Fornitore') === supplier);
         const lowStockCount = supplierArticles.filter(a => a.quantita <= a.soglia_minima).length;
         
@@ -929,7 +948,7 @@ async function generateGeneralOrderReport(dateFrom, dateTo) {
         <ul style="list-style: none; padding-left: 0; font-size: 13px; line-height: 1.8;">
             <li>&#128229; <strong>Ordinato (Carico):</strong> Quanti pezzi hai ricevuto dai fornitori</li>
             <li>&#128228; <strong>Venduto (Scarico):</strong> Quanti pezzi hai venduto/utilizzato</li>
-            <li>&#128176; <strong>Differenza:</strong> Se positiva, hai ancora stock. Se negativa, hai venduto più di quanto ordinato</li>
+            <li>&#128176; <strong>Differenza:</strong> Se positiva, hai ancora stock. Se negativa, hai venduto piu di quanto ordinato</li>
             <li>&#9888; <strong>Sotto soglia:</strong> Articoli da riordinare immediatamente</li>
         </ul>
     `;
@@ -938,7 +957,6 @@ async function generateGeneralOrderReport(dateFrom, dateTo) {
 }
 
 async function generateSupplierOrderReport(supplier, dateFrom, dateTo) {
-    // Recupera movimenti del fornitore
     let query = supabase
         .from('movimenti')
         .select('*')
@@ -960,7 +978,6 @@ async function generateSupplierOrderReport(supplier, dateFrom, dateTo) {
     
     const supplierMovements = movements.filter(m => supplierArticleIds.includes(m.articolo_id));
     
-    // Calcola per articolo
     const articleData = {};
     
     supplierArticles.forEach(article => {
@@ -1067,7 +1084,7 @@ async function generateSupplierOrderReport(supplier, dateFrom, dateTo) {
     
     const articoliConDiffNegativa = Object.values(articleData).filter(a => (a.carico - a.scarico) < 0);
     if (articoliConDiffNegativa.length > 0) {
-        html += `<li>&#9888; <strong>${articoliConDiffNegativa.length} articoli</strong> hanno venduto più di quanto ordinato nel periodo</li>`;
+        html += `<li>&#9888; <strong>${articoliConDiffNegativa.length} articoli</strong> hanno venduto piu di quanto ordinato nel periodo</li>`;
     }
     
     html += `
@@ -1141,7 +1158,7 @@ async function generateArticleOrderReport(articleId, dateFrom, dateTo) {
                 <tr style="background: var(--primary); color: white;">
                     <th style="padding: 10px;">Data</th>
                     <th style="padding: 10px;">Tipo</th>
-                    <th style="padding: 10px;">Quantità</th>
+                    <th style="padding: 10px;">Quantita</th>
                     <th style="padding: 10px;">Utente</th>
                     <th style="padding: 10px;">Note</th>
                 </tr>
@@ -1221,7 +1238,7 @@ async function onScanSuccess(decodedText) {
     }
     
     document.getElementById('scanned-article').textContent = 
-        `${article.nome} (${article.codice_articolo})\nQuantità: ${article.quantita}`;
+        `${article.nome} (${article.codice_articolo})\nQuantita: ${article.quantita}`;
     document.getElementById('scanner-result').classList.remove('hidden');
     
     window.scannedArticle = article;
@@ -1237,7 +1254,6 @@ function onScanError(errorMessage) {
 // NAVIGAZIONE TAB
 // ========================================
 function switchTab(tabName) {
-    // Chiudi menu mobile quando cambi tab
     closeMobileMenu();
     
     document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
@@ -1329,10 +1345,8 @@ function setupEventListeners() {
         initScanner();
     });
     
-    // Hamburger menu
     document.getElementById('hamburger-btn').addEventListener('click', toggleMobileMenu);
     
-    // Chiudi menu quando si clicca sull'overlay (fuori dal menu)
     document.body.addEventListener('click', (e) => {
         const tabs = document.getElementById('main-tabs');
         const hamburger = document.getElementById('hamburger-btn');
@@ -1361,7 +1375,6 @@ function isAndroid() {
 }
 
 function isStandalone() {
-    // Controlla se l'app è già installata
     return window.matchMedia('(display-mode: standalone)').matches || 
            window.navigator.standalone || 
            document.referrer.includes('android-app://');
@@ -1374,23 +1387,19 @@ function initPWAFeatures() {
     const installModal = document.getElementById('install-instructions-modal');
     const closeModalBtn = document.getElementById('close-install-modal');
     
-    // Mostra avviso solo su mobile e solo nella schermata di login
     if (isMobile() && !isStandalone()) {
         mobileWarning.classList.remove('hidden');
         installContainer.classList.remove('hidden');
     }
     
-    // Gestisci click su pulsante "Installa App"
     showInstructionsBtn.addEventListener('click', () => {
         showInstallInstructions();
     });
     
-    // Gestisci chiusura modale
     closeModalBtn.addEventListener('click', () => {
         installModal.classList.add('hidden');
     });
     
-    // Chiudi modale cliccando fuori
     installModal.addEventListener('click', (e) => {
         if (e.target === installModal) {
             installModal.classList.add('hidden');
@@ -1404,12 +1413,10 @@ function showInstallInstructions() {
     const androidInstructions = document.getElementById('android-instructions');
     const desktopMessage = document.getElementById('desktop-message');
     
-    // Nascondi tutto prima
     iosInstructions.classList.add('hidden');
     androidInstructions.classList.add('hidden');
     desktopMessage.classList.add('hidden');
     
-    // Mostra le istruzioni appropriate
     if (isIOS()) {
         iosInstructions.classList.remove('hidden');
     } else if (isAndroid()) {
