@@ -17,7 +17,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=2.4.1">
+    <link rel="stylesheet" href="style.css?v=2.4.0">
     
     <style>
         /* Nascondi tutte le schermate all'inizio */
@@ -44,7 +44,7 @@
 
 <body class="loading">
     <!-- Version badge -->
-    <div class="version-badge">v2.4.1</div>
+    <div class="version-badge">v2.4.0</div>
 
     <!-- SCHERMATA LOGIN -->
     <div id="login-screen" class="screen">
@@ -78,7 +78,7 @@
                     <input type="email" id="login-email" placeholder="Email" required>
                     <div style="position: relative; margin-bottom: 12px;">
                         <input type="password" id="login-password" placeholder="Password" required style="padding-right: 50px; margin-bottom: 0;">
-                        <button type="button" id="toggle-password" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; font-size: 22px; padding: 0; width: 35px; height: 35px; display: flex; align-items: center; justify-content: center;">&#128065;&#65039;</button>
+                        <button type="button" id="toggle-password" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; font-size: 22px; padding: 0; width: 35px; height: 35px; display: flex; align-items: center; justify-content: center;">&#128065;</button>
                     </div>
                     <label class="checkbox-label" style="display: flex; align-items: center; gap: 10px; margin: 15px 0; cursor: pointer; user-select: none;">
                         <input type="checkbox" id="remember-me" style="width: 20px; height: 20px; cursor: pointer; margin: 0;">
@@ -92,15 +92,13 @@
 
     <!-- SCHERMATA PRINCIPALE -->
     <div id="main-screen" class="screen">
-        <!-- Header con logout -->
+        <!-- Header semplificato - SOLO LOGO + RUOLO + LOGOUT -->
         <header>
             <div class="logo-container-header">
-                <img src="logo.png" alt="Logo" class="logo-header">
+                <img src="logo.png" alt="Logo Agrimag" class="logo-header">
             </div>
-            <h1><img src="favicon.png" alt="" class="favicon-title"> AGRIMAG</h1>
             <div class="user-info">
                 <span id="user-role" class="role-badge"></span>
-                <span id="user-email"></span>
                 <button id="logout-btn" class="btn-secondary">Logout</button>
             </div>
         </header>
@@ -308,7 +306,7 @@
                 <div id="report-result" class="card hidden">
                     <div class="report-header">
                         <h2>Report Generato</h2>
-                        <button id="print-report" class="btn-primary">&#128424;&#65039; Stampa</button>
+                        <button id="print-report" class="btn-primary">&#128424; Stampa</button>
                     </div>
                     <div id="report-content"></div>
                 </div>
@@ -330,7 +328,7 @@
                             <button id="btn-carico" class="btn-success">&#10133; Carico</button>
                             <button id="btn-scarico" class="btn-danger">&#10134; Scarico</button>
                         </div>
-                        <button id="btn-rescan" class="btn-secondary" style="width: 100%; margin-top: 10px;">&#128260; Scansiona Altro</button>
+                        <button id="btn-rescan" class="btn-secondary" style="width: 100%; margin-top: 10px;">&#128257; Scansiona Altro</button>
                     </div>
                 </div>
             </div>
@@ -421,7 +419,7 @@
             <h3>&#128241; Installa l'App sulla Home</h3>
             
             <div id="ios-instructions" class="install-instructions hidden">
-                <h4>&#127823; iPhone / iPad</h4>
+                <h4>&#63743; iPhone / iPad</h4>
                 <ol style="text-align: left; padding-left: 20px; line-height: 1.8;">
                     <li>Premi il pulsante <strong>Condividi</strong> 
                         <span style="font-size: 18px;">&#8599;&#65039;</span> in basso al centro</li>
@@ -459,6 +457,6 @@
     <!-- Librerie esterne -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
-    <script src="app.js?v=2.4.1"></script>
+    <script src="app.js?v=2.4.0"></script>
 </body>
 </html>

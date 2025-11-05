@@ -1,0 +1,8 @@
+IMPORTANTE PER IL PROGETTO MAGAZZINO:
+
+1. 🚫 NON usare MAI emoji diretti (📦❌)
+2. ✅ USA SEMPRE codici HTML entities (&#128230;&#10133;)
+3. ✅ Quando modifichi HTML/JS controlla sempre z-index per sovrapposizioni
+4. ✅ Fornisci sempre FILE COMPLETI, mai snippet
+5. ✅ Il deploy è su VERCEL (non Netlify)
+6. ✅ Database: Supabase

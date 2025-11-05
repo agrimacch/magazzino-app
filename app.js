@@ -27,30 +27,38 @@ function calcolaPrezzoConIVA(prezzoNetto, ivaPercentuale) {
 // INIZIALIZZAZIONE
 // ========================================
 document.addEventListener('DOMContentLoaded', async () => {
-    console.log('\uD83D\uDE80 Inizializzazione app...');
+    console.log('🚀 Inizializzazione app...');
     
+    // Controlla se c'è una sessione valida in Supabase
+    // Supabase mantiene GIÀ la sessione persistente di default!
     const { data: { session } } = await supabase.auth.getSession();
     
-    console.log('\uD83D\uDCCB Sessione trovata:', session ? 'SÌ' : 'NO');
+    console.log('📋 Sessione trovata:', session ? 'SÌ' : 'NO');
     
     if (session) {
+        // Sessione valida: mantieni l'utente loggato
         currentUser = session.user;
-        console.log('\uD83D\uDC64 Utente:', currentUser.email);
+        console.log('👤 Utente:', currentUser.email);
         await loadUserRole();
         showMainScreen();
     } else {
-        console.log('\uD83D\uDD13 Nessuna sessione, mostro login');
+        // Nessuna sessione: mostra login
+        console.log('🔓 Nessuna sessione, mostro login');
         showLoginScreen();
     }
     
+    // Rendi il body visibile con transizione
     document.body.classList.remove('loading');
     document.body.classList.add('ready');
     
     setupEventListeners();
+    
+    // Inizializza funzionalità PWA
     initPWAFeatures();
     
+    // Listener per cambi di stato autenticazione
     supabase.auth.onAuthStateChange((event, session) => {
-        console.log('\uD83D\uDD04 Auth state changed:', event);
+        console.log('🔐 Auth state changed:', event);
         if (event === 'SIGNED_OUT') {
             currentUser = null;
             currentUserRole = null;
@@ -66,7 +74,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 // GESTIONE RUOLI
 // ========================================
 async function loadUserRole() {
-    console.log('\uD83C\uDFAD Caricamento ruolo per:', currentUser.email);
+    console.log('👔 Caricamento ruolo per:', currentUser.email);
     
     const { data, error } = await supabase
         .from('user_roles')
@@ -74,23 +82,24 @@ async function loadUserRole() {
         .eq('email', currentUser.email)
         .single();
     
-    console.log('\uD83D\uDCC4 Risultato query ruolo:', data, error);
+    console.log('📊 Risultato query ruolo:', data, error);
     
     if (error || !data) {
-        console.log('\u26A0\uFE0F Nessun ruolo trovato, imposto operatore');
+        console.log('⚠️ Nessun ruolo trovato, imposto operatore');
         currentUserRole = 'operatore';
     } else {
-        console.log('\u2705 Ruolo trovato:', data.role);
+        console.log('✅ Ruolo trovato:', data.role);
         currentUserRole = data.role;
     }
     
-    console.log('\uD83C\uDFAD Ruolo finale assegnato:', currentUserRole);
+    console.log('🎭 Ruolo finale assegnato:', currentUserRole);
     applyRolePermissions();
 }
 
 function applyRolePermissions() {
     const roleBadge = document.getElementById('user-role');
-    roleBadge.textContent = currentUserRole === 'admin' ? '\uD83D\uDC51 Admin' : '\uD83D\uDC64 Operatore';
+    // USA HTML ENTITIES per le emoji
+    roleBadge.innerHTML = currentUserRole === 'admin' ? '&#128081; Admin' : '&#128100; Operatore';
     roleBadge.classList.add(currentUserRole);
     
     if (currentUserRole === 'operatore') {
@@ -114,7 +123,7 @@ function showLoginScreen() {
 function showMainScreen() {
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
     document.getElementById('main-screen').classList.add('active');
-    document.getElementById('user-email').textContent = currentUser.email;
+    // RIMOSSA LA RIGA CHE IMPOSTAVA L'EMAIL NELL'HEADER
     loadInventory();
     loadMovements();
     
@@ -131,7 +140,7 @@ async function handleLogin(e) {
     const email = document.getElementById('login-email').value;
     const password = document.getElementById('login-password').value;
     
-    console.log('\uD83D\uDD11 Tentativo login per:', email);
+    console.log('🔐 Tentativo login per:', email);
     
     const { data, error } = await supabase.auth.signInWithPassword({
         email,
@@ -139,19 +148,19 @@ async function handleLogin(e) {
     });
     
     if (error) {
-        console.error('\u274C Errore login:', error);
+        console.error('❌ Errore login:', error);
         alert('Errore login: ' + error.message);
         return;
     }
     
-    console.log('\u2705 Login riuscito - Supabase manterrà la sessione');
+    console.log('✅ Login riuscito - Supabase manterrà la sessione');
     currentUser = data.user;
     await loadUserRole();
     showMainScreen();
 }
 
 async function handleLogout() {
-    console.log('\uD83D\uDEAA Logout...');
+    console.log('🚪 Logout...');
     await supabase.auth.signOut();
     currentUser = null;
     currentUserRole = null;
@@ -167,10 +176,10 @@ function togglePasswordVisibility() {
     
     if (passwordInput.type === 'password') {
         passwordInput.type = 'text';
-        toggleBtn.innerHTML = '&#128065;';
+        toggleBtn.innerHTML = '&#128070;';
     } else {
         passwordInput.type = 'password';
-        toggleBtn.innerHTML = '&#128065;&#65039;';
+        toggleBtn.innerHTML = '&#128065;';
     }
 }
 
@@ -338,8 +347,8 @@ function renderInventoryBySupplier(articles) {
             }
             
             const ivaPerc = article.iva_percentuale || 22;
-            const editBtn = currentUserRole === 'admin' ? `<button onclick="openEditModal(${article.id})" class="btn-edit">&#9999;&#65039;</button>` : '';
-            const deleteBtn = currentUserRole === 'admin' ? `<button onclick="deleteArticle(${article.id})" class="btn-delete">&#128465;&#65039;</button>` : '';
+            const editBtn = currentUserRole === 'admin' ? `<button onclick="openEditModal(${article.id})" class="btn-edit">&#9997;</button>` : '';
+            const deleteBtn = currentUserRole === 'admin' ? `<button onclick="deleteArticle(${article.id})" class="btn-delete">&#128465;</button>` : '';
             
             row.innerHTML = `
                 <td><strong>${article.nome}</strong></td>
@@ -398,8 +407,8 @@ function renderInventoryFlat(articles) {
     articles.forEach(article => {
         const rowClass = article.quantita <= article.soglia_minima ? 'class="low-stock"' : '';
         const ivaPerc = article.iva_percentuale || 22;
-        const editBtn = currentUserRole === 'admin' ? `<button onclick="openEditModal(${article.id})" class="btn-edit">&#9999;&#65039;</button>` : '';
-        const deleteBtn = currentUserRole === 'admin' ? `<button onclick="deleteArticle(${article.id})" class="btn-delete">&#128465;&#65039;</button>` : '';
+        const editBtn = currentUserRole === 'admin' ? `<button onclick="openEditModal(${article.id})" class="btn-edit">&#9997;</button>` : '';
+        const deleteBtn = currentUserRole === 'admin' ? `<button onclick="deleteArticle(${article.id})" class="btn-delete">&#128465;</button>` : '';
         
         html += `
             <tr ${rowClass}>
@@ -667,7 +676,7 @@ async function confirmMovement() {
     // ALERT SOTTO SOGLIA
     if (type === 'scarico' && newQuantity <= article.soglia_minima) {
         setTimeout(() => {
-            alert(`\u26A0\uFE0F ATTENZIONE!\n\nL'articolo "${article.nome}" è SOTTO SOGLIA!\n\nQuantità attuale: ${newQuantity}\nSoglia minima: ${article.soglia_minima}\n\n\uD83D\uDED2 È necessario riordinare!`);
+            alert(`⚠️ ATTENZIONE!\n\nL'articolo "${article.nome}" è SOTTO SOGLIA!\n\nQuantità attuale: ${newQuantity}\nSoglia minima: ${article.soglia_minima}\n\n🛒 È necessario riordinare!`);
         }, 300);
     }
     
@@ -825,6 +834,7 @@ async function generateReport() {
 }
 
 async function generateGeneralOrderReport(dateFrom, dateTo) {
+    // Recupera tutti i movimenti nel periodo
     let query = supabase
         .from('movimenti')
         .select('*')
@@ -841,6 +851,7 @@ async function generateGeneralOrderReport(dateFrom, dateTo) {
     
     const { data: movements } = await query;
     
+    // Calcola totali per fornitore
     const supplierData = {};
     
     movements.forEach(movement => {
@@ -866,6 +877,7 @@ async function generateGeneralOrderReport(dateFrom, dateTo) {
         supplierData[supplier].articoli.add(article.id);
     });
     
+    // Genera HTML
     let html = `
         <h3>&#128202; REPORT GENERALE ORDINI/VENDITE</h3>
         <p><strong>Periodo:</strong> ${dateFrom || 'Inizio'} &#8594; ${dateTo || 'Oggi'}</p>
@@ -883,6 +895,7 @@ async function generateGeneralOrderReport(dateFrom, dateTo) {
         const differenza = data.totalCarico - data.totalScarico;
         const differenzaColor = differenza >= 0 ? 'var(--success)' : 'var(--danger)';
         
+        // Calcola articoli sotto soglia
         const supplierArticles = allArticles.filter(a => (a.marca_fornitore || 'Senza Fornitore') === supplier);
         const lowStockCount = supplierArticles.filter(a => a.quantita <= a.soglia_minima).length;
         
@@ -903,7 +916,7 @@ async function generateGeneralOrderReport(dateFrom, dateTo) {
                         <strong>&#128176; Differenza:</strong> ${differenza >= 0 ? '+' : ''}${differenza} pz
                     </div>
                     <div style="color: ${lowStockCount > 0 ? 'var(--danger)' : 'var(--success)'};">
-                        <strong>&#9888;&#65039; Sotto soglia:</strong> ${lowStockCount} articoli
+                        <strong>&#9888; Sotto soglia:</strong> ${lowStockCount} articoli
                     </div>
                 </div>
             </div>
@@ -917,7 +930,7 @@ async function generateGeneralOrderReport(dateFrom, dateTo) {
             <li>&#128229; <strong>Ordinato (Carico):</strong> Quanti pezzi hai ricevuto dai fornitori</li>
             <li>&#128228; <strong>Venduto (Scarico):</strong> Quanti pezzi hai venduto/utilizzato</li>
             <li>&#128176; <strong>Differenza:</strong> Se positiva, hai ancora stock. Se negativa, hai venduto più di quanto ordinato</li>
-            <li>&#9888;&#65039; <strong>Sotto soglia:</strong> Articoli da riordinare immediatamente</li>
+            <li>&#9888; <strong>Sotto soglia:</strong> Articoli da riordinare immediatamente</li>
         </ul>
     `;
     
@@ -925,6 +938,7 @@ async function generateGeneralOrderReport(dateFrom, dateTo) {
 }
 
 async function generateSupplierOrderReport(supplier, dateFrom, dateTo) {
+    // Recupera movimenti del fornitore
     let query = supabase
         .from('movimenti')
         .select('*')
@@ -946,6 +960,7 @@ async function generateSupplierOrderReport(supplier, dateFrom, dateTo) {
     
     const supplierMovements = movements.filter(m => supplierArticleIds.includes(m.articolo_id));
     
+    // Calcola per articolo
     const articleData = {};
     
     supplierArticles.forEach(article => {
@@ -993,7 +1008,7 @@ async function generateSupplierOrderReport(supplier, dateFrom, dateTo) {
                 <div style="font-size: 22px; font-weight: 700; color: var(--danger);">-${totalScarico}</div>
             </div>
             <div style="background: ${lowStockCount > 0 ? '#fee2e2' : 'var(--green-light)'}; padding: 12px; border-radius: 8px;">
-                <div style="color: ${lowStockCount > 0 ? 'var(--danger)' : 'var(--success)'}; font-size: 12px;">&#9888;&#65039; Sotto Soglia</div>
+                <div style="color: ${lowStockCount > 0 ? 'var(--danger)' : 'var(--success)'}; font-size: 12px;">&#9888; Sotto Soglia</div>
                 <div style="font-size: 22px; font-weight: 700; color: ${lowStockCount > 0 ? 'var(--danger)' : 'var(--success)'};">${lowStockCount}</div>
             </div>
         </div>
@@ -1019,7 +1034,7 @@ async function generateSupplierOrderReport(supplier, dateFrom, dateTo) {
         const diff = article.carico - article.scarico;
         const diffColor = diff >= 0 ? 'var(--success)' : 'var(--danger)';
         const rowStyle = article.quantitaAttuale <= article.soglia ? 'background: #fee2e2;' : '';
-        const stato = article.quantitaAttuale <= article.soglia ? '&#9888;&#65039; DA ORDINARE' : '&#9989; OK';
+        const stato = article.quantitaAttuale <= article.soglia ? '&#9888; DA ORDINARE' : '&#10004; OK';
         
         html += `
             <tr style="${rowStyle}">
@@ -1047,12 +1062,12 @@ async function generateSupplierOrderReport(supplier, dateFrom, dateTo) {
     if (lowStockCount > 0) {
         html += `<li>&#128722; <strong>${lowStockCount} articoli</strong> sono sotto soglia e vanno riordinati SUBITO</li>`;
     } else {
-        html += `<li>&#9989; Tutti gli articoli sono sopra la soglia minima</li>`;
+        html += `<li>&#10004; Tutti gli articoli sono sopra la soglia minima</li>`;
     }
     
     const articoliConDiffNegativa = Object.values(articleData).filter(a => (a.carico - a.scarico) < 0);
     if (articoliConDiffNegativa.length > 0) {
-        html += `<li>&#9888;&#65039; <strong>${articoliConDiffNegativa.length} articoli</strong> hanno venduto più di quanto ordinato nel periodo</li>`;
+        html += `<li>&#9888; <strong>${articoliConDiffNegativa.length} articoli</strong> hanno venduto più di quanto ordinato nel periodo</li>`;
     }
     
     html += `
@@ -1116,7 +1131,7 @@ async function generateArticleOrderReport(articleId, dateFrom, dateTo) {
             </div>
             <div style="background: ${article.quantita <= article.soglia_minima ? '#fee2e2' : 'var(--green-light)'}; padding: 12px; border-radius: 8px;">
                 <div style="color: ${article.quantita <= article.soglia_minima ? 'var(--danger)' : 'var(--success)'}; font-size: 12px;">Stato</div>
-                <div style="font-size: 18px; font-weight: 700;">${article.quantita <= article.soglia_minima ? '&#9888;&#65039; ORDINARE' : '&#9989; OK'}</div>
+                <div style="font-size: 18px; font-weight: 700;">${article.quantita <= article.soglia_minima ? '&#9888; ORDINARE' : '&#10004; OK'}</div>
             </div>
         </div>
         <hr>
@@ -1222,6 +1237,7 @@ function onScanError(errorMessage) {
 // NAVIGAZIONE TAB
 // ========================================
 function switchTab(tabName) {
+    // Chiudi menu mobile quando cambi tab
     closeMobileMenu();
     
     document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
@@ -1313,8 +1329,10 @@ function setupEventListeners() {
         initScanner();
     });
     
+    // Hamburger menu
     document.getElementById('hamburger-btn').addEventListener('click', toggleMobileMenu);
     
+    // Chiudi menu quando si clicca sull'overlay (fuori dal menu)
     document.body.addEventListener('click', (e) => {
         const tabs = document.getElementById('main-tabs');
         const hamburger = document.getElementById('hamburger-btn');
@@ -1343,6 +1361,7 @@ function isAndroid() {
 }
 
 function isStandalone() {
+    // Controlla se l'app è già installata
     return window.matchMedia('(display-mode: standalone)').matches || 
            window.navigator.standalone || 
            document.referrer.includes('android-app://');
@@ -1355,19 +1374,23 @@ function initPWAFeatures() {
     const installModal = document.getElementById('install-instructions-modal');
     const closeModalBtn = document.getElementById('close-install-modal');
     
+    // Mostra avviso solo su mobile e solo nella schermata di login
     if (isMobile() && !isStandalone()) {
         mobileWarning.classList.remove('hidden');
         installContainer.classList.remove('hidden');
     }
     
+    // Gestisci click su pulsante "Installa App"
     showInstructionsBtn.addEventListener('click', () => {
         showInstallInstructions();
     });
     
+    // Gestisci chiusura modale
     closeModalBtn.addEventListener('click', () => {
         installModal.classList.add('hidden');
     });
     
+    // Chiudi modale cliccando fuori
     installModal.addEventListener('click', (e) => {
         if (e.target === installModal) {
             installModal.classList.add('hidden');
@@ -1381,10 +1404,12 @@ function showInstallInstructions() {
     const androidInstructions = document.getElementById('android-instructions');
     const desktopMessage = document.getElementById('desktop-message');
     
+    // Nascondi tutto prima
     iosInstructions.classList.add('hidden');
     androidInstructions.classList.add('hidden');
     desktopMessage.classList.add('hidden');
     
+    // Mostra le istruzioni appropriate
     if (isIOS()) {
         iosInstructions.classList.remove('hidden');
     } else if (isAndroid()) {
