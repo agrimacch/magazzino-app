@@ -17,7 +17,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=4.2.3">
+    <link rel="stylesheet" href="style.css?v=4.2.4">
     
     <style>
         /* Nascondi tutte le schermate all'inizio */
@@ -44,7 +44,7 @@
 
 <body class="loading">
     <!-- Version badge -->
-    <div class="version-badge">v4.2.3</div>
+    <div class="version-badge">v4.2.4</div>
 
     <!-- SCHERMATA LOGIN -->
     <div id="login-screen" class="screen">
@@ -92,23 +92,24 @@
 
     <!-- SCHERMATA PRINCIPALE -->
     <div id="main-screen" class="screen">
-        <!-- Header semplificato - SOLO LOGO + RUOLO + LOGOUT -->
+        <!-- Header con hamburger integrato -->
         <header>
+            <!-- Hamburger button (solo mobile) - ORA NELL'HEADER -->
+            <button id="hamburger-btn" class="hamburger-btn">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+            
             <div class="logo-container-header">
                 <img src="logo.png" alt="Logo Agrimag" class="logo-header">
             </div>
+            
             <div class="user-info">
                 <span id="user-role" class="role-badge"></span>
                 <button id="logout-btn" class="btn-secondary">Logout</button>
             </div>
         </header>
-
-        <!-- Hamburger button (solo mobile) -->
-        <button id="hamburger-btn" class="hamburger-btn">
-            <span></span>
-            <span></span>
-            <span></span>
-        </button>
 
         <!-- Navigazione tab -->
         <nav class="tabs" id="main-tabs">
@@ -457,6 +458,6 @@
     <!-- Librerie esterne -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
-    <script src="app.js?v=4.2.3"></script>
+    <script src="app.js?v=4.2.4"></script>
 </body>
 </html>

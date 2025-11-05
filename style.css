@@ -96,6 +96,7 @@ header {
     justify-content: space-between;
     border-bottom: 3px solid var(--primary);
     position: relative;
+    gap: 8px;
 }
 
 .logo-container-header {
@@ -1332,42 +1333,40 @@ button, input, textarea, select, label, span, div, td, th, p, h1, h2, h3, h4 {
         font-size: 32px;
     }
 }
+
 /* ============================================ */
-/* HAMBURGER MENU - NUOVE REGOLE */
+/* HAMBURGER MENU - INTEGRATO NELL'HEADER */
 /* ============================================ */
 
-/* Hamburger Button */
+/* Hamburger Button - ORA NELL'HEADER */
 .hamburger-btn {
     display: none;
-    position: fixed;
-    top: 80px;
-    left: 12px;
-    z-index: 1001;
     background: var(--primary);
     border: none;
-    width: 45px;
-    height: 45px;
-    border-radius: 10px;
+    width: 42px;
+    height: 42px;
+    border-radius: 8px;
     cursor: pointer;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 5px;
-    box-shadow: 0 4px 12px rgba(22, 163, 74, 0.3);
+    gap: 4px;
+    box-shadow: 0 2px 8px rgba(22, 163, 74, 0.3);
     transition: all 0.3s ease;
+    flex-shrink: 0;
 }
 
 .hamburger-btn span {
     display: block;
-    width: 24px;
-    height: 3px;
+    width: 22px;
+    height: 2.5px;
     background: white;
     border-radius: 3px;
     transition: all 0.3s ease;
 }
 
 .hamburger-btn.active span:nth-child(1) {
-    transform: rotate(45deg) translate(7px, 7px);
+    transform: rotate(45deg) translate(6px, 6px);
 }
 
 .hamburger-btn.active span:nth-child(2) {
@@ -1375,7 +1374,7 @@ button, input, textarea, select, label, span, div, td, th, p, h1, h2, h3, h4 {
 }
 
 .hamburger-btn.active span:nth-child(3) {
-    transform: rotate(-45deg) translate(7px, -7px);
+    transform: rotate(-45deg) translate(6px, -6px);
 }
 
 /* Mostra hamburger solo su mobile */
@@ -1384,7 +1383,7 @@ button, input, textarea, select, label, span, div, td, th, p, h1, h2, h3, h4 {
         display: flex;
     }
     
-    /* Nascondi tabs su mobile */
+    /* Nascondi tabs su mobile - MENU PIÙ ALTO */
     .tabs {
         position: fixed;
         top: 0;
@@ -1393,7 +1392,7 @@ button, input, textarea, select, label, span, div, td, th, p, h1, h2, h3, h4 {
         height: 100vh;
         background: white;
         flex-direction: column;
-        padding: 80px 15px 15px 15px;
+        padding: 130px 15px 15px 15px; /* AUMENTATO DA 80px A 130px */
         box-shadow: 4px 0 20px rgba(0, 0, 0, 0.15);
         z-index: 1000;
         transition: left 0.3s ease;
@@ -1435,7 +1434,7 @@ button, input, textarea, select, label, span, div, td, th, p, h1, h2, h3, h4 {
 }
 
 /* ============================================ */
-/* SEARCH BAR - NUOVA SEZIONE */
+/* SEARCH BAR */
 /* ============================================ */
 
 .search-bar {
