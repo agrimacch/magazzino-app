@@ -1,5 +1,8 @@
 # Changelog App Magazzino
 
+## v2.4.11 - 2025-11-05 (PRODUZIONE) ✅
+modifiche header mobile
+
 ## v2.4.1 - 2025-11-05 (PRODUZIONE) ✅
 menù hamburger + fix icone definitivo
 
