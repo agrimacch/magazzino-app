@@ -293,20 +293,22 @@ input:focus, textarea:focus, select:focus {
     background: white;
     color: var(--warning);
     border: 2px solid var(--warning);
-    padding: 8px 12px;
-    font-size: 18px;
+    padding: 6px 10px;
+    font-size: 26px;
     width: auto;
     display: inline-block;
+    line-height: 1;
 }
 
 .btn-delete {
     background: white;
     color: var(--danger);
     border: 2px solid var(--danger);
-    padding: 8px 12px;
-    font-size: 18px;
+    padding: 6px 10px;
+    font-size: 26px;
     width: auto;
     display: inline-block;
+    line-height: 1;
 }
 
 /* Switch checkbox */
@@ -973,8 +975,9 @@ button, input, textarea, select, label, span, div, td, th, p, h1, h2, h3, h4 {
     }
     
     .btn-edit, .btn-delete {
-        font-size: 20px;
-        padding: 10px 16px;
+        font-size: 28px;
+        padding: 8px 12px;
+        line-height: 1;
     }
     
     .filters-bar {
@@ -1337,7 +1340,7 @@ button, input, textarea, select, label, span, div, td, th, p, h1, h2, h3, h4 {
 .hamburger-btn {
     display: none;
     position: fixed;
-    top: 12px;
+    top: 80px;
     left: 12px;
     z-index: 1001;
     background: var(--primary);
