@@ -1,5 +1,8 @@
 # Changelog App Magazzino
 
+## v4.2.3 - 2025-11-05 (PRODUZIONE) ✅
+miglioramento header p2
+
 ## v2.4.2 - 2025-11-05 (PRODUZIONE) ✅
 modifiche header + admin + logout
 
