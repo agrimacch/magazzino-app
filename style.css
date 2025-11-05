@@ -95,17 +95,20 @@ header {
     align-items: center;
     gap: 10px;
     border-bottom: 3px solid var(--primary);
+    position: relative;
 }
 
 .user-info {
+    position: absolute;
+    top: 12px;
+    right: 12px;
     display: flex;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-end;
     gap: 8px;
     font-weight: 500;
-    flex-wrap: wrap;
-    font-size: 12px;
-    width: 100%;
+    font-size: 11px;
+    z-index: 100;
 }
 
 .role-badge {
@@ -288,7 +291,7 @@ input:focus, textarea:focus, select:focus {
     color: var(--warning);
     border: 2px solid var(--warning);
     padding: 8px 12px;
-    font-size: 12px;
+    font-size: 18px;
     width: auto;
     display: inline-block;
 }
@@ -298,7 +301,7 @@ input:focus, textarea:focus, select:focus {
     color: var(--danger);
     border: 2px solid var(--danger);
     padding: 8px 12px;
-    font-size: 12px;
+    font-size: 18px;
     width: auto;
     display: inline-block;
 }
@@ -899,14 +902,15 @@ button, input, textarea, select, label, span, div, td, th, p, h1, h2, h3, h4 {
     
     header {
         flex-direction: row;
-        justify-content: space-between;
+        justify-content: center;
         padding: 20px;
+        position: relative;
     }
     
     .logo-container-header {
-        position: absolute;
-        left: 50%;
-        transform: translateX(-50%);
+        position: relative;
+        left: 0;
+        transform: none;
         margin: 0;
     }
     
@@ -915,9 +919,10 @@ button, input, textarea, select, label, span, div, td, th, p, h1, h2, h3, h4 {
     }
     
     .user-info {
-        width: auto;
-        font-size: 14px;
-        margin-left: auto;
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        font-size: 13px;
     }
     
     .role-badge {
@@ -968,7 +973,7 @@ button, input, textarea, select, label, span, div, td, th, p, h1, h2, h3, h4 {
     }
     
     .btn-edit, .btn-delete {
-        font-size: 14px;
+        font-size: 20px;
         padding: 10px 16px;
     }
     
