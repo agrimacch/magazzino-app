@@ -17,7 +17,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=2.3.99">
+    <link rel="stylesheet" href="style.css?v=2.4.0">
     
     <style>
         /* Nascondi tutte le schermate all'inizio */
@@ -44,7 +44,7 @@
 
 <body class="loading">
     <!-- Version badge -->
-    <div class="version-badge">v2.3.99</div>
+    <div class="version-badge">v2.4.0</div>
 
     <!-- SCHERMATA LOGIN -->
     <div id="login-screen" class="screen">
@@ -52,12 +52,12 @@
             <div class="logo-container">
                 <img src="logo.png" alt="Logo Azienda" class="logo">
             </div>
-            <h1>📦 AGRIMAG</h1>
+            <h1>&#128230; AGRIMAG</h1>
             
             <!-- Avviso dispositivo mobile -->
             <div id="mobile-warning" class="mobile-warning hidden">
                 <div class="warning-content">
-                    <span class="warning-icon">📱</span>
+                    <span class="warning-icon">&#128241;</span>
                     <div class="warning-text">
                         <strong>Consiglio:</strong> Per un'esperienza ottimale utilizza un PC o Tablet. 
                         Su smartphone le funzionalità sono limitate.
@@ -68,7 +68,7 @@
             <!-- Pulsante installa app -->
             <div id="install-app-container" class="install-container hidden">
                 <button id="show-install-instructions" class="btn-install">
-                    ⬇️ Installa App sulla Home
+                    &#10133; Installa App sulla Home
                 </button>
             </div>
             
@@ -78,7 +78,7 @@
                     <input type="email" id="login-email" placeholder="Email" required>
                     <div style="position: relative; margin-bottom: 12px;">
                         <input type="password" id="login-password" placeholder="Password" required style="padding-right: 50px; margin-bottom: 0;">
-                        <button type="button" id="toggle-password" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; font-size: 22px; padding: 0; width: 35px; height: 35px; display: flex; align-items: center; justify-content: center;">👁️</button>
+                        <button type="button" id="toggle-password" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; font-size: 22px; padding: 0; width: 35px; height: 35px; display: flex; align-items: center; justify-content: center;">&#128065;&#65039;</button>
                     </div>
                     <label class="checkbox-label" style="display: flex; align-items: center; gap: 10px; margin: 15px 0; cursor: pointer; user-select: none;">
                         <input type="checkbox" id="remember-me" style="width: 20px; height: 20px; cursor: pointer; margin: 0;">
@@ -105,20 +105,32 @@
             </div>
         </header>
 
+        <!-- Hamburger button (solo mobile) -->
+        <button id="hamburger-btn" class="hamburger-btn">
+            <span></span>
+            <span></span>
+            <span></span>
+        </button>
+
         <!-- Navigazione tab -->
-        <nav class="tabs">
-            <button class="tab-btn active" data-tab="inventario">📊 Inventario</button>
-            <button class="tab-btn" data-tab="nuovo" id="tab-nuovo-btn">➕ Nuovo Articolo</button>
-            <button class="tab-btn" data-tab="movimenti">📋 Movimenti</button>
-            <button class="tab-btn" data-tab="report" id="tab-report-btn">📄 Report Ordini</button>
-            <button class="tab-btn" data-tab="scanner">📷 Scanner</button>
+        <nav class="tabs" id="main-tabs">
+            <button class="tab-btn active" data-tab="inventario">&#128202; Inventario</button>
+            <button class="tab-btn" data-tab="nuovo" id="tab-nuovo-btn">&#10133; Nuovo Articolo</button>
+            <button class="tab-btn" data-tab="movimenti">&#128203; Movimenti</button>
+            <button class="tab-btn" data-tab="report" id="tab-report-btn">&#128202; Report Ordini</button>
+            <button class="tab-btn" data-tab="scanner" id="tab-scanner-btn">&#128247; Scanner</button>
         </nav>
 
         <!-- TAB 1: INVENTARIO -->
         <div id="tab-inventario" class="tab-content active">
             <div class="container">
+                <!-- PRIMA RIGA: Solo ricerca -->
+                <div class="search-bar">
+                    <input type="text" id="search-input" placeholder="&#128269; Cerca articolo...">
+                </div>
+                
+                <!-- SECONDA RIGA: Filtri e toggle -->
                 <div class="filters-bar">
-                    <input type="text" id="search-input" placeholder="🔍 Cerca articolo...">
                     <select id="filter-brand">
                         <option value="">Tutti i fornitori</option>
                     </select>
@@ -129,11 +141,17 @@
                         <option value="quantita-asc">Quantità (crescente)</option>
                         <option value="quantita-desc">Quantità (decrescente)</option>
                     </select>
-                    <label class="switch-label">
-                        <input type="checkbox" id="group-by-supplier" checked>
-                        <span>Raggruppa per fornitore</span>
-                    </label>
+                    
+                    <!-- Toggle restyling -->
+                    <div class="toggle-container">
+                        <input type="checkbox" id="group-by-supplier" checked class="toggle-checkbox">
+                        <label for="group-by-supplier" class="toggle-label">
+                            <span class="toggle-text">Raggruppa per fornitore</span>
+                            <span class="toggle-switch"></span>
+                        </label>
+                    </div>
                 </div>
+
                 <div id="inventory-container">
                     <!-- Contenuto dinamico -->
                 </div>
@@ -187,7 +205,7 @@
                         
                         <div class="form-row">
                             <div class="form-col">
-                                <label>Prezzo Acquisto NETTO € (no IVA) *</label>
+                                <label>Prezzo Acquisto NETTO &#8364; (no IVA) *</label>
                                 <input type="number" step="0.01" id="new-price-buy" placeholder="0.00" required>
                             </div>
                             <div class="form-col">
@@ -196,7 +214,7 @@
                             </div>
                         </div>
                         
-                        <label>Prezzo Vendita € (IVA inclusa) *</label>
+                        <label>Prezzo Vendita &#8364; (IVA inclusa) *</label>
                         <input type="number" step="0.01" id="new-price" placeholder="0.00" required>
                         
                         <button type="submit" class="btn-primary">Salva Articolo</button>
@@ -244,7 +262,7 @@
         <div id="tab-report" class="tab-content">
             <div class="container">
                 <div class="card">
-                    <h2>📄 Report Prestagionale Ordini/Vendite</h2>
+                    <h2>&#128202; Report Prestagionale Ordini/Vendite</h2>
                     <p style="color: var(--gray); font-size: 14px; margin-bottom: 20px;">
                         Analizza quanto materiale hai ordinato (caricato) e venduto (scaricato) per programmare ordini futuri.
                     </p>
@@ -290,7 +308,7 @@
                 <div id="report-result" class="card hidden">
                     <div class="report-header">
                         <h2>Report Generato</h2>
-                        <button id="print-report" class="btn-primary">🖨️ Stampa</button>
+                        <button id="print-report" class="btn-primary">&#128424;&#65039; Stampa</button>
                     </div>
                     <div id="report-content"></div>
                 </div>
@@ -309,10 +327,10 @@
                         <h3>Articolo trovato:</h3>
                         <p id="scanned-article"></p>
                         <div class="action-buttons">
-                            <button id="btn-carico" class="btn-success">⬆️ Carico</button>
-                            <button id="btn-scarico" class="btn-danger">⬇️ Scarico</button>
+                            <button id="btn-carico" class="btn-success">&#10133; Carico</button>
+                            <button id="btn-scarico" class="btn-danger">&#10134; Scarico</button>
                         </div>
-                        <button id="btn-rescan" class="btn-secondary" style="width: 100%; margin-top: 10px;">🔄 Scansiona Altro</button>
+                        <button id="btn-rescan" class="btn-secondary" style="width: 100%; margin-top: 10px;">&#128260; Scansiona Altro</button>
                     </div>
                 </div>
             </div>
@@ -377,7 +395,7 @@
                 
                 <div class="form-row">
                     <div class="form-col">
-                        <label>Prezzo Acquisto NETTO € (no IVA) *</label>
+                        <label>Prezzo Acquisto NETTO &#8364; (no IVA) *</label>
                         <input type="number" step="0.01" id="edit-price-buy" placeholder="0.00" required>
                     </div>
                     <div class="form-col">
@@ -386,7 +404,7 @@
                     </div>
                 </div>
                 
-                <label>Prezzo Vendita € (IVA inclusa) *</label>
+                <label>Prezzo Vendita &#8364; (IVA inclusa) *</label>
                 <input type="number" step="0.01" id="edit-price" placeholder="0.00" required>
                 
                 <div class="modal-buttons">
@@ -400,35 +418,35 @@
     <!-- Modal Istruzioni Installazione -->
     <div id="install-instructions-modal" class="modal hidden">
         <div class="modal-content">
-            <h3>📱 Installa l'App sulla Home</h3>
+            <h3>&#128241; Installa l'App sulla Home</h3>
             
             <div id="ios-instructions" class="install-instructions hidden">
-                <h4>🎁 iPhone / iPad</h4>
+                <h4>&#127823; iPhone / iPad</h4>
                 <ol style="text-align: left; padding-left: 20px; line-height: 1.8;">
                     <li>Premi il pulsante <strong>Condividi</strong> 
-                        <span style="font-size: 18px;">⎙</span> in basso al centro</li>
+                        <span style="font-size: 18px;">&#8599;&#65039;</span> in basso al centro</li>
                     <li>Scorri e seleziona <strong>"Aggiungi a Home"</strong> 
-                        <span style="font-size: 18px;">➕</span></li>
+                        <span style="font-size: 18px;">&#10133;</span></li>
                     <li>Premi <strong>"Aggiungi"</strong> in alto a destra</li>
-                    <li>L'icona apparirà sulla tua schermata Home! 🎉</li>
+                    <li>L'icona apparirà sulla tua schermata Home! &#127881;</li>
                 </ol>
             </div>
             
             <div id="android-instructions" class="install-instructions hidden">
-                <h4>🤖 Android</h4>
+                <h4>&#129302; Android</h4>
                 <ol style="text-align: left; padding-left: 20px; line-height: 1.8;">
                     <li>Premi il menu 
-                        <span style="font-size: 18px;">⋮</span> in alto a destra</li>
+                        <span style="font-size: 18px;">&#8942;</span> in alto a destra</li>
                     <li>Seleziona <strong>"Installa app"</strong> o 
                         <strong>"Aggiungi a schermata Home"</strong></li>
                     <li>Conferma premendo <strong>"Installa"</strong></li>
-                    <li>L'icona apparirà sulla tua schermata Home! 🎉</li>
+                    <li>L'icona apparirà sulla tua schermata Home! &#127881;</li>
                 </ol>
             </div>
             
             <div id="desktop-message" class="install-instructions hidden">
                 <p style="text-align: center; color: var(--gray); padding: 20px;">
-                    📱 Apri questa pagina dal tuo <strong>smartphone</strong> per installare l'app sulla Home Screen.
+                    &#128241; Apri questa pagina dal tuo <strong>smartphone</strong> per installare l'app sulla Home Screen.
                 </p>
             </div>
             
@@ -441,6 +459,6 @@
     <!-- Librerie esterne -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
-    <script src="app.js?v=2.3.99"></script>
+    <script src="app.js?v=2.4.0"></script>
 </body>
 </html>

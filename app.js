@@ -27,38 +27,30 @@ function calcolaPrezzoConIVA(prezzoNetto, ivaPercentuale) {
 // INIZIALIZZAZIONE
 // ========================================
 document.addEventListener('DOMContentLoaded', async () => {
-    console.log('🚀 Inizializzazione app...');
+    console.log('\uD83D\uDE80 Inizializzazione app...');
     
-    // Controlla se c'è una sessione valida in Supabase
-    // Supabase mantiene GIÀ la sessione persistente di default!
     const { data: { session } } = await supabase.auth.getSession();
     
-    console.log('📋 Sessione trovata:', session ? 'SÌ' : 'NO');
+    console.log('\uD83D\uDCCB Sessione trovata:', session ? 'SÌ' : 'NO');
     
     if (session) {
-        // Sessione valida: mantieni l'utente loggato
         currentUser = session.user;
-        console.log('👤 Utente:', currentUser.email);
+        console.log('\uD83D\uDC64 Utente:', currentUser.email);
         await loadUserRole();
         showMainScreen();
     } else {
-        // Nessuna sessione: mostra login
-        console.log('🔓 Nessuna sessione, mostro login');
+        console.log('\uD83D\uDD13 Nessuna sessione, mostro login');
         showLoginScreen();
     }
     
-    // Rendi il body visibile con transizione
     document.body.classList.remove('loading');
     document.body.classList.add('ready');
     
     setupEventListeners();
-    
-    // Inizializza funzionalità PWA
     initPWAFeatures();
     
-    // Listener per cambi di stato autenticazione
     supabase.auth.onAuthStateChange((event, session) => {
-        console.log('🔄 Auth state changed:', event);
+        console.log('\uD83D\uDD04 Auth state changed:', event);
         if (event === 'SIGNED_OUT') {
             currentUser = null;
             currentUserRole = null;
@@ -74,7 +66,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 // GESTIONE RUOLI
 // ========================================
 async function loadUserRole() {
-    console.log('🔍 Caricamento ruolo per:', currentUser.email);
+    console.log('\uD83C\uDFAD Caricamento ruolo per:', currentUser.email);
     
     const { data, error } = await supabase
         .from('user_roles')
@@ -82,23 +74,23 @@ async function loadUserRole() {
         .eq('email', currentUser.email)
         .single();
     
-    console.log('📊 Risultato query ruolo:', data, error);
+    console.log('\uD83D\uDCC4 Risultato query ruolo:', data, error);
     
     if (error || !data) {
-        console.log('⚠️ Nessun ruolo trovato, imposto operatore');
+        console.log('\u26A0\uFE0F Nessun ruolo trovato, imposto operatore');
         currentUserRole = 'operatore';
     } else {
-        console.log('✅ Ruolo trovato:', data.role);
+        console.log('\u2705 Ruolo trovato:', data.role);
         currentUserRole = data.role;
     }
     
-    console.log('🎭 Ruolo finale assegnato:', currentUserRole);
+    console.log('\uD83C\uDFAD Ruolo finale assegnato:', currentUserRole);
     applyRolePermissions();
 }
 
 function applyRolePermissions() {
     const roleBadge = document.getElementById('user-role');
-    roleBadge.textContent = currentUserRole === 'admin' ? '👑 Admin' : '👤 Operatore';
+    roleBadge.textContent = currentUserRole === 'admin' ? '\uD83D\uDC51 Admin' : '\uD83D\uDC64 Operatore';
     roleBadge.classList.add(currentUserRole);
     
     if (currentUserRole === 'operatore') {
@@ -139,7 +131,7 @@ async function handleLogin(e) {
     const email = document.getElementById('login-email').value;
     const password = document.getElementById('login-password').value;
     
-    console.log('🔐 Tentativo login per:', email);
+    console.log('\uD83D\uDD11 Tentativo login per:', email);
     
     const { data, error } = await supabase.auth.signInWithPassword({
         email,
@@ -147,19 +139,19 @@ async function handleLogin(e) {
     });
     
     if (error) {
-        console.error('❌ Errore login:', error);
+        console.error('\u274C Errore login:', error);
         alert('Errore login: ' + error.message);
         return;
     }
     
-    console.log('✅ Login riuscito - Supabase manterrà la sessione');
+    console.log('\u2705 Login riuscito - Supabase manterrà la sessione');
     currentUser = data.user;
     await loadUserRole();
     showMainScreen();
 }
 
 async function handleLogout() {
-    console.log('🚪 Logout...');
+    console.log('\uD83D\uDEAA Logout...');
     await supabase.auth.signOut();
     currentUser = null;
     currentUserRole = null;
@@ -175,10 +167,10 @@ function togglePasswordVisibility() {
     
     if (passwordInput.type === 'password') {
         passwordInput.type = 'text';
-        toggleBtn.textContent = '🙈';
+        toggleBtn.innerHTML = '&#128065;';
     } else {
         passwordInput.type = 'password';
-        toggleBtn.textContent = '👁️';
+        toggleBtn.innerHTML = '&#128065;&#65039;';
     }
 }
 
@@ -297,7 +289,7 @@ function renderInventoryBySupplier(articles) {
         
         section.innerHTML = `
             <div class="supplier-header">
-                <h3>🏢 ${supplier}</h3>
+                <h3>&#127970; ${supplier}</h3>
                 <div class="supplier-stats">
                     <div class="stat-item">
                         <span class="stat-label">Articoli</span>
@@ -305,7 +297,7 @@ function renderInventoryBySupplier(articles) {
                     </div>
                     <div class="stat-item">
                         <span class="stat-label">Valore Magazzino</span>
-                        <span class="stat-value">€ ${totalValue.toFixed(2)}</span>
+                        <span class="stat-value">&#8364; ${totalValue.toFixed(2)}</span>
                     </div>
                     <div class="stat-item">
                         <span class="stat-label">Sotto Soglia</span>
@@ -346,23 +338,23 @@ function renderInventoryBySupplier(articles) {
             }
             
             const ivaPerc = article.iva_percentuale || 22;
-            const editBtn = currentUserRole === 'admin' ? `<button onclick="openEditModal(${article.id})" class="btn-edit">✏️</button>` : '';
-            const deleteBtn = currentUserRole === 'admin' ? `<button onclick="deleteArticle(${article.id})" class="btn-delete">🗑️</button>` : '';
+            const editBtn = currentUserRole === 'admin' ? `<button onclick="openEditModal(${article.id})" class="btn-edit">&#9999;&#65039;</button>` : '';
+            const deleteBtn = currentUserRole === 'admin' ? `<button onclick="deleteArticle(${article.id})" class="btn-delete">&#128465;&#65039;</button>` : '';
             
             row.innerHTML = `
                 <td><strong>${article.nome}</strong></td>
                 <td>${article.codice_articolo}</td>
                 <td><strong>${article.quantita}</strong></td>
                 <td>${article.soglia_minima}</td>
-                <td>€ ${parseFloat(article.prezzo_acquisto).toFixed(2)}</td>
+                <td>&#8364; ${parseFloat(article.prezzo_acquisto).toFixed(2)}</td>
                 <td>${ivaPerc}%</td>
-                <td>€ ${parseFloat(article.prezzo_vendita).toFixed(2)}</td>
+                <td>&#8364; ${parseFloat(article.prezzo_vendita).toFixed(2)}</td>
                 <td>${article.codice_barre}</td>
                 <td>${article.note || '-'}</td>
                 <td>
                     <div class="action-buttons-grid">
-                        <button onclick="openMovementModal(${article.id}, 'carico')" class="btn-success">⬆️</button>
-                        <button onclick="openMovementModal(${article.id}, 'scarico')" class="btn-danger">⬇️</button>
+                        <button onclick="openMovementModal(${article.id}, 'carico')" class="btn-success">&#10133;</button>
+                        <button onclick="openMovementModal(${article.id}, 'scarico')" class="btn-danger">&#10134;</button>
                         ${editBtn}
                         ${deleteBtn}
                     </div>
@@ -406,8 +398,8 @@ function renderInventoryFlat(articles) {
     articles.forEach(article => {
         const rowClass = article.quantita <= article.soglia_minima ? 'class="low-stock"' : '';
         const ivaPerc = article.iva_percentuale || 22;
-        const editBtn = currentUserRole === 'admin' ? `<button onclick="openEditModal(${article.id})" class="btn-edit">✏️</button>` : '';
-        const deleteBtn = currentUserRole === 'admin' ? `<button onclick="deleteArticle(${article.id})" class="btn-delete">🗑️</button>` : '';
+        const editBtn = currentUserRole === 'admin' ? `<button onclick="openEditModal(${article.id})" class="btn-edit">&#9999;&#65039;</button>` : '';
+        const deleteBtn = currentUserRole === 'admin' ? `<button onclick="deleteArticle(${article.id})" class="btn-delete">&#128465;&#65039;</button>` : '';
         
         html += `
             <tr ${rowClass}>
@@ -415,16 +407,16 @@ function renderInventoryFlat(articles) {
                 <td>${article.codice_articolo}</td>
                 <td><strong>${article.quantita}</strong></td>
                 <td>${article.soglia_minima}</td>
-                <td>€ ${parseFloat(article.prezzo_acquisto).toFixed(2)}</td>
+                <td>&#8364; ${parseFloat(article.prezzo_acquisto).toFixed(2)}</td>
                 <td>${ivaPerc}%</td>
-                <td>€ ${parseFloat(article.prezzo_vendita).toFixed(2)}</td>
+                <td>&#8364; ${parseFloat(article.prezzo_vendita).toFixed(2)}</td>
                 <td>${article.codice_barre}</td>
                 <td>${article.marca_fornitore || '-'}</td>
                 <td>${article.note || '-'}</td>
                 <td>
                     <div class="action-buttons-grid">
-                        <button onclick="openMovementModal(${article.id}, 'carico')" class="btn-success">⬆️</button>
-                        <button onclick="openMovementModal(${article.id}, 'scarico')" class="btn-danger">⬇️</button>
+                        <button onclick="openMovementModal(${article.id}, 'carico')" class="btn-success">&#10133;</button>
+                        <button onclick="openMovementModal(${article.id}, 'scarico')" class="btn-danger">&#10134;</button>
                         ${editBtn}
                         ${deleteBtn}
                     </div>
@@ -612,7 +604,7 @@ function openMovementModal(articleId, type) {
     currentArticleForMovement = { article, type };
     
     document.getElementById('modal-title').textContent = 
-        type === 'carico' ? '⬆️ Carico Magazzino' : '⬇️ Scarico Magazzino';
+        type === 'carico' ? '&#10133; Carico Magazzino' : '&#10134; Scarico Magazzino';
     document.getElementById('modal-article-name').textContent = article.nome;
     document.getElementById('modal-current-qty').textContent = article.quantita;
     document.getElementById('modal-quantity').value = 1;
@@ -675,7 +667,7 @@ async function confirmMovement() {
     // ALERT SOTTO SOGLIA
     if (type === 'scarico' && newQuantity <= article.soglia_minima) {
         setTimeout(() => {
-            alert(`⚠️ ATTENZIONE!\n\nL'articolo "${article.nome}" è SOTTO SOGLIA!\n\nQuantità attuale: ${newQuantity}\nSoglia minima: ${article.soglia_minima}\n\n🛒 È necessario riordinare!`);
+            alert(`\u26A0\uFE0F ATTENZIONE!\n\nL'articolo "${article.nome}" è SOTTO SOGLIA!\n\nQuantità attuale: ${newQuantity}\nSoglia minima: ${article.soglia_minima}\n\n\uD83D\uDED2 È necessario riordinare!`);
         }, 300);
     }
     
@@ -833,7 +825,6 @@ async function generateReport() {
 }
 
 async function generateGeneralOrderReport(dateFrom, dateTo) {
-    // Recupera tutti i movimenti nel periodo
     let query = supabase
         .from('movimenti')
         .select('*')
@@ -850,7 +841,6 @@ async function generateGeneralOrderReport(dateFrom, dateTo) {
     
     const { data: movements } = await query;
     
-    // Calcola totali per fornitore
     const supplierData = {};
     
     movements.forEach(movement => {
@@ -876,13 +866,12 @@ async function generateGeneralOrderReport(dateFrom, dateTo) {
         supplierData[supplier].articoli.add(article.id);
     });
     
-    // Genera HTML
     let html = `
-        <h3>📊 REPORT GENERALE ORDINI/VENDITE</h3>
-        <p><strong>Periodo:</strong> ${dateFrom || 'Inizio'} → ${dateTo || 'Oggi'}</p>
+        <h3>&#128202; REPORT GENERALE ORDINI/VENDITE</h3>
+        <p><strong>Periodo:</strong> ${dateFrom || 'Inizio'} &#8594; ${dateTo || 'Oggi'}</p>
         <p><strong>Data Generazione:</strong> ${new Date().toLocaleString('it-IT')}</p>
         <hr>
-        <h4>📦 RIEPILOGO PER FORNITORE</h4>
+        <h4>&#128230; RIEPILOGO PER FORNITORE</h4>
         <p style="color: var(--gray); font-size: 13px; margin-bottom: 15px;">
             Questo report mostra quanto materiale hai <strong style="color: var(--success);">ORDINATO (caricato)</strong> e 
             <strong style="color: var(--danger);">VENDUTO (scaricato)</strong> per ogni fornitore.
@@ -894,28 +883,27 @@ async function generateGeneralOrderReport(dateFrom, dateTo) {
         const differenza = data.totalCarico - data.totalScarico;
         const differenzaColor = differenza >= 0 ? 'var(--success)' : 'var(--danger)';
         
-        // Calcola articoli sotto soglia
         const supplierArticles = allArticles.filter(a => (a.marca_fornitore || 'Senza Fornitore') === supplier);
         const lowStockCount = supplierArticles.filter(a => a.quantita <= a.soglia_minima).length;
         
         html += `
             <div style="background: var(--light); padding: 15px; border-radius: 12px; margin-bottom: 15px; border-left: 4px solid var(--primary);">
-                <h4 style="margin-bottom: 10px; color: var(--primary);">🏢 ${supplier}</h4>
+                <h4 style="margin-bottom: 10px; color: var(--primary);">&#127970; ${supplier}</h4>
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; font-size: 13px;">
                     <div>
                         <strong>Articoli gestiti:</strong> ${data.articoli.size}
                     </div>
                     <div style="color: var(--success);">
-                        <strong>📥 Ordinato (Carico):</strong> +${data.totalCarico} pz
+                        <strong>&#128229; Ordinato (Carico):</strong> +${data.totalCarico} pz
                     </div>
                     <div style="color: var(--danger);">
-                        <strong>📤 Venduto (Scarico):</strong> -${data.totalScarico} pz
+                        <strong>&#128228; Venduto (Scarico):</strong> -${data.totalScarico} pz
                     </div>
                     <div style="color: ${differenzaColor};">
-                        <strong>💰 Differenza:</strong> ${differenza >= 0 ? '+' : ''}${differenza} pz
+                        <strong>&#128176; Differenza:</strong> ${differenza >= 0 ? '+' : ''}${differenza} pz
                     </div>
                     <div style="color: ${lowStockCount > 0 ? 'var(--danger)' : 'var(--success)'};">
-                        <strong>⚠️ Sotto soglia:</strong> ${lowStockCount} articoli
+                        <strong>&#9888;&#65039; Sotto soglia:</strong> ${lowStockCount} articoli
                     </div>
                 </div>
             </div>
@@ -924,12 +912,12 @@ async function generateGeneralOrderReport(dateFrom, dateTo) {
     
     html += `
         <hr>
-        <h4>💡 COSA SIGNIFICA</h4>
+        <h4>&#128161; COSA SIGNIFICA</h4>
         <ul style="list-style: none; padding-left: 0; font-size: 13px; line-height: 1.8;">
-            <li>📥 <strong>Ordinato (Carico):</strong> Quanti pezzi hai ricevuto dai fornitori</li>
-            <li>📤 <strong>Venduto (Scarico):</strong> Quanti pezzi hai venduto/utilizzato</li>
-            <li>💰 <strong>Differenza:</strong> Se positiva, hai ancora stock. Se negativa, hai venduto più di quanto ordinato</li>
-            <li>⚠️ <strong>Sotto soglia:</strong> Articoli da riordinare immediatamente</li>
+            <li>&#128229; <strong>Ordinato (Carico):</strong> Quanti pezzi hai ricevuto dai fornitori</li>
+            <li>&#128228; <strong>Venduto (Scarico):</strong> Quanti pezzi hai venduto/utilizzato</li>
+            <li>&#128176; <strong>Differenza:</strong> Se positiva, hai ancora stock. Se negativa, hai venduto più di quanto ordinato</li>
+            <li>&#9888;&#65039; <strong>Sotto soglia:</strong> Articoli da riordinare immediatamente</li>
         </ul>
     `;
     
@@ -937,7 +925,6 @@ async function generateGeneralOrderReport(dateFrom, dateTo) {
 }
 
 async function generateSupplierOrderReport(supplier, dateFrom, dateTo) {
-    // Recupera movimenti del fornitore
     let query = supabase
         .from('movimenti')
         .select('*')
@@ -959,7 +946,6 @@ async function generateSupplierOrderReport(supplier, dateFrom, dateTo) {
     
     const supplierMovements = movements.filter(m => supplierArticleIds.includes(m.articolo_id));
     
-    // Calcola per articolo
     const articleData = {};
     
     supplierArticles.forEach(article => {
@@ -988,31 +974,31 @@ async function generateSupplierOrderReport(supplier, dateFrom, dateTo) {
     const lowStockCount = supplierArticles.filter(a => a.quantita <= a.soglia_minima).length;
     
     let html = `
-        <h3>📊 REPORT FORNITORE: ${supplier}</h3>
-        <p><strong>Periodo:</strong> ${dateFrom || 'Inizio'} → ${dateTo || 'Oggi'}</p>
+        <h3>&#128202; REPORT FORNITORE: ${supplier}</h3>
+        <p><strong>Periodo:</strong> ${dateFrom || 'Inizio'} &#8594; ${dateTo || 'Oggi'}</p>
         <p><strong>Data Generazione:</strong> ${new Date().toLocaleString('it-IT')}</p>
         <hr>
-        <h4>📦 RIEPILOGO</h4>
+        <h4>&#128230; RIEPILOGO</h4>
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin: 15px 0;">
             <div style="background: var(--light); padding: 12px; border-radius: 8px;">
                 <div style="color: var(--gray); font-size: 12px;">Articoli Totali</div>
                 <div style="font-size: 22px; font-weight: 700;">${supplierArticles.length}</div>
             </div>
             <div style="background: var(--green-light); padding: 12px; border-radius: 8px;">
-                <div style="color: var(--success); font-size: 12px;">📥 Ordinato</div>
+                <div style="color: var(--success); font-size: 12px;">&#128229; Ordinato</div>
                 <div style="font-size: 22px; font-weight: 700; color: var(--success);">+${totalCarico}</div>
             </div>
             <div style="background: #fee2e2; padding: 12px; border-radius: 8px;">
-                <div style="color: var(--danger); font-size: 12px;">📤 Venduto</div>
+                <div style="color: var(--danger); font-size: 12px;">&#128228; Venduto</div>
                 <div style="font-size: 22px; font-weight: 700; color: var(--danger);">-${totalScarico}</div>
             </div>
             <div style="background: ${lowStockCount > 0 ? '#fee2e2' : 'var(--green-light)'}; padding: 12px; border-radius: 8px;">
-                <div style="color: ${lowStockCount > 0 ? 'var(--danger)' : 'var(--success)'}; font-size: 12px;">⚠️ Sotto Soglia</div>
+                <div style="color: ${lowStockCount > 0 ? 'var(--danger)' : 'var(--success)'}; font-size: 12px;">&#9888;&#65039; Sotto Soglia</div>
                 <div style="font-size: 22px; font-weight: 700; color: ${lowStockCount > 0 ? 'var(--danger)' : 'var(--success)'};">${lowStockCount}</div>
             </div>
         </div>
         <hr>
-        <h4>📋 DETTAGLIO ARTICOLI</h4>
+        <h4>&#128203; DETTAGLIO ARTICOLI</h4>
         <table style="width: 100%; font-size: 12px; margin-top: 10px;">
             <thead>
                 <tr style="background: var(--primary); color: white;">
@@ -1033,7 +1019,7 @@ async function generateSupplierOrderReport(supplier, dateFrom, dateTo) {
         const diff = article.carico - article.scarico;
         const diffColor = diff >= 0 ? 'var(--success)' : 'var(--danger)';
         const rowStyle = article.quantitaAttuale <= article.soglia ? 'background: #fee2e2;' : '';
-        const stato = article.quantitaAttuale <= article.soglia ? '⚠️ DA ORDINARE' : '✅ OK';
+        const stato = article.quantitaAttuale <= article.soglia ? '&#9888;&#65039; DA ORDINARE' : '&#9989; OK';
         
         html += `
             <tr style="${rowStyle}">
@@ -1054,19 +1040,19 @@ async function generateSupplierOrderReport(supplier, dateFrom, dateTo) {
         </table>
         <hr>
         <div style="background: var(--green-light); padding: 15px; border-radius: 12px; margin-top: 15px;">
-            <h4 style="color: var(--primary); margin-bottom: 10px;">💡 CONSIGLI PER L'ORDINE</h4>
+            <h4 style="color: var(--primary); margin-bottom: 10px;">&#128161; CONSIGLI PER L'ORDINE</h4>
             <ul style="list-style: none; padding-left: 0; font-size: 13px; line-height: 1.8;">
     `;
     
     if (lowStockCount > 0) {
-        html += `<li>🛒 <strong>${lowStockCount} articoli</strong> sono sotto soglia e vanno riordinati SUBITO</li>`;
+        html += `<li>&#128722; <strong>${lowStockCount} articoli</strong> sono sotto soglia e vanno riordinati SUBITO</li>`;
     } else {
-        html += `<li>✅ Tutti gli articoli sono sopra la soglia minima</li>`;
+        html += `<li>&#9989; Tutti gli articoli sono sopra la soglia minima</li>`;
     }
     
     const articoliConDiffNegativa = Object.values(articleData).filter(a => (a.carico - a.scarico) < 0);
     if (articoliConDiffNegativa.length > 0) {
-        html += `<li>⚠️ <strong>${articoliConDiffNegativa.length} articoli</strong> hanno venduto più di quanto ordinato nel periodo</li>`;
+        html += `<li>&#9888;&#65039; <strong>${articoliConDiffNegativa.length} articoli</strong> hanno venduto più di quanto ordinato nel periodo</li>`;
     }
     
     html += `
@@ -1103,9 +1089,9 @@ async function generateArticleOrderReport(articleId, dateFrom, dateTo) {
     const differenza = totalCarico - totalScarico;
     
     let html = `
-        <h3>📊 REPORT ARTICOLO: ${article.nome}</h3>
+        <h3>&#128202; REPORT ARTICOLO: ${article.nome}</h3>
         <p><strong>Codice:</strong> ${article.codice_articolo} | <strong>Fornitore:</strong> ${article.marca_fornitore || 'N/D'}</p>
-        <p><strong>Periodo:</strong> ${dateFrom || 'Inizio'} → ${dateTo || 'Oggi'}</p>
+        <p><strong>Periodo:</strong> ${dateFrom || 'Inizio'} &#8594; ${dateTo || 'Oggi'}</p>
         <hr>
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin: 15px 0;">
             <div style="background: var(--light); padding: 12px; border-radius: 8px;">
@@ -1117,24 +1103,24 @@ async function generateArticleOrderReport(articleId, dateFrom, dateTo) {
                 <div style="font-size: 22px; font-weight: 700;">${article.soglia_minima}</div>
             </div>
             <div style="background: var(--green-light); padding: 12px; border-radius: 8px;">
-                <div style="color: var(--success); font-size: 12px;">📥 Ordinato</div>
+                <div style="color: var(--success); font-size: 12px;">&#128229; Ordinato</div>
                 <div style="font-size: 22px; font-weight: 700; color: var(--success);">+${totalCarico}</div>
             </div>
             <div style="background: #fee2e2; padding: 12px; border-radius: 8px;">
-                <div style="color: var(--danger); font-size: 12px;">📤 Venduto</div>
+                <div style="color: var(--danger); font-size: 12px;">&#128228; Venduto</div>
                 <div style="font-size: 22px; font-weight: 700; color: var(--danger);">-${totalScarico}</div>
             </div>
             <div style="background: var(--light); padding: 12px; border-radius: 8px;">
-                <div style="color: var(--gray); font-size: 12px;">💰 Differenza</div>
+                <div style="color: var(--gray); font-size: 12px;">&#128176; Differenza</div>
                 <div style="font-size: 22px; font-weight: 700; color: ${differenza >= 0 ? 'var(--success)' : 'var(--danger)'};">${differenza >= 0 ? '+' : ''}${differenza}</div>
             </div>
             <div style="background: ${article.quantita <= article.soglia_minima ? '#fee2e2' : 'var(--green-light)'}; padding: 12px; border-radius: 8px;">
                 <div style="color: ${article.quantita <= article.soglia_minima ? 'var(--danger)' : 'var(--success)'}; font-size: 12px;">Stato</div>
-                <div style="font-size: 18px; font-weight: 700;">${article.quantita <= article.soglia_minima ? '⚠️ ORDINARE' : '✅ OK'}</div>
+                <div style="font-size: 18px; font-weight: 700;">${article.quantita <= article.soglia_minima ? '&#9888;&#65039; ORDINARE' : '&#9989; OK'}</div>
             </div>
         </div>
         <hr>
-        <h4>📋 STORICO MOVIMENTI</h4>
+        <h4>&#128203; STORICO MOVIMENTI</h4>
         <table style="width: 100%; font-size: 12px; margin-top: 10px;">
             <thead>
                 <tr style="background: var(--primary); color: white;">
@@ -1236,6 +1222,8 @@ function onScanError(errorMessage) {
 // NAVIGAZIONE TAB
 // ========================================
 function switchTab(tabName) {
+    closeMobileMenu();
+    
     document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
     document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
     
@@ -1251,6 +1239,29 @@ function switchTab(tabName) {
     if (tabName === 'report' && currentUserRole === 'admin') {
         populateReportSelects();
     }
+}
+
+// ========================================
+// HAMBURGER MENU MOBILE
+// ========================================
+function toggleMobileMenu() {
+    const hamburger = document.getElementById('hamburger-btn');
+    const tabs = document.getElementById('main-tabs');
+    const body = document.body;
+    
+    hamburger.classList.toggle('active');
+    tabs.classList.toggle('active');
+    body.classList.toggle('menu-open');
+}
+
+function closeMobileMenu() {
+    const hamburger = document.getElementById('hamburger-btn');
+    const tabs = document.getElementById('main-tabs');
+    const body = document.body;
+    
+    hamburger.classList.remove('active');
+    tabs.classList.remove('active');
+    body.classList.remove('menu-open');
 }
 
 // ========================================
@@ -1301,6 +1312,19 @@ function setupEventListeners() {
         window.scannedArticle = null;
         initScanner();
     });
+    
+    document.getElementById('hamburger-btn').addEventListener('click', toggleMobileMenu);
+    
+    document.body.addEventListener('click', (e) => {
+        const tabs = document.getElementById('main-tabs');
+        const hamburger = document.getElementById('hamburger-btn');
+        
+        if (document.body.classList.contains('menu-open') && 
+            !tabs.contains(e.target) && 
+            !hamburger.contains(e.target)) {
+            closeMobileMenu();
+        }
+    });
 }
 
 // ========================================
@@ -1319,7 +1343,6 @@ function isAndroid() {
 }
 
 function isStandalone() {
-    // Controlla se l'app è già installata
     return window.matchMedia('(display-mode: standalone)').matches || 
            window.navigator.standalone || 
            document.referrer.includes('android-app://');
@@ -1332,23 +1355,19 @@ function initPWAFeatures() {
     const installModal = document.getElementById('install-instructions-modal');
     const closeModalBtn = document.getElementById('close-install-modal');
     
-    // Mostra avviso solo su mobile e solo nella schermata di login
     if (isMobile() && !isStandalone()) {
         mobileWarning.classList.remove('hidden');
         installContainer.classList.remove('hidden');
     }
     
-    // Gestisci click su pulsante "Installa App"
     showInstructionsBtn.addEventListener('click', () => {
         showInstallInstructions();
     });
     
-    // Gestisci chiusura modale
     closeModalBtn.addEventListener('click', () => {
         installModal.classList.add('hidden');
     });
     
-    // Chiudi modale cliccando fuori
     installModal.addEventListener('click', (e) => {
         if (e.target === installModal) {
             installModal.classList.add('hidden');
@@ -1362,12 +1381,10 @@ function showInstallInstructions() {
     const androidInstructions = document.getElementById('android-instructions');
     const desktopMessage = document.getElementById('desktop-message');
     
-    // Nascondi tutto prima
     iosInstructions.classList.add('hidden');
     androidInstructions.classList.add('hidden');
     desktopMessage.classList.add('hidden');
     
-    // Mostra le istruzioni appropriate
     if (isIOS()) {
         iosInstructions.classList.remove('hidden');
     } else if (isAndroid()) {
