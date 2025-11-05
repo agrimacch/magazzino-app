@@ -1,5 +1,8 @@
 # Changelog App Magazzino
 
+## v4.2.5 - 2025-11-05 (PRODUZIONE) ✅
+fix menu mobile
+
 ## v4.2.3 - 2025-11-05 (PRODUZIONE) ✅
 miglioramento header p2
 
