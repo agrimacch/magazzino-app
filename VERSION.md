@@ -1,5 +1,8 @@
 # Changelog App Magazzino
 
+## v4.2.7 - 2025-11-05 (PRODUZIONE) ✅
+new green
+
 ## v4.2.6 - 2025-11-05 (PRODUZIONE) ✅
 blocco castico si fornitore
 
