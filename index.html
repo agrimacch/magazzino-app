@@ -17,7 +17,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=4.2.92">
+    <link rel="stylesheet" href="style.css?v=4.2.93">
     
     <style>
         /* Nascondi tutte le schermate all'inizio */
@@ -44,7 +44,7 @@
 
 <body class="loading">
     <!-- Version badge -->
-    <div class="version-badge">v4.2.92</div>
+    <div class="version-badge">v4.2.93</div>
 
     <!-- SCHERMATA LOGIN -->
     <div id="login-screen" class="screen">
@@ -458,21 +458,35 @@
     <div id="whats-new-modal" class="modal hidden">
         <div class="modal-content whats-new-content">
             <div class="whats-new-header">
-                <h3>&#127881; Novità in AGRIMAG v4.2.92</h3>
-                <p class="version-date">06 Novembre 2025</p>
+                <h3>&#127881; Novità in AGRIMAG v4.2.93</h3>
+                <p class="version-date">6 Novembre 2025</p>
             </div>
             
             <div class="whats-new-body">
                 <div class="new-feature">
-                    <span class="feature-icon">&#128241;</span>
+                    <span class="feature-icon">&#128204;</span>
                     <div class="feature-content">
-                        <h4>MENU' HAMBURGER FIX</h4>
-                        <p>Risolto posizionamento e funzionamento menu' hamburger su mobile</p>
+                        <h4>Menu Hamburger Fisso</h4>
+                        <p>Il pulsante menu ora resta sempre visibile in alto anche quando scorri la pagina!</p>
+                    </div>
+                </div>
+
+                <div class="new-feature">
+                    <span class="feature-icon">&#128444;</span>
+                    <div class="feature-content">
+                        <h4>Menu Sidebar Full-Screen</h4>
+                        <p>Il menu laterale ora copre tutta l'altezza dello schermo per una migliore navigazione.</p>
+                    </div>
+                </div>
+
+                <div class="new-feature">
+                    <span class="feature-icon">&#127775;</span>
+                    <div class="feature-content">
+                        <h4>Sfondo Sfocato Migliorato</h4>
+                        <p>Gli overlay ora hanno uno sfondo sfocato più evidente che copre tutto lo schermo!</p>
                     </div>
                 </div>
             </div>
-
-            
             
             <div class="modal-buttons">
                 <button id="close-whats-new" class="btn-primary">Perfetto! &#128077;</button>
@@ -483,6 +497,6 @@
     <!-- Librerie esterne -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
-    <script src="app.js?v=4.2.92"></script>
+    <script src="app.js?v=4.2.93"></script>
 </body>
 </html>

@@ -9,7 +9,7 @@ const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 // ========================================
 // VARIABILI GLOBALI
 // ========================================
-const CURRENT_VERSION = '4.2.92';
+const CURRENT_VERSION = '4.2.93';
 let currentUser = null;
 let currentUserRole = null;
 let allArticles = [];

@@ -690,12 +690,15 @@ td:last-child {
     left: 0;
     width: 100%;
     height: 100%;
+    min-height: 100vh;
+    height: 100dvh;
     background: rgba(0,0,0,0.7);
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 1000;
-    backdrop-filter: blur(4px);
+    z-index: 10000;
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
     padding: 15px;
 }
 
@@ -1383,6 +1386,11 @@ button, input, textarea, select, label, span, div, td, th, p, h1, h2, h3, h4 {
     pointer-events: auto;
     touch-action: manipulation;
     -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
+    will-change: transform;
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
 }
 
 .hamburger-btn span {
@@ -1428,6 +1436,8 @@ button, input, textarea, select, label, span, div, td, th, p, h1, h2, h3, h4 {
         left: -100%;
         width: 280px;
         height: 100vh;
+        min-height: 100vh;
+        height: 100dvh;
         background: white;
         flex-direction: column;
         padding: 70px 15px 15px 15px;
@@ -1458,12 +1468,16 @@ button, input, textarea, select, label, span, div, td, th, p, h1, h2, h3, h4 {
         left: 0;
         width: 100%;
         height: 100%;
-        background: rgba(0, 0, 0, 0.5);
+        min-height: 100vh;
+        height: 100dvh;
+        background: rgba(0, 0, 0, 0.6);
         z-index: 999;
         opacity: 0;
         visibility: hidden;
         transition: all 0.3s ease;
         pointer-events: none;
+        backdrop-filter: blur(3px);
+        -webkit-backdrop-filter: blur(3px);
     }
     
     body.menu-open::before {

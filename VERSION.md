@@ -1,7 +1,7 @@
 # Changelog App Magazzino
 
-## v4.2.92 - 2025-11-06 (PRODUZIONE) ✅
-risolto menù hamburger
+## v4.2.93 - 2025-11-06 (PRODUZIONE) ✅
+Fix menu hamburger scroll + overlay full-screen - Menu hamburger ora resta fisso durante lo scroll, menu sidebar e overlay pop-up coprono tutta l'altezza schermo, sfondo sfocato migliorato
 
 ## v4.2.92 - 2025-11-06 (PRODUZIONE) ✅
 Fix menu hamburger mobile - Risolto bug apertura menu, posizione spostata in alto, dimensioni ottimizzate, supporto touch migliorato
