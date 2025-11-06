@@ -1,10 +1,10 @@
 # Changelog App Magazzino
 
-## v4.2.91 - 2025-11-06 (PRODUZIONE) ✅
-MIGRIORAMENTO SCANNER + POP UP
+## v4.2.92 - 2025-11-06 (PRODUZIONE) ✅
+Fix menu hamburger mobile - Risolto bug apertura menu, posizione spostata in alto, dimensioni ottimizzate, supporto touch migliorato
 
-## v4.2.91 - 2025-11-06 (PRODUZIONE) ✅
-MIGLIORAMENTO SCANNER + POP UP
+## v4.2.9 - 2025-11-06 (PRODUZIONE) ✅
+Pop-up novità versione - Ora l'app mostra un pop-up con le novità ogni volta che viene rilasciata una nuova versione (appare una sola volta per ogni versione)
 
 ## v4.2.8 - 2025-11-06 (PRODUZIONE) ✅
 suono scarico

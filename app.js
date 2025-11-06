@@ -9,6 +9,7 @@ const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 // ========================================
 // VARIABILI GLOBALI
 // ========================================
+const CURRENT_VERSION = '4.2.92';
 let currentUser = null;
 let currentUserRole = null;
 let allArticles = [];
@@ -92,38 +93,6 @@ function playErrorSound() {
 }
 
 // ========================================
-// SISTEMA POP-UP NOVITÀ VERSIONE
-// ========================================
-const CURRENT_VERSION = '4.2.91';
-
-function checkAndShowWhatsNew() {
-    // Controlla se l'utente ha già visto le novità di questa versione
-    const lastSeenVersion = localStorage.getItem('lastSeenVersion');
-    
-    console.log('Controllo versione novità - Ultima vista:', lastSeenVersion, 'Corrente:', CURRENT_VERSION);
-    
-    // Se è una nuova versione o è la prima volta
-    if (lastSeenVersion !== CURRENT_VERSION) {
-        console.log('Nuova versione rilevata! Mostro pop-up novità');
-        showWhatsNewModal();
-    }
-}
-
-function showWhatsNewModal() {
-    const modal = document.getElementById('whats-new-modal');
-    modal.classList.remove('hidden');
-}
-
-function closeWhatsNewModal() {
-    const modal = document.getElementById('whats-new-modal');
-    modal.classList.add('hidden');
-    
-    // Salva che l'utente ha visto questa versione
-    localStorage.setItem('lastSeenVersion', CURRENT_VERSION);
-    console.log('Versione salvata in localStorage:', CURRENT_VERSION);
-}
-
-// ========================================
 // FEEDBACK VISIVO (alternativa alla vibrazione per iOS)
 // ========================================
 function showVisualFeedback(type) {
@@ -173,6 +142,40 @@ function showVisualFeedback(type) {
         feedbackDiv.style.transition = 'opacity 0.3s ease-out';
         setTimeout(() => feedbackDiv.remove(), 300);
     }, displayTime);
+}
+
+// ========================================
+// SISTEMA POP-UP NOVITÀ VERSIONE
+// ========================================
+function checkAndShowWhatsNew() {
+    // Controlla se l'utente ha già visto le novità di questa versione
+    const lastSeenVersion = localStorage.getItem('lastSeenVersion');
+    
+    console.log('Controllo versione novità - Ultima vista:', lastSeenVersion, 'Corrente:', CURRENT_VERSION);
+    
+    // Se è una nuova versione o è la prima volta
+    if (lastSeenVersion !== CURRENT_VERSION) {
+        console.log('Nuova versione rilevata! Mostro pop-up novità');
+        showWhatsNewModal();
+    }
+}
+
+function showWhatsNewModal() {
+    const modal = document.getElementById('whats-new-modal');
+    if (modal) {
+        modal.classList.remove('hidden');
+    }
+}
+
+function closeWhatsNewModal() {
+    const modal = document.getElementById('whats-new-modal');
+    if (modal) {
+        modal.classList.add('hidden');
+    }
+    
+    // Salva che l'utente ha visto questa versione
+    localStorage.setItem('lastSeenVersion', CURRENT_VERSION);
+    console.log('Versione salvata in localStorage:', CURRENT_VERSION);
 }
 
 // ========================================
@@ -1592,15 +1595,20 @@ function setupEventListeners() {
     document.getElementById('edit-cancel').addEventListener('click', closeEditModal);
     
     // Event listener per pop-up novità
-    document.getElementById('close-whats-new').addEventListener('click', closeWhatsNewModal);
+    const closeWhatsNewBtn = document.getElementById('close-whats-new');
+    if (closeWhatsNewBtn) {
+        closeWhatsNewBtn.addEventListener('click', closeWhatsNewModal);
+    }
     
     // Chiudi pop-up novità se clicchi fuori dal contenuto
     const whatsNewModal = document.getElementById('whats-new-modal');
-    whatsNewModal.addEventListener('click', (e) => {
-        if (e.target === whatsNewModal) {
-            closeWhatsNewModal();
-        }
-    });
+    if (whatsNewModal) {
+        whatsNewModal.addEventListener('click', (e) => {
+            if (e.target === whatsNewModal) {
+                closeWhatsNewModal();
+            }
+        });
+    }
     
     document.querySelectorAll('.tab-btn').forEach(btn => {
         btn.addEventListener('click', () => switchTab(btn.dataset.tab));
@@ -1620,7 +1628,13 @@ function setupEventListeners() {
     document.getElementById('generate-report').addEventListener('click', generateReport);
     document.getElementById('print-report').addEventListener('click', printReport);
     
-    document.getElementById('hamburger-btn').addEventListener('click', toggleMobileMenu);
+    // Menu hamburger - supporto click E touch per mobile
+    const hamburgerBtn = document.getElementById('hamburger-btn');
+    hamburgerBtn.addEventListener('click', toggleMobileMenu);
+    hamburgerBtn.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        toggleMobileMenu();
+    }, { passive: false });
     
     document.body.addEventListener('click', (e) => {
         const tabs = document.getElementById('main-tabs');

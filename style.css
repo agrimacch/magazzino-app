@@ -96,6 +96,7 @@ header {
     justify-content: space-between;
     border-bottom: 3px solid var(--primary);
     position: relative;
+    z-index: 100;
 }
 
 .logo-container-header {
@@ -1364,27 +1365,30 @@ button, input, textarea, select, label, span, div, td, th, p, h1, h2, h3, h4 {
 .hamburger-btn {
     display: none;
     position: fixed;
-    top: 50px;
-    left: 12px;
+    top: 10px;
+    left: 10px;
     z-index: 1001;
     background: var(--primary);
     border: none;
-    width: 45px;
-    height: 45px;
-    border-radius: 10px;
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
     cursor: pointer;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 5px;
+    gap: 4px;
     box-shadow: 0 4px 12px rgba(22, 163, 74, 0.3);
     transition: all 0.3s ease;
+    pointer-events: auto;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
 }
 
 .hamburger-btn span {
     display: block;
-    width: 24px;
-    height: 3px;
+    width: 22px;
+    height: 2.5px;
     background: white;
     border-radius: 3px;
     transition: all 0.3s ease;
@@ -1400,6 +1404,15 @@ button, input, textarea, select, label, span, div, td, th, p, h1, h2, h3, h4 {
 
 .hamburger-btn.active span:nth-child(3) {
     transform: rotate(-45deg) translate(7px, -7px);
+}
+
+.hamburger-btn:hover {
+    background: var(--primary-dark);
+    box-shadow: 0 6px 16px rgba(22, 163, 74, 0.4);
+}
+
+.hamburger-btn:active {
+    transform: scale(0.95);
 }
 
 /* Mostra hamburger solo su mobile */
@@ -1617,7 +1630,7 @@ button, input, textarea, select, label, span, div, td, th, p, h1, h2, h3, h4 {
 .whats-new-header h3 {
     font-size: 26px;
     font-weight: 700;
-    color: var(--primary-color);
+    color: var(--primary);
     margin-bottom: 8px;
 }
 
@@ -1639,7 +1652,7 @@ button, input, textarea, select, label, span, div, td, th, p, h1, h2, h3, h4 {
     margin-bottom: 15px;
     background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%);
     border-radius: 12px;
-    border-left: 4px solid var(--primary-color);
+    border-left: 4px solid var(--primary);
     transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
@@ -1657,7 +1670,7 @@ button, input, textarea, select, label, span, div, td, th, p, h1, h2, h3, h4 {
 .feature-content h4 {
     font-size: 16px;
     font-weight: 600;
-    color: var(--text-color);
+    color: var(--dark);
     margin: 0 0 5px 0;
 }
 
