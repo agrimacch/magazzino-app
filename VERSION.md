@@ -1,5 +1,8 @@
 # Changelog App Magazzino
 
+## v4.2.8 - 2025-11-06 (PRODUZIONE) ✅
+suono scarico
+
 ## v4.2.7 - 2025-11-05 (PRODUZIONE) ✅
 new green
 
