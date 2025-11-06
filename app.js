@@ -15,6 +15,133 @@ let allArticles = [];
 let allMovements = [];
 let currentArticleForMovement = null;
 let html5QrCode = null;
+let audioContext = null;
+let audioInitialized = false;
+
+// ========================================
+// INIZIALIZZAZIONE AUDIO (iOS FIX)
+// ========================================
+function initAudioContext() {
+    if (!audioContext) {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    
+    // iOS richiede un'interazione utente per sbloccare l'audio
+    if (audioContext.state === 'suspended') {
+        audioContext.resume();
+    }
+    
+    audioInitialized = true;
+}
+
+// ========================================
+// FUNZIONI AUDIO PER SCANNER - iOS COMPATIBILE
+// ========================================
+function playSuccessSound() {
+    if (!audioContext || !audioInitialized) {
+        initAudioContext();
+    }
+    
+    try {
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        // Suono positivo: frequenza alta e breve
+        oscillator.frequency.value = 1200;
+        oscillator.type = 'sine';
+        
+        gainNode.gain.setValueAtTime(0.5, audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.15);
+        
+        oscillator.start(audioContext.currentTime);
+        oscillator.stop(audioContext.currentTime + 0.15);
+    } catch (e) {
+        console.log('Audio non disponibile:', e);
+    }
+}
+
+function playErrorSound() {
+    if (!audioContext || !audioInitialized) {
+        initAudioContext();
+    }
+    
+    try {
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        // Suono di errore: frequenza bassa e doppio beep
+        oscillator.frequency.value = 250;
+        oscillator.type = 'sawtooth';
+        
+        gainNode.gain.setValueAtTime(0.5, audioContext.currentTime);
+        gainNode.gain.setValueAtTime(0, audioContext.currentTime + 0.08);
+        gainNode.gain.setValueAtTime(0.5, audioContext.currentTime + 0.12);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.25);
+        
+        oscillator.start(audioContext.currentTime);
+        oscillator.stop(audioContext.currentTime + 0.25);
+    } catch (e) {
+        console.log('Audio non disponibile:', e);
+    }
+}
+
+// ========================================
+// FEEDBACK VISIVO (alternativa alla vibrazione per iOS)
+// ========================================
+function showVisualFeedback(type) {
+    const feedbackDiv = document.createElement('div');
+    feedbackDiv.style.position = 'fixed';
+    feedbackDiv.style.top = '50%';
+    feedbackDiv.style.left = '50%';
+    feedbackDiv.style.transform = 'translate(-50%, -50%)';
+    feedbackDiv.style.zIndex = '9999';
+    feedbackDiv.style.padding = '30px 50px';
+    feedbackDiv.style.borderRadius = '20px';
+    feedbackDiv.style.fontSize = '48px';
+    feedbackDiv.style.fontWeight = 'bold';
+    feedbackDiv.style.color = 'white';
+    feedbackDiv.style.textAlign = 'center';
+    feedbackDiv.style.boxShadow = '0 8px 32px rgba(0,0,0,0.4)';
+    feedbackDiv.style.animation = 'feedbackPulse 0.3s ease-out';
+    
+    if (type === 'success') {
+        feedbackDiv.style.background = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
+        feedbackDiv.innerHTML = '&#10004; TROVATO!';
+    } else {
+        feedbackDiv.style.background = 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)';
+        feedbackDiv.innerHTML = '&#10060; NON TROVATO';
+    }
+    
+    // Aggiungi animazione CSS
+    if (!document.getElementById('feedback-animation-style')) {
+        const style = document.createElement('style');
+        style.id = 'feedback-animation-style';
+        style.textContent = `
+            @keyframes feedbackPulse {
+                0% { transform: translate(-50%, -50%) scale(0.8); opacity: 0; }
+                50% { transform: translate(-50%, -50%) scale(1.05); }
+                100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+            }
+        `;
+        document.head.appendChild(style);
+    }
+    
+    document.body.appendChild(feedbackDiv);
+    
+    // Rimuovi dopo 1.2 secondi (successo) o 1.8 secondi (errore)
+    const displayTime = type === 'success' ? 1200 : 1800;
+    setTimeout(() => {
+        feedbackDiv.style.opacity = '0';
+        feedbackDiv.style.transition = 'opacity 0.3s ease-out';
+        setTimeout(() => feedbackDiv.remove(), 300);
+    }, displayTime);
+}
 
 // ========================================
 // FUNZIONE HELPER PER CALCOLO PREZZO CON IVA
@@ -28,6 +155,12 @@ function calcolaPrezzoConIVA(prezzoNetto, ivaPercentuale) {
 // ========================================
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('Inizializzazione app...');
+    
+    // Inizializza audio al primo tap (iOS fix)
+    document.addEventListener('touchstart', function initAudio() {
+        initAudioContext();
+        document.removeEventListener('touchstart', initAudio);
+    }, { once: true });
     
     const { data: { session } } = await supabase.auth.getSession();
     
@@ -209,7 +342,6 @@ async function loadInventory(keepFilters = false) {
         if (savedSort) document.getElementById('sort-select').value = savedSort;
         document.getElementById('group-by-supplier').checked = savedGroup;
     } else {
-        // RESET esplicito dei filtri
         document.getElementById('filter-brand').value = '';
         document.getElementById('search-input').value = '';
         document.getElementById('sort-select').value = 'fornitore-asc';
@@ -696,14 +828,22 @@ async function confirmMovement() {
     loadInventory(true);
     loadMovements();
     
-    // ALERT SOTTO SOGLIA - EMOJI UNICODE CORRETTE
+    // Alert sotto soglia (se necessario)
     if (type === 'scarico' && newQuantity <= article.soglia_minima) {
-        setTimeout(() => {
-            alert('\u26A0\uFE0F ATTENZIONE!\n\nL\'articolo "' + article.nome + '" \u00C8 SOTTO SOGLIA!\n\nQuantit\u00E0 attuale: ' + newQuantity + '\nSoglia minima: ' + article.soglia_minima + '\n\n\uD83D\uDED2 \u00C8 necessario riordinare!');
-        }, 300);
+        alert('\u26A0\uFE0F ATTENZIONE!\n\nL\'articolo "' + article.nome + '" \u00C8 SOTTO SOGLIA!\n\nQuantit\u00E0 attuale: ' + newQuantity + '\nSoglia minima: ' + article.soglia_minima + '\n\n\uD83D\uDED2 \u00C8 necessario riordinare!');
+    } else {
+        // Alert successo solo se NON sotto soglia
+        alert(`${type === 'carico' ? 'Carico' : 'Scarico'} completato!`);
     }
     
-    alert(`${type === 'carico' ? 'Carico' : 'Scarico'} completato!`);
+    // Se siamo nella tab scanner, torna automaticamente a scansionare dopo 1 secondo
+    const scannerTab = document.getElementById('tab-scanner');
+    if (scannerTab && scannerTab.classList.contains('active')) {
+        setTimeout(() => {
+            document.getElementById('reader').style.display = 'block';
+            initScanner();
+        }, 1000);
+    }
 }
 
 function closeMovementModal() {
@@ -1194,18 +1334,22 @@ function printReport() {
 }
 
 // ========================================
-// SCANNER CODICE A BARRE
+// SCANNER CODICE A BARRE - ULTRA VELOCE + iOS FIX
 // ========================================
 function initScanner() {
     if (html5QrCode) return;
+    
+    // Inizializza audio context al primo avvio scanner
+    initAudioContext();
     
     html5QrCode = new Html5Qrcode("reader");
     
     html5QrCode.start(
         { facingMode: "environment" },
         {
-            fps: 10,
-            qrbox: { width: 250, height: 250 }
+            fps: 60, // MASSIMA VELOCITÀ - 60 FPS
+            qrbox: { width: 200, height: 200 }, // Area più piccola = più veloce
+            aspectRatio: 1.0
         },
         onScanSuccess,
         onScanError
@@ -1232,22 +1376,118 @@ async function onScanSuccess(decodedText) {
     const article = allArticles.find(a => a.codice_barre === decodedText);
     
     if (!article) {
-        alert('Articolo non trovato nel database!');
-        setTimeout(() => initScanner(), 500);
+        // ARTICOLO NON TROVATO
+        playErrorSound();
+        showVisualFeedback('error');
+        
+        // Vibrazione doppia se supportata (Android)
+        if (navigator.vibrate) {
+            navigator.vibrate([100, 50, 100]);
+        }
+        
+        // Torna automaticamente allo scanner dopo 2 secondi
+        setTimeout(() => {
+            initScanner();
+        }, 2000);
         return;
     }
     
-    document.getElementById('scanned-article').textContent = 
-        `${article.nome} (${article.codice_articolo})\nQuantita: ${article.quantita}`;
-    document.getElementById('scanner-result').classList.remove('hidden');
+    // ARTICOLO TROVATO
+    playSuccessSound();
+    showVisualFeedback('success');
+    
+    // Vibrazione singola se supportata (Android)
+    if (navigator.vibrate) {
+        navigator.vibrate(200);
+    }
     
     window.scannedArticle = article;
     
+    // Nasconde il reader
     document.getElementById('reader').style.display = 'none';
+    
+    // Dopo 1.5 secondi apre automaticamente il modal di scelta carico/scarico
+    setTimeout(() => {
+        showScanActionModal(article);
+    }, 1500);
 }
 
 function onScanError(errorMessage) {
     // Ignora errori di scansione continua
+}
+
+// ========================================
+// MODAL AZIONE RAPIDA DOPO SCANSIONE
+// ========================================
+function showScanActionModal(article) {
+    // Crea modal dinamico
+    const modal = document.createElement('div');
+    modal.id = 'scan-action-modal';
+    modal.className = 'modal';
+    modal.style.display = 'flex';
+    
+    modal.innerHTML = `
+        <div class="modal-content" style="max-width: 400px;">
+            <h3 style="color: var(--primary); margin-bottom: 15px; text-align: center;">
+                &#128666; ${article.nome}
+            </h3>
+            <div style="background: var(--light); padding: 15px; border-radius: 12px; margin-bottom: 20px; text-align: center;">
+                <div style="font-size: 13px; color: var(--gray); margin-bottom: 5px;">Codice: ${article.codice_articolo}</div>
+                <div style="font-size: 24px; font-weight: 700; color: var(--primary);">
+                    Quantità: ${article.quantita}
+                </div>
+                <div style="font-size: 12px; color: var(--gray); margin-top: 5px;">
+                    Soglia minima: ${article.soglia_minima}
+                </div>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                <button id="scan-btn-carico" class="btn-success" style="padding: 20px 15px; font-size: 18px; font-weight: 700;">
+                    &#10133; CARICO
+                </button>
+                <button id="scan-btn-scarico" class="btn-danger" style="padding: 20px 15px; font-size: 18px; font-weight: 700;">
+                    &#10134; SCARICO
+                </button>
+            </div>
+            <button id="scan-btn-cancel" class="btn-secondary" style="width: 100%; padding: 12px;">
+                &#8592; Torna allo Scanner
+            </button>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // Event listeners
+    document.getElementById('scan-btn-carico').addEventListener('click', () => {
+        closeScanActionModal();
+        openMovementModal(article.id, 'carico');
+    });
+    
+    document.getElementById('scan-btn-scarico').addEventListener('click', () => {
+        closeScanActionModal();
+        openMovementModal(article.id, 'scarico');
+    });
+    
+    document.getElementById('scan-btn-cancel').addEventListener('click', () => {
+        closeScanActionModal();
+        document.getElementById('reader').style.display = 'block';
+        initScanner();
+    });
+    
+    // Chiudi cliccando fuori
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            closeScanActionModal();
+            document.getElementById('reader').style.display = 'block';
+            initScanner();
+        }
+    });
+}
+
+function closeScanActionModal() {
+    const modal = document.getElementById('scan-action-modal');
+    if (modal) {
+        modal.remove();
+    }
 }
 
 // ========================================
@@ -1263,6 +1503,13 @@ function switchTab(tabName) {
     document.getElementById(`tab-${tabName}`).classList.add('active');
     
     if (tabName === 'scanner') {
+        // Nascondi eventuali risultati vecchi
+        const scannerResult = document.getElementById('scanner-result');
+        if (scannerResult) scannerResult.classList.add('hidden');
+        
+        // Mostra il reader
+        document.getElementById('reader').style.display = 'block';
+        
         setTimeout(() => initScanner(), 100);
     } else {
         stopScanner();
@@ -1316,17 +1563,6 @@ function setupEventListeners() {
     document.getElementById('modal-confirm').addEventListener('click', confirmMovement);
     document.getElementById('modal-cancel').addEventListener('click', closeMovementModal);
     
-    document.getElementById('btn-carico').addEventListener('click', () => {
-        if (window.scannedArticle) {
-            openMovementModal(window.scannedArticle.id, 'carico');
-        }
-    });
-    document.getElementById('btn-scarico').addEventListener('click', () => {
-        if (window.scannedArticle) {
-            openMovementModal(window.scannedArticle.id, 'scarico');
-        }
-    });
-    
     document.getElementById('search-input').addEventListener('input', applyFiltersAndSort);
     document.getElementById('filter-brand').addEventListener('change', applyFiltersAndSort);
     document.getElementById('sort-select').addEventListener('change', applyFiltersAndSort);
@@ -1337,13 +1573,6 @@ function setupEventListeners() {
     document.getElementById('report-type').addEventListener('change', handleReportTypeChange);
     document.getElementById('generate-report').addEventListener('click', generateReport);
     document.getElementById('print-report').addEventListener('click', printReport);
-
-    document.getElementById('btn-rescan').addEventListener('click', () => {
-        document.getElementById('scanner-result').classList.add('hidden');
-        document.getElementById('reader').style.display = 'block';
-        window.scannedArticle = null;
-        initScanner();
-    });
     
     document.getElementById('hamburger-btn').addEventListener('click', toggleMobileMenu);
     
