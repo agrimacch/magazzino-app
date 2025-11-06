@@ -1599,3 +1599,111 @@ button, input, textarea, select, label, span, div, td, th, p, h1, h2, h3, h4 {
         font-size: 14px;
     }
 }
+/* ============================================ */
+/* POP-UP NOVITÀ VERSIONE */
+/* ============================================ */
+.whats-new-content {
+    max-width: 550px;
+    animation: slideInUp 0.4s ease-out;
+}
+
+.whats-new-header {
+    text-align: center;
+    margin-bottom: 25px;
+    padding-bottom: 20px;
+    border-bottom: 2px solid #e5e7eb;
+}
+
+.whats-new-header h3 {
+    font-size: 26px;
+    font-weight: 700;
+    color: var(--primary-color);
+    margin-bottom: 8px;
+}
+
+.version-date {
+    font-size: 14px;
+    color: var(--gray);
+    font-weight: 500;
+}
+
+.whats-new-body {
+    margin: 25px 0;
+}
+
+.new-feature {
+    display: flex;
+    align-items: flex-start;
+    gap: 15px;
+    padding: 15px;
+    margin-bottom: 15px;
+    background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%);
+    border-radius: 12px;
+    border-left: 4px solid var(--primary-color);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.new-feature:hover {
+    transform: translateX(5px);
+    box-shadow: 0 4px 12px rgba(22, 163, 74, 0.15);
+}
+
+.feature-icon {
+    font-size: 32px;
+    flex-shrink: 0;
+    line-height: 1;
+}
+
+.feature-content h4 {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-color);
+    margin: 0 0 5px 0;
+}
+
+.feature-content p {
+    font-size: 14px;
+    color: var(--gray);
+    margin: 0;
+    line-height: 1.5;
+}
+
+@keyframes slideInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Responsive per mobile */
+@media (max-width: 768px) {
+    .whats-new-content {
+        max-width: 95%;
+        margin: 10px;
+    }
+    
+    .whats-new-header h3 {
+        font-size: 22px;
+    }
+    
+    .new-feature {
+        padding: 12px;
+        gap: 12px;
+    }
+    
+    .feature-icon {
+        font-size: 28px;
+    }
+    
+    .feature-content h4 {
+        font-size: 15px;
+    }
+    
+    .feature-content p {
+        font-size: 13px;
+    }
+}

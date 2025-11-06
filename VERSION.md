@@ -1,5 +1,11 @@
 # Changelog App Magazzino
 
+## v4.2.91 - 2025-11-06 (PRODUZIONE) ✅
+MIGRIORAMENTO SCANNER + POP UP
+
+## v4.2.91 - 2025-11-06 (PRODUZIONE) ✅
+MIGLIORAMENTO SCANNER + POP UP
+
 ## v4.2.8 - 2025-11-06 (PRODUZIONE) ✅
 suono scarico
 

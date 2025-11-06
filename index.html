@@ -17,7 +17,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=4.2.8">
+    <link rel="stylesheet" href="style.css?v=4.2.91">
     
     <style>
         /* Nascondi tutte le schermate all'inizio */
@@ -30,7 +30,7 @@
             display: block;
         }
         
-        /* Previene il flash nascondendo il body fino a quando JS Ã¨ pronto */
+        /* Previene il flash nascondendo il body fino a quando JS è pronto */
         body.loading .screen {
             opacity: 0;
         }
@@ -44,7 +44,7 @@
 
 <body class="loading">
     <!-- Version badge -->
-    <div class="version-badge">v4.2.8</div>
+    <div class="version-badge">v4.2.91</div>
 
     <!-- SCHERMATA LOGIN -->
     <div id="login-screen" class="screen">
@@ -60,7 +60,7 @@
                     <span class="warning-icon">&#128241;</span>
                     <div class="warning-text">
                         <strong>Consiglio:</strong> Per un'esperienza ottimale utilizza un PC o Tablet. 
-                        Su smartphone le funzionalitÃ  sono limitate.
+                        Su smartphone le funzionalità sono limitate.
                     </div>
                 </div>
             </div>
@@ -136,8 +136,8 @@
                         <option value="fornitore-asc">Fornitore (A-Z)</option>
                         <option value="nome-asc">Nome (A-Z)</option>
                         <option value="nome-desc">Nome (Z-A)</option>
-                        <option value="quantita-asc">QuantitÃ  (crescente)</option>
-                        <option value="quantita-desc">QuantitÃ  (decrescente)</option>
+                        <option value="quantita-asc">Quantità (crescente)</option>
+                        <option value="quantita-desc">Quantità (decrescente)</option>
                     </select>
                     
                     <!-- Toggle restyling -->
@@ -173,16 +173,11 @@
                             </div>
                         </div>
                         
-                        <div class="form-row">
-                            <div class="form-col">
-                                <label>Codice a Barre *</label>
-                                <input type="text" id="new-barcode" placeholder="Codice a barre" required>
-                            </div>
-                            <div class="form-col">
-                                <label>Marca/Fornitore</label>
-                                <input type="text" id="new-brand" placeholder="Marca/Fornitore">
-                            </div>
-                        </div>
+                        <label>Codice a Barre *</label>
+                        <input type="text" id="new-barcode" placeholder="Codice a barre" required>
+                        
+                        <label>Marca/Fornitore</label>
+                        <input type="text" id="new-brand" placeholder="Marca/Fornitore">
                         
                         <label>Descrizione</label>
                         <textarea id="new-description" placeholder="Descrizione (opzionale)" rows="3"></textarea>
@@ -192,12 +187,12 @@
                         
                         <div class="form-row">
                             <div class="form-col">
-                                <label>QuantitÃ  Iniziale *</label>
-                                <input type="number" id="new-quantity" placeholder="QuantitÃ  iniziale" value="0" required>
+                                <label>Quantità *</label>
+                                <input type="number" id="new-quantity" placeholder="Quantità" required>
                             </div>
                             <div class="form-col">
                                 <label>Soglia Minima *</label>
-                                <input type="number" id="new-threshold" placeholder="Soglia minima" value="10" required>
+                                <input type="number" id="new-threshold" placeholder="Soglia minima" required>
                             </div>
                         </div>
                         
@@ -208,14 +203,14 @@
                             </div>
                             <div class="form-col">
                                 <label>IVA % *</label>
-                                <input type="number" step="0.01" id="new-iva" placeholder="22" value="22" required>
+                                <input type="number" step="0.01" id="new-iva" placeholder="22" required>
                             </div>
                         </div>
                         
                         <label>Prezzo Vendita &#8364; (IVA inclusa) *</label>
                         <input type="number" step="0.01" id="new-price" placeholder="0.00" required>
                         
-                        <button type="submit" class="btn-primary">Salva Articolo</button>
+                        <button type="submit" class="btn-primary">&#10133; Aggiungi Articolo</button>
                     </form>
                 </div>
             </div>
@@ -225,69 +220,42 @@
         <div id="tab-movimenti" class="tab-content">
             <div class="container">
                 <h2>Storico Movimenti</h2>
-                <div class="filters-bar">
-                    <select id="filter-movement-type">
-                        <option value="">Tutti i tipi</option>
-                        <option value="carico">Solo Carichi</option>
-                        <option value="scarico">Solo Scarichi</option>
-                    </select>
-                    <input type="date" id="filter-date-from" placeholder="Da">
-                    <input type="date" id="filter-date-to" placeholder="A">
-                    <button id="apply-movement-filters" class="btn-primary">Applica Filtri</button>
-                </div>
-                <div class="table-container">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Data</th>
-                                <th>Articolo</th>
-                                <th>Codice</th>
-                                <th>Tipo</th>
-                                <th>QuantitÃ </th>
-                                <th>Utente</th>
-                                <th>Note</th>
-                            </tr>
-                        </thead>
-                        <tbody id="movements-tbody">
-                            <!-- Movimenti caricati dinamicamente -->
-                        </tbody>
-                    </table>
+                <div id="movements-container">
+                    <!-- Contenuto dinamico -->
                 </div>
             </div>
         </div>
 
-        <!-- TAB 4: REPORT ORDINI -->
+        <!-- TAB 4: REPORT -->
         <div id="tab-report" class="tab-content">
             <div class="container">
                 <div class="card">
-                    <h2>&#128202; Report Prestagionale Ordini/Vendite</h2>
-                    <p style="color: var(--gray); font-size: 14px; margin-bottom: 20px;">
-                        Analizza quanto materiale hai ordinato (caricato) e venduto (scaricato) per programmare ordini futuri.
-                    </p>
+                    <h2>Report Ordini/Vendite</h2>
+                    <p style="color: var(--gray); margin-bottom: 20px;">Analizza quanto materiale hai ordinato (caricato) e quanto hai venduto (scaricato).</p>
                     
-                    <div class="report-options">
-                        <label>Tipo Report:</label>
+                    <div class="report-form">
+                        <label>Tipo Report</label>
                         <select id="report-type">
-                            <option value="generale">Report Generale (Tutti i Fornitori)</option>
-                            <option value="fornitore">Report per Fornitore Specifico</option>
-                            <option value="articolo">Report per Articolo Specifico</option>
+                            <option value="general">Report Generale (Tutti i Fornitori)</option>
+                            <option value="supplier">Report per Fornitore Specifico</option>
+                            <option value="article">Report per Articolo Specifico</option>
                         </select>
 
-                        <div id="report-supplier-select" class="report-field hidden">
-                            <label>Seleziona Fornitore:</label>
+                        <div id="supplier-select-container" class="hidden">
+                            <label>Seleziona Fornitore</label>
                             <select id="report-supplier">
                                 <option value="">-- Seleziona fornitore --</option>
                             </select>
                         </div>
 
-                        <div id="report-article-select" class="report-field hidden">
-                            <label>Seleziona Articolo:</label>
+                        <div id="article-select-container" class="hidden">
+                            <label>Seleziona Articolo</label>
                             <select id="report-article">
                                 <option value="">-- Seleziona articolo --</option>
                             </select>
                         </div>
 
-                        <label>Periodo Analisi:</label>
+                        <label>Periodo</label>
                         <div class="form-row">
                             <div class="form-col">
                                 <label>Da:</label>
@@ -340,8 +308,8 @@
         <div class="modal-content">
             <h3 id="modal-title">Carico/Scarico</h3>
             <p id="modal-article-name"></p>
-            <p>QuantitÃ  attuale: <strong id="modal-current-qty"></strong></p>
-            <input type="number" id="modal-quantity" placeholder="QuantitÃ " value="1" min="1">
+            <p>Quantità attuale: <strong id="modal-current-qty"></strong></p>
+            <input type="number" id="modal-quantity" placeholder="Quantità" value="1" min="1">
             <textarea id="modal-notes" placeholder="Note (opzionale)" rows="3"></textarea>
             <div class="modal-buttons">
                 <button id="modal-confirm" class="btn-primary">Conferma</button>
@@ -382,8 +350,8 @@
                 
                 <div class="form-row">
                     <div class="form-col">
-                        <label>QuantitÃ  *</label>
-                        <input type="number" id="edit-quantity" placeholder="QuantitÃ " required>
+                        <label>Quantità *</label>
+                        <input type="number" id="edit-quantity" placeholder="Quantità" required>
                     </div>
                     <div class="form-col">
                         <label>Soglia Minima *</label>
@@ -426,7 +394,7 @@
                     <li>Scorri e seleziona <strong>"Aggiungi a Home"</strong> 
                         <span style="font-size: 18px;">&#10133;</span></li>
                     <li>Premi <strong>"Aggiungi"</strong> in alto a destra</li>
-                    <li>L'icona apparirÃ  sulla tua schermata Home! &#127881;</li>
+                    <li>L'icona apparirà sulla tua schermata Home! &#127881;</li>
                 </ol>
             </div>
             
@@ -438,7 +406,7 @@
                     <li>Seleziona <strong>"Installa app"</strong> o 
                         <strong>"Aggiungi a schermata Home"</strong></li>
                     <li>Conferma premendo <strong>"Installa"</strong></li>
-                    <li>L'icona apparirÃ  sulla tua schermata Home! &#127881;</li>
+                    <li>L'icona apparirà sulla tua schermata Home! &#127881;</li>
                 </ol>
             </div>
             
@@ -454,9 +422,53 @@
         </div>
     </div>
 
+    <!-- 🎉 NUOVO! Modal Novità Versione -->
+    <div id="whats-new-modal" class="modal hidden">
+        <div class="modal-content whats-new-content">
+            <div class="whats-new-header">
+                <h3>&#127881; Novità in AGRIMAG v4.2.91</h3>
+                <p class="version-date">06 Novembre 2025</p>
+            </div>
+            
+            <div class="whats-new-body">
+                <div class="new-feature">
+                    <span class="feature-icon">&#127775;</span>
+                    <div class="feature-content">
+                        <h4>POP UP IN HOME</h4>
+                        <p>Ti avvisa quando stai utilizzando una nuova versione dell'app e ti comunica le migliorie apportate</p>
+                    </div>
+                </div>
+
+                <div class="new-feature">
+                    <span class="feature-icon">&#9889;</span>
+                    <div class="feature-content">
+                        <h4>SCANNER DA MOBILE</h4>
+                        <p>Implementato suono di codice a barre in database, codice a barre mancante e velocizzato la lettura.</p>
+                    </div>
+                </div>
+
+                <div class="new-feature">
+                    <span class="feature-icon">&#127912;</span>
+                    <div class="feature-content">
+                        <h4>PALETTE COLORI ISTITUZIONALE</h4>
+                        <p>La palette colori è cambiata, quella utilizzata è quella istituzionale di Agrimacch :)</p>
+                    </div>
+                </div>
+            </div>
+
+            
+
+            
+            
+            <div class="modal-buttons">
+                <button id="close-whats-new" class="btn-primary">Perfetto! &#128077;</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Librerie esterne -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
-    <script src="app.js?v=4.2.8"></script>
+    <script src="app.js?v=4.2.91"></script>
 </body>
 </html>

@@ -92,6 +92,38 @@ function playErrorSound() {
 }
 
 // ========================================
+// SISTEMA POP-UP NOVITÀ VERSIONE
+// ========================================
+const CURRENT_VERSION = '4.2.91';
+
+function checkAndShowWhatsNew() {
+    // Controlla se l'utente ha già visto le novità di questa versione
+    const lastSeenVersion = localStorage.getItem('lastSeenVersion');
+    
+    console.log('Controllo versione novità - Ultima vista:', lastSeenVersion, 'Corrente:', CURRENT_VERSION);
+    
+    // Se è una nuova versione o è la prima volta
+    if (lastSeenVersion !== CURRENT_VERSION) {
+        console.log('Nuova versione rilevata! Mostro pop-up novità');
+        showWhatsNewModal();
+    }
+}
+
+function showWhatsNewModal() {
+    const modal = document.getElementById('whats-new-modal');
+    modal.classList.remove('hidden');
+}
+
+function closeWhatsNewModal() {
+    const modal = document.getElementById('whats-new-modal');
+    modal.classList.add('hidden');
+    
+    // Salva che l'utente ha visto questa versione
+    localStorage.setItem('lastSeenVersion', CURRENT_VERSION);
+    console.log('Versione salvata in localStorage:', CURRENT_VERSION);
+}
+
+// ========================================
 // FEEDBACK VISIVO (alternativa alla vibrazione per iOS)
 // ========================================
 function showVisualFeedback(type) {
@@ -254,6 +286,9 @@ function showMainScreen() {
     if (currentUserRole === 'admin') {
         populateReportSelects();
     }
+    
+    // Controlla se mostrare il pop-up novità
+    checkAndShowWhatsNew();
 }
 
 // ========================================
@@ -1347,8 +1382,8 @@ function initScanner() {
     html5QrCode.start(
         { facingMode: "environment" },
         {
-            fps: 60, // MASSIMA VELOCITÀ - 60 FPS
-            qrbox: { width: 200, height: 200 }, // Area più piccola = più veloce
+            fps: 60, // MASSIMA VELOCITÃ€ - 60 FPS
+            qrbox: { width: 200, height: 200 }, // Area piÃ¹ piccola = piÃ¹ veloce
             aspectRatio: 1.0
         },
         onScanSuccess,
@@ -1434,7 +1469,7 @@ function showScanActionModal(article) {
             <div style="background: var(--light); padding: 15px; border-radius: 12px; margin-bottom: 20px; text-align: center;">
                 <div style="font-size: 13px; color: var(--gray); margin-bottom: 5px;">Codice: ${article.codice_articolo}</div>
                 <div style="font-size: 24px; font-weight: 700; color: var(--primary);">
-                    Quantità: ${article.quantita}
+                    QuantitÃ : ${article.quantita}
                 </div>
                 <div style="font-size: 12px; color: var(--gray); margin-top: 5px;">
                     Soglia minima: ${article.soglia_minima}
@@ -1555,6 +1590,17 @@ function setupEventListeners() {
     
     document.getElementById('edit-article-form').addEventListener('submit', handleEditArticle);
     document.getElementById('edit-cancel').addEventListener('click', closeEditModal);
+    
+    // Event listener per pop-up novità
+    document.getElementById('close-whats-new').addEventListener('click', closeWhatsNewModal);
+    
+    // Chiudi pop-up novità se clicchi fuori dal contenuto
+    const whatsNewModal = document.getElementById('whats-new-modal');
+    whatsNewModal.addEventListener('click', (e) => {
+        if (e.target === whatsNewModal) {
+            closeWhatsNewModal();
+        }
+    });
     
     document.querySelectorAll('.tab-btn').forEach(btn => {
         btn.addEventListener('click', () => switchTab(btn.dataset.tab));
