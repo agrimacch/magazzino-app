@@ -1,6 +1,9 @@
 # Changelog App Magazzino
 
 ## v4.2.92 - 2025-11-06 (PRODUZIONE) ✅
+risolto menù hamburger
+
+## v4.2.92 - 2025-11-06 (PRODUZIONE) ✅
 Fix menu hamburger mobile - Risolto bug apertura menu, posizione spostata in alto, dimensioni ottimizzate, supporto touch migliorato
 
 ## v4.2.9 - 2025-11-06 (PRODUZIONE) ✅
