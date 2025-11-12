@@ -1,6 +1,9 @@
 # Changelog App Magazzino
 
 ## v4.3.6 - 2025-11-12 (PRODUZIONE) ✅
+implementazione gestione utenti
+
+## v4.3.6 - 2025-11-12 (PRODUZIONE) ✅
 **Pulsanti Azioni Stile Inventario per Gestione Utenti**
 
 ### 🎯 Modifiche
