@@ -17,7 +17,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=4.2.93">
+    <link rel="stylesheet" href="style.css?v=4.3.6">
     
     <style>
         /* Nascondi tutte le schermate all'inizio */
@@ -30,7 +30,7 @@
             display: block;
         }
         
-        /* Previene il flash nascondendo il body fino a quando JS ÃƒÂ¨ pronto */
+        /* Previene il flash nascondendo il body fino a quando JS Ã¨ pronto */
         body.loading .screen {
             opacity: 0;
         }
@@ -44,7 +44,7 @@
 
 <body class="loading">
     <!-- Version badge -->
-    <div class="version-badge">v4.2.93</div>
+    <div class="version-badge">v4.3.6</div>
 
     <!-- SCHERMATA LOGIN -->
     <div id="login-screen" class="screen">
@@ -60,7 +60,7 @@
                     <span class="warning-icon">&#128241;</span>
                     <div class="warning-text">
                         <strong>Consiglio:</strong> Per un'esperienza ottimale utilizza un PC o Tablet. 
-                        Su smartphone le funzionalitÃƒÂ  sono limitate.
+                        Su smartphone le funzionalitÃ Â  sono limitate.
                     </div>
                 </div>
             </div>
@@ -116,6 +116,7 @@
             <button class="tab-btn" data-tab="nuovo" id="tab-nuovo-btn">&#10133; Nuovo Articolo</button>
             <button class="tab-btn" data-tab="movimenti">&#128203; Movimenti</button>
             <button class="tab-btn" data-tab="report" id="tab-report-btn">&#128202; Report Ordini</button>
+            <button class="tab-btn" data-tab="utenti" id="tab-utenti-btn">&#128100; Utenti</button>
             <button class="tab-btn" data-tab="scanner" id="tab-scanner-btn">&#128247; Scanner</button>
         </nav>
 
@@ -136,8 +137,8 @@
                         <option value="fornitore-asc">Fornitore (A-Z)</option>
                         <option value="nome-asc">Nome (A-Z)</option>
                         <option value="nome-desc">Nome (Z-A)</option>
-                        <option value="quantita-asc">QuantitÃƒÂ  (crescente)</option>
-                        <option value="quantita-desc">QuantitÃƒÂ  (decrescente)</option>
+                        <option value="quantita-asc">QuantitÃ Â  (crescente)</option>
+                        <option value="quantita-desc">QuantitÃ Â  (decrescente)</option>
                     </select>
                     
                     <!-- Toggle restyling -->
@@ -192,8 +193,8 @@
                         
                         <div class="form-row">
                             <div class="form-col">
-                                <label>QuantitÃƒÂ  Iniziale *</label>
-                                <input type="number" id="new-quantity" placeholder="QuantitÃƒÂ  iniziale" value="0" required>
+                                <label>QuantitÃ Â  Iniziale *</label>
+                                <input type="number" id="new-quantity" placeholder="QuantitÃ Â  iniziale" value="0" required>
                             </div>
                             <div class="form-col">
                                 <label>Soglia Minima *</label>
@@ -241,11 +242,11 @@
                             <tr>
                                 <th>Data</th>
                                 <th>Articolo</th>
-                                <th>Codice</th>
+                                <th class="hide-on-mobile">Codice</th>
                                 <th>Tipo</th>
-                                <th>QuantitÃƒÂ </th>
+<th>QuantitÃ Â </th>
                                 <th>Utente</th>
-                                <th>Note</th>
+                                <th class="hide-on-mobile">Note</th>
                             </tr>
                         </thead>
                         <tbody id="movements-tbody">
@@ -313,7 +314,53 @@
             </div>
         </div>
 
-        <!-- TAB 5: SCANNER -->
+        <!-- TAB 5: GESTIONE UTENTI -->
+        <div id="tab-utenti" class="tab-content">
+            <div class="container">
+                <div class="card">
+                    <h2>&#128100; Aggiungi Nuovo Utente</h2>
+                    <form id="new-user-form">
+                        <label>Email *</label>
+                        <input type="email" id="new-user-email" placeholder="email@esempio.com" required>
+                        
+                        <label>Password *</label>
+                        <input type="password" id="new-user-password" placeholder="Minimo 6 caratteri" required minlength="6">
+                        
+                        <label>Iniziali * (es: GM per Giovanni Martini)</label>
+                        <input type="text" id="new-user-initials" placeholder="GM" required maxlength="3" style="text-transform: uppercase;">
+                        
+                        <label>Ruolo *</label>
+                        <select id="new-user-role" required>
+                            <option value="operatore">Operatore</option>
+                            <option value="admin">Amministratore</option>
+                        </select>
+                        
+                        <button type="submit" class="btn-primary">Crea Utente</button>
+                    </form>
+                </div>
+
+                <div class="card">
+                    <h2>&#128101; Utenti Registrati</h2>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Email</th>
+                                    <th>Iniziali</th>
+                                    <th>Ruolo</th>
+                                    <th>Azioni</th>
+                                </tr>
+                            </thead>
+                            <tbody id="users-tbody">
+                                <!-- Utenti caricati dinamicamente -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 6: SCANNER -->
         <div id="tab-scanner" class="tab-content">
             <div class="container">
                 <div class="card">
@@ -340,8 +387,8 @@
         <div class="modal-content">
             <h3 id="modal-title">Carico/Scarico</h3>
             <p id="modal-article-name"></p>
-            <p>QuantitÃƒÂ  attuale: <strong id="modal-current-qty"></strong></p>
-            <input type="number" id="modal-quantity" placeholder="QuantitÃƒÂ " value="1" min="1">
+            <p>QuantitÃ Â  attuale: <strong id="modal-current-qty"></strong></p>
+            <input type="number" id="modal-quantity" placeholder="QuantitÃ Â " value="1" min="1">
             <textarea id="modal-notes" placeholder="Note (opzionale)" rows="3"></textarea>
             <div class="modal-buttons">
                 <button id="modal-confirm" class="btn-primary">Conferma</button>
@@ -382,8 +429,8 @@
                 
                 <div class="form-row">
                     <div class="form-col">
-                        <label>QuantitÃƒÂ  *</label>
-                        <input type="number" id="edit-quantity" placeholder="QuantitÃƒÂ " required>
+                        <label>QuantitÃ Â  *</label>
+                        <input type="number" id="edit-quantity" placeholder="QuantitÃ Â " required>
                     </div>
                     <div class="form-col">
                         <label>Soglia Minima *</label>
@@ -413,6 +460,38 @@
         </div>
     </div>
 
+    <!-- Modal per modifica utente -->
+    <div id="edit-user-modal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Modifica Utente</h3>
+                <button type="button" class="modal-close" id="edit-user-close">&times;</button>
+            </div>
+            <form id="edit-user-form">
+                <input type="hidden" id="edit-user-email">
+                
+                <label>Email (non modificabile)</label>
+                <div style="background: var(--light); padding: 12px; border-radius: 8px; margin-bottom: 15px; color: var(--gray); font-weight: 600;">
+                    <span id="edit-user-email-display"></span>
+                </div>
+                
+                <label>Iniziali * (es: GM)</label>
+                <input type="text" id="edit-user-initials" placeholder="GM" required maxlength="3" style="text-transform: uppercase;">
+                
+                <label>Ruolo *</label>
+                <select id="edit-user-role" required>
+                    <option value="operatore">Operatore</option>
+                    <option value="admin">Amministratore</option>
+                </select>
+                
+                <div class="modal-buttons">
+                    <button type="submit" class="btn-primary">Salva Modifiche</button>
+                    <button type="button" id="edit-user-cancel" class="btn-secondary">Annulla</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- Modal Istruzioni Installazione -->
     <div id="install-instructions-modal" class="modal hidden">
         <div class="modal-content">
@@ -426,7 +505,7 @@
                     <li>Scorri e seleziona <strong>"Aggiungi a Home"</strong> 
                         <span style="font-size: 18px;">&#10133;</span></li>
                     <li>Premi <strong>"Aggiungi"</strong> in alto a destra</li>
-                    <li>L'icona apparirÃƒÂ  sulla tua schermata Home! &#127881;</li>
+                    <li>L'icona apparirÃ Â  sulla tua schermata Home! &#127881;</li>
                 </ol>
             </div>
             
@@ -438,7 +517,7 @@
                     <li>Seleziona <strong>"Installa app"</strong> o 
                         <strong>"Aggiungi a schermata Home"</strong></li>
                     <li>Conferma premendo <strong>"Installa"</strong></li>
-                    <li>L'icona apparirÃƒÂ  sulla tua schermata Home! &#127881;</li>
+                    <li>L'icona apparirÃ Â  sulla tua schermata Home! &#127881;</li>
                 </ol>
             </div>
             
@@ -454,33 +533,55 @@
         </div>
     </div>
 
-    <!-- Pop-up Novità Versione -->
+    <!-- Pop-up NovitÃ Â  Versione -->
     <div id="whats-new-modal" class="modal hidden">
         <div class="modal-content whats-new-content">
             <div class="whats-new-header">
-                <h3>&#127881; Novità in AGRIMAG v4.2.93</h3>
-                <p class="version-date">06 Novembre 2025</p>
+                <h3>&#127881; NovitÃ Â  in AGRIMAG v4.3.3</h3>
+                <p class="version-date">12 Novembre 2025</p>
             </div>
             
             <div class="whats-new-body">
                 <div class="new-feature">
                     <span class="feature-icon">&#128241;</span>
                     <div class="feature-content">
-                        <h4>MENU' HAMBURGER MOBILE</h4>
-                        <p>Fix menu hamburger scroll + overlay full-screen - Menu hamburger ora resta fisso durante lo scroll</p>
+                        <h4>MOVIMENTI MOBILE OTTIMIZZATI</h4>
+                        <p>Tabella movimenti riprogettata per smartphone: tipo movimento con emoji colorate (&#10133; carico verde, &#10134; scarico rosso). Su desktop vedi tutte le colonne incluse Codice e Note.</p>
                     </div>
                 </div>
 
                 <div class="new-feature">
-                    <span class="feature-icon">&#127775;</span>
+                    <span class="feature-icon">&#128100;</span>
                     <div class="feature-content">
-                        <h4>SLIDEBAR</h4>
-                        <p>menu sidebar e overlay pop-up coprono tutta l'altezza schermo,</p>
+                        <h4>INIZIALI UTENTI</h4>
+                        <p>Assegna iniziali personalizzate a ogni utente (es: GM). Le iniziali appaiono nei movimenti su mobile per risparmiare spazio, su desktop vedi l'email completa.</p>
+                    </div>
+                </div>
+
+                <div class="new-feature">
+                    <span class="feature-icon">&#128101;</span>
+                    <div class="feature-content">
+                        <h4>GESTIONE UTENTI</h4>
+                        <p>Nuova tab per admin! Crea utenti direttamente dall'app, assegna iniziali e ruoli, visualizza tutti gli utenti registrati.</p>
+                    </div>
+                </div>
+
+                <div class="new-feature">
+                    <span class="feature-icon">&#128274;</span>
+                    <div class="feature-content">
+                        <h4>FIX CAMBIO UTENTE</h4>
+                        <p>Risolto problema cambio sessione: ora quando cambi utente i permessi e le tab si aggiornano correttamente senza dover ricaricare.</p>
+                    </div>
+                </div>
+
+                <div class="new-feature">
+                    <span class="feature-icon">&#128272;</span>
+                    <div class="feature-content">
+                        <h4>RESTA CONNESSO</h4>
+                        <p>Il checkbox "Resta connesso" ora funziona! Le tue credenziali vengono salvate e ricaricate automaticamente al prossimo accesso.</p>
                     </div>
                 </div>
             </div>
-
-            
             
             <div class="modal-buttons">
                 <button id="close-whats-new" class="btn-primary">Perfetto! &#128077;</button>
@@ -491,6 +592,6 @@
     <!-- Librerie esterne -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
-    <script src="app.js?v=4.2.93"></script>
+    <script src="app.js?v=4.3.6"></script>
 </body>
 </html>

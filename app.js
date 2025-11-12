@@ -9,15 +9,17 @@ const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 // ========================================
 // VARIABILI GLOBALI
 // ========================================
-const CURRENT_VERSION = '4.2.93';
+const CURRENT_VERSION = '4.3.3';
 let currentUser = null;
 let currentUserRole = null;
+let loggedInUserEmail = null; // Email dell'utente loggato (per evitare bug con signUp)
 let allArticles = [];
 let allMovements = [];
 let currentArticleForMovement = null;
 let html5QrCode = null;
 let audioContext = null;
 let audioInitialized = false;
+let userInitials = {}; // Mappa email -> iniziali utente
 
 // ========================================
 // INIZIALIZZAZIONE AUDIO (iOS FIX)
@@ -145,17 +147,45 @@ function showVisualFeedback(type) {
 }
 
 // ========================================
-// SISTEMA POP-UP NOVITÀ VERSIONE
+// GESTIONE "RESTA CONNESSO"
+// ========================================
+function saveCredentials(email, password) {
+    localStorage.setItem('savedEmail', email);
+    localStorage.setItem('savedPassword', password);
+    localStorage.setItem('rememberMe', 'true');
+}
+
+function loadSavedCredentials() {
+    const rememberMe = localStorage.getItem('rememberMe') === 'true';
+    if (rememberMe) {
+        const email = localStorage.getItem('savedEmail');
+        const password = localStorage.getItem('savedPassword');
+        if (email && password) {
+            document.getElementById('login-email').value = email;
+            document.getElementById('login-password').value = password;
+            document.getElementById('remember-me').checked = true;
+        }
+    }
+}
+
+function clearSavedCredentials() {
+    localStorage.removeItem('savedEmail');
+    localStorage.removeItem('savedPassword');
+    localStorage.removeItem('rememberMe');
+}
+
+// ========================================
+// SISTEMA POP-UP NOVITÃ€ VERSIONE
 // ========================================
 function checkAndShowWhatsNew() {
-    // Controlla se l'utente ha già visto le novità di questa versione
+    // Controlla se l'utente ha giÃ Â  visto le novitÃ Â  di questa versione
     const lastSeenVersion = localStorage.getItem('lastSeenVersion');
     
-    console.log('Controllo versione novità - Ultima vista:', lastSeenVersion, 'Corrente:', CURRENT_VERSION);
+    console.log('Controllo versione novitÃ Â  - Ultima vista:', lastSeenVersion, 'Corrente:', CURRENT_VERSION);
     
-    // Se è una nuova versione o è la prima volta
+    // Se Ã¨ una nuova versione o Ã¨ la prima volta
     if (lastSeenVersion !== CURRENT_VERSION) {
-        console.log('Nuova versione rilevata! Mostro pop-up novità');
+        console.log('Nuova versione rilevata! Mostro pop-up novitÃ Â ');
         showWhatsNewModal();
     }
 }
@@ -191,6 +221,9 @@ function calcolaPrezzoConIVA(prezzoNetto, ivaPercentuale) {
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('Inizializzazione app...');
     
+    // Carica credenziali salvate se presenti
+    loadSavedCredentials();
+    
     // Inizializza audio al primo tap (iOS fix)
     document.addEventListener('touchstart', function initAudio() {
         initAudioContext();
@@ -203,6 +236,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     if (session) {
         currentUser = session.user;
+        loggedInUserEmail = session.user.email; // Salvo email per confronti
         console.log('Utente:', currentUser.email);
         await loadUserRole();
         showMainScreen();
@@ -223,9 +257,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (event === 'SIGNED_OUT') {
             currentUser = null;
             currentUserRole = null;
+            loggedInUserEmail = null;
             showLoginScreen();
         } else if (event === 'SIGNED_IN' && session) {
             currentUser = session.user;
+            loggedInUserEmail = session.user.email;
             loadUserRole().then(() => showMainScreen());
         }
     });
@@ -259,15 +295,30 @@ async function loadUserRole() {
 
 function applyRolePermissions() {
     const roleBadge = document.getElementById('user-role');
+    
+    // Rimuovi vecchie classi di ruolo prima di aggiungere la nuova
+    roleBadge.classList.remove('admin', 'operatore');
+    
     roleBadge.innerHTML = currentUserRole === 'admin' ? '&#128081; Admin' : '&#128100; Operatore';
     roleBadge.classList.add(currentUserRole);
     
     if (currentUserRole === 'operatore') {
+        // OPERATORE: nascondi tab riservate agli admin
         document.getElementById('tab-nuovo-btn').style.display = 'none';
         document.getElementById('tab-report-btn').style.display = 'none';
+        document.getElementById('tab-utenti-btn').style.display = 'none';
         
         document.querySelectorAll('.btn-edit, .btn-delete').forEach(btn => {
             btn.style.display = 'none';
+        });
+    } else {
+        // ADMIN: mostra tutte le tab
+        document.getElementById('tab-nuovo-btn').style.display = 'inline-flex';
+        document.getElementById('tab-report-btn').style.display = 'inline-flex';
+        document.getElementById('tab-utenti-btn').style.display = 'inline-flex';
+        
+        document.querySelectorAll('.btn-edit, .btn-delete').forEach(btn => {
+            btn.style.display = 'inline-block';
         });
     }
 }
@@ -285,12 +336,13 @@ function showMainScreen() {
     document.getElementById('main-screen').classList.add('active');
     loadInventory();
     loadMovements();
+    loadAllUsers(); // Carica gli utenti per popolare userInitials
     
     if (currentUserRole === 'admin') {
         populateReportSelects();
     }
     
-    // Controlla se mostrare il pop-up novità
+    // Controlla se mostrare il pop-up novitÃ Â 
     checkAndShowWhatsNew();
 }
 
@@ -301,6 +353,7 @@ async function handleLogin(e) {
     e.preventDefault();
     const email = document.getElementById('login-email').value;
     const password = document.getElementById('login-password').value;
+    const rememberMe = document.getElementById('remember-me').checked;
     
     console.log('Tentativo login per:', email);
     
@@ -315,6 +368,15 @@ async function handleLogin(e) {
         return;
     }
     
+    // Gestione "Resta connesso"
+    if (rememberMe) {
+        saveCredentials(email, password);
+        console.log('Credenziali salvate');
+    } else {
+        clearSavedCredentials();
+        console.log('Credenziali cancellate');
+    }
+    
     console.log('Login riuscito - Supabase manterra la sessione');
     currentUser = data.user;
     await loadUserRole();
@@ -326,7 +388,10 @@ async function handleLogout() {
     await supabase.auth.signOut();
     currentUser = null;
     currentUserRole = null;
-    showLoginScreen();
+    loggedInUserEmail = null;
+    
+    // Reload della pagina per pulizia completa
+    location.reload();
 }
 
 // ========================================
@@ -919,20 +984,30 @@ function renderMovements(movements) {
     
     movements.forEach(movement => {
         const row = document.createElement('tr');
-        const date = new Date(movement.created_at).toLocaleString('it-IT');
+        
+        // Data senza ora per mobile, con ora per desktop
+        const fullDate = new Date(movement.created_at).toLocaleString('it-IT');
+        const dateOnly = new Date(movement.created_at).toLocaleDateString('it-IT');
         
         const article = allArticles.find(a => a.id === movement.articolo_id);
         const articleName = article ? article.nome : 'Articolo eliminato';
         const articleCode = article ? article.codice_articolo : 'N/D';
         
+        // Emoji HTML entities per tipo movimento
+        const tipoEmoji = movement.tipo === 'carico' ? '&#10133;' : '&#10134;';
+        const tipoColor = movement.tipo === 'carico' ? 'var(--success)' : 'var(--danger)';
+        
+        // Iniziali utente (se disponibili) o prime 2 lettere email
+        const userDisplay = userInitials[movement.utente] || movement.utente.substring(0, 2).toUpperCase();
+        
         row.innerHTML = `
-            <td>${date}</td>
+            <td><span class="show-on-mobile">${dateOnly}</span><span class="hide-on-mobile">${fullDate}</span></td>
             <td>${articleName}</td>
-            <td>${articleCode}</td>
-            <td><span style="color: ${movement.tipo === 'carico' ? 'var(--success)' : 'var(--danger)'}; font-weight: 700;">${movement.tipo.toUpperCase()}</span></td>
-            <td><strong>${movement.quantita}</strong></td>
-            <td>${movement.utente}</td>
-            <td>${movement.note || '-'}</td>
+            <td class="hide-on-mobile">${articleCode}</td>
+            <td><span style="color: ${tipoColor}; font-weight: 700; font-size: 16px;">${tipoEmoji}</span></td>
+            <td style="text-align: center;"><strong>${movement.quantita}</strong></td>
+            <td><span class="show-on-mobile" style="font-weight: 700;">${userDisplay}</span><span class="hide-on-mobile">${movement.utente}</span></td>
+            <td class="hide-on-mobile">${movement.note || '-'}</td>
         `;
         
         tbody.appendChild(row);
@@ -1472,7 +1547,7 @@ function showScanActionModal(article) {
             <div style="background: var(--light); padding: 15px; border-radius: 12px; margin-bottom: 20px; text-align: center;">
                 <div style="font-size: 13px; color: var(--gray); margin-bottom: 5px;">Codice: ${article.codice_articolo}</div>
                 <div style="font-size: 24px; font-weight: 700; color: var(--primary);">
-                    QuantitÃ : ${article.quantita}
+                    QuantitÃ Â : ${article.quantita}
                 </div>
                 <div style="font-size: 12px; color: var(--gray); margin-top: 5px;">
                     Soglia minima: ${article.soglia_minima}
@@ -1556,6 +1631,10 @@ function switchTab(tabName) {
     if (tabName === 'report' && currentUserRole === 'admin') {
         populateReportSelects();
     }
+    
+    if (tabName === 'utenti' && currentUserRole === 'admin') {
+        renderUsersList();
+    }
 }
 
 // ========================================
@@ -1582,6 +1661,219 @@ function closeMobileMenu() {
 }
 
 // ========================================
+// GESTIONE UTENTI
+// ========================================
+async function loadAllUsers() {
+    const { data, error } = await supabase
+        .from('user_roles')
+        .select('*');
+    
+    if (error) {
+        console.error('Errore caricamento utenti:', error);
+        return [];
+    }
+    
+    // Popola l'oggetto userInitials
+    userInitials = {};
+    if (data) {
+        data.forEach(user => {
+            if (user.iniziali) {
+                userInitials[user.email] = user.iniziali;
+            }
+        });
+    }
+    
+    return data || [];
+}
+
+async function renderUsersList() {
+    const tbody = document.getElementById('users-tbody');
+    tbody.innerHTML = '';
+    
+    const users = await loadAllUsers();
+    
+    if (!users || users.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center">Nessun utente registrato</td></tr>';
+        return;
+    }
+    
+    users.forEach(user => {
+        const row = document.createElement('tr');
+        const isCurrentUser = user.email === loggedInUserEmail; // Uso email salvata per evitare bug
+        const roleClass = user.role === 'admin' ? 'admin' : 'operatore';
+        const roleText = user.role === 'admin' ? '&#128081; Admin' : '&#128100; Operatore';
+        
+        row.innerHTML = `
+            <td>${user.email}</td>
+            <td style="font-weight: 700; text-align: center;">${user.iniziali || '-'}</td>
+            <td><span class="role-badge ${roleClass}">${roleText}</span></td>
+            <td>
+                ${isCurrentUser ? 
+                    '<span style="color: var(--gray); font-size: 11px; display: block; text-align: center; padding: 8px;">Il tuo account</span>' : 
+                    `<div class="action-buttons-grid">
+                        <button class="btn-edit btn-edit-user" data-email="${user.email}" data-initials="${user.iniziali || ''}" data-role="${user.role}">&#9998;</button>
+                        <button class="btn-delete btn-delete-user" data-email="${user.email}">&#128465;</button>
+                    </div>`
+                }
+            </td>
+        `;
+        
+        tbody.appendChild(row);
+    });
+    
+    // Event listeners per pulsanti modifica
+    document.querySelectorAll('.btn-edit-user').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const email = e.target.dataset.email;
+            const initials = e.target.dataset.initials;
+            const role = e.target.dataset.role;
+            openEditUserModal(email, initials, role);
+        });
+    });
+    
+    // Event listeners per pulsanti elimina
+    document.querySelectorAll('.btn-delete-user').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            const email = e.target.dataset.email;
+            if (confirm(`Vuoi davvero eliminare l'utente ${email}?`)) {
+                await deleteUser(email);
+            }
+        });
+    });
+}
+
+async function handleNewUserForm(e) {
+    e.preventDefault();
+    
+    const email = document.getElementById('new-user-email').value;
+    const password = document.getElementById('new-user-password').value;
+    const initials = document.getElementById('new-user-initials').value.toUpperCase();
+    const role = document.getElementById('new-user-role').value;
+    
+    try {
+        // IMPORTANTE: Salvo la sessione dell'admin PRIMA di signUp
+        const { data: { session: adminSession } } = await supabase.auth.getSession();
+        
+        if (!adminSession) {
+            alert('Errore: Sessione non valida');
+            return;
+        }
+        
+        const adminEmail = adminSession.user.email;
+        const adminRefreshToken = adminSession.refresh_token;
+        
+        // Crea utente su Supabase Auth
+        const { data: authData, error: authError } = await supabase.auth.signUp({
+            email,
+            password
+        });
+        
+        if (authError) {
+            alert('Errore creazione utente: ' + authError.message);
+            return;
+        }
+        
+        // CRITICO: Ripristino la sessione dell'admin usando il refresh token
+        await supabase.auth.setSession({
+            access_token: adminSession.access_token,
+            refresh_token: adminRefreshToken
+        });
+        
+        // Aggiorno le variabili globali
+        currentUser = adminSession.user;
+        loggedInUserEmail = adminEmail;
+        
+        // Salva ruolo e iniziali nella tabella user_roles
+        const { error: roleError } = await supabase
+            .from('user_roles')
+            .insert([
+                { email, role, iniziali: initials }
+            ]);
+        
+        if (roleError) {
+            alert('Errore salvataggio ruolo: ' + roleError.message);
+            return;
+        }
+        
+        alert('Utente creato con successo!');
+        document.getElementById('new-user-form').reset();
+        await renderUsersList();
+        
+    } catch (error) {
+        console.error('Errore:', error);
+        alert('Errore durante la creazione dell\'utente');
+    }
+}
+
+async function deleteUser(email) {
+    try {
+        // Elimina dalla tabella user_roles
+        const { error } = await supabase
+            .from('user_roles')
+            .delete()
+            .eq('email', email);
+        
+        if (error) {
+            alert('Errore eliminazione utente: ' + error.message);
+            return;
+        }
+        
+        alert('Utente eliminato con successo!');
+        renderUsersList();
+        
+    } catch (error) {
+        console.error('Errore:', error);
+        alert('Errore durante l\'eliminazione dell\'utente');
+    }
+}
+
+function openEditUserModal(email, initials, role) {
+    document.getElementById('edit-user-email').value = email;
+    document.getElementById('edit-user-email-display').textContent = email;
+    document.getElementById('edit-user-initials').value = initials || '';
+    document.getElementById('edit-user-role').value = role;
+    
+    document.getElementById('edit-user-modal').classList.remove('hidden');
+}
+
+function closeEditUserModal() {
+    document.getElementById('edit-user-modal').classList.add('hidden');
+    document.getElementById('edit-user-form').reset();
+}
+
+async function handleEditUserForm(e) {
+    e.preventDefault();
+    
+    const email = document.getElementById('edit-user-email').value;
+    const initials = document.getElementById('edit-user-initials').value.toUpperCase();
+    const role = document.getElementById('edit-user-role').value;
+    
+    try {
+        // Aggiorna user_roles
+        const { error } = await supabase
+            .from('user_roles')
+            .update({
+                iniziali: initials,
+                role: role
+            })
+            .eq('email', email);
+        
+        if (error) {
+            alert('Errore modifica utente: ' + error.message);
+            return;
+        }
+        
+        alert('Utente modificato con successo!');
+        closeEditUserModal();
+        renderUsersList();
+        
+    } catch (error) {
+        console.error('Errore:', error);
+        alert('Errore durante la modifica dell\'utente');
+    }
+}
+
+// ========================================
 // EVENT LISTENERS
 // ========================================
 function setupEventListeners() {
@@ -1589,18 +1881,26 @@ function setupEventListeners() {
     document.getElementById('logout-btn').addEventListener('click', handleLogout);
     document.getElementById('toggle-password').addEventListener('click', togglePasswordVisibility);
     
+    // Event listener per checkbox "Resta connesso"
+    document.getElementById('remember-me').addEventListener('change', (e) => {
+        if (!e.target.checked) {
+            clearSavedCredentials();
+            console.log('Credenziali cancellate (checkbox deselezionato)');
+        }
+    });
+    
     document.getElementById('new-article-form').addEventListener('submit', handleNewArticle);
     
     document.getElementById('edit-article-form').addEventListener('submit', handleEditArticle);
     document.getElementById('edit-cancel').addEventListener('click', closeEditModal);
     
-    // Event listener per pop-up novità
+    // Event listener per pop-up novitÃ Â 
     const closeWhatsNewBtn = document.getElementById('close-whats-new');
     if (closeWhatsNewBtn) {
         closeWhatsNewBtn.addEventListener('click', closeWhatsNewModal);
     }
     
-    // Chiudi pop-up novità se clicchi fuori dal contenuto
+    // Chiudi pop-up novitÃ Â  se clicchi fuori dal contenuto
     const whatsNewModal = document.getElementById('whats-new-modal');
     if (whatsNewModal) {
         whatsNewModal.addEventListener('click', (e) => {
@@ -1627,6 +1927,22 @@ function setupEventListeners() {
     document.getElementById('report-type').addEventListener('change', handleReportTypeChange);
     document.getElementById('generate-report').addEventListener('click', generateReport);
     document.getElementById('print-report').addEventListener('click', printReport);
+    
+    // Gestione utenti
+    document.getElementById('new-user-form').addEventListener('submit', handleNewUserForm);
+    document.getElementById('edit-user-form').addEventListener('submit', handleEditUserForm);
+    document.getElementById('edit-user-cancel').addEventListener('click', closeEditUserModal);
+    document.getElementById('edit-user-close').addEventListener('click', closeEditUserModal);
+    
+    // Chiudi modal utente cliccando fuori
+    const editUserModal = document.getElementById('edit-user-modal');
+    if (editUserModal) {
+        editUserModal.addEventListener('click', (e) => {
+            if (e.target === editUserModal) {
+                closeEditUserModal();
+            }
+        });
+    }
     
     // Menu hamburger - supporto click E touch per mobile
     const hamburgerBtn = document.getElementById('hamburger-btn');
