@@ -1,6 +1,9 @@
 # Changelog App Magazzino
 
 ## v4.4.0 - 2025-11-13 (PRODUZIONE) ✅
+MIGLIORATO SEZIONE MOVIMENTI
+
+## v4.4.0 - 2025-11-13 (PRODUZIONE) ✅
 
 
 ## v4.3.6 - 2025-11-12 (PRODUZIONE) ✅
