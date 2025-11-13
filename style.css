@@ -836,41 +836,49 @@ button, input, textarea, select, label, span, div, td, th, p, h1, h2, h3, h4 {
        - Note (9)
     */
     
+    /* NASCONDI colonne non essenziali su mobile SOLO PER INVENTARIO:
+       - Soglia (4)
+       - Pr. Acq. NETTO (5)
+       - IVA % (6)
+       - Barcode (8)
+       - Note (9)
+    */
+    
     /* Soglia */
-    th:nth-child(4),
-    td:nth-child(4) {
+    #tab-inventario th:nth-child(4),
+    #tab-inventario td:nth-child(4) {
         display: none;
     }
     
     /* Pr. Acq. NETTO */
-    th:nth-child(5),
-    td:nth-child(5) {
+    #tab-inventario th:nth-child(5),
+    #tab-inventario td:nth-child(5) {
         display: none;
     }
     
     /* IVA % */
-    th:nth-child(6),
-    td:nth-child(6) {
+    #tab-inventario th:nth-child(6),
+    #tab-inventario td:nth-child(6) {
         display: none;
     }
     
     /* Barcode */
-    th:nth-child(8),
-    td:nth-child(8) {
+    #tab-inventario th:nth-child(8),
+    #tab-inventario td:nth-child(8) {
         display: none;
     }
     
     /* Note */
-    th:nth-child(9),
-    td:nth-child(9) {
+    #tab-inventario th:nth-child(9),
+    #tab-inventario td:nth-child(9) {
         display: none;
     }
     
-    /* OTTIMIZZA colonne visibili su mobile - COMPATTE */
+    /* OTTIMIZZA colonne visibili su mobile - COMPATTE - SOLO INVENTARIO */
     
     /* Nome - piu stretto, va a capo */
-    td:nth-child(1),
-    th:nth-child(1) {
+    #tab-inventario td:nth-child(1),
+    #tab-inventario th:nth-child(1) {
         min-width: 80px;
         max-width: 120px;
         white-space: normal !important;
@@ -881,8 +889,8 @@ button, input, textarea, select, label, span, div, td, th, p, h1, h2, h3, h4 {
     }
     
     /* Codice - compatto */
-    td:nth-child(2),
-    th:nth-child(2) {
+    #tab-inventario td:nth-child(2),
+    #tab-inventario th:nth-child(2) {
         min-width: 45px;
         max-width: 60px;
         font-size: 10px;
@@ -890,8 +898,8 @@ button, input, textarea, select, label, span, div, td, th, p, h1, h2, h3, h4 {
     }
     
     /* Quantita - compatto centrato */
-    td:nth-child(3),
-    th:nth-child(3) {
+    #tab-inventario td:nth-child(3),
+    #tab-inventario th:nth-child(3) {
         min-width: 35px;
         max-width: 45px;
         text-align: center !important;
@@ -900,8 +908,8 @@ button, input, textarea, select, label, span, div, td, th, p, h1, h2, h3, h4 {
     }
     
     /* Prezzo Vendita - compatto */
-    td:nth-child(7),
-    th:nth-child(7) {
+    #tab-inventario td:nth-child(7),
+    #tab-inventario th:nth-child(7) {
         min-width: 50px;
         max-width: 65px;
         font-size: 10px;
@@ -909,8 +917,8 @@ button, input, textarea, select, label, span, div, td, th, p, h1, h2, h3, h4 {
     }
     
     /* Azioni - compatto */
-    td:nth-child(10),
-    th:nth-child(10) {
+    #tab-inventario td:nth-child(10),
+    #tab-inventario th:nth-child(10) {
         min-width: 80px;
         max-width: 90px;
         padding: 8px 4px !important;
@@ -950,62 +958,73 @@ button, input, textarea, select, label, span, div, td, th, p, h1, h2, h3, h4 {
     }
     
     /* ===== OTTIMIZZAZIONE TABELLA MOVIMENTI ===== */
-    /* Regole specifiche per la tabella movimenti (5 colonne visibili su mobile) */
+    /* 5 colonne visibili su mobile: Data, Utente, Articolo, Tipo, Quantita */
+    
     #tab-movimenti table {
         font-size: 12px;
+        width: 100%;
+        table-layout: fixed;
     }
     
-    /* Data - compatta */
+    /* NASCONDI Codice e Note su mobile */
+    #tab-movimenti th:nth-child(6),
+    #tab-movimenti td:nth-child(6),
+    #tab-movimenti th:nth-child(7),
+    #tab-movimenti td:nth-child(7) {
+        display: none !important;
+    }
+    
+    /* Data - 20% - leggibile con anno a 2 cifre */
     #tab-movimenti th:nth-child(1),
     #tab-movimenti td:nth-child(1) {
-        min-width: 65px;
-        max-width: 75px;
+        display: table-cell !important;
+        width: 20%;
         font-size: 11px;
-        padding: 10px 4px !important;
+        padding: 10px 5px !important;
         white-space: nowrap;
     }
     
-    /* Articolo - prende piÃƒÂ¹ spazio, va a capo */
+    /* Utente (iniziali) - 15% - pi&ugrave; largo per header completo */
     #tab-movimenti th:nth-child(2),
     #tab-movimenti td:nth-child(2) {
-        min-width: 100px;
-        max-width: 140px;
-        font-size: 11px;
-        padding: 10px 6px !important;
-        white-space: normal !important;
-        word-wrap: break-word !important;
-        word-break: break-word !important;
-        font-weight: 600;
-    }
-    
-    /* Tipo (emoji) - molto compatto */
-    #tab-movimenti th:nth-child(4),
-    #tab-movimenti td:nth-child(4) {
-        min-width: 35px;
-        max-width: 45px;
-        text-align: center !important;
-        padding: 10px 4px !important;
-        font-size: 16px;
-    }
-    
-    /* QuantitÃƒÂ  - compatta centrata */
-    #tab-movimenti th:nth-child(5),
-    #tab-movimenti td:nth-child(5) {
-        min-width: 45px;
-        max-width: 55px;
+        display: table-cell !important;
+        width: 15%;
         text-align: center !important;
         font-size: 12px;
         padding: 10px 4px !important;
         font-weight: 700;
     }
     
-    /* Utente (iniziali) - compatto */
-    #tab-movimenti th:nth-child(6),
-    #tab-movimenti td:nth-child(6) {
-        min-width: 45px;
-        max-width: 55px;
-        text-align: center !important;
+    /* Articolo - 35% - spazio per descrizione con a capo */
+    #tab-movimenti th:nth-child(3),
+    #tab-movimenti td:nth-child(3) {
+        display: table-cell !important;
+        width: 35%;
         font-size: 11px;
+        padding: 10px 5px !important;
+        white-space: normal !important;
+        word-wrap: break-word !important;
+        word-break: break-word !important;
+        line-height: 1.3;
+    }
+    
+    /* Tipo (emoji +/-) - 13% */
+    #tab-movimenti th:nth-child(4),
+    #tab-movimenti td:nth-child(4) {
+        display: table-cell !important;
+        width: 13%;
+        text-align: center !important;
+        padding: 10px 4px !important;
+        font-size: 18px;
+    }
+    
+    /* Quantita - 17% - pi&ugrave; largo per header completo */
+    #tab-movimenti th:nth-child(5),
+    #tab-movimenti td:nth-child(5) {
+        display: table-cell !important;
+        width: 17%;
+        text-align: center !important;
+        font-size: 13px;
         padding: 10px 4px !important;
         font-weight: 700;
     }
@@ -1753,7 +1772,7 @@ button, input, textarea, select, label, span, div, td, th, p, h1, h2, h3, h4 {
     }
 }
 /* ============================================ */
-/* POP-UP NOVITÃƒÆ’Ã¢â€šÂ¬ VERSIONE */
+/* POP-UP NOVITÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ VERSIONE */
 /* ============================================ */
 .whats-new-content {
     max-width: 550px;
@@ -1858,71 +1877,5 @@ button, input, textarea, select, label, span, div, td, th, p, h1, h2, h3, h4 {
     
     .feature-content p {
         font-size: 13px;
-    }
-}
-/* ============================================ */
-/* TABELLA UTENTI - OTTIMIZZAZIONI MOBILE */
-/* ============================================ */
-
-/* Mobile: ottimizzazioni tabella utenti */
-@media (max-width: 768px) {
-    /* Tabella utenti responsive */
-    #users-table th,
-    #users-table td {
-        padding: 12px 8px;
-        font-size: 13px;
-    }
-    
-    /* Email compatta */
-    #users-table th:first-child,
-    #users-table td:first-child {
-        max-width: 140px;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-        font-size: 12px;
-    }
-    
-    /* Iniziali centrate */
-    #users-table th:nth-child(2),
-    #users-table td:nth-child(2) {
-        text-align: center;
-        width: 50px;
-        font-weight: 700;
-    }
-    
-    /* Ruolo compatto */
-    #users-table .role-badge {
-        padding: 5px 8px;
-        font-size: 10px;
-    }
-    
-    /* Azioni sempre visibili */
-    #users-table th:nth-child(4),
-    #users-table td:nth-child(4) {
-        padding: 12px 8px;
-        min-width: 90px;
-    }
-    
-    /* Pulsanti azioni in griglia */
-    #users-table .action-buttons-grid button {
-        padding: 10px 6px !important;
-        font-size: 20px !important;
-        min-height: 42px;
-    }
-}
-
-/* Extra small mobile */
-@media (max-width: 375px) {
-    #users-table th:first-child,
-    #users-table td:first-child {
-        max-width: 100px;
-        font-size: 11px;
-    }
-    
-    #users-table .action-buttons-grid button {
-        padding: 8px 4px !important;
-        font-size: 18px !important;
-        min-height: 38px;
     }
 }

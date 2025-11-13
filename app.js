@@ -9,7 +9,7 @@ const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 // ========================================
 // VARIABILI GLOBALI
 // ========================================
-const CURRENT_VERSION = '4.3.6';
+const CURRENT_VERSION = '4.5.1';
 let currentUser = null;
 let currentUserRole = null;
 let loggedInUserEmail = null; // Email dell'utente loggato (per evitare bug con signUp)
@@ -175,17 +175,17 @@ function clearSavedCredentials() {
 }
 
 // ========================================
-// SISTEMA POP-UP NOVITÃ€ VERSIONE
+// SISTEMA POP-UP NOVITÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ VERSIONE
 // ========================================
 function checkAndShowWhatsNew() {
-    // Controlla se l'utente ha giÃ Â  visto le novitÃ Â  di questa versione
+    // Controlla se l'utente ha giÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â  visto le novitÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â  di questa versione
     const lastSeenVersion = localStorage.getItem('lastSeenVersion');
     
-    console.log('Controllo versione novitÃ Â  - Ultima vista:', lastSeenVersion, 'Corrente:', CURRENT_VERSION);
+    console.log('Controllo versione novitÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â  - Ultima vista:', lastSeenVersion, 'Corrente:', CURRENT_VERSION);
     
-    // Se Ã¨ una nuova versione o Ã¨ la prima volta
+    // Se ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¨ una nuova versione o ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¨ la prima volta
     if (lastSeenVersion !== CURRENT_VERSION) {
-        console.log('Nuova versione rilevata! Mostro pop-up novitÃ Â ');
+        console.log('Nuova versione rilevata! Mostro pop-up novitÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â ');
         showWhatsNewModal();
     }
 }
@@ -331,18 +331,23 @@ function showLoginScreen() {
     document.getElementById('login-screen').classList.add('active');
 }
 
-function showMainScreen() {
+async function showMainScreen() {
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
     document.getElementById('main-screen').classList.add('active');
+    
+    // Carica prima gli utenti per popolare userInitials
+    await loadAllUsers();
+    
+    // POI carica inventario e movimenti (ora le iniziali sono disponibili)
     loadInventory();
     loadMovements();
-    loadAllUsers(); // Carica gli utenti per popolare userInitials
+    
     
     if (currentUserRole === 'admin') {
         populateReportSelects();
     }
     
-    // Controlla se mostrare il pop-up novitÃ Â 
+    // Controlla se mostrare il pop-up novitÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â 
     checkAndShowWhatsNew();
 }
 
@@ -987,7 +992,12 @@ function renderMovements(movements) {
         
         // Data senza ora per mobile, con ora per desktop
         const fullDate = new Date(movement.created_at).toLocaleString('it-IT');
-        const dateOnly = new Date(movement.created_at).toLocaleDateString('it-IT');
+        // Data con anno a 2 cifre per mobile
+        const movementDate = new Date(movement.created_at);
+        const day = String(movementDate.getDate()).padStart(2, '0');
+        const month = String(movementDate.getMonth() + 1).padStart(2, '0');
+        const year = String(movementDate.getFullYear()).slice(-2);
+        const dateOnly = `${day}/${month}/${year}`;
         
         const article = allArticles.find(a => a.id === movement.articolo_id);
         const articleName = article ? article.nome : 'Articolo eliminato';
@@ -1002,11 +1012,11 @@ function renderMovements(movements) {
         
         row.innerHTML = `
             <td><span class="show-on-mobile">${dateOnly}</span><span class="hide-on-mobile">${fullDate}</span></td>
-            <td>${articleName}</td>
-            <td class="hide-on-mobile">${articleCode}</td>
-            <td><span style="color: ${tipoColor}; font-weight: 700; font-size: 16px;">${tipoEmoji}</span></td>
-            <td style="text-align: center;"><strong>${movement.quantita}</strong></td>
             <td><span class="show-on-mobile" style="font-weight: 700;">${userDisplay}</span><span class="hide-on-mobile">${movement.utente}</span></td>
+            <td>${articleName}</td>
+            <td><span style="color: ${tipoColor}; font-weight: 700; font-size: 18px;">${tipoEmoji}</span></td>
+            <td style="text-align: center;"><strong>${movement.quantita}</strong></td>
+            <td class="hide-on-mobile">${articleCode}</td>
             <td class="hide-on-mobile">${movement.note || '-'}</td>
         `;
         
@@ -1460,8 +1470,8 @@ function initScanner() {
     html5QrCode.start(
         { facingMode: "environment" },
         {
-            fps: 60, // MASSIMA VELOCITÃ€ - 60 FPS
-            qrbox: { width: 200, height: 200 }, // Area piÃ¹ piccola = piÃ¹ veloce
+            fps: 60, // MASSIMA VELOCITÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ - 60 FPS
+            qrbox: { width: 200, height: 200 }, // Area piÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¹ piccola = piÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¹ veloce
             aspectRatio: 1.0
         },
         onScanSuccess,
@@ -1547,7 +1557,7 @@ function showScanActionModal(article) {
             <div style="background: var(--light); padding: 15px; border-radius: 12px; margin-bottom: 20px; text-align: center;">
                 <div style="font-size: 13px; color: var(--gray); margin-bottom: 5px;">Codice: ${article.codice_articolo}</div>
                 <div style="font-size: 24px; font-weight: 700; color: var(--primary);">
-                    QuantitÃ Â : ${article.quantita}
+                    Quantit&agrave;: ${article.quantita}
                 </div>
                 <div style="font-size: 12px; color: var(--gray); margin-top: 5px;">
                     Soglia minima: ${article.soglia_minima}
@@ -1709,11 +1719,9 @@ async function renderUsersList() {
             <td><span class="role-badge ${roleClass}">${roleText}</span></td>
             <td>
                 ${isCurrentUser ? 
-                    '<span style="color: var(--gray); font-size: 11px; display: block; text-align: center; padding: 8px;">Il tuo account</span>' : 
-                    `<div class="action-buttons-grid">
-                        <button class="btn-edit btn-edit-user" data-email="${user.email}" data-initials="${user.iniziali || ''}" data-role="${user.role}">&#9998;</button>
-                        <button class="btn-delete btn-delete-user" data-email="${user.email}">&#128465;</button>
-                    </div>`
+                    '<span style="color: var(--gray); font-size: 12px;">Il tuo account</span>' : 
+                    `<button class="btn-primary btn-edit-user" data-email="${user.email}" data-initials="${user.iniziali || ''}" data-role="${user.role}" style="padding: 6px 12px; font-size: 12px; margin-right: 5px;">Modifica</button>
+                    <button class="btn-danger btn-delete-user" data-email="${user.email}" style="padding: 6px 12px; font-size: 12px;">Elimina</button>`
                 }
             </td>
         `;
@@ -1894,13 +1902,13 @@ function setupEventListeners() {
     document.getElementById('edit-article-form').addEventListener('submit', handleEditArticle);
     document.getElementById('edit-cancel').addEventListener('click', closeEditModal);
     
-    // Event listener per pop-up novitÃ Â 
+    // Event listener per pop-up novitÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â 
     const closeWhatsNewBtn = document.getElementById('close-whats-new');
     if (closeWhatsNewBtn) {
         closeWhatsNewBtn.addEventListener('click', closeWhatsNewModal);
     }
     
-    // Chiudi pop-up novitÃ Â  se clicchi fuori dal contenuto
+    // Chiudi pop-up novitÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â  se clicchi fuori dal contenuto
     const whatsNewModal = document.getElementById('whats-new-modal');
     if (whatsNewModal) {
         whatsNewModal.addEventListener('click', (e) => {

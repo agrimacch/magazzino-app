@@ -17,7 +17,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=4.3.6">
+    <link rel="stylesheet" href="style.css?v=4.5.1">
     
     <style>
         /* Nascondi tutte le schermate all'inizio */
@@ -30,7 +30,7 @@
             display: block;
         }
         
-        /* Previene il flash nascondendo il body fino a quando JS Ã¨ pronto */
+        /* Previene il flash nascondendo il body fino a quando JS ÃƒÆ’Ã‚Â¨ pronto */
         body.loading .screen {
             opacity: 0;
         }
@@ -44,7 +44,7 @@
 
 <body class="loading">
     <!-- Version badge -->
-    <div class="version-badge">v4.3.6</div>
+    <div class="version-badge">v4.5.1</div>
 
     <!-- SCHERMATA LOGIN -->
     <div id="login-screen" class="screen">
@@ -60,7 +60,7 @@
                     <span class="warning-icon">&#128241;</span>
                     <div class="warning-text">
                         <strong>Consiglio:</strong> Per un'esperienza ottimale utilizza un PC o Tablet. 
-                        Su smartphone le funzionalitÃ Â  sono limitate.
+                        Su smartphone le funzionalit&agrave; sono limitate.
                     </div>
                 </div>
             </div>
@@ -137,8 +137,8 @@
                         <option value="fornitore-asc">Fornitore (A-Z)</option>
                         <option value="nome-asc">Nome (A-Z)</option>
                         <option value="nome-desc">Nome (Z-A)</option>
-                        <option value="quantita-asc">QuantitÃ Â  (crescente)</option>
-                        <option value="quantita-desc">QuantitÃ Â  (decrescente)</option>
+                        <option value="quantita-asc">Quantit&agrave; (crescente)</option>
+                        <option value="quantita-desc">Quantit&agrave; (decrescente)</option>
                     </select>
                     
                     <!-- Toggle restyling -->
@@ -193,8 +193,8 @@
                         
                         <div class="form-row">
                             <div class="form-col">
-                                <label>QuantitÃ Â  Iniziale *</label>
-                                <input type="number" id="new-quantity" placeholder="QuantitÃ Â  iniziale" value="0" required>
+                                <label>Quantit&agrave; Iniziale *</label>
+                                <input type="number" id="new-quantity" placeholder="Quantit&agrave; iniziale" value="0" required>
                             </div>
                             <div class="form-col">
                                 <label>Soglia Minima *</label>
@@ -241,11 +241,11 @@
                         <thead>
                             <tr>
                                 <th>Data</th>
-                                <th>Articolo</th>
-                                <th class="hide-on-mobile">Codice</th>
-                                <th>Tipo</th>
-<th>QuantitÃ Â </th>
                                 <th>Utente</th>
+                                <th>Articolo</th>
+                                <th>Tipo</th>
+                                <th>Quantit&agrave;</th>
+                                <th class="hide-on-mobile">Codice</th>
                                 <th class="hide-on-mobile">Note</th>
                             </tr>
                         </thead>
@@ -387,8 +387,8 @@
         <div class="modal-content">
             <h3 id="modal-title">Carico/Scarico</h3>
             <p id="modal-article-name"></p>
-            <p>QuantitÃ Â  attuale: <strong id="modal-current-qty"></strong></p>
-            <input type="number" id="modal-quantity" placeholder="QuantitÃ Â " value="1" min="1">
+            <p>Quantit&agrave; attuale: <strong id="modal-current-qty"></strong></p>
+            <input type="number" id="modal-quantity" placeholder="Quantit&agrave;" value="1" min="1">
             <textarea id="modal-notes" placeholder="Note (opzionale)" rows="3"></textarea>
             <div class="modal-buttons">
                 <button id="modal-confirm" class="btn-primary">Conferma</button>
@@ -429,8 +429,8 @@
                 
                 <div class="form-row">
                     <div class="form-col">
-                        <label>QuantitÃ Â  *</label>
-                        <input type="number" id="edit-quantity" placeholder="QuantitÃ Â " required>
+                        <label>Quantit&agrave; *</label>
+                        <input type="number" id="edit-quantity" placeholder="Quantit&agrave;" required>
                     </div>
                     <div class="form-col">
                         <label>Soglia Minima *</label>
@@ -505,7 +505,7 @@
                     <li>Scorri e seleziona <strong>"Aggiungi a Home"</strong> 
                         <span style="font-size: 18px;">&#10133;</span></li>
                     <li>Premi <strong>"Aggiungi"</strong> in alto a destra</li>
-                    <li>L'icona apparirÃ Â  sulla tua schermata Home! &#127881;</li>
+                    <li>L'icona apparir&agrave; sulla tua schermata Home! &#127881;</li>
                 </ol>
             </div>
             
@@ -517,7 +517,7 @@
                     <li>Seleziona <strong>"Installa app"</strong> o 
                         <strong>"Aggiungi a schermata Home"</strong></li>
                     <li>Conferma premendo <strong>"Installa"</strong></li>
-                    <li>L'icona apparirÃ Â  sulla tua schermata Home! &#127881;</li>
+                    <li>L'icona apparir&agrave; sulla tua schermata Home! &#127881;</li>
                 </ol>
             </div>
             
@@ -533,33 +533,47 @@
         </div>
     </div>
 
-    <!-- Pop-up NovitÃ Â  Versione -->
+    <!-- Pop-up NovitÃƒÆ’Ã‚Â Ãƒâ€šÃ‚Â  Versione -->
     <div id="whats-new-modal" class="modal hidden">
         <div class="modal-content whats-new-content">
             <div class="whats-new-header">
-                <h3>&#127881; NovitÃ Â  in AGRIMAG v4.3.3</h3>
-                <p class="version-date">12 Novembre 2025</p>
+                <h3>&#127881; AGRIMAG v4.5.1 - MOVIMENTI MOBILE COMPLETI!</h3>
+                <p class="version-date">13 Novembre 2025</p>
             </div>
             
             <div class="whats-new-body">
                 <div class="new-feature">
-                    <span class="feature-icon">&#128027;</span>
+                    <span class="feature-icon">&#9989;</span>
                     <div class="feature-content">
-                        <h4>GESTIONE UTENTI</h4>
-                        <p>Miglioramento gestione utenti, risoluzione bug</p>
+                        <h4>5 COLONNE VISIBILI SU MOBILE</h4>
+                        <p>Ora vedi TUTTO su smartphone: Data, Utente, Tipo (+/-), Quantit&agrave; e ARTICOLO! Nessuna informazione mancante!</p>
                     </div>
                 </div>
 
                 <div class="new-feature">
-                    <span class="feature-icon">&#127775;</span>
+                    <span class="feature-icon">&#128221;</span>
                     <div class="feature-content">
-                        <h4>SCANSIONE ARTICOLI</h4>
-                        <p>Velocizzato lettura codice articolo con scanner</p>
+                        <h4>ARTICOLO SEMPRE VISIBILE</h4>
+                        <p>Finalmente l'articolo movimentato &egrave; sempre visibile! Se la descrizione &egrave; lunga va correttamente a capo senza uscire dallo schermo.</p>
+                    </div>
+                </div>
+
+                <div class="new-feature">
+                    <span class="feature-icon">&#128202;</span>
+                    <div class="feature-content">
+                        <h4>LAYOUT SUPER OTTIMIZZATO</h4>
+                        <p>Colonne ridimensionate perfettamente: Data 18%, Utente 12%, Tipo 10%, Quantit&agrave; 12%, Articolo 48%. Tutto leggibile!</p>
+                    </div>
+                </div>
+
+                <div class="new-feature">
+                    <span class="feature-icon">&#128241;</span>
+                    <div class="feature-content">
+                        <h4>TESTO A CAPO AUTOMATICO</h4>
+                        <p>Le descrizioni lunghe degli articoli vanno automaticamente a capo rimanendo perfettamente leggibili su mobile.</p>
                     </div>
                 </div>
             </div>
-
-            
             
             <div class="modal-buttons">
                 <button id="close-whats-new" class="btn-primary">Perfetto! &#128077;</button>
@@ -570,6 +584,6 @@
     <!-- Librerie esterne -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
-    <script src="app.js?v=4.3.6"></script>
+    <script src="app.js?v=4.5.1"></script>
 </body>
 </html>
