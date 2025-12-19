@@ -1,5 +1,8 @@
 # Changelog App Magazzino
 
+## v4.4.5 - 2025-12-19 (PRODUZIONE)
+CORRETTO ERRORE LOGIN
+
 ## v4.4.2 - 2025-12-19 (PRODUZIONE) ✅
 correzione login dopo aggirnamento
 
