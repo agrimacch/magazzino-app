@@ -1,6 +1,9 @@
 # Changelog App Magazzino
 
 ## v4.4.6 - 2025-12-19 (PRODUZIONE)
+Miglioramenti lettura database e pop-up
+
+## v4.4.6 - 2025-12-19 (PRODUZIONE)
 AGGIORNAMENTO SICUREZZA !!
 
 ## v4.4.5 - 2025-12-19 (PRODUZIONE)
