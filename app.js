@@ -10,7 +10,7 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 // ========================================
 // VARIABILI GLOBALI
 // ========================================
-const CURRENT_VERSION = '4.4.1';
+const CURRENT_VERSION = '4.4.2';
 let currentUser = null;
 let currentUserRole = null;
 let loggedInUserEmail = null; // Email dell'utente loggato (per evitare bug con signUp)
