@@ -4,12 +4,13 @@
 const SUPABASE_URL = 'https://uiypndhemhgljceylqzl.supabase.co';  
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVpeXBuZGhlbWhnbGpjZXlscXpsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE2NTc2NDIsImV4cCI6MjA3NzIzMzY0Mn0.zyVrgj3JZaCmOoAGCugPDfEjdEyNj-elbiFFXZJkRmU';
 
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+// FIX: Rinominato da 'supabase' a 'supabaseClient' per evitare conflitto con window.supabase
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // ========================================
 // VARIABILI GLOBALI
 // ========================================
-const CURRENT_VERSION = '4.4.0';
+const CURRENT_VERSION = '4.4.1';
 let currentUser = null;
 let currentUserRole = null;
 let loggedInUserEmail = null; // Email dell'utente loggato (per evitare bug con signUp)
@@ -175,17 +176,17 @@ function clearSavedCredentials() {
 }
 
 // ========================================
-// SISTEMA POP-UP NOVITÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ VERSIONE
+// SISTEMA POP-UP NOVIT&Agrave; VERSIONE
 // ========================================
 function checkAndShowWhatsNew() {
-    // Controlla se l'utente ha giÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â  visto le novitÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â  di questa versione
+    // Controlla se l'utente ha gi&agrave; visto le novit&agrave; di questa versione
     const lastSeenVersion = localStorage.getItem('lastSeenVersion');
     
-    console.log('Controllo versione novitÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â  - Ultima vista:', lastSeenVersion, 'Corrente:', CURRENT_VERSION);
+    console.log('Controllo versione novit&agrave; - Ultima vista:', lastSeenVersion, 'Corrente:', CURRENT_VERSION);
     
-    // Se ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¨ una nuova versione o ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¨ la prima volta
+    // Se &egrave; una nuova versione o &egrave; la prima volta
     if (lastSeenVersion !== CURRENT_VERSION) {
-        console.log('Nuova versione rilevata! Mostro pop-up novitÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â ');
+        console.log('Nuova versione rilevata! Mostro pop-up novit&agrave;');
         showWhatsNewModal();
     }
 }
@@ -230,7 +231,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.removeEventListener('touchstart', initAudio);
     }, { once: true });
     
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { session } } = await supabaseClient.auth.getSession();
     
     console.log('Sessione trovata:', session ? 'SI' : 'NO');
     
@@ -252,7 +253,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     initPWAFeatures();
     
-    supabase.auth.onAuthStateChange((event, session) => {
+    supabaseClient.auth.onAuthStateChange((event, session) => {
         console.log('Auth state changed:', event);
         if (event === 'SIGNED_OUT') {
             currentUser = null;
@@ -273,7 +274,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 async function loadUserRole() {
     console.log('Caricamento ruolo per:', currentUser.email);
     
-    const { data, error } = await supabase
+    const { data, error } = await supabaseClient
         .from('user_roles')
         .select('role')
         .eq('email', currentUser.email)
@@ -347,7 +348,7 @@ async function showMainScreen() {
         populateReportSelects();
     }
     
-    // Controlla se mostrare il pop-up novitÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â 
+    // Controlla se mostrare il pop-up novit&agrave;
     checkAndShowWhatsNew();
 }
 
@@ -362,7 +363,7 @@ async function handleLogin(e) {
     
     console.log('Tentativo login per:', email);
     
-    const { data, error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabaseClient.auth.signInWithPassword({
         email,
         password
     });
@@ -390,7 +391,7 @@ async function handleLogin(e) {
 
 async function handleLogout() {
     console.log('Logout...');
-    await supabase.auth.signOut();
+    await supabaseClient.auth.signOut();
     currentUser = null;
     currentUserRole = null;
     loggedInUserEmail = null;
@@ -431,7 +432,7 @@ async function loadInventory(keepFilters = false) {
         savedGroup = document.getElementById('group-by-supplier')?.checked !== false;
     }
     
-    const { data, error } = await supabase
+    const { data, error } = await supabaseClient
         .from('articoli')
         .select('*')
         .order('marca_fornitore, nome');
@@ -721,7 +722,7 @@ async function handleNewArticle(e) {
     const iva = parseFloat(document.getElementById('new-iva').value);
     const price = parseFloat(document.getElementById('new-price').value);
     
-    const { data: existingCode } = await supabase
+    const { data: existingCode } = await supabaseClient
         .from('articoli')
         .select('id')
         .eq('codice_articolo', code)
@@ -732,7 +733,7 @@ async function handleNewArticle(e) {
         return;
     }
     
-    const { data: existingBarcode } = await supabase
+    const { data: existingBarcode } = await supabaseClient
         .from('articoli')
         .select('id')
         .eq('codice_barre', barcode)
@@ -743,7 +744,7 @@ async function handleNewArticle(e) {
         return;
     }
     
-    const { error } = await supabase
+    const { error } = await supabaseClient
         .from('articoli')
         .insert([{
             nome: name,
@@ -813,7 +814,7 @@ async function handleEditArticle(e) {
     const iva = parseFloat(document.getElementById('edit-iva').value);
     const price = parseFloat(document.getElementById('edit-price').value);
     
-    const { error } = await supabase
+    const { error } = await supabaseClient
         .from('articoli')
         .update({
             nome: name,
@@ -852,7 +853,7 @@ async function deleteArticle(articleId) {
     
     if (!confirm) return;
     
-    const { error } = await supabase
+    const { error } = await supabaseClient
         .from('articoli')
         .delete()
         .eq('id', articleId);
@@ -908,7 +909,7 @@ async function confirmMovement() {
         }
     }
     
-    const { error: updateError } = await supabase
+    const { error: updateError } = await supabaseClient
         .from('articoli')
         .update({ quantita: newQuantity })
         .eq('id', article.id);
@@ -918,7 +919,7 @@ async function confirmMovement() {
         return;
     }
     
-    const { error: movementError } = await supabase
+    const { error: movementError } = await supabaseClient
         .from('movimenti')
         .insert([{
             articolo_id: article.id,
@@ -963,7 +964,7 @@ function closeMovementModal() {
 // STORICO MOVIMENTI
 // ========================================
 async function loadMovements() {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseClient
         .from('movimenti')
         .select('*')
         .order('created_at', { ascending: false })
@@ -1120,7 +1121,7 @@ async function generateReport() {
 }
 
 async function generateGeneralOrderReport(dateFrom, dateTo) {
-    let query = supabase
+    let query = supabaseClient
         .from('movimenti')
         .select('*')
         .order('created_at', { ascending: false });
@@ -1220,7 +1221,7 @@ async function generateGeneralOrderReport(dateFrom, dateTo) {
 }
 
 async function generateSupplierOrderReport(supplier, dateFrom, dateTo) {
-    let query = supabase
+    let query = supabaseClient
         .from('movimenti')
         .select('*')
         .order('created_at', { ascending: false });
@@ -1362,7 +1363,7 @@ async function generateArticleOrderReport(articleId, dateFrom, dateTo) {
     const article = allArticles.find(a => a.id === articleId);
     if (!article) return '<p>Articolo non trovato</p>';
     
-    let query = supabase
+    let query = supabaseClient
         .from('movimenti')
         .select('*')
         .eq('articolo_id', articleId)
@@ -1470,8 +1471,8 @@ function initScanner() {
     html5QrCode.start(
         { facingMode: "environment" },
         {
-            fps: 60, // MASSIMA VELOCITÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ - 60 FPS
-            qrbox: { width: 200, height: 200 }, // Area piÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¹ piccola = piÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¹ veloce
+            fps: 60, // MASSIMA VELOCIT&Agrave; - 60 FPS
+            qrbox: { width: 200, height: 200 }, // Area pi&ugrave; piccola = pi&ugrave; veloce
             aspectRatio: 1.0
         },
         onScanSuccess,
@@ -1674,7 +1675,7 @@ function closeMobileMenu() {
 // GESTIONE UTENTI
 // ========================================
 async function loadAllUsers() {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseClient
         .from('user_roles')
         .select('*');
     
@@ -1760,7 +1761,7 @@ async function handleNewUserForm(e) {
     
     try {
         // IMPORTANTE: Salvo la sessione dell'admin PRIMA di signUp
-        const { data: { session: adminSession } } = await supabase.auth.getSession();
+        const { data: { session: adminSession } } = await supabaseClient.auth.getSession();
         
         if (!adminSession) {
             alert('Errore: Sessione non valida');
@@ -1771,7 +1772,7 @@ async function handleNewUserForm(e) {
         const adminRefreshToken = adminSession.refresh_token;
         
         // Crea utente su Supabase Auth
-        const { data: authData, error: authError } = await supabase.auth.signUp({
+        const { data: authData, error: authError } = await supabaseClient.auth.signUp({
             email,
             password
         });
@@ -1782,7 +1783,7 @@ async function handleNewUserForm(e) {
         }
         
         // CRITICO: Ripristino la sessione dell'admin usando il refresh token
-        await supabase.auth.setSession({
+        await supabaseClient.auth.setSession({
             access_token: adminSession.access_token,
             refresh_token: adminRefreshToken
         });
@@ -1792,7 +1793,7 @@ async function handleNewUserForm(e) {
         loggedInUserEmail = adminEmail;
         
         // Salva ruolo e iniziali nella tabella user_roles
-        const { error: roleError } = await supabase
+        const { error: roleError } = await supabaseClient
             .from('user_roles')
             .insert([
                 { email, role, iniziali: initials }
@@ -1816,7 +1817,7 @@ async function handleNewUserForm(e) {
 async function deleteUser(email) {
     try {
         // Elimina dalla tabella user_roles
-        const { error } = await supabase
+        const { error } = await supabaseClient
             .from('user_roles')
             .delete()
             .eq('email', email);
@@ -1858,7 +1859,7 @@ async function handleEditUserForm(e) {
     
     try {
         // Aggiorna user_roles
-        const { error } = await supabase
+        const { error } = await supabaseClient
             .from('user_roles')
             .update({
                 iniziali: initials,
@@ -1902,13 +1903,13 @@ function setupEventListeners() {
     document.getElementById('edit-article-form').addEventListener('submit', handleEditArticle);
     document.getElementById('edit-cancel').addEventListener('click', closeEditModal);
     
-    // Event listener per pop-up novitÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â 
+    // Event listener per pop-up novit&agrave;
     const closeWhatsNewBtn = document.getElementById('close-whats-new');
     if (closeWhatsNewBtn) {
         closeWhatsNewBtn.addEventListener('click', closeWhatsNewModal);
     }
     
-    // Chiudi pop-up novitÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â  se clicchi fuori dal contenuto
+    // Chiudi pop-up novit&agrave; se clicchi fuori dal contenuto
     const whatsNewModal = document.getElementById('whats-new-modal');
     if (whatsNewModal) {
         whatsNewModal.addEventListener('click', (e) => {
