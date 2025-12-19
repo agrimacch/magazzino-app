@@ -17,7 +17,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=4.4.5">
+    <link rel="stylesheet" href="style.css?v=4.4.6">
     
     <style>
         /* Nascondi tutte le schermate all'inizio */
@@ -44,7 +44,7 @@
 
 <body class="loading">
     <!-- Version badge -->
-    <div class="version-badge">v4.4.5</div>
+    <div class="version-badge">v4.4.6</div>
 
     <!-- SCHERMATA LOGIN -->
     <div id="login-screen" class="screen">
@@ -537,16 +537,29 @@
     <div id="whats-new-modal" class="modal hidden">
         <div class="modal-content whats-new-content">
             <div class="whats-new-header">
-                <h3>&#127881; AGRIMAG v4.4.5 - Aggiornamento!</h3>
+                <h3>&#127881; AGRIMAG v4.4.6 - Aggiornamento!</h3>
                 <p class="version-date">19 Dicembre 2025</p>
             </div>
             
             <div class="whats-new-body">                <div class="new-feature">
-                    <span class="feature-icon">&#128295;</span>
+
+                <div class="new-feature">
+                    <span class="feature-icon">&#128274;</span>
                     <div class="feature-content">
-                        <h4>Correzione Pop-up Novit&agrave;</h4>
-                        <p>Risolto il bug che impediva la visualizzazione corretta delle novit&agrave; di versione nel pop-up di aggiornamento.</p>
+                        <h4>AGGIORNATO LETTURA CHIAVI DATABASE</h4>
+                        <p>Dopo aggiornamento automatico di supabase, file .app non riusciva a leggere le tabelle dati.</p>
                     </div>
+                </div>
+
+                <div class="new-feature">
+                    <span class="feature-icon">&#11088;</span>
+                    <div class="feature-content">
+                        <h4>POP UP MIGLIORATO</h4>
+                        <p>aggiornato pop up Novità</p>
+                    </div>
+                </div>
+
+                                </div>
                 </div>
 
                 <div class="new-feature">
@@ -579,6 +592,6 @@
     <!-- Librerie esterne -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
-    <script src="app.js?v=4.4.5"></script>
+    <script src="app.js?v=4.4.6"></script>
 </body>
 </html>
