@@ -74,7 +74,7 @@ done
 MONTHS=("Gennaio" "Febbraio" "Marzo" "Aprile" "Maggio" "Giugno" "Luglio" "Agosto" "Settembre" "Ottobre" "Novembre" "Dicembre")
 DAY=$(date +"%d")
 MONTH_NUM=$(date +"%m")
-MONTH_NUM=$((10#$MONTH_NUM - 1))  # Rimuovi zero leading e converti a indice array
+MONTH_NUM=$((10#$MONTH_NUM - 1))
 MONTH=${MONTHS[$MONTH_NUM]}
 YEAR=$(date +"%Y")
 FORMATTED_DATE="$DAY $MONTH $YEAR"
@@ -108,7 +108,6 @@ fi
 # 2. Aggiorna app.js - Cambia CURRENT_VERSION
 # ============================================
 if [ -f "app.js" ]; then
-    # Cerca e sostituisci la riga con CURRENT_VERSION
     sed -i.bak "s/const CURRENT_VERSION = '[^']*';/const CURRENT_VERSION = '$NEW_VERSION';/" app.js
     rm -f app.js.bak
     echo "[OK] app.js aggiornato (CURRENT_VERSION = '$NEW_VERSION')"
@@ -127,40 +126,50 @@ if [ -f "index.html" ]; then
     sed -i.bak "s/style\.css?v=[0-9.]*/style.css?v=$NEW_VERSION/g" index.html
     sed -i.bak "s/app\.js?v=[0-9.]*/app.js?v=$NEW_VERSION/g" index.html
     
-    # 3c. Titolo del pop-up (usa perl per essere sicuri)
+    # 3c. Titolo del pop-up
     perl -i.bak -pe "s|<h3>&#127881; AGRIMAG v[0-9.]+[^<]*</h3>|<h3>&#127881; AGRIMAG v$NEW_VERSION - Aggiornamento!</h3>|g" index.html
     
     # 3d. Data nel pop-up
     perl -i.bak -pe "s|<p class=\"version-date\">[^<]+</p>|<p class=\"version-date\">$FORMATTED_DATE</p>|g" index.html
     
-    # 3e. Genera il nuovo HTML per le novita
-    FEATURES_HTML=""
+    # 3e. Genera il nuovo HTML per le novita e salvalo in un file temporaneo
+    cat > /tmp/popup_features.html << 'ENDFEATURES'
+
+ENDFEATURES
+    
     for i in "${!FEATURES_TITLES[@]}"; do
-        # Escape caratteri speciali per sed/perl
-        TITLE_ESC="${FEATURES_TITLES[$i]}"
-        DESC_ESC="${FEATURES_DESCRIPTIONS[$i]}"
-        
-        FEATURES_HTML+="
-                <div class=\"new-feature\">
-                    <span class=\"feature-icon\">${FEATURES_ICONS[$i]}</span>
-                    <div class=\"feature-content\">
-                        <h4>$TITLE_ESC</h4>
-                        <p>$DESC_ESC</p>
+        cat >> /tmp/popup_features.html << ENDFEATURE
+                <div class="new-feature">
+                    <span class="feature-icon">${FEATURES_ICONS[$i]}</span>
+                    <div class="feature-content">
+                        <h4>${FEATURES_TITLES[$i]}</h4>
+                        <p>${FEATURES_DESCRIPTIONS[$i]}</p>
                     </div>
                 </div>
-"
+
+ENDFEATURE
     done
     
-    # 3f. Sostituisci il contenuto del pop-up usando perl
-    # Crea file temporaneo con il nuovo contenuto
-    cat > /tmp/features_temp.html << ENDOFFEATURES
-$FEATURES_HTML
-ENDOFFEATURES
+    # 3f. Sostituisci il contenuto usando awk
+    awk '
+    BEGIN { in_body = 0 }
+    /<div class="whats-new-body">/ {
+        print
+        system("cat /tmp/popup_features.html")
+        printf "            "
+        in_body = 1
+        next
+    }
+    in_body && /<\/div>/ {
+        in_body = 0
+    }
+    !in_body {
+        print
+    }
+    ' index.html > index.html.new
     
-    # Usa perl per sostituire il contenuto tra <div class="whats-new-body"> e </div>
-    perl -i.bak -0777 -pe 's|(<div class="whats-new-body">).*?(</div>\s*<div class="modal-buttons">)|$1`cat /tmp/features_temp.html`            $2|s' index.html
-    
-    rm -f index.html.bak /tmp/features_temp.html
+    mv index.html.new index.html
+    rm -f index.html.bak /tmp/popup_features.html
     
     echo "[OK] index.html aggiornato (badge, cache, titolo, data, novita)"
 else

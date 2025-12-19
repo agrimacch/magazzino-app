@@ -533,7 +533,7 @@
         </div>
     </div>
 
-        <!-- Pop-up Novit&agrave; Versione -->
+    <!-- Pop-up NovitÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â  Versione -->
     <div id="whats-new-modal" class="modal hidden">
         <div class="modal-content whats-new-content">
             <div class="whats-new-header">
@@ -541,7 +541,34 @@
                 <p class="version-date">19 Dicembre 2025</p>
             </div>
             
-            <div class="whats-new-body">`cat /tmp/features_temp.html`            </div>
+            <div class="whats-new-body">                <div class="new-feature">
+                    <span class="feature-icon">&#128295;</span>
+                    <div class="feature-content">
+                        <h4>Correzione Pop-up Novit&agrave;</h4>
+                        <p>Risolto il bug che impediva la visualizzazione corretta delle novit&agrave; di versione nel pop-up di aggiornamento.</p>
+                    </div>
+                </div>
+
+                <div class="new-feature">
+                    <span class="feature-icon">&#128295;</span>
+                    <div class="feature-content">
+                        <h4>Script Aggiornamento Versione</h4>
+                        <p>Aggiornato lo script update-version.sh per gestire correttamente l'inserimento delle feature nel pop-up.</p>
+                    </div>
+                </div>
+
+                <div class="new-feature">
+                    <span class="feature-icon">&#9889;</span>
+                    <div class="feature-content">
+                        <h4>Ottimizzazioni Generali</h4>
+                        <p>Migliorate le performance e la stabilit&agrave; generale dell'applicazione.</p>
+                    </div>
+                </div>
+            </div>
+
+            
+
+            
             
             <div class="modal-buttons">
                 <button id="close-whats-new" class="btn-primary">Perfetto! &#128077;</button>
@@ -550,7 +577,6 @@
     </div>
 
     <!-- Librerie esterne -->
-
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
     <script src="app.js?v=4.4.5"></script>
