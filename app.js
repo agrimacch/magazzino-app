@@ -10,7 +10,7 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 // ========================================
 // VARIABILI GLOBALI
 // ========================================
-const CURRENT_VERSION = '4.4.8';
+const CURRENT_VERSION = '4.4.9';
 
 // ========================================
 // CONTROLLO POP-UP NOVIT&Agrave; - IMPOSTA SU true PER MOSTRARLO
@@ -248,6 +248,8 @@ function checkAndShowWhatsNew() {
     // CONTROLLA IL FLAG GLOBALE - SE false, NON MOSTRARE IL POP-UP
     if (!SHOW_WHATS_NEW_POPUP) {
         console.log('Pop-up novit&agrave; disabilitato (SHOW_WHATS_NEW_POPUP = false)');
+        // FORZA salvataggio versione corrente per evitare problemi
+        localStorage.setItem('lastSeenVersion', CURRENT_VERSION);
         return;
     }
     
@@ -265,16 +267,31 @@ function checkAndShowWhatsNew() {
 
 function showWhatsNewModal() {
     const modal = document.getElementById('whats-new-modal');
-    if (modal) {
-        modal.classList.remove('hidden');
+    if (!modal) {
+        console.log('Modal novit&agrave; non presente nel DOM');
+        return;
     }
+    
+    modal.classList.remove('hidden');
+    
+    // Aggiungi listener per chiudere con ESC
+    const escHandler = (e) => {
+        if (e.key === 'Escape') {
+            closeWhatsNewModal();
+            document.removeEventListener('keydown', escHandler);
+        }
+    };
+    document.addEventListener('keydown', escHandler);
 }
 
 function closeWhatsNewModal() {
     const modal = document.getElementById('whats-new-modal');
-    if (modal) {
-        modal.classList.add('hidden');
+    if (!modal) {
+        console.log('Modal novit&agrave; non presente nel DOM');
+        return;
     }
+    
+    modal.classList.add('hidden');
     
     // Salva che l'utente ha visto questa versione
     localStorage.setItem('lastSeenVersion', CURRENT_VERSION);
@@ -293,6 +310,15 @@ function calcolaPrezzoConIVA(prezzoNetto, ivaPercentuale) {
 // ========================================
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('Inizializzazione app...');
+    
+    // RIMUOVI COMPLETAMENTE IL POP-UP DAL DOM SE DISABILITATO
+    if (!SHOW_WHATS_NEW_POPUP) {
+        const whatsNewModal = document.getElementById('whats-new-modal');
+        if (whatsNewModal) {
+            whatsNewModal.remove(); // RIMUOVE COMPLETAMENTE DAL DOM
+        }
+        localStorage.setItem('lastSeenVersion', CURRENT_VERSION);
+    }
     
     // CANCELLA FILTRI SALVATI (refresh pagina = filtri puliti)
     sessionStorage.removeItem('inventoryFilters');
@@ -1989,6 +2015,8 @@ function setupEventListeners() {
                 closeWhatsNewModal();
             }
         });
+    } else {
+        console.log('Modal whats-new non presente nel DOM (rimosso perch&eacute; disabilitato)');
     }
     
     document.querySelectorAll('.tab-btn').forEach(btn => {

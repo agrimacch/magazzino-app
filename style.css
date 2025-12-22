@@ -1771,12 +1771,21 @@ button, input, textarea, select, label, span, div, td, th, p, h1, h2, h3, h4 {
         font-size: 14px;
     }
 }
+
 /* ============================================ */
-/* POP-UP NOVITÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ VERSIONE */
+/* POP-UP NOVIT&Agrave; VERSIONE - CON Z-INDEX ALTISSIMO */
 /* ============================================ */
+
+/* IMPORTANTE: Questo modal deve avere z-index pi&ugrave; alto di tutti gli altri */
+#whats-new-modal {
+    z-index: 99999 !important;
+}
+
 .whats-new-content {
     max-width: 550px;
     animation: slideInUp 0.4s ease-out;
+    position: relative;
+    z-index: 100000 !important;
 }
 
 .whats-new-header {

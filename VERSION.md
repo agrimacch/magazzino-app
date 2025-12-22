@@ -1,5 +1,8 @@
 # Changelog App Magazzino
 
+## v4.4.9 - 2025-12-22 (PRODUZIONE)
+TEST
+
 ## v4.4.8 - 2025-12-22 (PRODUZIONE)
 AGGIORNAMENTI !!
 
