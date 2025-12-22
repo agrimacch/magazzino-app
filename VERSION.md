@@ -1,5 +1,8 @@
 # Changelog App Magazzino
 
+## v4.4.7 - 2025-12-22 (PRODUZIONE)
+RIPARATO POP UP AGGIORNAMENTI
+
 ## v4.4.6 - 2025-12-19 (PRODUZIONE)
 Miglioramenti lettura database e pop-up
 
