@@ -11,6 +11,12 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 // VARIABILI GLOBALI
 // ========================================
 const CURRENT_VERSION = '4.4.6';
+
+// ========================================
+// CONTROLLO POP-UP NOVIT&Agrave; - IMPOSTA SU true PER MOSTRARLO
+// ========================================
+const SHOW_WHATS_NEW_POPUP = true; // <-- CAMBIA QUESTO IN true PER MOSTRARE IL POP-UP!
+
 let currentUser = null;
 let currentUserRole = null;
 let loggedInUserEmail = null; // Email dell'utente loggato (per evitare bug con signUp)
@@ -179,6 +185,12 @@ function clearSavedCredentials() {
 // SISTEMA POP-UP NOVIT&Agrave; VERSIONE
 // ========================================
 function checkAndShowWhatsNew() {
+    // CONTROLLA IL FLAG GLOBALE - SE false, NON MOSTRARE IL POP-UP
+    if (!SHOW_WHATS_NEW_POPUP) {
+        console.log('Pop-up novit&agrave; disabilitato (SHOW_WHATS_NEW_POPUP = false)');
+        return;
+    }
+    
     // Controlla se l'utente ha gi&agrave; visto le novit&agrave; di questa versione
     const lastSeenVersion = localStorage.getItem('lastSeenVersion');
     
@@ -348,7 +360,9 @@ async function showMainScreen() {
         populateReportSelects();
     }
     
-    // Controlla se mostrare il pop-up novit&agrave;
+    // ========================================
+    // CONTROLLA E MOSTRA POP-UP NOVIT&Agrave; - SOLO DOPO LOGIN RIUSCITO
+    // ========================================
     checkAndShowWhatsNew();
 }
 
