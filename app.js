@@ -29,6 +29,66 @@ let audioInitialized = false;
 let userInitials = {}; // Mappa email -> iniziali utente
 
 // ========================================
+// FUNZIONI PERSISTENZA FILTRI - NUOVE!
+// ========================================
+
+// Salva filtri inventario in sessionStorage
+function saveInventoryFilters() {
+    const filters = {
+        brand: document.getElementById('filter-brand')?.value || '',
+        search: document.getElementById('search-input')?.value || '',
+        sort: document.getElementById('sort-select')?.value || 'fornitore-asc',
+        group: document.getElementById('group-by-supplier')?.checked !== false
+    };
+    sessionStorage.setItem('inventoryFilters', JSON.stringify(filters));
+}
+
+// Ripristina filtri inventario da sessionStorage
+function restoreInventoryFilters() {
+    const saved = sessionStorage.getItem('inventoryFilters');
+    if (saved) {
+        try {
+            const filters = JSON.parse(saved);
+            if (document.getElementById('filter-brand')) {
+                document.getElementById('filter-brand').value = filters.brand || '';
+                document.getElementById('search-input').value = filters.search || '';
+                document.getElementById('sort-select').value = filters.sort || 'fornitore-asc';
+                document.getElementById('group-by-supplier').checked = filters.group !== false;
+            }
+        } catch(e) {
+            console.error('Errore ripristino filtri inventario:', e);
+        }
+    }
+}
+
+// Salva filtri movimenti in sessionStorage
+function saveMovementFilters() {
+    const filters = {
+        type: document.getElementById('filter-movement-type')?.value || '',
+        dateFrom: document.getElementById('filter-date-from')?.value || '',
+        dateTo: document.getElementById('filter-date-to')?.value || ''
+    };
+    sessionStorage.setItem('movementFilters', JSON.stringify(filters));
+}
+
+// Ripristina filtri movimenti da sessionStorage
+function restoreMovementFilters() {
+    const saved = sessionStorage.getItem('movementFilters');
+    if (saved) {
+        try {
+            const filters = JSON.parse(saved);
+            if (document.getElementById('filter-movement-type')) {
+                document.getElementById('filter-movement-type').value = filters.type || '';
+                document.getElementById('filter-date-from').value = filters.dateFrom || '';
+                document.getElementById('filter-date-to').value = filters.dateTo || '';
+            }
+        } catch(e) {
+            console.error('Errore ripristino filtri movimenti:', e);
+        }
+    }
+}
+
+// ========================================
 // INIZIALIZZAZIONE AUDIO (iOS FIX)
 // ========================================
 function initAudioContext() {
@@ -234,6 +294,10 @@ function calcolaPrezzoConIVA(prezzoNetto, ivaPercentuale) {
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('Inizializzazione app...');
     
+    // CANCELLA FILTRI SALVATI (refresh pagina = filtri puliti)
+    sessionStorage.removeItem('inventoryFilters');
+    sessionStorage.removeItem('movementFilters');
+    
     // Carica credenziali salvate se presenti
     loadSavedCredentials();
     
@@ -316,23 +380,15 @@ function applyRolePermissions() {
     roleBadge.classList.add(currentUserRole);
     
     if (currentUserRole === 'operatore') {
-        // OPERATORE: nascondi tab riservate agli admin
-        document.getElementById('tab-nuovo-btn').style.display = 'none';
-        document.getElementById('tab-report-btn').style.display = 'none';
-        document.getElementById('tab-utenti-btn').style.display = 'none';
-        
-        document.querySelectorAll('.btn-edit, .btn-delete').forEach(btn => {
-            btn.style.display = 'none';
-        });
+        // OPERATORE: pu&ograve; gestire articoli ma NON report/utenti
+        document.getElementById('tab-nuovo-btn').style.display = 'inline-flex'; // MOSTRA Nuovo Articolo
+        document.getElementById('tab-report-btn').style.display = 'none'; // NASCONDI Report
+        document.getElementById('tab-utenti-btn').style.display = 'none'; // NASCONDI Utenti
     } else {
         // ADMIN: mostra tutte le tab
         document.getElementById('tab-nuovo-btn').style.display = 'inline-flex';
         document.getElementById('tab-report-btn').style.display = 'inline-flex';
         document.getElementById('tab-utenti-btn').style.display = 'inline-flex';
-        
-        document.querySelectorAll('.btn-edit, .btn-delete').forEach(btn => {
-            btn.style.display = 'inline-block';
-        });
     }
 }
 
@@ -405,6 +461,11 @@ async function handleLogin(e) {
 
 async function handleLogout() {
     console.log('Logout...');
+    
+    // CANCELLA FILTRI SALVATI
+    sessionStorage.removeItem('inventoryFilters');
+    sessionStorage.removeItem('movementFilters');
+    
     await supabaseClient.auth.signOut();
     currentUser = null;
     currentUserRole = null;
@@ -433,19 +494,7 @@ function togglePasswordVisibility() {
 // ========================================
 // GESTIONE ARTICOLI
 // ========================================
-async function loadInventory(keepFilters = false) {
-    let savedBrand = '';
-    let savedSearch = '';
-    let savedSort = '';
-    let savedGroup = true;
-    
-    if (keepFilters) {
-        savedBrand = document.getElementById('filter-brand')?.value || '';
-        savedSearch = document.getElementById('search-input')?.value || '';
-        savedSort = document.getElementById('sort-select')?.value || 'fornitore-asc';
-        savedGroup = document.getElementById('group-by-supplier')?.checked !== false;
-    }
-    
+async function loadInventory() {
     const { data, error } = await supabaseClient
         .from('articoli')
         .select('*')
@@ -459,17 +508,8 @@ async function loadInventory(keepFilters = false) {
     allArticles = data || [];
     populateBrandFilter();
     
-    if (keepFilters) {
-        if (savedBrand) document.getElementById('filter-brand').value = savedBrand;
-        if (savedSearch) document.getElementById('search-input').value = savedSearch;
-        if (savedSort) document.getElementById('sort-select').value = savedSort;
-        document.getElementById('group-by-supplier').checked = savedGroup;
-    } else {
-        document.getElementById('filter-brand').value = '';
-        document.getElementById('search-input').value = '';
-        document.getElementById('sort-select').value = 'fornitore-asc';
-        document.getElementById('group-by-supplier').checked = true;
-    }
+    // Ripristina filtri da sessionStorage
+    restoreInventoryFilters();
     
     applyFiltersAndSort();
 }
@@ -494,6 +534,9 @@ function populateBrandFilter() {
 }
 
 function applyFiltersAndSort() {
+    // Salva filtri in sessionStorage
+    saveInventoryFilters();
+    
     const searchQuery = document.getElementById('search-input').value.toLowerCase();
     const brandFilter = document.getElementById('filter-brand').value;
     const sortValue = document.getElementById('sort-select').value;
@@ -625,8 +668,8 @@ function renderInventoryBySupplier(articles) {
             }
             
             const ivaPerc = article.iva_percentuale || 22;
-            const editBtn = currentUserRole === 'admin' ? `<button onclick="openEditModal(${article.id})" class="btn-edit">&#9997;</button>` : '';
-            const deleteBtn = currentUserRole === 'admin' ? `<button onclick="deleteArticle(${article.id})" class="btn-delete">&#128465;</button>` : '';
+            const editBtn = `<button onclick="openEditModal(${article.id})" class="btn-edit">&#9997;</button>`;
+            const deleteBtn = `<button onclick="deleteArticle(${article.id})" class="btn-delete">&#128465;</button>`;
             
             row.innerHTML = `
                 <td><strong>${article.nome}</strong></td>
@@ -685,8 +728,8 @@ function renderInventoryFlat(articles) {
     articles.forEach(article => {
         const rowClass = article.quantita <= article.soglia_minima ? 'class="low-stock"' : '';
         const ivaPerc = article.iva_percentuale || 22;
-        const editBtn = currentUserRole === 'admin' ? `<button onclick="openEditModal(${article.id})" class="btn-edit">&#9997;</button>` : '';
-        const deleteBtn = currentUserRole === 'admin' ? `<button onclick="deleteArticle(${article.id})" class="btn-delete">&#128465;</button>` : '';
+        const editBtn = `<button onclick="openEditModal(${article.id})" class="btn-edit">&#9997;</button>`;
+        const deleteBtn = `<button onclick="deleteArticle(${article.id})" class="btn-delete">&#128465;</button>`;
         
         html += `
             <tr ${rowClass}>
@@ -852,7 +895,7 @@ async function handleEditArticle(e) {
     
     alert('Articolo modificato con successo!');
     closeEditModal();
-    loadInventory(true);
+    loadInventory();
 }
 
 function closeEditModal() {
@@ -878,7 +921,7 @@ async function deleteArticle(articleId) {
     }
     
     alert('Articolo eliminato con successo!');
-    loadInventory(true);
+    loadInventory();
 }
 
 // ========================================
@@ -948,7 +991,7 @@ async function confirmMovement() {
     }
     
     closeMovementModal();
-    loadInventory(true);
+    loadInventory();
     loadMovements();
     
     // Alert sotto soglia (se necessario)
@@ -990,6 +1033,10 @@ async function loadMovements() {
     }
     
     allMovements = data || [];
+    
+    // Ripristina filtri da sessionStorage
+    restoreMovementFilters();
+    
     renderMovements(allMovements);
 }
 
@@ -1040,6 +1087,9 @@ function renderMovements(movements) {
 }
 
 function applyMovementFilters() {
+    // Salva filtri in sessionStorage
+    saveMovementFilters();
+    
     const typeFilter = document.getElementById('filter-movement-type').value;
     const dateFrom = document.getElementById('filter-date-from').value;
     const dateTo = document.getElementById('filter-date-to').value;
@@ -1651,6 +1701,14 @@ function switchTab(tabName) {
         setTimeout(() => initScanner(), 100);
     } else {
         stopScanner();
+    }
+    
+    if (tabName === 'inventario') {
+        restoreInventoryFilters();
+        applyFiltersAndSort();
+    } else if (tabName === 'movimenti') {
+        restoreMovementFilters();
+        applyMovementFilters();
     }
     
     if (tabName === 'report' && currentUserRole === 'admin') {
