@@ -14,7 +14,7 @@ read -p "Inserisci la nuova versione (es: 4.5.0): " NEW_VERSION
 read -p "Descrizione breve per changelog: " DESCRIPTION
 
 echo ""
-echo "Vuoi MOSTRARE il pop-up novit&agrave; per questa versione?"
+echo "Vuoi MOSTRARE il pop-up novita per questa versione?"
 echo ""
 echo "  [s] = SI, mostra pop-up (per aggiornamenti IMPORTANTI)"
 echo "  [n] = NO, non mostrare (per piccoli fix)"
@@ -137,7 +137,7 @@ else
 fi
 
 # ============================================
-# 3. Aggiorna index.html - METODO CORRETTO CON PYTHON
+# 3. Aggiorna index.html
 # ============================================
 if [ -f "index.html" ]; then
     # 3a. Badge versione
@@ -155,27 +155,35 @@ if [ -f "index.html" ]; then
     
     # 3e. Genera il nuovo HTML per le novita SOLO se pop-up abilitato
     if [ "$ENABLE_POPUP" = true ]; then
-        # Crea il nuovo contenuto delle features
-        cat > /tmp/new_features.html << 'EOF'
+        # Crea il file con intestazione
+        cat > /tmp/new_features.html << 'HEADEREOF'
                 <div class="whats-new-body">
-EOF
+HEADEREOF
         
+        # Aggiungi ogni feature ESPANDENDO LE VARIABILI PRIMA
         for i in "${!FEATURES_TITLES[@]}"; do
-            cat >> /tmp/new_features.html << ENDFEATURE
+            # ESPANDI le variabili in variabili locali
+            CURRENT_ICON="${FEATURES_ICONS[$i]}"
+            CURRENT_TITLE="${FEATURES_TITLES[$i]}"
+            CURRENT_DESC="${FEATURES_DESCRIPTIONS[$i]}"
+            
+            # Ora scrivi nel file usando le variabili locali
+            cat >> /tmp/new_features.html << FEATUREEOF
                     <div class="new-feature">
-                        <span class="feature-icon">${FEATURES_ICONS[$i]}</span>
+                        <span class="feature-icon">$CURRENT_ICON</span>
                         <div class="feature-content">
-                            <h4>${FEATURES_TITLES[$i]}</h4>
-                            <p>${FEATURES_DESCRIPTIONS[$i]}</p>
+                            <h4>$CURRENT_TITLE</h4>
+                            <p>$CURRENT_DESC</p>
                         </div>
                     </div>
 
-ENDFEATURE
+FEATUREEOF
         done
         
-        cat >> /tmp/new_features.html << 'EOF'
+        # Chiudi il div whats-new-body
+        cat >> /tmp/new_features.html << 'FOOTEREOF'
                 </div>
-EOF
+FOOTEREOF
         
         # 3f. Sostituisci TUTTO il blocco whats-new-body usando Python
         python3 << 'PYTHON_SCRIPT'
@@ -190,8 +198,7 @@ with open('index.html', 'r', encoding='utf-8') as f:
 with open('/tmp/new_features.html', 'r', encoding='utf-8') as f:
     new_content = f.read()
 
-# Pattern per trovare TUTTO il blocco whats-new-body (anche con div annidati)
-# Usa un pattern non-greedy per trovare il blocco corretto
+# Pattern per trovare TUTTO il blocco whats-new-body
 pattern = r'<div class="whats-new-body">.*?</div>\s*\n\s*</div>\s*\n\s*\n\s*<div class="modal-buttons">'
 
 # Sostituisci con il nuovo contenuto + chiusura div + modal-buttons
