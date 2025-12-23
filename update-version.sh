@@ -8,7 +8,7 @@ echo "========================================"
 echo ""
 
 # Chiedi la nuova versione
-read -p "Inserisci la nuova versione (es: 4.4.7): " NEW_VERSION
+read -p "Inserisci la nuova versione (es: 4.5.0): " NEW_VERSION
 
 # Chiedi la descrizione breve per VERSION.md
 read -p "Descrizione breve per changelog: " DESCRIPTION
@@ -16,7 +16,7 @@ read -p "Descrizione breve per changelog: " DESCRIPTION
 echo ""
 echo "Vuoi MOSTRARE il pop-up novit&agrave; per questa versione?"
 echo ""
-echo "  [s] = S&Igrave;, mostra pop-up (per aggiornamenti IMPORTANTI)"
+echo "  [s] = SI, mostra pop-up (per aggiornamenti IMPORTANTI)"
 echo "  [n] = NO, non mostrare (per piccoli fix)"
 echo ""
 read -p "Mostrare pop-up? (s/n): " SHOW_POPUP
@@ -25,7 +25,7 @@ if [ "$SHOW_POPUP" = "s" ] || [ "$SHOW_POPUP" = "S" ]; then
     ENABLE_POPUP=true
     
     echo ""
-    echo "Ora inserisci le NOVIT&Agrave; da mostrare nel pop-up (max 4 feature)"
+    echo "Ora inserisci le NOVITA da mostrare nel pop-up (max 4 feature)"
     echo "Premi INVIO senza scrivere nulla per fermarti"
     echo ""
 
@@ -83,7 +83,7 @@ if [ "$SHOW_POPUP" = "s" ] || [ "$SHOW_POPUP" = "S" ]; then
 else
     ENABLE_POPUP=false
     echo ""
-    echo "Pop-up NON verr&agrave; mostrato per questa versione."
+    echo "Pop-up NON verra mostrato per questa versione."
 fi
 
 # Data corrente in formato italiano
@@ -137,7 +137,7 @@ else
 fi
 
 # ============================================
-# 3. Aggiorna index.html
+# 3. Aggiorna index.html - METODO CORRETTO CON PYTHON
 # ============================================
 if [ -f "index.html" ]; then
     # 3a. Badge versione
@@ -155,53 +155,61 @@ if [ -f "index.html" ]; then
     
     # 3e. Genera il nuovo HTML per le novita SOLO se pop-up abilitato
     if [ "$ENABLE_POPUP" = true ]; then
-        cat > /tmp/popup_features.html << 'ENDFEATURES'
-
-ENDFEATURES
+        # Crea il nuovo contenuto delle features
+        cat > /tmp/new_features.html << 'EOF'
+                <div class="whats-new-body">
+EOF
         
         for i in "${!FEATURES_TITLES[@]}"; do
-            cat >> /tmp/popup_features.html << ENDFEATURE
-                <div class="new-feature">
-                    <span class="feature-icon">${FEATURES_ICONS[$i]}</span>
-                    <div class="feature-content">
-                        <h4>${FEATURES_TITLES[$i]}</h4>
-                        <p>${FEATURES_DESCRIPTIONS[$i]}</p>
+            cat >> /tmp/new_features.html << ENDFEATURE
+                    <div class="new-feature">
+                        <span class="feature-icon">${FEATURES_ICONS[$i]}</span>
+                        <div class="feature-content">
+                            <h4>${FEATURES_TITLES[$i]}</h4>
+                            <p>${FEATURES_DESCRIPTIONS[$i]}</p>
+                        </div>
                     </div>
-                </div>
 
 ENDFEATURE
         done
         
-        # 3f. Sostituisci il contenuto usando awk - CORRETTO per evitare duplicati
-        awk '
-        BEGIN { 
-            in_body = 0 
-            body_found = 0
-        }
-        /<div class="whats-new-body">/ {
-            if (body_found == 0) {
-                print
-                system("cat /tmp/popup_features.html")
-                printf "            "
-                in_body = 1
-                body_found = 1
-            }
-            next
-        }
-        in_body && /<\/div>/ && !/<div/ {
-            print
-            in_body = 0
-            next
-        }
-        !in_body {
-            print
-        }
-        ' index.html > index.html.new
+        cat >> /tmp/new_features.html << 'EOF'
+                </div>
+EOF
         
-        mv index.html.new index.html
-        rm -f /tmp/popup_features.html
+        # 3f. Sostituisci TUTTO il blocco whats-new-body usando Python
+        python3 << 'PYTHON_SCRIPT'
+import re
+import sys
+
+# Leggi index.html
+with open('index.html', 'r', encoding='utf-8') as f:
+    html = f.read()
+
+# Leggi il nuovo contenuto
+with open('/tmp/new_features.html', 'r', encoding='utf-8') as f:
+    new_content = f.read()
+
+# Pattern per trovare TUTTO il blocco whats-new-body (anche con div annidati)
+# Usa un pattern non-greedy per trovare il blocco corretto
+pattern = r'<div class="whats-new-body">.*?</div>\s*\n\s*</div>\s*\n\s*\n\s*<div class="modal-buttons">'
+
+# Sostituisci con il nuovo contenuto + chiusura div + modal-buttons
+replacement = new_content + '\n                \n                <div class="modal-buttons">'
+
+# Sostituisci
+html_new = re.sub(pattern, replacement, html, flags=re.DOTALL)
+
+# Salva il file
+with open('index.html', 'w', encoding='utf-8') as f:
+    f.write(html_new)
+
+print('[OK] Pop-up aggiornato con successo!')
+PYTHON_SCRIPT
         
-        echo "[OK] index.html aggiornato (badge, cache, titolo, data, novit&agrave;)"
+        rm -f /tmp/new_features.html
+        
+        echo "[OK] index.html aggiornato (badge, cache, titolo, data, novita)"
     else
         echo "[OK] index.html aggiornato (badge, cache - pop-up NON modificato)"
     fi
