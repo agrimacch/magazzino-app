@@ -8,7 +8,7 @@ echo "========================================"
 echo ""
 
 # Chiedi la nuova versione
-read -p "Inserisci la nuova versione (es: 4.5.0): " NEW_VERSION
+read -p "Inserisci la nuova versione (es: 4.5.3): " NEW_VERSION
 
 # Chiedi la descrizione breve per VERSION.md
 read -p "Descrizione breve per changelog: " DESCRIPTION
@@ -121,15 +121,11 @@ else
 fi
 
 # ============================================
-# 2. Aggiorna app.js - Cambia CURRENT_VERSION E SHOW_WHATS_NEW_POPUP
+# 2. Aggiorna app.js
 # ============================================
 if [ -f "app.js" ]; then
-    # Aggiorna versione
     sed -i.bak "s/const CURRENT_VERSION = '[^']*';/const CURRENT_VERSION = '$NEW_VERSION';/" app.js
-    
-    # Aggiorna flag pop-up
     sed -i.bak "s/const SHOW_WHATS_NEW_POPUP = [^;]*;/const SHOW_WHATS_NEW_POPUP = $ENABLE_POPUP;/" app.js
-    
     rm -f app.js.bak
     echo "[OK] app.js aggiornato (CURRENT_VERSION = '$NEW_VERSION', SHOW_POPUP = $ENABLE_POPUP)"
 else
@@ -137,7 +133,7 @@ else
 fi
 
 # ============================================
-# 3. Aggiorna index.html
+# 3. Aggiorna index.html - METODO CON MARKER
 # ============================================
 if [ -f "index.html" ]; then
     # 3a. Badge versione
@@ -147,75 +143,52 @@ if [ -f "index.html" ]; then
     sed -i.bak "s/style\.css?v=[0-9.]*/style.css?v=$NEW_VERSION/g" index.html
     sed -i.bak "s/app\.js?v=[0-9.]*/app.js?v=$NEW_VERSION/g" index.html
     
-    # 3c. Titolo del pop-up
+    # 3c. Titolo popup
     perl -i.bak -pe "s|<h3>&#127881; AGRIMAG v[0-9.]+[^<]*</h3>|<h3>&#127881; AGRIMAG v$NEW_VERSION - Aggiornamento!</h3>|g" index.html
     
-    # 3d. Data nel pop-up
+    # 3d. Data popup
     perl -i.bak -pe "s|<p class=\"version-date\">[^<]+</p>|<p class=\"version-date\">$FORMATTED_DATE</p>|g" index.html
     
-    # 3e. Genera il nuovo HTML per le novita SOLO se pop-up abilitato
+    # 3e. SOSTITUISCI CONTENUTO TRA I MARKER
     if [ "$ENABLE_POPUP" = true ]; then
-        # Crea il file con intestazione
-        cat > /tmp/new_features.html << 'HEADEREOF'
-                <div class="whats-new-body">
-HEADEREOF
+        # Crea il nuovo contenuto
+        cat > /tmp/new_features.txt << 'MARKER_START'
+            <!-- INIZIO_FEATURES -->
+            <div class="whats-new-body">
+MARKER_START
         
-        # Aggiungi ogni feature ESPANDENDO LE VARIABILI PRIMA
+        # Aggiungi le features
         for i in "${!FEATURES_TITLES[@]}"; do
-            # ESPANDI le variabili in variabili locali
-            CURRENT_ICON="${FEATURES_ICONS[$i]}"
-            CURRENT_TITLE="${FEATURES_TITLES[$i]}"
-            CURRENT_DESC="${FEATURES_DESCRIPTIONS[$i]}"
+            ICON="${FEATURES_ICONS[$i]}"
+            TITLE="${FEATURES_TITLES[$i]}"
+            DESC="${FEATURES_DESCRIPTIONS[$i]}"
             
-            # Ora scrivi nel file usando le variabili locali
-            cat >> /tmp/new_features.html << FEATUREEOF
-                    <div class="new-feature">
-                        <span class="feature-icon">$CURRENT_ICON</span>
-                        <div class="feature-content">
-                            <h4>$CURRENT_TITLE</h4>
-                            <p>$CURRENT_DESC</p>
-                        </div>
-                    </div>
+            cat >> /tmp/new_features.txt << FEATURE_EOF
 
-FEATUREEOF
+                <div class="new-feature">
+                    <span class="feature-icon">$ICON</span>
+                    <div class="feature-content">
+                        <h4>$TITLE</h4>
+                        <p>$DESC</p>
+                    </div>
+                </div>
+FEATURE_EOF
         done
         
-        # Chiudi il div whats-new-body
-        cat >> /tmp/new_features.html << 'FOOTEREOF'
-                </div>
-FOOTEREOF
+        # Chiudi
+        cat >> /tmp/new_features.txt << 'MARKER_END'
+
+            </div>
+            <!-- FINE_FEATURES -->
+MARKER_END
         
-        # 3f. Sostituisci TUTTO il blocco whats-new-body usando Python
-        python3 << 'PYTHON_SCRIPT'
-import re
-import sys
-
-# Leggi index.html
-with open('index.html', 'r', encoding='utf-8') as f:
-    html = f.read()
-
-# Leggi il nuovo contenuto
-with open('/tmp/new_features.html', 'r', encoding='utf-8') as f:
-    new_content = f.read()
-
-# Pattern per trovare TUTTO il blocco whats-new-body
-pattern = r'<div class="whats-new-body">.*?</div>\s*\n\s*</div>\s*\n\s*\n\s*<div class="modal-buttons">'
-
-# Sostituisci con il nuovo contenuto + chiusura div + modal-buttons
-replacement = new_content + '\n                \n                <div class="modal-buttons">'
-
-# Sostituisci
-html_new = re.sub(pattern, replacement, html, flags=re.DOTALL)
-
-# Salva il file
-with open('index.html', 'w', encoding='utf-8') as f:
-    f.write(html_new)
-
-print('[OK] Pop-up aggiornato con successo!')
-PYTHON_SCRIPT
+        # Sostituisci usando sed TRA I MARKER
+        sed -i.bak '/<!-- INIZIO_FEATURES -->/,/<!-- FINE_FEATURES -->/{ 
+            /<!-- INIZIO_FEATURES -->/r /tmp/new_features.txt
+            d
+        }' index.html
         
-        rm -f /tmp/new_features.html
-        
+        rm -f /tmp/new_features.txt
         echo "[OK] index.html aggiornato (badge, cache, titolo, data, novita)"
     else
         echo "[OK] index.html aggiornato (badge, cache - pop-up NON modificato)"
@@ -236,12 +209,6 @@ else
 fi
 echo "==================================="
 echo ""
-echo "Prossimi passi:"
-echo "  1. Verifica le modifiche"
-echo "  2. git add ."
-echo "  3. git commit -m \"v$NEW_VERSION - $DESCRIPTION\""
-echo "  4. git push"
-echo ""
 read -p "Vuoi fare il commit e push automaticamente? (s/n): " AUTO_PUSH
 
 if [ "$AUTO_PUSH" = "s" ] || [ "$AUTO_PUSH" = "S" ]; then
@@ -251,16 +218,14 @@ if [ "$AUTO_PUSH" = "s" ] || [ "$AUTO_PUSH" = "S" ]; then
     echo ""
     echo "[OK] Modifiche caricate su GitHub!"
     echo ""
-    echo "Attendi 1-2 minuti per vedere l'aggiornamento online su Vercel"
+    echo "Attendi 1-2 minuti per l'aggiornamento online"
     
     if [ "$ENABLE_POPUP" = true ]; then
         echo ""
-        echo "IMPORTANTE PER TESTARE IL POP-UP:"
-        echo "  1. Apri l'app su browser"
-        echo "  2. Apri Console (F12)"
-        echo "  3. Digita: localStorage.removeItem('lastSeenVersion')"
-        echo "  4. Ricarica pagina (Cmd+Shift+R)"
-        echo "  5. Fai login -> Dovresti vedere il nuovo pop-up!"
+        echo "PER TESTARE IL POP-UP:"
+        echo "  Console (F12) -> localStorage.removeItem('lastSeenVersion')"
+        echo "  Refresh (Cmd+Shift+R)"
+        echo "  Login"
     fi
 else
     echo ""
