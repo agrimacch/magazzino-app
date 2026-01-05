@@ -375,6 +375,22 @@ input, textarea, select {
     background: white;
     color: var(--dark);
     opacity: 1;
+    text-transform: uppercase;
+}
+
+/* Eccezioni: email, password e date restano normali */
+input[type="email"],
+input[type="password"],
+input[type="date"] {
+    text-transform: none;
+}
+
+/* Placeholder in grigio e non uppercase */
+input::placeholder,
+textarea::placeholder {
+    text-transform: none;
+    color: var(--gray);
+    opacity: 0.7;
 }
 
 input:focus, textarea:focus, select:focus {

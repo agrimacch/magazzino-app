@@ -128,12 +128,13 @@ async function confirmExcelImport() {
     for (let i = 0; i < excelDataToImport.length; i++) {
         const row = excelDataToImport[i];
         
-        const codice = row[0] ? String(row[0]).trim() : '';
-        const nome = row[1] ? String(row[1]).trim() : '';
-        const barcode = row[2] ? String(row[2]).trim() : '';
+        // Converti tutto in maiuscolo
+        const codice = row[0] ? String(row[0]).trim().toUpperCase() : '';
+        const nome = row[1] ? String(row[1]).trim().toUpperCase() : '';
+        const barcode = row[2] ? String(row[2]).trim().toUpperCase() : '';
         const quantitaDaAggiungere = row[3] ? parseInt(row[3]) : 0;
-        const fornitore = row[4] ? String(row[4]).trim() : '';
-        const note = row[5] ? String(row[5]).trim() : null;
+        const fornitore = row[4] ? String(row[4]).trim().toUpperCase() : '';
+        const note = row[5] ? String(row[5]).trim().toUpperCase() : null;
         
         if (!codice || !nome || !fornitore) {
             errori.push('Riga ' + (i+2) + ': Campi obbligatori mancanti');
@@ -632,12 +633,13 @@ function toggleRicambiEsauriti() {
 async function handleNewRicambio(e) {
     e.preventDefault();
     
-    const code = document.getElementById('new-ricambio-code').value.trim();
-    const name = document.getElementById('new-ricambio-name').value.trim();
-    const barcode = document.getElementById('new-ricambio-barcode').value.trim() || null;
-    const brand = document.getElementById('new-ricambio-brand').value.trim();
+    // Converti tutto in maiuscolo
+    const code = document.getElementById('new-ricambio-code').value.trim().toUpperCase();
+    const name = document.getElementById('new-ricambio-name').value.trim().toUpperCase();
+    const barcode = document.getElementById('new-ricambio-barcode').value.trim().toUpperCase() || null;
+    const brand = document.getElementById('new-ricambio-brand').value.trim().toUpperCase();
     const quantity = parseInt(document.getElementById('new-ricambio-quantity').value);
-    const notes = document.getElementById('new-ricambio-notes').value.trim() || null;
+    const notes = document.getElementById('new-ricambio-notes').value.trim().toUpperCase() || null;
     
     const { data: existingCode } = await supabaseClient
         .from('ricambi_stock')
@@ -727,12 +729,13 @@ async function handleEditRicambio(e) {
     e.preventDefault();
     
     const id = parseInt(document.getElementById('edit-ricambio-id').value);
-    const code = document.getElementById('edit-ricambio-code').value.trim();
-    const name = document.getElementById('edit-ricambio-name').value.trim();
-    const barcode = document.getElementById('edit-ricambio-barcode').value.trim() || null;
-    const brand = document.getElementById('edit-ricambio-brand').value.trim();
+    // Converti tutto in maiuscolo
+    const code = document.getElementById('edit-ricambio-code').value.trim().toUpperCase();
+    const name = document.getElementById('edit-ricambio-name').value.trim().toUpperCase();
+    const barcode = document.getElementById('edit-ricambio-barcode').value.trim().toUpperCase() || null;
+    const brand = document.getElementById('edit-ricambio-brand').value.trim().toUpperCase();
     const quantity = parseInt(document.getElementById('edit-ricambio-quantity').value);
-    const notes = document.getElementById('edit-ricambio-notes').value.trim() || null;
+    const notes = document.getElementById('edit-ricambio-notes').value.trim().toUpperCase() || null;
     
     const { error } = await supabaseClient
         .from('ricambi_stock')

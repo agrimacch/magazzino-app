@@ -887,12 +887,13 @@ function renderInventoryFlat(articles) {
 async function handleNewArticle(e) {
     e.preventDefault();
     
-    const name = document.getElementById('new-name').value;
-    const code = document.getElementById('new-code').value;
-    const barcode = document.getElementById('new-barcode').value;
-    const brand = document.getElementById('new-brand').value;
-    const description = document.getElementById('new-description').value.trim();
-    const notes = document.getElementById('new-notes').value.trim();
+    // Converti tutto in maiuscolo
+    const name = document.getElementById('new-name').value.toUpperCase();
+    const code = document.getElementById('new-code').value.toUpperCase();
+    const barcode = document.getElementById('new-barcode').value.toUpperCase();
+    const brand = document.getElementById('new-brand').value.toUpperCase();
+    const description = document.getElementById('new-description').value.trim().toUpperCase();
+    const notes = document.getElementById('new-notes').value.trim().toUpperCase();
     const quantity = parseInt(document.getElementById('new-quantity').value);
     const threshold = parseInt(document.getElementById('new-threshold').value);
     const priceBuy = parseFloat(document.getElementById('new-price-buy').value);
@@ -998,12 +999,13 @@ async function handleEditArticle(e) {
     e.preventDefault();
     
     const id = parseInt(document.getElementById('edit-id').value);
-    const name = document.getElementById('edit-name').value;
-    const code = document.getElementById('edit-code').value;
-    const barcode = document.getElementById('edit-barcode').value;
-    const brand = document.getElementById('edit-brand').value;
-    const description = document.getElementById('edit-description').value.trim();
-    const notes = document.getElementById('edit-notes').value.trim();
+    // Converti tutto in maiuscolo
+    const name = document.getElementById('edit-name').value.toUpperCase();
+    const code = document.getElementById('edit-code').value.toUpperCase();
+    const barcode = document.getElementById('edit-barcode').value.toUpperCase();
+    const brand = document.getElementById('edit-brand').value.toUpperCase();
+    const description = document.getElementById('edit-description').value.trim().toUpperCase();
+    const notes = document.getElementById('edit-notes').value.trim().toUpperCase();
     const quantity = parseInt(document.getElementById('edit-quantity').value);
     const threshold = parseInt(document.getElementById('edit-threshold').value);
     const priceBuy = parseFloat(document.getElementById('edit-price-buy').value);
