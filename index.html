@@ -17,7 +17,10 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=4.5.4">
+    <link rel="stylesheet" href="style.css?v=4.7.0">
+    
+    <!-- SheetJS per import Excel -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
     
     <style>
         /* Nascondi tutte le schermate all'inizio */
@@ -44,7 +47,7 @@
 
 <body class="loading">
     <!-- Version badge -->
-    <div class="version-badge">v4.5.4</div>
+    <div class="version-badge">v4.7.0</div>
 
     <!-- SCHERMATA LOGIN -->
     <div id="login-screen" class="screen">
@@ -92,7 +95,7 @@
 
     <!-- SCHERMATA PRINCIPALE -->
     <div id="main-screen" class="screen">
-        <!-- Header semplificato - SOLO LOGO + RUOLO + LOGOUT -->
+        <!-- Header semplificato -->
         <header>
             <div class="logo-container-header">
                 <img src="logo.png" alt="Logo Agrimag" class="logo-header">
@@ -103,219 +106,526 @@
             </div>
         </header>
 
-        <!-- Hamburger button (solo mobile) -->
-        <button id="hamburger-btn" class="hamburger-btn">
-            <span></span>
-            <span></span>
-            <span></span>
-        </button>
-
-        <!-- Navigazione tab -->
-        <nav class="tabs" id="main-tabs">
-            <button class="tab-btn active" data-tab="inventario">&#128202; Inventario</button>
-            <button class="tab-btn" data-tab="nuovo" id="tab-nuovo-btn">&#10133; Nuovo Articolo</button>
-            <button class="tab-btn" data-tab="movimenti">&#128203; Movimenti</button>
-            <button class="tab-btn" data-tab="report" id="tab-report-btn">&#128202; Report Ordini</button>
-            <button class="tab-btn" data-tab="utenti" id="tab-utenti-btn">&#128100; Utenti</button>
-            <button class="tab-btn" data-tab="scanner" id="tab-scanner-btn">&#128247; Scanner</button>
-        </nav>
-
-        <!-- TAB 1: INVENTARIO -->
-        <div id="tab-inventario" class="tab-content active">
-            <div class="container">
-                <!-- PRIMA RIGA: Solo ricerca -->
-                <div class="search-bar">
-                    <input type="text" id="search-input" placeholder="&#128269; Cerca articolo...">
+        <!-- ========================================== -->
+        <!-- DASHBOARD PRINCIPALE - NUOVA! -->
+        <!-- ========================================== -->
+        <div id="dashboard-view" class="dashboard-container">
+            <div class="dashboard-header">
+                <h2>&#127968; Dashboard</h2>
+                <p>Seleziona una sezione per iniziare</p>
+            </div>
+            <div class="dashboard-grid">
+                <!-- Card Inventario Consumabili -->
+                <div class="dashboard-card" onclick="openSection('consumabili')">
+                    <span class="card-icon">&#128230;</span>
+                    <h3>Inventario Consumabili</h3>
+                    <p>Gestisci articoli consumabili, carichi e scarichi</p>
                 </div>
                 
-                <!-- SECONDA RIGA: Filtri e toggle -->
-                <div class="filters-bar">
-                    <select id="filter-brand">
-                        <option value="">Tutti i fornitori</option>
-                    </select>
-                    <select id="sort-select">
-                        <option value="fornitore-asc">Fornitore (A-Z)</option>
-                        <option value="nome-asc">Nome (A-Z)</option>
-                        <option value="nome-desc">Nome (Z-A)</option>
-                        <option value="quantita-asc">Quantit&agrave; (crescente)</option>
-                        <option value="quantita-desc">Quantit&agrave; (decrescente)</option>
-                    </select>
-                    
-                    <!-- Toggle restyling -->
-                    <div class="toggle-container">
-                        <input type="checkbox" id="group-by-supplier" checked class="toggle-checkbox">
-                        <label for="group-by-supplier" class="toggle-label">
-                            <span class="toggle-text">Raggruppa per fornitore</span>
-                            <span class="toggle-switch"></span>
-                        </label>
+                <!-- Card Inventario Ricambi -->
+                <div class="dashboard-card" onclick="openSection('ricambi')">
+                    <span class="card-icon">&#128295;</span>
+                    <h3>Inventario Ricambi Stock</h3>
+                    <p>Gestisci ricambi, import Excel e movimenti</p>
+                </div>
+                
+                <!-- Card Scanner (visibile solo su mobile) -->
+                <div class="dashboard-card" id="dashboard-scanner-card" onclick="openSection('scanner')">
+                    <span class="card-icon">&#128247;</span>
+                    <h3>Scanner</h3>
+                    <p>Scansiona codici a barre di tutti gli articoli</p>
+                </div>
+                
+                <!-- Card Gestione Utenti (solo admin) -->
+                <div class="dashboard-card" id="dashboard-utenti-card" onclick="openSection('utenti')">
+                    <span class="card-icon">&#128101;</span>
+                    <h3>Gestione Utenti</h3>
+                    <p>Amministra utenti e permessi</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- SEZIONE CONSUMABILI -->
+        <!-- ========================================== -->
+        <div id="section-consumabili" class="section-container hidden">
+            <!-- Pulsante Torna alla Dashboard -->
+            <div class="back-to-dashboard">
+                <button onclick="backToDashboard()" class="btn-back">
+                    &#8592; Torna alla Dashboard
+                </button>
+                <h2 class="section-title">&#128230; Inventario Consumabili</h2>
+            </div>
+
+            <!-- Navigazione tab Consumabili -->
+            <nav class="tabs" id="tabs-consumabili">
+                <button class="tab-btn active" data-tab="inventario">&#128202; Inventario</button>
+                <button class="tab-btn" data-tab="nuovo" id="tab-nuovo-btn">&#10133; Nuovo Articolo</button>
+                <button class="tab-btn" data-tab="movimenti">&#128203; Movimenti</button>
+                <button class="tab-btn" data-tab="report" id="tab-report-btn">&#128202; Report</button>
+            </nav>
+
+            <!-- TAB: INVENTARIO CONSUMABILI -->
+            <div id="tab-inventario" class="tab-content active">
+                <div class="container">
+                    <div class="search-bar">
+                        <input type="text" id="search-input" placeholder="&#128269; Cerca articolo...">
                     </div>
-                </div>
-
-                <div id="inventory-container">
-                    <!-- Contenuto dinamico -->
-                </div>
-            </div>
-        </div>
-
-        <!-- TAB 2: NUOVO ARTICOLO -->
-        <div id="tab-nuovo" class="tab-content">
-            <div class="container">
-                <div class="card">
-                    <h2>Aggiungi Nuovo Articolo</h2>
-                    <form id="new-article-form">
-                        <div class="form-row">
-                            <div class="form-col">
-                                <label>Nome Articolo *</label>
-                                <input type="text" id="new-name" placeholder="Nome articolo" required>
-                            </div>
-                            <div class="form-col">
-                                <label>Codice Articolo *</label>
-                                <input type="text" id="new-code" placeholder="Codice articolo" required>
-                            </div>
-                        </div>
-                        
-                        <div class="form-row">
-                            <div class="form-col">
-                                <label>Codice a Barre *</label>
-                                <input type="text" id="new-barcode" placeholder="Codice a barre" required>
-                            </div>
-                            <div class="form-col">
-                                <label>Marca/Fornitore</label>
-                                <input type="text" id="new-brand" placeholder="Marca/Fornitore">
-                            </div>
-                        </div>
-                        
-                        <label>Descrizione</label>
-                        <textarea id="new-description" placeholder="Descrizione (opzionale)" rows="3"></textarea>
-                        
-                        <label>Note (es: confezione da 25 pz)</label>
-                        <textarea id="new-notes" placeholder="Note sulla confezione (opzionale)" rows="2"></textarea>
-                        
-                        <div class="form-row">
-                            <div class="form-col">
-                                <label>Quantit&agrave; Iniziale *</label>
-                                <input type="number" id="new-quantity" placeholder="Quantit&agrave; iniziale" value="0" required>
-                            </div>
-                            <div class="form-col">
-                                <label>Soglia Minima *</label>
-                                <input type="number" id="new-threshold" placeholder="Soglia minima" value="10" required>
-                            </div>
-                        </div>
-                        
-                        <div class="form-row">
-                            <div class="form-col">
-                                <label>Prezzo Acquisto NETTO &#8364; (no IVA) *</label>
-                                <input type="number" step="0.01" id="new-price-buy" placeholder="0.00" required>
-                            </div>
-                            <div class="form-col">
-                                <label>IVA % *</label>
-                                <input type="number" step="0.01" id="new-iva" placeholder="22" value="22" required>
-                            </div>
-                        </div>
-                        
-                        <label>Prezzo Vendita &#8364; (IVA inclusa) *</label>
-                        <input type="number" step="0.01" id="new-price" placeholder="0.00" required>
-                        
-                        <button type="submit" class="btn-primary">Salva Articolo</button>
-                    </form>
-                </div>
-            </div>
-        </div>
-
-        <!-- TAB 3: MOVIMENTI -->
-        <div id="tab-movimenti" class="tab-content">
-            <div class="container">
-                <h2>Storico Movimenti</h2>
-                <div class="filters-bar">
-                    <select id="filter-movement-type">
-                        <option value="">Tutti i tipi</option>
-                        <option value="carico">Solo Carichi</option>
-                        <option value="scarico">Solo Scarichi</option>
-                    </select>
-                    <input type="date" id="filter-date-from" placeholder="Da">
-                    <input type="date" id="filter-date-to" placeholder="A">
-                    <button id="apply-movement-filters" class="btn-primary">Applica Filtri</button>
-                </div>
-                <div class="table-container">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Data</th>
-                                <th>Utente</th>
-                                <th>Articolo</th>
-                                <th>Tipo</th>
-                                <th>Quantit&agrave;</th>
-                                <th class="hide-on-mobile">Codice</th>
-                                <th class="hide-on-mobile">Note</th>
-                            </tr>
-                        </thead>
-                        <tbody id="movements-tbody">
-                            <!-- Movimenti caricati dinamicamente -->
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-
-        <!-- TAB 4: REPORT ORDINI -->
-        <div id="tab-report" class="tab-content">
-            <div class="container">
-                <div class="card">
-                    <h2>&#128202; Report Prestagionale Ordini/Vendite</h2>
-                    <p style="color: var(--gray); font-size: 14px; margin-bottom: 20px;">
-                        Analizza quanto materiale hai ordinato (caricato) e venduto (scaricato) per programmare ordini futuri.
-                    </p>
                     
-                    <div class="report-options">
-                        <label>Tipo Report:</label>
-                        <select id="report-type">
-                            <option value="generale">Report Generale (Tutti i Fornitori)</option>
-                            <option value="fornitore">Report per Fornitore Specifico</option>
-                            <option value="articolo">Report per Articolo Specifico</option>
+                    <div class="filters-bar">
+                        <select id="filter-brand">
+                            <option value="">Tutti i fornitori</option>
                         </select>
-
-                        <div id="report-supplier-select" class="report-field hidden">
-                            <label>Seleziona Fornitore:</label>
-                            <select id="report-supplier">
-                                <option value="">-- Seleziona fornitore --</option>
-                            </select>
+                        <select id="sort-select">
+                            <option value="fornitore-asc">Fornitore (A-Z)</option>
+                            <option value="nome-asc">Nome (A-Z)</option>
+                            <option value="nome-desc">Nome (Z-A)</option>
+                            <option value="quantita-asc">Quantit&agrave; (crescente)</option>
+                            <option value="quantita-desc">Quantit&agrave; (decrescente)</option>
+                        </select>
+                        
+                        <div class="toggle-container">
+                            <input type="checkbox" id="group-by-supplier" checked class="toggle-checkbox">
+                            <label for="group-by-supplier" class="toggle-label">
+                                <span class="toggle-text">Raggruppa per fornitore</span>
+                                <span class="toggle-switch"></span>
+                            </label>
                         </div>
+                    </div>
 
-                        <div id="report-article-select" class="report-field hidden">
-                            <label>Seleziona Articolo:</label>
-                            <select id="report-article">
-                                <option value="">-- Seleziona articolo --</option>
-                            </select>
-                        </div>
-
-                        <label>Periodo Analisi:</label>
-                        <div class="form-row">
-                            <div class="form-col">
-                                <label>Da:</label>
-                                <input type="date" id="report-date-from">
-                            </div>
-                            <div class="form-col">
-                                <label>A:</label>
-                                <input type="date" id="report-date-to">
-                            </div>
-                        </div>
-
-                        <button id="generate-report" class="btn-primary">Genera Report</button>
+                    <div id="inventory-container">
+                        <!-- Contenuto dinamico -->
                     </div>
                 </div>
+            </div>
 
-                <div id="report-result" class="card hidden">
-                    <div class="report-header">
-                        <h2>Report Generato</h2>
-                        <button id="print-report" class="btn-primary">&#128424; Stampa</button>
+            <!-- TAB: NUOVO ARTICOLO -->
+            <div id="tab-nuovo" class="tab-content">
+                <div class="container">
+                    <div class="card">
+                        <h2>Aggiungi Nuovo Articolo</h2>
+                        <form id="new-article-form">
+                            <div class="form-row">
+                                <div class="form-col">
+                                    <label>Nome Articolo *</label>
+                                    <input type="text" id="new-name" placeholder="Nome articolo" required>
+                                </div>
+                                <div class="form-col">
+                                    <label>Codice Articolo *</label>
+                                    <input type="text" id="new-code" placeholder="Codice articolo" required>
+                                </div>
+                            </div>
+                            
+                            <div class="form-row">
+                                <div class="form-col">
+                                    <label>Codice a Barre *</label>
+                                    <input type="text" id="new-barcode" placeholder="Codice a barre" required>
+                                </div>
+                                <div class="form-col">
+                                    <label>Marca/Fornitore</label>
+                                    <input type="text" id="new-brand" placeholder="Marca/Fornitore">
+                                </div>
+                            </div>
+                            
+                            <label>Descrizione</label>
+                            <textarea id="new-description" placeholder="Descrizione (opzionale)" rows="3"></textarea>
+                            
+                            <label>Note (es: confezione da 25 pz)</label>
+                            <textarea id="new-notes" placeholder="Note sulla confezione (opzionale)" rows="2"></textarea>
+                            
+                            <div class="form-row">
+                                <div class="form-col">
+                                    <label>Quantit&agrave; Iniziale *</label>
+                                    <input type="number" id="new-quantity" placeholder="Quantit&agrave; iniziale" value="0" required>
+                                </div>
+                                <div class="form-col">
+                                    <label>Soglia Minima *</label>
+                                    <input type="number" id="new-threshold" placeholder="Soglia minima" value="10" required>
+                                </div>
+                            </div>
+                            
+                            <div class="form-row">
+                                <div class="form-col">
+                                    <label>Prezzo Acquisto NETTO &#8364; (no IVA) *</label>
+                                    <input type="number" step="0.01" id="new-price-buy" placeholder="0.00" required>
+                                </div>
+                                <div class="form-col">
+                                    <label>IVA % *</label>
+                                    <input type="number" step="0.01" id="new-iva" placeholder="22" value="22" required>
+                                </div>
+                            </div>
+                            
+                            <label>Prezzo Vendita &#8364; (IVA inclusa) *</label>
+                            <input type="number" step="0.01" id="new-price" placeholder="0.00" required>
+                            
+                            <button type="submit" class="btn-primary">Salva Articolo</button>
+                        </form>
                     </div>
-                    <div id="report-content"></div>
+                </div>
+            </div>
+
+            <!-- TAB: MOVIMENTI CONSUMABILI -->
+            <div id="tab-movimenti" class="tab-content">
+                <div class="container">
+                    <h2>Storico Movimenti Consumabili</h2>
+                    <div class="filters-bar">
+                        <select id="filter-movement-type">
+                            <option value="">Tutti i tipi</option>
+                            <option value="carico">Solo Carichi</option>
+                            <option value="scarico">Solo Scarichi</option>
+                        </select>
+                        <input type="date" id="filter-date-from" placeholder="Da">
+                        <input type="date" id="filter-date-to" placeholder="A">
+                        <button id="apply-movement-filters" class="btn-primary">Applica Filtri</button>
+                    </div>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Data</th>
+                                    <th>Utente</th>
+                                    <th>Articolo</th>
+                                    <th>Tipo</th>
+                                    <th>Quantit&agrave;</th>
+                                    <th class="hide-on-mobile">Codice</th>
+                                    <th class="hide-on-mobile">Note</th>
+                                </tr>
+                            </thead>
+                            <tbody id="movements-tbody">
+                                <!-- Movimenti caricati dinamicamente -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB: REPORT CONSUMABILI -->
+            <div id="tab-report" class="tab-content">
+                <div class="container">
+                    <div class="card">
+                        <h2>&#128202; Report Consumabili</h2>
+                        <p style="color: var(--gray); font-size: 14px; margin-bottom: 20px;">
+                            Analizza quanto materiale hai ordinato (caricato) e venduto (scaricato) per programmare ordini futuri.
+                        </p>
+                        
+                        <div class="report-options">
+                            <label>Tipo Report:</label>
+                            <select id="report-type">
+                                <option value="generale">Report Generale (Tutti i Fornitori)</option>
+                                <option value="fornitore">Report per Fornitore Specifico</option>
+                                <option value="articolo">Report per Articolo Specifico</option>
+                            </select>
+
+                            <div id="report-supplier-select" class="report-field hidden">
+                                <label>Seleziona Fornitore:</label>
+                                <select id="report-supplier">
+                                    <option value="">-- Seleziona fornitore --</option>
+                                </select>
+                            </div>
+
+                            <div id="report-article-select" class="report-field hidden">
+                                <label>Seleziona Articolo:</label>
+                                <select id="report-article">
+                                    <option value="">-- Seleziona articolo --</option>
+                                </select>
+                            </div>
+
+                            <label>Periodo Analisi:</label>
+                            <div class="form-row">
+                                <div class="form-col">
+                                    <label>Da:</label>
+                                    <input type="date" id="report-date-from">
+                                </div>
+                                <div class="form-col">
+                                    <label>A:</label>
+                                    <input type="date" id="report-date-to">
+                                </div>
+                            </div>
+
+                            <button id="generate-report" class="btn-primary">Genera Report</button>
+                        </div>
+                    </div>
+
+                    <div id="report-result" class="card hidden">
+                        <div class="report-header">
+                            <h2>Report Generato</h2>
+                            <button id="print-report" class="btn-primary">&#128424; Stampa</button>
+                        </div>
+                        <div id="report-content"></div>
+                    </div>
                 </div>
             </div>
         </div>
 
-        <!-- TAB 5: GESTIONE UTENTI -->
-        <div id="tab-utenti" class="tab-content">
+        <!-- ========================================== -->
+        <!-- SEZIONE RICAMBI -->
+        <!-- ========================================== -->
+        <div id="section-ricambi" class="section-container hidden">
+            <!-- Pulsante Torna alla Dashboard -->
+            <div class="back-to-dashboard">
+                <button onclick="backToDashboard()" class="btn-back">
+                    &#8592; Torna alla Dashboard
+                </button>
+                <h2 class="section-title">&#128295; Inventario Ricambi Stock</h2>
+            </div>
+
+            <!-- Navigazione tab Ricambi -->
+            <nav class="tabs" id="tabs-ricambi">
+                <button class="tab-btn active" data-tab="ricambi-inventario">&#128230; Inventario</button>
+                <button class="tab-btn" data-tab="ricambi-nuovo" id="tab-ricambi-nuovo-btn">&#10133; Nuovo Ricambio</button>
+                <button class="tab-btn" data-tab="ricambi-excel" id="tab-ricambi-excel-btn">&#128193; Import Excel</button>
+                <button class="tab-btn" data-tab="ricambi-movimenti">&#128221; Movimenti</button>
+                <button class="tab-btn" data-tab="ricambi-report" id="tab-ricambi-report-btn">&#128201; Report</button>
+            </nav>
+
+            <!-- TAB: INVENTARIO RICAMBI -->
+            <div id="tab-ricambi-inventario" class="tab-content active">
+                <div class="container">
+                    <div class="search-bar">
+                        <input type="text" id="search-ricambi-input" placeholder="&#128269; Cerca ricambio...">
+                    </div>
+                    
+                    <div class="filters-bar">
+                        <select id="filter-ricambi-brand">
+                            <option value="">Tutti i fornitori</option>
+                        </select>
+                        <select id="sort-ricambi-select">
+                            <option value="fornitore-asc">Fornitore (A-Z)</option>
+                            <option value="codice-asc">Codice (A-Z)</option>
+                            <option value="nome-asc">Nome (A-Z)</option>
+                            <option value="quantita-asc">Quantit&agrave; (crescente)</option>
+                            <option value="quantita-desc">Quantit&agrave; (decrescente)</option>
+                        </select>
+                        
+                        <div class="toggle-container">
+                            <input type="checkbox" id="group-ricambi-by-supplier" checked class="toggle-checkbox">
+                            <label for="group-ricambi-by-supplier" class="toggle-label">
+                                <span class="toggle-text">Raggruppa per fornitore</span>
+                                <span class="toggle-switch"></span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div id="ricambi-inventory-container">
+                        <!-- Contenuto dinamico -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB: NUOVO RICAMBIO -->
+            <div id="tab-ricambi-nuovo" class="tab-content">
+                <div class="container">
+                    <div class="card">
+                        <h2>&#10133; Aggiungi Nuovo Ricambio</h2>
+                        <form id="new-ricambio-form">
+                            <div class="form-row">
+                                <div class="form-col">
+                                    <label>Codice Articolo *</label>
+                                    <input type="text" id="new-ricambio-code" placeholder="Codice ricambio" required>
+                                </div>
+                                <div class="form-col">
+                                    <label>Nome *</label>
+                                    <input type="text" id="new-ricambio-name" placeholder="Nome ricambio" required>
+                                </div>
+                            </div>
+                            
+                            <div class="form-row">
+                                <div class="form-col">
+                                    <label>Codice a Barre (opzionale)</label>
+                                    <input type="text" id="new-ricambio-barcode" placeholder="Codice a barre">
+                                </div>
+                                <div class="form-col">
+                                    <label>Marca/Fornitore *</label>
+                                    <input type="text" id="new-ricambio-brand" placeholder="Marca/Fornitore" required>
+                                </div>
+                            </div>
+                            
+                            <label>Quantit&agrave; Iniziale *</label>
+                            <input type="number" id="new-ricambio-quantity" placeholder="0" value="0" required style="margin-bottom: 12px;">
+                            
+                            <label>Note (opzionale)</label>
+                            <textarea id="new-ricambio-notes" placeholder="Note aggiuntive" rows="2"></textarea>
+                            
+                            <button type="submit" class="btn-primary">Salva Ricambio</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB: IMPORT EXCEL -->
+            <div id="tab-ricambi-excel" class="tab-content">
+                <div class="container">
+                    <div class="card">
+                        <h2>&#128193; Import da Excel</h2>
+                        <p style="font-size: 14px; margin-bottom: 15px;">
+                            Carica un file Excel (.xlsx) con i ricambi. Il file deve avere queste colonne:
+                        </p>
+                        <div style="background: white; padding: 12px; border-radius: 8px; font-size: 13px; margin-bottom: 15px; border: 2px solid var(--green-light);">
+                            <strong>Colonne richieste:</strong><br>
+                            Codice Articolo | Nome | Codice Barre | Quantit&agrave; | Marca/Fornitore | Note
+                        </div>
+                        <div style="background: #fee2e2; padding: 12px; border-radius: 8px; margin-bottom: 15px; border-left: 4px solid var(--danger);">
+                            <strong style="color: var(--danger);">&#9888; ATTENZIONE!</strong><br>
+                            <span style="font-size: 13px;">CON CARICAMENTO TRAMITE FOGLIO EXCEL MASSIMO 100 RIGHE!!</span>
+                        </div>
+                        
+                        <!-- Preview file caricato -->
+                        <div id="excel-preview" style="display: none; background: white; padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 2px solid var(--primary);">
+                            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                                <span style="font-size: 24px;">&#128221;</span>
+                                <div style="flex: 1;">
+                                    <div id="excel-filename" style="font-weight: 700; color: var(--dark);"></div>
+                                    <div id="excel-info" style="font-size: 13px; color: var(--gray);"></div>
+                                </div>
+                                <button id="btn-cancel-excel" style="background: var(--danger); color: white; border: none; padding: 8px 12px; border-radius: 8px; cursor: pointer; font-size: 20px;">&#10006;</button>
+                            </div>
+                            <button id="btn-import-excel" class="btn-primary" style="width: 100%;">&#128229; IMPORTA RICAMBI</button>
+                        </div>
+                        
+                        <input type="file" id="excel-file-input" accept=".xlsx,.xls" style="display: none;">
+                        <button id="btn-select-excel" class="btn-primary" style="width: 100%;">&#128194; Seleziona File Excel</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB: MOVIMENTI RICAMBI -->
+            <div id="tab-ricambi-movimenti" class="tab-content">
+                <div class="container">
+                    <h2>Storico Movimenti Ricambi</h2>
+                    <div class="filters-bar">
+                        <select id="filter-movement-ricambi-type">
+                            <option value="">Tutti i tipi</option>
+                            <option value="carico">Solo Carichi</option>
+                            <option value="scarico">Solo Scarichi</option>
+                        </select>
+                        <input type="date" id="filter-ricambi-date-from" placeholder="Da">
+                        <input type="date" id="filter-ricambi-date-to" placeholder="A">
+                        <button id="apply-movement-ricambi-filters" class="btn-primary">Applica Filtri</button>
+                    </div>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Data</th>
+                                    <th>Utente</th>
+                                    <th>Ricambio</th>
+                                    <th>Tipo</th>
+                                    <th>Quantit&agrave;</th>
+                                    <th class="hide-on-mobile">Codice</th>
+                                    <th class="hide-on-mobile">Note</th>
+                                </tr>
+                            </thead>
+                            <tbody id="movements-ricambi-tbody">
+                                <!-- Movimenti caricati dinamicamente -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB: REPORT RICAMBI -->
+            <div id="tab-ricambi-report" class="tab-content">
+                <div class="container">
+                    <div class="card">
+                        <h2>&#128201; Report Ricambi Stock</h2>
+                        <p style="color: var(--gray); font-size: 14px; margin-bottom: 20px;">
+                            Analizza i movimenti dei ricambi per programmare gli ordini.
+                        </p>
+                        
+                        <div class="report-options">
+                            <label>Tipo Report:</label>
+                            <select id="report-ricambi-type">
+                                <option value="generale">Report Generale (Tutti i Fornitori)</option>
+                                <option value="fornitore">Report per Fornitore Specifico</option>
+                                <option value="ricambio">Report per Ricambio Specifico</option>
+                            </select>
+
+                            <div id="report-ricambi-supplier-select" class="report-field hidden">
+                                <label>Seleziona Fornitore:</label>
+                                <select id="report-ricambi-supplier">
+                                    <option value="">-- Seleziona fornitore --</option>
+                                </select>
+                            </div>
+
+                            <div id="report-ricambi-item-select" class="report-field hidden">
+                                <label>Seleziona Ricambio:</label>
+                                <select id="report-ricambi-item">
+                                    <option value="">-- Seleziona ricambio --</option>
+                                </select>
+                            </div>
+
+                            <label>Periodo Analisi:</label>
+                            <div class="form-row">
+                                <div class="form-col">
+                                    <label>Da:</label>
+                                    <input type="date" id="report-ricambi-date-from">
+                                </div>
+                                <div class="form-col">
+                                    <label>A:</label>
+                                    <input type="date" id="report-ricambi-date-to">
+                                </div>
+                            </div>
+
+                            <button id="generate-report-ricambi" class="btn-primary">Genera Report</button>
+                        </div>
+                    </div>
+
+                    <div id="report-ricambi-result" class="card hidden">
+                        <div class="report-header">
+                            <h2>Report Generato</h2>
+                            <button id="print-report-ricambi" class="btn-primary">&#128424; Stampa</button>
+                        </div>
+                        <div id="report-ricambi-content"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- SEZIONE SCANNER -->
+        <!-- ========================================== -->
+        <div id="section-scanner" class="section-container hidden">
+            <!-- Pulsante Torna alla Dashboard -->
+            <div class="back-to-dashboard">
+                <button onclick="backToDashboard()" class="btn-back">
+                    &#8592; Torna alla Dashboard
+                </button>
+                <h2 class="section-title">&#128247; Scanner Codice a Barre</h2>
+            </div>
+
+            <div class="container">
+                <div class="card">
+                    <p style="font-size: 13px; color: var(--gray); margin-bottom: 15px;">
+                        Lo scanner cerca sia negli <strong>Articoli Consumabili</strong> che nei <strong>Ricambi</strong>
+                    </p>
+                    <div id="scanner-container">
+                        <div id="reader"></div>
+                    </div>
+                    <div id="scanner-result" class="hidden">
+                        <h3>Articolo trovato:</h3>
+                        <p id="scanned-article"></p>
+                        <div class="action-buttons">
+                            <button id="btn-carico" class="btn-success">&#10133; Carico</button>
+                            <button id="btn-scarico" class="btn-danger">&#10134; Scarico</button>
+                        </div>
+                        <button id="btn-rescan" class="btn-secondary" style="width: 100%; margin-top: 10px;">&#128257; Scansiona Altro</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- SEZIONE GESTIONE UTENTI -->
+        <!-- ========================================== -->
+        <div id="section-utenti" class="section-container hidden">
+            <!-- Pulsante Torna alla Dashboard -->
+            <div class="back-to-dashboard">
+                <button onclick="backToDashboard()" class="btn-back">
+                    &#8592; Torna alla Dashboard
+                </button>
+                <h2 class="section-title">&#128101; Gestione Utenti</h2>
+            </div>
+
             <div class="container">
                 <div class="card">
                     <h2>&#128100; Aggiungi Nuovo Utente</h2>
@@ -359,30 +669,13 @@
                 </div>
             </div>
         </div>
-
-        <!-- TAB 6: SCANNER -->
-        <div id="tab-scanner" class="tab-content">
-            <div class="container">
-                <div class="card">
-                    <h2>Scanner Codice a Barre</h2>
-                    <div id="scanner-container">
-                        <div id="reader"></div>
-                    </div>
-                    <div id="scanner-result" class="hidden">
-                        <h3>Articolo trovato:</h3>
-                        <p id="scanned-article"></p>
-                        <div class="action-buttons">
-                            <button id="btn-carico" class="btn-success">&#10133; Carico</button>
-                            <button id="btn-scarico" class="btn-danger">&#10134; Scarico</button>
-                        </div>
-                        <button id="btn-rescan" class="btn-secondary" style="width: 100%; margin-top: 10px;">&#128257; Scansiona Altro</button>
-                    </div>
-                </div>
-            </div>
-        </div>
     </div>
 
-    <!-- Modal per carico/scarico -->
+    <!-- ========================================== -->
+    <!-- MODALS -->
+    <!-- ========================================== -->
+
+    <!-- Modal per carico/scarico ARTICOLI -->
     <div id="movement-modal" class="modal hidden">
         <div class="modal-content">
             <h3 id="modal-title">Carico/Scarico</h3>
@@ -393,6 +686,21 @@
             <div class="modal-buttons">
                 <button id="modal-confirm" class="btn-primary">Conferma</button>
                 <button id="modal-cancel" class="btn-secondary">Annulla</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal per carico/scarico RICAMBI -->
+    <div id="movement-ricambi-modal" class="modal hidden">
+        <div class="modal-content">
+            <h3 id="modal-ricambi-title">Carico/Scarico Ricambio</h3>
+            <p id="modal-ricambi-name"></p>
+            <p>Quantit&agrave; attuale: <strong id="modal-ricambi-current-qty"></strong></p>
+            <input type="number" id="modal-ricambi-quantity" placeholder="Quantit&agrave;" value="1" min="1">
+            <textarea id="modal-ricambi-notes" placeholder="Note (opzionale)" rows="3"></textarea>
+            <div class="modal-buttons">
+                <button id="modal-ricambi-confirm" class="btn-primary">Conferma</button>
+                <button id="modal-ricambi-cancel" class="btn-secondary">Annulla</button>
             </div>
         </div>
     </div>
@@ -455,6 +763,49 @@
                 <div class="modal-buttons">
                     <button type="submit" class="btn-primary">Salva Modifiche</button>
                     <button type="button" id="edit-cancel" class="btn-secondary">Annulla</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal per modifica RICAMBIO -->
+    <div id="edit-ricambio-modal" class="modal hidden">
+        <div class="modal-content">
+            <h3>Modifica Ricambio</h3>
+            <form id="edit-ricambio-form">
+                <input type="hidden" id="edit-ricambio-id">
+                
+                <div class="form-row">
+                    <div class="form-col">
+                        <label>Codice Articolo *</label>
+                        <input type="text" id="edit-ricambio-code" placeholder="Codice ricambio" required>
+                    </div>
+                    <div class="form-col">
+                        <label>Nome *</label>
+                        <input type="text" id="edit-ricambio-name" placeholder="Nome ricambio" required>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-col">
+                        <label>Codice a Barre</label>
+                        <input type="text" id="edit-ricambio-barcode" placeholder="Codice a barre">
+                    </div>
+                    <div class="form-col">
+                        <label>Marca/Fornitore *</label>
+                        <input type="text" id="edit-ricambio-brand" placeholder="Marca/Fornitore" required>
+                    </div>
+                </div>
+                
+                <label>Quantit&agrave; *</label>
+                <input type="number" id="edit-ricambio-quantity" placeholder="0" required style="margin-bottom: 12px;">
+                
+                <label>Note</label>
+                <textarea id="edit-ricambio-notes" placeholder="Note aggiuntive" rows="2"></textarea>
+                
+                <div class="modal-buttons">
+                    <button type="submit" class="btn-primary">Salva Modifiche</button>
+                    <button type="button" id="edit-ricambio-cancel" class="btn-secondary">Annulla</button>
                 </div>
             </form>
         </div>
@@ -533,31 +884,38 @@
         </div>
     </div>
 
-    <!-- Pop-up Novit&agrave; Versione - CORRETTO -->
-<!-- Pop-up Novit&agrave; Versione -->
+    <!-- Pop-up Novit&agrave; Versione -->
     <div id="whats-new-modal" class="modal hidden">
         <div class="modal-content whats-new-content">
             <div class="whats-new-header">
-                <h3>&#127881; AGRIMAG v4.5.4 - Aggiornamento!</h3>
-                <p class="version-date">23 Dicembre 2025</p>
+                <h3>&#127881; AGRIMAG v4.7.0 - Aggiornamento!</h3>
+                <p class="version-date">5 Gennaio 2026</p>
             </div>
             
             <!-- INIZIO_FEATURES -->
             <div class="whats-new-body">
 
                 <div class="new-feature">
-                    <span class="feature-icon">&#128027;</span>
+                    <span class="feature-icon">&#127968;</span>
                     <div class="feature-content">
-                        <h4>FILTRI FORNITORI</h4>
-                        <p>Risolto bug filtri fornitori!</p>
+                        <h4>NUOVA DASHBOARD</h4>
+                        <p>Interfaccia rinnovata con card per accesso rapido alle sezioni!</p>
                     </div>
                 </div>
 
                 <div class="new-feature">
-                    <span class="feature-icon">&#128295;</span>
+                    <span class="feature-icon">&#128230;</span>
                     <div class="feature-content">
-                        <h4>ARTICOLI</h4>
-                        <p>Implementato possibilità di aggiungere, modificare e cancellare articoli.</p>
+                        <h4>SEZIONI SEPARATE</h4>
+                        <p>Consumabili e Ricambi ora hanno sezioni dedicate pi&ugrave; organizzate.</p>
+                    </div>
+                </div>
+
+                <div class="new-feature">
+                    <span class="feature-icon">&#128247;</span>
+                    <div class="feature-content">
+                        <h4>NAVIGAZIONE MIGLIORATA</h4>
+                        <p>Pulsante "Torna alla Dashboard" per navigare facilmente.</p>
                     </div>
                 </div>
 
@@ -569,8 +927,22 @@
             </div>
         </div>
     </div>
+
+    <!-- MODAL ALERT PERSONALIZZATO -->
+    <div id="custom-alert-modal" class="modal hidden">
+        <div class="modal-content" style="max-width: 450px;">
+            <div style="text-align: center; margin-bottom: 20px;">
+                <span id="custom-alert-icon" style="font-size: 56px; display: block; margin-bottom: 15px;"></span>
+                <h3 id="custom-alert-title" style="color: var(--primary); margin-bottom: 10px;"></h3>
+            </div>
+            <div id="custom-alert-message" style="font-size: 15px; line-height: 1.6; text-align: center; margin-bottom: 25px;"></div>
+            <button id="custom-alert-ok" class="btn-primary" style="width: 100%; padding: 14px; font-size: 16px; font-weight: 700;">OK</button>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
-    <script src="app.js?v=4.5.4"></script>
+    <script src="ricambi-functions.js?v=4.7.0"></script>
+    <script src="app.js?v=4.7.0"></script>
 </body>
 </html>

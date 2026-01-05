@@ -4,35 +4,37 @@
 const SUPABASE_URL = 'https://uiypndhemhgljceylqzl.supabase.co';  
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVpeXBuZGhlbWhnbGpjZXlscXpsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE2NTc2NDIsImV4cCI6MjA3NzIzMzY0Mn0.zyVrgj3JZaCmOoAGCugPDfEjdEyNj-elbiFFXZJkRmU';
 
-// FIX: Rinominato da 'supabase' a 'supabaseClient' per evitare conflitto con window.supabase
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // ========================================
 // VARIABILI GLOBALI
 // ========================================
-const CURRENT_VERSION = '4.5.4';
-
-// ========================================
-// CONTROLLO POP-UP NOVIT&Agrave; - IMPOSTA SU true PER MOSTRARLO
-// ========================================
-const SHOW_WHATS_NEW_POPUP = true; // <-- CAMBIA QUESTO IN true PER MOSTRARE IL POP-UP!
+const CURRENT_VERSION = '4.7.0';
+const SHOW_WHATS_NEW_POPUP = true;
 
 let currentUser = null;
 let currentUserRole = null;
-let loggedInUserEmail = null; // Email dell'utente loggato (per evitare bug con signUp)
+let loggedInUserEmail = null;
 let allArticles = [];
 let allMovements = [];
 let currentArticleForMovement = null;
 let html5QrCode = null;
 let audioContext = null;
 let audioInitialized = false;
-let userInitials = {}; // Mappa email -> iniziali utente
+let userInitials = {};
+
+// Variabili per ricambi
+let allRicambi = [];
+let allMovementsRicambi = [];
+let currentRicambioForMovement = null;
+
+// Variabile per sezione attiva
+let currentSection = 'dashboard';
 
 // ========================================
-// FUNZIONI PERSISTENZA FILTRI - NUOVE!
+// FUNZIONI PERSISTENZA FILTRI
 // ========================================
 
-// Salva filtri inventario in sessionStorage
 function saveInventoryFilters() {
     const filters = {
         brand: document.getElementById('filter-brand')?.value || '',
@@ -43,7 +45,6 @@ function saveInventoryFilters() {
     sessionStorage.setItem('inventoryFilters', JSON.stringify(filters));
 }
 
-// Ripristina filtri inventario da sessionStorage
 function restoreInventoryFilters() {
     const saved = sessionStorage.getItem('inventoryFilters');
     if (saved) {
@@ -61,7 +62,6 @@ function restoreInventoryFilters() {
     }
 }
 
-// Salva filtri movimenti in sessionStorage
 function saveMovementFilters() {
     const filters = {
         type: document.getElementById('filter-movement-type')?.value || '',
@@ -71,7 +71,6 @@ function saveMovementFilters() {
     sessionStorage.setItem('movementFilters', JSON.stringify(filters));
 }
 
-// Ripristina filtri movimenti da sessionStorage
 function restoreMovementFilters() {
     const saved = sessionStorage.getItem('movementFilters');
     if (saved) {
@@ -96,7 +95,6 @@ function initAudioContext() {
         audioContext = new (window.AudioContext || window.webkitAudioContext)();
     }
     
-    // iOS richiede un'interazione utente per sbloccare l'audio
     if (audioContext.state === 'suspended') {
         audioContext.resume();
     }
@@ -105,7 +103,7 @@ function initAudioContext() {
 }
 
 // ========================================
-// FUNZIONI AUDIO PER SCANNER - iOS COMPATIBILE
+// FUNZIONI AUDIO PER SCANNER
 // ========================================
 function playSuccessSound() {
     if (!audioContext || !audioInitialized) {
@@ -119,7 +117,6 @@ function playSuccessSound() {
         oscillator.connect(gainNode);
         gainNode.connect(audioContext.destination);
         
-        // Suono positivo: frequenza alta e breve
         oscillator.frequency.value = 1200;
         oscillator.type = 'sine';
         
@@ -145,7 +142,6 @@ function playErrorSound() {
         oscillator.connect(gainNode);
         gainNode.connect(audioContext.destination);
         
-        // Suono di errore: frequenza bassa e doppio beep
         oscillator.frequency.value = 250;
         oscillator.type = 'sawtooth';
         
@@ -162,7 +158,7 @@ function playErrorSound() {
 }
 
 // ========================================
-// FEEDBACK VISIVO (alternativa alla vibrazione per iOS)
+// FEEDBACK VISIVO
 // ========================================
 function showVisualFeedback(type) {
     const feedbackDiv = document.createElement('div');
@@ -188,7 +184,6 @@ function showVisualFeedback(type) {
         feedbackDiv.innerHTML = '&#10060; NON TROVATO';
     }
     
-    // Aggiungi animazione CSS
     if (!document.getElementById('feedback-animation-style')) {
         const style = document.createElement('style');
         style.id = 'feedback-animation-style';
@@ -204,7 +199,6 @@ function showVisualFeedback(type) {
     
     document.body.appendChild(feedbackDiv);
     
-    // Rimuovi dopo 1.2 secondi (successo) o 1.8 secondi (errore)
     const displayTime = type === 'success' ? 1200 : 1800;
     setTimeout(() => {
         feedbackDiv.style.opacity = '0';
@@ -242,39 +236,27 @@ function clearSavedCredentials() {
 }
 
 // ========================================
-// SISTEMA POP-UP NOVIT&Agrave; VERSIONE
+// SISTEMA POP-UP NOVITA VERSIONE
 // ========================================
 function checkAndShowWhatsNew() {
-    // CONTROLLA IL FLAG GLOBALE - SE false, NON MOSTRARE IL POP-UP
     if (!SHOW_WHATS_NEW_POPUP) {
-        console.log('Pop-up novit&agrave; disabilitato (SHOW_WHATS_NEW_POPUP = false)');
-        // FORZA salvataggio versione corrente per evitare problemi
         localStorage.setItem('lastSeenVersion', CURRENT_VERSION);
         return;
     }
     
-    // Controlla se l'utente ha gi&agrave; visto le novit&agrave; di questa versione
     const lastSeenVersion = localStorage.getItem('lastSeenVersion');
     
-    console.log('Controllo versione novit&agrave; - Ultima vista:', lastSeenVersion, 'Corrente:', CURRENT_VERSION);
-    
-    // Se &egrave; una nuova versione o &egrave; la prima volta
     if (lastSeenVersion !== CURRENT_VERSION) {
-        console.log('Nuova versione rilevata! Mostro pop-up novit&agrave;');
         showWhatsNewModal();
     }
 }
 
 function showWhatsNewModal() {
     const modal = document.getElementById('whats-new-modal');
-    if (!modal) {
-        console.log('Modal novit&agrave; non presente nel DOM');
-        return;
-    }
+    if (!modal) return;
     
     modal.classList.remove('hidden');
     
-    // Aggiungi listener per chiudere con ESC
     const escHandler = (e) => {
         if (e.key === 'Escape') {
             closeWhatsNewModal();
@@ -286,16 +268,10 @@ function showWhatsNewModal() {
 
 function closeWhatsNewModal() {
     const modal = document.getElementById('whats-new-modal');
-    if (!modal) {
-        console.log('Modal novit&agrave; non presente nel DOM');
-        return;
-    }
+    if (!modal) return;
     
     modal.classList.add('hidden');
-    
-    // Salva che l'utente ha visto questa versione
     localStorage.setItem('lastSeenVersion', CURRENT_VERSION);
-    console.log('Versione salvata in localStorage:', CURRENT_VERSION);
 }
 
 // ========================================
@@ -311,23 +287,19 @@ function calcolaPrezzoConIVA(prezzoNetto, ivaPercentuale) {
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('Inizializzazione app...');
     
-    // RIMUOVI COMPLETAMENTE IL POP-UP DAL DOM SE DISABILITATO
     if (!SHOW_WHATS_NEW_POPUP) {
         const whatsNewModal = document.getElementById('whats-new-modal');
         if (whatsNewModal) {
-            whatsNewModal.remove(); // RIMUOVE COMPLETAMENTE DAL DOM
+            whatsNewModal.remove();
         }
         localStorage.setItem('lastSeenVersion', CURRENT_VERSION);
     }
     
-    // CANCELLA FILTRI SALVATI (refresh pagina = filtri puliti)
     sessionStorage.removeItem('inventoryFilters');
     sessionStorage.removeItem('movementFilters');
     
-    // Carica credenziali salvate se presenti
     loadSavedCredentials();
     
-    // Inizializza audio al primo tap (iOS fix)
     document.addEventListener('touchstart', function initAudio() {
         initAudioContext();
         document.removeEventListener('touchstart', initAudio);
@@ -335,16 +307,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     const { data: { session } } = await supabaseClient.auth.getSession();
     
-    console.log('Sessione trovata:', session ? 'SI' : 'NO');
-    
     if (session) {
         currentUser = session.user;
-        loggedInUserEmail = session.user.email; // Salvo email per confronti
-        console.log('Utente:', currentUser.email);
+        loggedInUserEmail = session.user.email;
         await loadUserRole();
         showMainScreen();
     } else {
-        console.log('Nessuna sessione, mostro login');
         showLoginScreen();
     }
     
@@ -356,7 +324,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     initPWAFeatures();
     
     supabaseClient.auth.onAuthStateChange((event, session) => {
-        console.log('Auth state changed:', event);
         if (event === 'SIGNED_OUT') {
             currentUser = null;
             currentUserRole = null;
@@ -374,47 +341,48 @@ document.addEventListener('DOMContentLoaded', async () => {
 // GESTIONE RUOLI
 // ========================================
 async function loadUserRole() {
-    console.log('Caricamento ruolo per:', currentUser.email);
-    
     const { data, error } = await supabaseClient
         .from('user_roles')
         .select('role')
         .eq('email', currentUser.email)
         .single();
     
-    console.log('Risultato query ruolo:', data, error);
-    
     if (error || !data) {
-        console.log('Nessun ruolo trovato, imposto operatore');
         currentUserRole = 'operatore';
     } else {
-        console.log('Ruolo trovato:', data.role);
         currentUserRole = data.role;
     }
     
-    console.log('Ruolo finale assegnato:', currentUserRole);
     applyRolePermissions();
 }
 
 function applyRolePermissions() {
     const roleBadge = document.getElementById('user-role');
     
-    // Rimuovi vecchie classi di ruolo prima di aggiungere la nuova
     roleBadge.classList.remove('admin', 'operatore');
     
     roleBadge.innerHTML = currentUserRole === 'admin' ? '&#128081; Admin' : '&#128100; Operatore';
     roleBadge.classList.add(currentUserRole);
     
-    if (currentUserRole === 'operatore') {
-        // OPERATORE: pu&ograve; gestire articoli ma NON report/utenti
-        document.getElementById('tab-nuovo-btn').style.display = 'inline-flex'; // MOSTRA Nuovo Articolo
-        document.getElementById('tab-report-btn').style.display = 'none'; // NASCONDI Report
-        document.getElementById('tab-utenti-btn').style.display = 'none'; // NASCONDI Utenti
-    } else {
-        // ADMIN: mostra tutte le tab
-        document.getElementById('tab-nuovo-btn').style.display = 'inline-flex';
-        document.getElementById('tab-report-btn').style.display = 'inline-flex';
-        document.getElementById('tab-utenti-btn').style.display = 'inline-flex';
+    // Gestione visibilit&agrave; card dashboard
+    const utentiCard = document.getElementById('dashboard-utenti-card');
+    if (utentiCard) {
+        if (currentUserRole === 'operatore') {
+            utentiCard.style.display = 'none';
+        } else {
+            utentiCard.style.display = 'flex';
+        }
+    }
+    
+    // Gestione tab report (solo admin)
+    const tabReportBtn = document.getElementById('tab-report-btn');
+    if (tabReportBtn) {
+        tabReportBtn.style.display = currentUserRole === 'admin' ? 'inline-flex' : 'none';
+    }
+    
+    const tabRicambiReportBtn = document.getElementById('tab-ricambi-report-btn');
+    if (tabRicambiReportBtn) {
+        tabRicambiReportBtn.style.display = currentUserRole === 'admin' ? 'inline-flex' : 'none';
     }
 }
 
@@ -430,22 +398,163 @@ async function showMainScreen() {
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
     document.getElementById('main-screen').classList.add('active');
     
-    // Carica prima gli utenti per popolare userInitials
+    // Carica dati PRIMA di ripristinare la sezione
     await loadAllUsers();
-    
-    // POI carica inventario e movimenti (ora le iniziali sono disponibili)
     loadInventory();
     loadMovements();
-    
+    loadRicambi();
+    loadMovementsRicambi();
     
     if (currentUserRole === 'admin') {
         populateReportSelects();
+        populateReportRicambiSelects();
     }
     
-    // ========================================
-    // CONTROLLA E MOSTRA POP-UP NOVIT&Agrave; - SOLO DOPO LOGIN RIUSCITO
-    // ========================================
+    // Ripristina sezione salvata o mostra dashboard
+    const savedSection = sessionStorage.getItem('currentSection');
+    const savedTab = sessionStorage.getItem('currentTab');
+    
+    if (savedSection && savedSection !== 'dashboard') {
+        // Ripristina la sezione dove eravamo
+        openSection(savedSection);
+        
+        // Ripristina anche la tab se salvata
+        if (savedTab) {
+            switchTab(savedTab);
+        }
+    } else {
+        // Prima volta o era sulla dashboard
+        showDashboard();
+    }
+    
     checkAndShowWhatsNew();
+}
+
+// ========================================
+// NAVIGAZIONE DASHBOARD E SEZIONI
+// ========================================
+function showDashboard() {
+    currentSection = 'dashboard';
+    
+    // Salva stato in sessionStorage
+    sessionStorage.setItem('currentSection', 'dashboard');
+    sessionStorage.removeItem('currentTab');
+    
+    // Nascondi tutte le sezioni
+    document.querySelectorAll('.section-container').forEach(s => s.classList.add('hidden'));
+    
+    // Mostra dashboard
+    document.getElementById('dashboard-view').style.display = 'block';
+    
+    // Ferma scanner se attivo
+    stopScanner();
+}
+
+function openSection(sectionName) {
+    currentSection = sectionName;
+    
+    // Salva sezione in sessionStorage
+    sessionStorage.setItem('currentSection', sectionName);
+    
+    // Nascondi dashboard
+    document.getElementById('dashboard-view').style.display = 'none';
+    
+    // Nascondi tutte le sezioni
+    document.querySelectorAll('.section-container').forEach(s => s.classList.add('hidden'));
+    
+    // Mostra la sezione richiesta
+    const sectionId = 'section-' + sectionName;
+    const section = document.getElementById(sectionId);
+    if (section) {
+        section.classList.remove('hidden');
+    }
+    
+    // Azioni specifiche per sezione
+    if (sectionName === 'consumabili') {
+        restoreInventoryFilters();
+        applyFiltersAndSort();
+    } else if (sectionName === 'ricambi') {
+        restoreRicambiFilters();
+        applyRicambiFiltersAndSort();
+    } else if (sectionName === 'scanner') {
+        setTimeout(() => initScanner(), 100);
+    } else if (sectionName === 'utenti') {
+        renderUsersList();
+    }
+}
+
+function backToDashboard() {
+    showDashboard();
+}
+
+// Esponi funzioni globalmente
+window.openSection = openSection;
+window.backToDashboard = backToDashboard;
+
+// ========================================
+// NAVIGAZIONE TAB INTERNE
+// ========================================
+function switchTab(tabName, sectionPrefix) {
+    // Salva tab corrente in sessionStorage
+    sessionStorage.setItem('currentTab', tabName);
+    
+    // Determina il prefisso basato sulla sezione corrente
+    let prefix = '';
+    let tabsContainer = null;
+    
+    if (currentSection === 'consumabili' || !sectionPrefix) {
+        prefix = '';
+        tabsContainer = document.getElementById('tabs-consumabili');
+    } else if (currentSection === 'ricambi' || sectionPrefix === 'ricambi') {
+        prefix = 'ricambi-';
+        tabsContainer = document.getElementById('tabs-ricambi');
+    }
+    
+    // Rimuovi active da tutti i tab button nella sezione
+    if (tabsContainer) {
+        tabsContainer.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+    }
+    
+    // Trova e attiva il tab button corretto
+    const tabBtn = tabsContainer?.querySelector(`[data-tab="${prefix}${tabName}"]`) || 
+                   tabsContainer?.querySelector(`[data-tab="${tabName}"]`);
+    if (tabBtn) {
+        tabBtn.classList.add('active');
+    }
+    
+    // Nascondi tutti i tab content della sezione
+    const sectionContainer = document.getElementById('section-' + currentSection);
+    if (sectionContainer) {
+        sectionContainer.querySelectorAll('.tab-content').forEach(content => {
+            content.classList.remove('active');
+        });
+    }
+    
+    // Mostra il tab content richiesto
+    const tabId = prefix ? `tab-${prefix}${tabName}` : `tab-${tabName}`;
+    const tabContent = document.getElementById(tabId) || document.getElementById(`tab-${tabName}`);
+    if (tabContent) {
+        tabContent.classList.add('active');
+    }
+    
+    // Azioni specifiche per tab
+    if (tabName === 'inventario' && currentSection === 'consumabili') {
+        restoreInventoryFilters();
+        applyFiltersAndSort();
+    } else if (tabName === 'movimenti' && currentSection === 'consumabili') {
+        restoreMovementFilters();
+        applyMovementFilters();
+    } else if (tabName === 'report' && currentUserRole === 'admin') {
+        populateReportSelects();
+    } else if (tabName === 'inventario' && currentSection === 'ricambi') {
+        restoreRicambiFilters();
+        applyRicambiFiltersAndSort();
+    } else if (tabName === 'movimenti' && currentSection === 'ricambi') {
+        restoreMovementRicambiFilters();
+        applyMovementRicambiFilters();
+    } else if (tabName === 'report' && currentSection === 'ricambi' && currentUserRole === 'admin') {
+        populateReportRicambiSelects();
+    }
 }
 
 // ========================================
@@ -457,53 +566,42 @@ async function handleLogin(e) {
     const password = document.getElementById('login-password').value;
     const rememberMe = document.getElementById('remember-me').checked;
     
-    console.log('Tentativo login per:', email);
-    
     const { data, error } = await supabaseClient.auth.signInWithPassword({
         email,
         password
     });
     
     if (error) {
-        console.error('Errore login:', error);
         alert('Errore login: ' + error.message);
         return;
     }
     
-    // Gestione "Resta connesso"
     if (rememberMe) {
         saveCredentials(email, password);
-        console.log('Credenziali salvate');
     } else {
         clearSavedCredentials();
-        console.log('Credenziali cancellate');
     }
     
-    console.log('Login riuscito - Supabase manterra la sessione');
     currentUser = data.user;
     await loadUserRole();
     showMainScreen();
 }
 
 async function handleLogout() {
-    console.log('Logout...');
-    
-    // CANCELLA FILTRI SALVATI
+    // Pulisci tutti i filtri e stati salvati
     sessionStorage.removeItem('inventoryFilters');
     sessionStorage.removeItem('movementFilters');
+    sessionStorage.removeItem('currentSection');
+    sessionStorage.removeItem('currentTab');
     
     await supabaseClient.auth.signOut();
     currentUser = null;
     currentUserRole = null;
     loggedInUserEmail = null;
     
-    // Reload della pagina per pulizia completa
     location.reload();
 }
 
-// ========================================
-// TOGGLE PASSWORD VISIBILITY
-// ========================================
 function togglePasswordVisibility() {
     const passwordInput = document.getElementById('login-password');
     const toggleBtn = document.getElementById('toggle-password');
@@ -533,10 +631,7 @@ async function loadInventory() {
     
     allArticles = data || [];
     populateBrandFilter();
-    
-    // Ripristina filtri da sessionStorage
     restoreInventoryFilters();
-    
     applyFiltersAndSort();
 }
 
@@ -560,7 +655,6 @@ function populateBrandFilter() {
 }
 
 function applyFiltersAndSort() {
-    // Salva filtri in sessionStorage
     saveInventoryFilters();
     
     const searchQuery = document.getElementById('search-input').value.toLowerCase();
@@ -812,7 +906,7 @@ async function handleNewArticle(e) {
         .single();
     
     if (existingCode) {
-        alert('Codice articolo gia esistente!');
+        alert('Codice articolo gi\u00E0 esistente!');
         return;
     }
     
@@ -823,11 +917,11 @@ async function handleNewArticle(e) {
         .single();
     
     if (existingBarcode) {
-        alert('Codice a barre gia esistente!');
+        alert('Codice a barre gi\u00E0 esistente!');
         return;
     }
     
-    const { error } = await supabaseClient
+    const { data: newArticle, error } = await supabaseClient
         .from('articoli')
         .insert([{
             nome: name,
@@ -841,11 +935,29 @@ async function handleNewArticle(e) {
             prezzo_acquisto: priceBuy,
             iva_percentuale: iva,
             prezzo_vendita: price
-        }]);
+        }])
+        .select('id')
+        .single();
     
     if (error) {
         alert('Errore durante il salvataggio: ' + error.message);
         return;
+    }
+    
+    if (quantity > 0 && newArticle) {
+        const { error: movementError } = await supabaseClient
+            .from('movimenti')
+            .insert([{
+                articolo_id: newArticle.id,
+                tipo: 'carico',
+                quantita: quantity,
+                utente: currentUser.email,
+                note: 'Carico da creazione articolo'
+            }]);
+        
+        if (movementError) {
+            console.error('Errore registrazione movimento iniziale:', movementError);
+        }
     }
     
     alert('Articolo aggiunto con successo!');
@@ -854,6 +966,7 @@ async function handleNewArticle(e) {
     document.getElementById('new-threshold').value = 10;
     document.getElementById('new-iva').value = 22;
     loadInventory();
+    loadMovements();
     
     switchTab('inventario');
 }
@@ -932,7 +1045,7 @@ async function deleteArticle(articleId) {
     const article = allArticles.find(a => a.id === articleId);
     if (!article) return;
     
-    const confirm = window.confirm(`Sei sicuro di voler eliminare "${article.nome}"?\n\nQuesta azione non puo essere annullata.`);
+    const confirm = window.confirm('Sei sicuro di voler eliminare "' + article.nome + '"?\n\nQuesta azione non pu\u00F2 essere annullata.');
     
     if (!confirm) return;
     
@@ -977,7 +1090,7 @@ async function confirmMovement() {
     const notes = document.getElementById('modal-notes').value.trim();
     
     if (quantity <= 0) {
-        alert('Quantita non valida');
+        alert('Quantit\u00E0 non valida');
         return;
     }
     
@@ -987,7 +1100,7 @@ async function confirmMovement() {
     } else {
         newQuantity -= quantity;
         if (newQuantity < 0) {
-            alert('Quantita insufficiente in magazzino!');
+            alert('Quantit\u00E0 insufficiente in magazzino!');
             return;
         }
     }
@@ -1020,17 +1133,14 @@ async function confirmMovement() {
     loadInventory();
     loadMovements();
     
-    // Alert sotto soglia (se necessario)
     if (type === 'scarico' && newQuantity <= article.soglia_minima) {
         alert('\u26A0\uFE0F ATTENZIONE!\n\nL\'articolo "' + article.nome + '" \u00C8 SOTTO SOGLIA!\n\nQuantit\u00E0 attuale: ' + newQuantity + '\nSoglia minima: ' + article.soglia_minima + '\n\n\uD83D\uDED2 \u00C8 necessario riordinare!');
     } else {
-        // Alert successo solo se NON sotto soglia
-        alert(`${type === 'carico' ? 'Carico' : 'Scarico'} completato!`);
+        alert((type === 'carico' ? 'Carico' : 'Scarico') + ' completato!');
     }
     
-    // Se siamo nella tab scanner, torna automaticamente a scansionare dopo 1 secondo
-    const scannerTab = document.getElementById('tab-scanner');
-    if (scannerTab && scannerTab.classList.contains('active')) {
+    // Se siamo nella sezione scanner, torna a scansionare
+    if (currentSection === 'scanner') {
         setTimeout(() => {
             document.getElementById('reader').style.display = 'block';
             initScanner();
@@ -1059,10 +1169,7 @@ async function loadMovements() {
     }
     
     allMovements = data || [];
-    
-    // Ripristina filtri da sessionStorage
     restoreMovementFilters();
-    
     renderMovements(allMovements);
 }
 
@@ -1078,24 +1185,20 @@ function renderMovements(movements) {
     movements.forEach(movement => {
         const row = document.createElement('tr');
         
-        // Data senza ora per mobile, con ora per desktop
         const fullDate = new Date(movement.created_at).toLocaleString('it-IT');
-        // Data con anno a 2 cifre per mobile
         const movementDate = new Date(movement.created_at);
         const day = String(movementDate.getDate()).padStart(2, '0');
         const month = String(movementDate.getMonth() + 1).padStart(2, '0');
         const year = String(movementDate.getFullYear()).slice(-2);
-        const dateOnly = `${day}/${month}/${year}`;
+        const dateOnly = day + '/' + month + '/' + year;
         
         const article = allArticles.find(a => a.id === movement.articolo_id);
         const articleName = article ? article.nome : 'Articolo eliminato';
         const articleCode = article ? article.codice_articolo : 'N/D';
         
-        // Emoji HTML entities per tipo movimento
         const tipoEmoji = movement.tipo === 'carico' ? '&#10133;' : '&#10134;';
         const tipoColor = movement.tipo === 'carico' ? 'var(--success)' : 'var(--danger)';
         
-        // Iniziali utente (se disponibili) o prime 2 lettere email
         const userDisplay = userInitials[movement.utente] || movement.utente.substring(0, 2).toUpperCase();
         
         row.innerHTML = `
@@ -1113,7 +1216,6 @@ function renderMovements(movements) {
 }
 
 function applyMovementFilters() {
-    // Salva filtri in sessionStorage
     saveMovementFilters();
     
     const typeFilter = document.getElementById('filter-movement-type').value;
@@ -1144,7 +1246,7 @@ function applyMovementFilters() {
 }
 
 // ========================================
-// REPORT PRESTAGIONALE
+// REPORT CONSUMABILI
 // ========================================
 function populateReportSelects() {
     const articleSelect = document.getElementById('report-article');
@@ -1154,7 +1256,7 @@ function populateReportSelects() {
     allArticles.forEach(article => {
         const option = document.createElement('option');
         option.value = article.id;
-        option.textContent = `${article.nome} (${article.codice_articolo})`;
+        option.textContent = article.nome + ' (' + article.codice_articolo + ')';
         articleSelect.appendChild(option);
     });
     
@@ -1253,15 +1355,11 @@ async function generateGeneralOrderReport(dateFrom, dateTo) {
     });
     
     let html = `
-        <h3>&#128202; REPORT GENERALE ORDINI/VENDITE</h3>
+        <h3>&#128202; REPORT GENERALE CONSUMABILI</h3>
         <p><strong>Periodo:</strong> ${dateFrom || 'Inizio'} &#8594; ${dateTo || 'Oggi'}</p>
         <p><strong>Data Generazione:</strong> ${new Date().toLocaleString('it-IT')}</p>
         <hr>
         <h4>&#128230; RIEPILOGO PER FORNITORE</h4>
-        <p style="color: var(--gray); font-size: 13px; margin-bottom: 15px;">
-            Questo report mostra quanto materiale hai <strong style="color: var(--success);">ORDINATO (caricato)</strong> e 
-            <strong style="color: var(--danger);">VENDUTO (scaricato)</strong> per ogni fornitore.
-        </p>
     `;
     
     Object.keys(supplierData).sort().forEach(supplier => {
@@ -1276,18 +1374,10 @@ async function generateGeneralOrderReport(dateFrom, dateTo) {
             <div style="background: var(--light); padding: 15px; border-radius: 12px; margin-bottom: 15px; border-left: 4px solid var(--primary);">
                 <h4 style="margin-bottom: 10px; color: var(--primary);">&#127970; ${supplier}</h4>
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; font-size: 13px;">
-                    <div>
-                        <strong>Articoli gestiti:</strong> ${data.articoli.size}
-                    </div>
-                    <div style="color: var(--success);">
-                        <strong>&#128229; Ordinato (Carico):</strong> +${data.totalCarico} pz
-                    </div>
-                    <div style="color: var(--danger);">
-                        <strong>&#128228; Venduto (Scarico):</strong> -${data.totalScarico} pz
-                    </div>
-                    <div style="color: ${differenzaColor};">
-                        <strong>&#128176; Differenza:</strong> ${differenza >= 0 ? '+' : ''}${differenza} pz
-                    </div>
+                    <div><strong>Articoli gestiti:</strong> ${data.articoli.size}</div>
+                    <div style="color: var(--success);"><strong>&#128229; Ordinato:</strong> +${data.totalCarico} pz</div>
+                    <div style="color: var(--danger);"><strong>&#128228; Venduto:</strong> -${data.totalScarico} pz</div>
+                    <div style="color: ${differenzaColor};"><strong>&#128176; Differenza:</strong> ${differenza >= 0 ? '+' : ''}${differenza} pz</div>
                     <div style="color: ${lowStockCount > 0 ? 'var(--danger)' : 'var(--success)'};">
                         <strong>&#9888; Sotto soglia:</strong> ${lowStockCount} articoli
                     </div>
@@ -1295,17 +1385,6 @@ async function generateGeneralOrderReport(dateFrom, dateTo) {
             </div>
         `;
     });
-    
-    html += `
-        <hr>
-        <h4>&#128161; COSA SIGNIFICA</h4>
-        <ul style="list-style: none; padding-left: 0; font-size: 13px; line-height: 1.8;">
-            <li>&#128229; <strong>Ordinato (Carico):</strong> Quanti pezzi hai ricevuto dai fornitori</li>
-            <li>&#128228; <strong>Venduto (Scarico):</strong> Quanti pezzi hai venduto/utilizzato</li>
-            <li>&#128176; <strong>Differenza:</strong> Se positiva, hai ancora stock. Se negativa, hai venduto piu di quanto ordinato</li>
-            <li>&#9888; <strong>Sotto soglia:</strong> Articoli da riordinare immediatamente</li>
-        </ul>
-    `;
     
     return html;
 }
@@ -1364,23 +1443,18 @@ async function generateSupplierOrderReport(supplier, dateFrom, dateTo) {
         <p><strong>Periodo:</strong> ${dateFrom || 'Inizio'} &#8594; ${dateTo || 'Oggi'}</p>
         <p><strong>Data Generazione:</strong> ${new Date().toLocaleString('it-IT')}</p>
         <hr>
-        <h4>&#128230; RIEPILOGO</h4>
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin: 15px 0;">
             <div style="background: var(--light); padding: 12px; border-radius: 8px;">
-                <div style="color: var(--gray); font-size: 12px;">Articoli Totali</div>
+                <div style="font-size: 12px; color: var(--gray);">Articoli Totali</div>
                 <div style="font-size: 22px; font-weight: 700;">${supplierArticles.length}</div>
             </div>
             <div style="background: var(--green-light); padding: 12px; border-radius: 8px;">
-                <div style="color: var(--success); font-size: 12px;">&#128229; Ordinato</div>
+                <div style="font-size: 12px; color: var(--success);">&#128229; Ordinato</div>
                 <div style="font-size: 22px; font-weight: 700; color: var(--success);">+${totalCarico}</div>
             </div>
             <div style="background: #fee2e2; padding: 12px; border-radius: 8px;">
-                <div style="color: var(--danger); font-size: 12px;">&#128228; Venduto</div>
+                <div style="font-size: 12px; color: var(--danger);">&#128228; Venduto</div>
                 <div style="font-size: 22px; font-weight: 700; color: var(--danger);">-${totalScarico}</div>
-            </div>
-            <div style="background: ${lowStockCount > 0 ? '#fee2e2' : 'var(--green-light)'}; padding: 12px; border-radius: 8px;">
-                <div style="color: ${lowStockCount > 0 ? 'var(--danger)' : 'var(--success)'}; font-size: 12px;">&#9888; Sotto Soglia</div>
-                <div style="font-size: 22px; font-weight: 700; color: ${lowStockCount > 0 ? 'var(--danger)' : 'var(--success)'};">${lowStockCount}</div>
             </div>
         </div>
         <hr>
@@ -1388,9 +1462,9 @@ async function generateSupplierOrderReport(supplier, dateFrom, dateTo) {
         <table style="width: 100%; font-size: 12px; margin-top: 10px;">
             <thead>
                 <tr style="background: var(--primary); color: white;">
-                    <th style="padding: 10px; text-align: left;">Nome</th>
+                    <th style="padding: 10px;">Nome</th>
                     <th style="padding: 10px;">Codice</th>
-                    <th style="padding: 10px;">Qty Attuale</th>
+                    <th style="padding: 10px;">Qty</th>
                     <th style="padding: 10px;">Soglia</th>
                     <th style="padding: 10px; color: #dcfce7;">Ordinato</th>
                     <th style="padding: 10px; color: #fee2e2;">Venduto</th>
@@ -1421,30 +1495,7 @@ async function generateSupplierOrderReport(supplier, dateFrom, dateTo) {
         `;
     });
     
-    html += `
-            </tbody>
-        </table>
-        <hr>
-        <div style="background: var(--green-light); padding: 15px; border-radius: 12px; margin-top: 15px;">
-            <h4 style="color: var(--primary); margin-bottom: 10px;">&#128161; CONSIGLI PER L'ORDINE</h4>
-            <ul style="list-style: none; padding-left: 0; font-size: 13px; line-height: 1.8;">
-    `;
-    
-    if (lowStockCount > 0) {
-        html += `<li>&#128722; <strong>${lowStockCount} articoli</strong> sono sotto soglia e vanno riordinati SUBITO</li>`;
-    } else {
-        html += `<li>&#10004; Tutti gli articoli sono sopra la soglia minima</li>`;
-    }
-    
-    const articoliConDiffNegativa = Object.values(articleData).filter(a => (a.carico - a.scarico) < 0);
-    if (articoliConDiffNegativa.length > 0) {
-        html += `<li>&#9888; <strong>${articoliConDiffNegativa.length} articoli</strong> hanno venduto piu di quanto ordinato nel periodo</li>`;
-    }
-    
-    html += `
-            </ul>
-        </div>
-    `;
+    html += '</tbody></table>';
     
     return html;
 }
@@ -1481,28 +1532,22 @@ async function generateArticleOrderReport(articleId, dateFrom, dateTo) {
         <hr>
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin: 15px 0;">
             <div style="background: var(--light); padding: 12px; border-radius: 8px;">
-                <div style="color: var(--gray); font-size: 12px;">Qty Attuale</div>
+                <div style="font-size: 12px; color: var(--gray);">Qty Attuale</div>
                 <div style="font-size: 22px; font-weight: 700;">${article.quantita}</div>
             </div>
-            <div style="background: var(--light); padding: 12px; border-radius: 8px;">
-                <div style="color: var(--gray); font-size: 12px;">Soglia Minima</div>
-                <div style="font-size: 22px; font-weight: 700;">${article.soglia_minima}</div>
-            </div>
             <div style="background: var(--green-light); padding: 12px; border-radius: 8px;">
-                <div style="color: var(--success); font-size: 12px;">&#128229; Ordinato</div>
+                <div style="font-size: 12px; color: var(--success);">&#128229; Ordinato</div>
                 <div style="font-size: 22px; font-weight: 700; color: var(--success);">+${totalCarico}</div>
             </div>
             <div style="background: #fee2e2; padding: 12px; border-radius: 8px;">
-                <div style="color: var(--danger); font-size: 12px;">&#128228; Venduto</div>
+                <div style="font-size: 12px; color: var(--danger);">&#128228; Venduto</div>
                 <div style="font-size: 22px; font-weight: 700; color: var(--danger);">-${totalScarico}</div>
             </div>
             <div style="background: var(--light); padding: 12px; border-radius: 8px;">
-                <div style="color: var(--gray); font-size: 12px;">&#128176; Differenza</div>
-                <div style="font-size: 22px; font-weight: 700; color: ${differenza >= 0 ? 'var(--success)' : 'var(--danger)'};">${differenza >= 0 ? '+' : ''}${differenza}</div>
-            </div>
-            <div style="background: ${article.quantita <= article.soglia_minima ? '#fee2e2' : 'var(--green-light)'}; padding: 12px; border-radius: 8px;">
-                <div style="color: ${article.quantita <= article.soglia_minima ? 'var(--danger)' : 'var(--success)'}; font-size: 12px;">Stato</div>
-                <div style="font-size: 18px; font-weight: 700;">${article.quantita <= article.soglia_minima ? '&#9888; ORDINARE' : '&#10004; OK'}</div>
+                <div style="font-size: 12px; color: var(--gray);">Differenza</div>
+                <div style="font-size: 22px; font-weight: 700; color: ${differenza >= 0 ? 'var(--success)' : 'var(--danger)'};">
+                    ${differenza >= 0 ? '+' : ''}${differenza}
+                </div>
             </div>
         </div>
         <hr>
@@ -1512,7 +1557,7 @@ async function generateArticleOrderReport(articleId, dateFrom, dateTo) {
                 <tr style="background: var(--primary); color: white;">
                     <th style="padding: 10px;">Data</th>
                     <th style="padding: 10px;">Tipo</th>
-                    <th style="padding: 10px;">Quantita</th>
+                    <th style="padding: 10px;">Qty</th>
                     <th style="padding: 10px;">Utente</th>
                     <th style="padding: 10px;">Note</th>
                 </tr>
@@ -1535,10 +1580,7 @@ async function generateArticleOrderReport(articleId, dateFrom, dateTo) {
         `;
     });
     
-    html += `
-            </tbody>
-        </table>
-    `;
+    html += '</tbody></table>';
     
     return html;
 }
@@ -1548,12 +1590,11 @@ function printReport() {
 }
 
 // ========================================
-// SCANNER CODICE A BARRE - ULTRA VELOCE + iOS FIX
+// SCANNER CODICE A BARRE
 // ========================================
 function initScanner() {
     if (html5QrCode) return;
     
-    // Inizializza audio context al primo avvio scanner
     initAudioContext();
     
     html5QrCode = new Html5Qrcode("reader");
@@ -1561,8 +1602,8 @@ function initScanner() {
     html5QrCode.start(
         { facingMode: "environment" },
         {
-            fps: 60, // MASSIMA VELOCIT&Agrave; - 60 FPS
-            qrbox: { width: 200, height: 200 }, // Area pi&ugrave; piccola = pi&ugrave; veloce
+            fps: 60,
+            qrbox: { width: 200, height: 200 },
             aspectRatio: 1.0
         },
         onScanSuccess,
@@ -1587,42 +1628,38 @@ async function onScanSuccess(decodedText) {
         html5QrCode = null;
     }
     
-    const article = allArticles.find(a => a.codice_barre === decodedText);
+    let article = allArticles.find(a => a.codice_barre === decodedText);
+    let ricambio = allRicambi.find(r => r.codice_barre === decodedText);
     
-    if (!article) {
-        // ARTICOLO NON TROVATO
+    if (!article && !ricambio) {
         playErrorSound();
         showVisualFeedback('error');
         
-        // Vibrazione doppia se supportata (Android)
         if (navigator.vibrate) {
             navigator.vibrate([100, 50, 100]);
         }
         
-        // Torna automaticamente allo scanner dopo 2 secondi
         setTimeout(() => {
             initScanner();
         }, 2000);
         return;
     }
     
-    // ARTICOLO TROVATO
     playSuccessSound();
     showVisualFeedback('success');
     
-    // Vibrazione singola se supportata (Android)
     if (navigator.vibrate) {
         navigator.vibrate(200);
     }
     
-    window.scannedArticle = article;
-    
-    // Nasconde il reader
     document.getElementById('reader').style.display = 'none';
     
-    // Dopo 1.5 secondi apre automaticamente il modal di scelta carico/scarico
     setTimeout(() => {
-        showScanActionModal(article);
+        if (article) {
+            showScanActionModal(article);
+        } else if (ricambio) {
+            showScanActionModalRicambio(ricambio);
+        }
     }, 1500);
 }
 
@@ -1630,11 +1667,7 @@ function onScanError(errorMessage) {
     // Ignora errori di scansione continua
 }
 
-// ========================================
-// MODAL AZIONE RAPIDA DOPO SCANSIONE
-// ========================================
 function showScanActionModal(article) {
-    // Crea modal dinamico
     const modal = document.createElement('div');
     modal.id = 'scan-action-modal';
     modal.className = 'modal';
@@ -1643,12 +1676,12 @@ function showScanActionModal(article) {
     modal.innerHTML = `
         <div class="modal-content" style="max-width: 400px;">
             <h3 style="color: var(--primary); margin-bottom: 15px; text-align: center;">
-                &#128666; ${article.nome}
+                &#128230; ${article.nome}
             </h3>
             <div style="background: var(--light); padding: 15px; border-radius: 12px; margin-bottom: 20px; text-align: center;">
                 <div style="font-size: 13px; color: var(--gray); margin-bottom: 5px;">Codice: ${article.codice_articolo}</div>
                 <div style="font-size: 24px; font-weight: 700; color: var(--primary);">
-                    Quantit&agrave;: ${article.quantita}
+                    Quantit&#224;: ${article.quantita}
                 </div>
                 <div style="font-size: 12px; color: var(--gray); margin-top: 5px;">
                     Soglia minima: ${article.soglia_minima}
@@ -1670,7 +1703,6 @@ function showScanActionModal(article) {
     
     document.body.appendChild(modal);
     
-    // Event listeners
     document.getElementById('scan-btn-carico').addEventListener('click', () => {
         closeScanActionModal();
         openMovementModal(article.id, 'carico');
@@ -1687,7 +1719,6 @@ function showScanActionModal(article) {
         initScanner();
     });
     
-    // Chiudi cliccando fuori
     modal.addEventListener('click', (e) => {
         if (e.target === modal) {
             closeScanActionModal();
@@ -1704,69 +1735,69 @@ function closeScanActionModal() {
     }
 }
 
-// ========================================
-// NAVIGAZIONE TAB
-// ========================================
-function switchTab(tabName) {
-    closeMobileMenu();
+function showScanActionModalRicambio(ricambio) {
+    const modal = document.createElement('div');
+    modal.id = 'scan-action-ricambi-modal';
+    modal.className = 'modal';
+    modal.style.display = 'flex';
     
-    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-    document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+    modal.innerHTML = `
+        <div class="modal-content" style="max-width: 400px;">
+            <h3 style="color: var(--primary); margin-bottom: 15px; text-align: center;">
+                &#128295; ${ricambio.nome}
+            </h3>
+            <div style="background: var(--light); padding: 15px; border-radius: 12px; margin-bottom: 20px; text-align: center;">
+                <div style="font-size: 13px; color: var(--gray); margin-bottom: 5px;">Codice: ${ricambio.codice_articolo}</div>
+                <div style="font-size: 24px; font-weight: 700; color: var(--primary);">
+                    Quantit&#224;: ${ricambio.quantita}
+                </div>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                <button id="scan-ricambio-btn-carico" class="btn-success" style="padding: 20px 15px; font-size: 18px; font-weight: 700;">
+                    &#10133; CARICO
+                </button>
+                <button id="scan-ricambio-btn-scarico" class="btn-danger" style="padding: 20px 15px; font-size: 18px; font-weight: 700;">
+                    &#10134; SCARICO
+                </button>
+            </div>
+            <button id="scan-ricambio-btn-cancel" class="btn-secondary" style="width: 100%; padding: 12px;">
+                &#8592; Torna allo Scanner
+            </button>
+        </div>
+    `;
     
-    document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
-    document.getElementById(`tab-${tabName}`).classList.add('active');
+    document.body.appendChild(modal);
     
-    if (tabName === 'scanner') {
-        // Nascondi eventuali risultati vecchi
-        const scannerResult = document.getElementById('scanner-result');
-        if (scannerResult) scannerResult.classList.add('hidden');
-        
-        // Mostra il reader
+    document.getElementById('scan-ricambio-btn-carico').addEventListener('click', () => {
+        closeScanActionModalRicambio();
+        openMovementRicambiModal(ricambio.id, 'carico');
+    });
+    
+    document.getElementById('scan-ricambio-btn-scarico').addEventListener('click', () => {
+        closeScanActionModalRicambio();
+        openMovementRicambiModal(ricambio.id, 'scarico');
+    });
+    
+    document.getElementById('scan-ricambio-btn-cancel').addEventListener('click', () => {
+        closeScanActionModalRicambio();
         document.getElementById('reader').style.display = 'block';
-        
-        setTimeout(() => initScanner(), 100);
-    } else {
-        stopScanner();
-    }
+        initScanner();
+    });
     
-    if (tabName === 'inventario') {
-        restoreInventoryFilters();
-        applyFiltersAndSort();
-    } else if (tabName === 'movimenti') {
-        restoreMovementFilters();
-        applyMovementFilters();
-    }
-    
-    if (tabName === 'report' && currentUserRole === 'admin') {
-        populateReportSelects();
-    }
-    
-    if (tabName === 'utenti' && currentUserRole === 'admin') {
-        renderUsersList();
-    }
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            closeScanActionModalRicambio();
+            document.getElementById('reader').style.display = 'block';
+            initScanner();
+        }
+    });
 }
 
-// ========================================
-// HAMBURGER MENU MOBILE
-// ========================================
-function toggleMobileMenu() {
-    const hamburger = document.getElementById('hamburger-btn');
-    const tabs = document.getElementById('main-tabs');
-    const body = document.body;
-    
-    hamburger.classList.toggle('active');
-    tabs.classList.toggle('active');
-    body.classList.toggle('menu-open');
-}
-
-function closeMobileMenu() {
-    const hamburger = document.getElementById('hamburger-btn');
-    const tabs = document.getElementById('main-tabs');
-    const body = document.body;
-    
-    hamburger.classList.remove('active');
-    tabs.classList.remove('active');
-    body.classList.remove('menu-open');
+function closeScanActionModalRicambio() {
+    const modal = document.getElementById('scan-action-ricambi-modal');
+    if (modal) {
+        modal.remove();
+    }
 }
 
 // ========================================
@@ -1782,7 +1813,6 @@ async function loadAllUsers() {
         return [];
     }
     
-    // Popola l'oggetto userInitials
     userInitials = {};
     if (data) {
         data.forEach(user => {
@@ -1802,13 +1832,13 @@ async function renderUsersList() {
     const users = await loadAllUsers();
     
     if (!users || users.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center">Nessun utente registrato</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center">Nessun utente registrato</td></tr>';
         return;
     }
     
     users.forEach(user => {
         const row = document.createElement('tr');
-        const isCurrentUser = user.email === loggedInUserEmail; // Uso email salvata per evitare bug
+        const isCurrentUser = user.email === loggedInUserEmail;
         const roleClass = user.role === 'admin' ? 'admin' : 'operatore';
         const roleText = user.role === 'admin' ? '&#128081; Admin' : '&#128100; Operatore';
         
@@ -1828,7 +1858,6 @@ async function renderUsersList() {
         tbody.appendChild(row);
     });
     
-    // Event listeners per pulsanti modifica
     document.querySelectorAll('.btn-edit-user').forEach(btn => {
         btn.addEventListener('click', (e) => {
             const email = e.target.dataset.email;
@@ -1838,11 +1867,10 @@ async function renderUsersList() {
         });
     });
     
-    // Event listeners per pulsanti elimina
     document.querySelectorAll('.btn-delete-user').forEach(btn => {
         btn.addEventListener('click', async (e) => {
             const email = e.target.dataset.email;
-            if (confirm(`Vuoi davvero eliminare l'utente ${email}?`)) {
+            if (confirm('Vuoi davvero eliminare l\'utente ' + email + '?')) {
                 await deleteUser(email);
             }
         });
@@ -1858,7 +1886,6 @@ async function handleNewUserForm(e) {
     const role = document.getElementById('new-user-role').value;
     
     try {
-        // IMPORTANTE: Salvo la sessione dell'admin PRIMA di signUp
         const { data: { session: adminSession } } = await supabaseClient.auth.getSession();
         
         if (!adminSession) {
@@ -1869,7 +1896,6 @@ async function handleNewUserForm(e) {
         const adminEmail = adminSession.user.email;
         const adminRefreshToken = adminSession.refresh_token;
         
-        // Crea utente su Supabase Auth
         const { data: authData, error: authError } = await supabaseClient.auth.signUp({
             email,
             password
@@ -1880,17 +1906,14 @@ async function handleNewUserForm(e) {
             return;
         }
         
-        // CRITICO: Ripristino la sessione dell'admin usando il refresh token
         await supabaseClient.auth.setSession({
             access_token: adminSession.access_token,
             refresh_token: adminRefreshToken
         });
         
-        // Aggiorno le variabili globali
         currentUser = adminSession.user;
         loggedInUserEmail = adminEmail;
         
-        // Salva ruolo e iniziali nella tabella user_roles
         const { error: roleError } = await supabaseClient
             .from('user_roles')
             .insert([
@@ -1914,7 +1937,6 @@ async function handleNewUserForm(e) {
 
 async function deleteUser(email) {
     try {
-        // Elimina dalla tabella user_roles
         const { error } = await supabaseClient
             .from('user_roles')
             .delete()
@@ -1956,7 +1978,6 @@ async function handleEditUserForm(e) {
     const role = document.getElementById('edit-user-role').value;
     
     try {
-        // Aggiorna user_roles
         const { error } = await supabaseClient
             .from('user_roles')
             .update({
@@ -1984,30 +2005,28 @@ async function handleEditUserForm(e) {
 // EVENT LISTENERS
 // ========================================
 function setupEventListeners() {
+    // Login
     document.getElementById('login-form').addEventListener('submit', handleLogin);
     document.getElementById('logout-btn').addEventListener('click', handleLogout);
     document.getElementById('toggle-password').addEventListener('click', togglePasswordVisibility);
     
-    // Event listener per checkbox "Resta connesso"
     document.getElementById('remember-me').addEventListener('change', (e) => {
         if (!e.target.checked) {
             clearSavedCredentials();
-            console.log('Credenziali cancellate (checkbox deselezionato)');
         }
     });
     
+    // Form articoli
     document.getElementById('new-article-form').addEventListener('submit', handleNewArticle);
-    
     document.getElementById('edit-article-form').addEventListener('submit', handleEditArticle);
     document.getElementById('edit-cancel').addEventListener('click', closeEditModal);
     
-    // Event listener per pop-up novit&agrave;
+    // Pop-up novit&agrave;
     const closeWhatsNewBtn = document.getElementById('close-whats-new');
     if (closeWhatsNewBtn) {
         closeWhatsNewBtn.addEventListener('click', closeWhatsNewModal);
     }
     
-    // Chiudi pop-up novit&agrave; se clicchi fuori dal contenuto
     const whatsNewModal = document.getElementById('whats-new-modal');
     if (whatsNewModal) {
         whatsNewModal.addEventListener('click', (e) => {
@@ -2015,24 +2034,44 @@ function setupEventListeners() {
                 closeWhatsNewModal();
             }
         });
-    } else {
-        console.log('Modal whats-new non presente nel DOM (rimosso perch&eacute; disabilitato)');
     }
     
-    document.querySelectorAll('.tab-btn').forEach(btn => {
-        btn.addEventListener('click', () => switchTab(btn.dataset.tab));
-    });
+    // Tab buttons - Consumabili
+    const tabsConsumabili = document.getElementById('tabs-consumabili');
+    if (tabsConsumabili) {
+        tabsConsumabili.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const tabName = btn.dataset.tab;
+                switchTab(tabName);
+            });
+        });
+    }
     
+    // Tab buttons - Ricambi
+    const tabsRicambi = document.getElementById('tabs-ricambi');
+    if (tabsRicambi) {
+        tabsRicambi.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const tabName = btn.dataset.tab.replace('ricambi-', '');
+                switchTab(tabName, 'ricambi');
+            });
+        });
+    }
+    
+    // Movement modals
     document.getElementById('modal-confirm').addEventListener('click', confirmMovement);
     document.getElementById('modal-cancel').addEventListener('click', closeMovementModal);
     
+    // Filtri inventario
     document.getElementById('search-input').addEventListener('input', applyFiltersAndSort);
     document.getElementById('filter-brand').addEventListener('change', applyFiltersAndSort);
     document.getElementById('sort-select').addEventListener('change', applyFiltersAndSort);
     document.getElementById('group-by-supplier').addEventListener('change', applyFiltersAndSort);
     
+    // Filtri movimenti
     document.getElementById('apply-movement-filters').addEventListener('click', applyMovementFilters);
     
+    // Report consumabili
     document.getElementById('report-type').addEventListener('change', handleReportTypeChange);
     document.getElementById('generate-report').addEventListener('click', generateReport);
     document.getElementById('print-report').addEventListener('click', printReport);
@@ -2043,7 +2082,6 @@ function setupEventListeners() {
     document.getElementById('edit-user-cancel').addEventListener('click', closeEditUserModal);
     document.getElementById('edit-user-close').addEventListener('click', closeEditUserModal);
     
-    // Chiudi modal utente cliccando fuori
     const editUserModal = document.getElementById('edit-user-modal');
     if (editUserModal) {
         editUserModal.addEventListener('click', (e) => {
@@ -2053,28 +2091,107 @@ function setupEventListeners() {
         });
     }
     
-    // Menu hamburger - supporto click E touch per mobile
-    const hamburgerBtn = document.getElementById('hamburger-btn');
-    hamburgerBtn.addEventListener('click', toggleMobileMenu);
-    hamburgerBtn.addEventListener('touchstart', (e) => {
-        e.preventDefault();
-        toggleMobileMenu();
-    }, { passive: false });
+    // ========================================
+    // EVENT LISTENERS RICAMBI
+    // ========================================
     
-    document.body.addEventListener('click', (e) => {
-        const tabs = document.getElementById('main-tabs');
-        const hamburger = document.getElementById('hamburger-btn');
-        
-        if (document.body.classList.contains('menu-open') && 
-            !tabs.contains(e.target) && 
-            !hamburger.contains(e.target)) {
-            closeMobileMenu();
-        }
-    });
+    // Import Excel
+    const btnSelectExcel = document.getElementById('btn-select-excel');
+    if (btnSelectExcel) {
+        btnSelectExcel.addEventListener('click', () => {
+            document.getElementById('excel-file-input').click();
+        });
+    }
+    
+    const excelFileInput = document.getElementById('excel-file-input');
+    if (excelFileInput) {
+        excelFileInput.addEventListener('change', handleExcelImport);
+    }
+    
+    const btnImportExcel = document.getElementById('btn-import-excel');
+    if (btnImportExcel) {
+        btnImportExcel.addEventListener('click', confirmExcelImport);
+    }
+    
+    const btnCancelExcel = document.getElementById('btn-cancel-excel');
+    if (btnCancelExcel) {
+        btnCancelExcel.addEventListener('click', cancelExcelImport);
+    }
+    
+    // Form nuovo ricambio
+    const newRicambioForm = document.getElementById('new-ricambio-form');
+    if (newRicambioForm) {
+        newRicambioForm.addEventListener('submit', handleNewRicambio);
+    }
+    
+    // Filtri ricambi
+    const searchRicambiInput = document.getElementById('search-ricambi-input');
+    if (searchRicambiInput) {
+        searchRicambiInput.addEventListener('input', applyRicambiFiltersAndSort);
+    }
+    
+    const filterRicambiBrand = document.getElementById('filter-ricambi-brand');
+    if (filterRicambiBrand) {
+        filterRicambiBrand.addEventListener('change', applyRicambiFiltersAndSort);
+    }
+    
+    const sortRicambiSelect = document.getElementById('sort-ricambi-select');
+    if (sortRicambiSelect) {
+        sortRicambiSelect.addEventListener('change', applyRicambiFiltersAndSort);
+    }
+    
+    const groupRicambiBySupplier = document.getElementById('group-ricambi-by-supplier');
+    if (groupRicambiBySupplier) {
+        groupRicambiBySupplier.addEventListener('change', applyRicambiFiltersAndSort);
+    }
+    
+    // Modal ricambi
+    const modalRicambiConfirm = document.getElementById('modal-ricambi-confirm');
+    if (modalRicambiConfirm) {
+        modalRicambiConfirm.addEventListener('click', confirmMovementRicambi);
+    }
+    
+    const modalRicambiCancel = document.getElementById('modal-ricambi-cancel');
+    if (modalRicambiCancel) {
+        modalRicambiCancel.addEventListener('click', closeMovementRicambiModal);
+    }
+    
+    // Form modifica ricambio
+    const editRicambioForm = document.getElementById('edit-ricambio-form');
+    if (editRicambioForm) {
+        editRicambioForm.addEventListener('submit', handleEditRicambio);
+    }
+    
+    const editRicambioCancel = document.getElementById('edit-ricambio-cancel');
+    if (editRicambioCancel) {
+        editRicambioCancel.addEventListener('click', closeEditRicambioModal);
+    }
+    
+    // Filtri movimenti ricambi
+    const applyMovementRicambiFiltersBtn = document.getElementById('apply-movement-ricambi-filters');
+    if (applyMovementRicambiFiltersBtn) {
+        applyMovementRicambiFiltersBtn.addEventListener('click', applyMovementRicambiFilters);
+    }
+    
+    // Report ricambi
+    const reportRicambiType = document.getElementById('report-ricambi-type');
+    if (reportRicambiType) {
+        reportRicambiType.addEventListener('change', handleReportRicambiTypeChange);
+    }
+    
+    const generateReportRicambiBtn = document.getElementById('generate-report-ricambi');
+    if (generateReportRicambiBtn) {
+        generateReportRicambiBtn.addEventListener('click', generateReportRicambi);
+    }
+    
+    const printReportRicambiBtn = document.getElementById('print-report-ricambi');
+    if (printReportRicambiBtn) {
+        printReportRicambiBtn.addEventListener('click', printReportRicambi);
+    }
 }
 
 // ========================================
-// RILEVAMENTO DISPOSITIVO E PWA
+// PWA FEATURES
 // ========================================
 function isMobile() {
     return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);

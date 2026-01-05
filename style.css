@@ -157,6 +157,151 @@ header {
     box-shadow: 0 2px 8px rgba(22, 163, 74, 0.3);
 }
 
+/* ============================================ */
+/* DASHBOARD - NUOVI STILI */
+/* ============================================ */
+
+.dashboard-container {
+    padding: 20px 15px;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.dashboard-header {
+    text-align: center;
+    margin-bottom: 30px;
+    padding: 20px;
+}
+
+.dashboard-header h2 {
+    font-size: 28px;
+    color: var(--primary);
+    margin-bottom: 8px;
+}
+
+.dashboard-header p {
+    font-size: 14px;
+    color: var(--gray);
+}
+
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 15px;
+    padding: 0 5px;
+}
+
+.dashboard-card {
+    background: white;
+    border-radius: var(--border-radius);
+    padding: 25px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border: 3px solid var(--green-light);
+    box-shadow: 0 4px 15px rgba(22, 163, 74, 0.1);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 180px;
+}
+
+.dashboard-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(22, 163, 74, 0.2);
+    border-color: var(--primary);
+}
+
+.dashboard-card:active {
+    transform: scale(0.98);
+}
+
+.dashboard-card .card-icon {
+    font-size: 48px;
+    display: block;
+    margin-bottom: 15px;
+    line-height: 1;
+}
+
+.dashboard-card h3 {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--dark);
+    margin-bottom: 8px;
+    line-height: 1.3;
+}
+
+.dashboard-card p {
+    font-size: 12px;
+    color: var(--gray);
+    line-height: 1.4;
+    margin: 0;
+}
+
+/* Nascondi card scanner su desktop */
+@media (min-width: 769px) {
+    #dashboard-scanner-card {
+        display: none;
+    }
+    
+    .dashboard-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+/* ============================================ */
+/* SEZIONI E NAVIGAZIONE */
+/* ============================================ */
+
+.section-container {
+    display: block;
+}
+
+.section-container.hidden {
+    display: none;
+}
+
+.back-to-dashboard {
+    background: white;
+    padding: 12px 15px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    border-bottom: 2px solid var(--green-light);
+    flex-wrap: wrap;
+}
+
+.btn-back {
+    background: var(--light);
+    color: var(--primary);
+    border: 2px solid var(--primary);
+    padding: 10px 18px;
+    border-radius: var(--border-radius-sm);
+    font-size: 14px;
+    font-family: 'Roboto Mono', monospace;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+
+.btn-back:hover {
+    background: var(--primary);
+    color: white;
+}
+
+.btn-back:active {
+    transform: scale(0.98);
+}
+
+.section-title {
+    font-size: 18px;
+    color: var(--primary);
+    margin: 0;
+    flex: 1;
+}
+
 /* Tabs */
 .tabs {
     background: white;
@@ -576,7 +721,8 @@ td:last-child {
     font-size: 18px;
 }
 
-#report-content {
+#report-content,
+#report-ricambi-content {
     padding: 15px;
     background: var(--light);
     border-radius: var(--border-radius-sm);
@@ -584,31 +730,36 @@ td:last-child {
     line-height: 1.5;
 }
 
-#report-content h3 {
+#report-content h3,
+#report-ricambi-content h3 {
     color: var(--primary);
     margin-bottom: 10px;
     font-size: 16px;
 }
 
-#report-content h4 {
+#report-content h4,
+#report-ricambi-content h4 {
     color: var(--primary-dark);
     margin-top: 12px;
     margin-bottom: 8px;
     font-size: 14px;
 }
 
-#report-content p {
+#report-content p,
+#report-ricambi-content p {
     margin-bottom: 6px;
     word-wrap: break-word;
 }
 
-#report-content hr {
+#report-content hr,
+#report-ricambi-content hr {
     border: none;
     border-top: 2px solid var(--green-light);
     margin: 12px 0;
 }
 
-#report-content table {
+#report-content table,
+#report-ricambi-content table {
     margin-top: 10px;
     font-size: 10px;
     overflow-x: auto;
@@ -621,11 +772,13 @@ td:last-child {
         visibility: hidden;
     }
     
-    #report-result, #report-result * {
+    #report-result, #report-result *,
+    #report-ricambi-result, #report-ricambi-result * {
         visibility: visible;
     }
     
-    #report-result {
+    #report-result,
+    #report-ricambi-result {
         position: absolute;
         left: 0;
         top: 0;
@@ -794,7 +947,7 @@ td:last-child {
 
 /* Utility */
 .hidden {
-    display: none;
+    display: none !important;
 }
 
 /* Fix opacita elementi */
@@ -822,19 +975,66 @@ button, input, textarea, select, label, span, div, td, th, p, h1, h2, h3, h4 {
 /* ============================================ */
 
 @media (max-width: 768px) {
+    /* Dashboard mobile */
+    .dashboard-container {
+        padding: 15px 10px;
+    }
+    
+    .dashboard-header {
+        padding: 15px 10px;
+        margin-bottom: 20px;
+    }
+    
+    .dashboard-header h2 {
+        font-size: 22px;
+    }
+    
+    .dashboard-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+    }
+    
+    .dashboard-card {
+        padding: 20px 15px;
+        min-height: 150px;
+    }
+    
+    .dashboard-card .card-icon {
+        font-size: 36px;
+        margin-bottom: 10px;
+    }
+    
+    .dashboard-card h3 {
+        font-size: 13px;
+    }
+    
+    .dashboard-card p {
+        font-size: 11px;
+        display: none; /* Nascondi descrizione su mobile per spazio */
+    }
+    
+    /* Back to dashboard mobile */
+    .back-to-dashboard {
+        padding: 10px;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+    
+    .btn-back {
+        padding: 8px 14px;
+        font-size: 12px;
+    }
+    
+    .section-title {
+        font-size: 16px;
+    }
+    
     /* Elimina min-width per far stare tutto nello schermo */
     table {
         min-width: auto;
         width: 100%;
     }
-    
-    /* NASCONDI colonne non essenziali su mobile:
-       - Soglia (4)
-       - Pr. Acq. NETTO (5)
-       - IVA % (6)
-       - Barcode (8)
-       - Note (9)
-    */
     
     /* NASCONDI colonne non essenziali su mobile SOLO PER INVENTARIO:
        - Soglia (4)
@@ -960,7 +1160,8 @@ button, input, textarea, select, label, span, div, td, th, p, h1, h2, h3, h4 {
     /* ===== OTTIMIZZAZIONE TABELLA MOVIMENTI ===== */
     /* 5 colonne visibili su mobile: Data, Utente, Articolo, Tipo, Quantita */
     
-    #tab-movimenti table {
+    #tab-movimenti table,
+    #tab-ricambi-movimenti table {
         font-size: 12px;
         width: 100%;
         table-layout: fixed;
@@ -970,13 +1171,19 @@ button, input, textarea, select, label, span, div, td, th, p, h1, h2, h3, h4 {
     #tab-movimenti th:nth-child(6),
     #tab-movimenti td:nth-child(6),
     #tab-movimenti th:nth-child(7),
-    #tab-movimenti td:nth-child(7) {
+    #tab-movimenti td:nth-child(7),
+    #tab-ricambi-movimenti th:nth-child(6),
+    #tab-ricambi-movimenti td:nth-child(6),
+    #tab-ricambi-movimenti th:nth-child(7),
+    #tab-ricambi-movimenti td:nth-child(7) {
         display: none !important;
     }
     
     /* Data - 20% - leggibile con anno a 2 cifre */
     #tab-movimenti th:nth-child(1),
-    #tab-movimenti td:nth-child(1) {
+    #tab-movimenti td:nth-child(1),
+    #tab-ricambi-movimenti th:nth-child(1),
+    #tab-ricambi-movimenti td:nth-child(1) {
         display: table-cell !important;
         width: 20%;
         font-size: 11px;
@@ -984,9 +1191,11 @@ button, input, textarea, select, label, span, div, td, th, p, h1, h2, h3, h4 {
         white-space: nowrap;
     }
     
-    /* Utente (iniziali) - 15% - pi&ugrave; largo per header completo */
+    /* Utente (iniziali) - 15% */
     #tab-movimenti th:nth-child(2),
-    #tab-movimenti td:nth-child(2) {
+    #tab-movimenti td:nth-child(2),
+    #tab-ricambi-movimenti th:nth-child(2),
+    #tab-ricambi-movimenti td:nth-child(2) {
         display: table-cell !important;
         width: 15%;
         text-align: center !important;
@@ -995,9 +1204,11 @@ button, input, textarea, select, label, span, div, td, th, p, h1, h2, h3, h4 {
         font-weight: 700;
     }
     
-    /* Articolo - 35% - spazio per descrizione con a capo */
+    /* Articolo - 35% */
     #tab-movimenti th:nth-child(3),
-    #tab-movimenti td:nth-child(3) {
+    #tab-movimenti td:nth-child(3),
+    #tab-ricambi-movimenti th:nth-child(3),
+    #tab-ricambi-movimenti td:nth-child(3) {
         display: table-cell !important;
         width: 35%;
         font-size: 11px;
@@ -1010,7 +1221,9 @@ button, input, textarea, select, label, span, div, td, th, p, h1, h2, h3, h4 {
     
     /* Tipo (emoji +/-) - 13% */
     #tab-movimenti th:nth-child(4),
-    #tab-movimenti td:nth-child(4) {
+    #tab-movimenti td:nth-child(4),
+    #tab-ricambi-movimenti th:nth-child(4),
+    #tab-ricambi-movimenti td:nth-child(4) {
         display: table-cell !important;
         width: 13%;
         text-align: center !important;
@@ -1018,9 +1231,11 @@ button, input, textarea, select, label, span, div, td, th, p, h1, h2, h3, h4 {
         font-size: 18px;
     }
     
-    /* Quantita - 17% - pi&ugrave; largo per header completo */
+    /* Quantita - 17% */
     #tab-movimenti th:nth-child(5),
-    #tab-movimenti td:nth-child(5) {
+    #tab-movimenti td:nth-child(5),
+    #tab-ricambi-movimenti th:nth-child(5),
+    #tab-ricambi-movimenti td:nth-child(5) {
         display: table-cell !important;
         width: 17%;
         text-align: center !important;
@@ -1030,7 +1245,8 @@ button, input, textarea, select, label, span, div, td, th, p, h1, h2, h3, h4 {
     }
     
     /* Header tabella movimenti */
-    #tab-movimenti th {
+    #tab-movimenti th,
+    #tab-ricambi-movimenti th {
         font-size: 10px;
         font-weight: 700;
         text-transform: uppercase;
@@ -1043,6 +1259,68 @@ button, input, textarea, select, label, span, div, td, th, p, h1, h2, h3, h4 {
 /* ============================================ */
 
 @media (min-width: 769px) {
+    /* Dashboard desktop */
+    .dashboard-container {
+        padding: 40px 30px;
+    }
+    
+    .dashboard-header {
+        margin-bottom: 40px;
+    }
+    
+    .dashboard-header h2 {
+        font-size: 32px;
+    }
+    
+    .dashboard-header p {
+        font-size: 16px;
+    }
+    
+    .dashboard-grid {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 25px;
+        max-width: 900px;
+        margin: 0 auto;
+    }
+    
+    .dashboard-card {
+        padding: 35px 25px;
+        min-height: 220px;
+    }
+    
+    .dashboard-card .card-icon {
+        font-size: 56px;
+        margin-bottom: 20px;
+    }
+    
+    .dashboard-card h3 {
+        font-size: 18px;
+        margin-bottom: 10px;
+    }
+    
+    .dashboard-card p {
+        font-size: 14px;
+    }
+    
+    /* Back to dashboard desktop */
+    .back-to-dashboard {
+        padding: 15px 20px;
+    }
+    
+    .btn-back {
+        padding: 12px 24px;
+        font-size: 14px;
+    }
+    
+    .btn-back:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(22, 163, 74, 0.3);
+    }
+    
+    .section-title {
+        font-size: 22px;
+    }
+    
     /* Classi generiche per desktop */
     .show-on-mobile {
         display: none !important;
@@ -1295,20 +1573,24 @@ button, input, textarea, select, label, span, div, td, th, p, h1, h2, h3, h4 {
         font-size: 24px;
     }
     
-    #report-content {
+    #report-content,
+    #report-ricambi-content {
         font-size: 14px;
         padding: 25px;
     }
     
-    #report-content h3 {
+    #report-content h3,
+    #report-ricambi-content h3 {
         font-size: 24px;
     }
     
-    #report-content h4 {
+    #report-content h4,
+    #report-ricambi-content h4 {
         font-size: 18px;
     }
     
-    #report-content table {
+    #report-content table,
+    #report-ricambi-content table {
         font-size: 13px;
     }
     
@@ -1337,6 +1619,24 @@ button, input, textarea, select, label, span, div, td, th, p, h1, h2, h3, h4 {
 
 /* Large desktop */
 @media (min-width: 1400px) {
+    .dashboard-grid {
+        max-width: 1100px;
+        gap: 30px;
+    }
+    
+    .dashboard-card {
+        padding: 40px 30px;
+        min-height: 250px;
+    }
+    
+    .dashboard-card .card-icon {
+        font-size: 64px;
+    }
+    
+    .dashboard-card h3 {
+        font-size: 20px;
+    }
+    
     .supplier-section {
         padding: 25px;
     }
@@ -1506,134 +1806,7 @@ button, input, textarea, select, label, span, div, td, th, p, h1, h2, h3, h4 {
 }
 
 /* ============================================ */
-/* HAMBURGER MENU - POSIZIONE FIXATA */
-/* ============================================ */
-
-/* Hamburger Button */
-.hamburger-btn {
-    display: none;
-    position: fixed;
-    top: 10px;
-    left: 10px;
-    z-index: 1001;
-    background: var(--primary);
-    border: none;
-    width: 40px;
-    height: 40px;
-    border-radius: 8px;
-    cursor: pointer;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 4px;
-    box-shadow: 0 4px 12px rgba(22, 163, 74, 0.3);
-    transition: all 0.3s ease;
-    pointer-events: auto;
-    touch-action: manipulation;
-    -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
-    will-change: transform;
-    transform: translateZ(0);
-    -webkit-transform: translateZ(0);
-    -webkit-backface-visibility: hidden;
-    backface-visibility: hidden;
-}
-
-.hamburger-btn span {
-    display: block;
-    width: 22px;
-    height: 2.5px;
-    background: white;
-    border-radius: 3px;
-    transition: all 0.3s ease;
-}
-
-.hamburger-btn.active span:nth-child(1) {
-    transform: rotate(45deg) translate(7px, 7px);
-}
-
-.hamburger-btn.active span:nth-child(2) {
-    opacity: 0;
-}
-
-.hamburger-btn.active span:nth-child(3) {
-    transform: rotate(-45deg) translate(7px, -7px);
-}
-
-.hamburger-btn:hover {
-    background: var(--primary-dark);
-    box-shadow: 0 6px 16px rgba(22, 163, 74, 0.4);
-}
-
-.hamburger-btn:active {
-    transform: scale(0.95);
-}
-
-/* Mostra hamburger solo su mobile */
-@media (max-width: 768px) {
-    .hamburger-btn {
-        display: flex;
-    }
-    
-    /* Nascondi tabs su mobile */
-    .tabs {
-        position: fixed;
-        top: 0;
-        left: -100%;
-        width: 280px;
-        height: 100vh;
-        min-height: 100vh;
-        height: 100dvh;
-        background: white;
-        flex-direction: column;
-        padding: 70px 15px 15px 15px;
-        box-shadow: 4px 0 20px rgba(0, 0, 0, 0.15);
-        z-index: 1000;
-        transition: left 0.3s ease;
-        overflow-y: auto;
-    }
-    
-    .tabs.active {
-        left: 0;
-    }
-    
-    .tab-btn {
-        width: 100%;
-        text-align: left;
-        padding: 16px 20px;
-        border-radius: 12px;
-        font-size: 15px;
-        margin-bottom: 8px;
-    }
-    
-    /* Overlay per chiudere menu */
-    body::before {
-        content: '';
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        min-height: 100vh;
-        height: 100dvh;
-        background: rgba(0, 0, 0, 0.6);
-        z-index: 999;
-        opacity: 0;
-        visibility: hidden;
-        transition: all 0.3s ease;
-        pointer-events: none;
-        backdrop-filter: blur(3px);
-        -webkit-backdrop-filter: blur(3px);
-    }
-    
-    body.menu-open::before {
-        opacity: 1;
-        visibility: visible;
-        pointer-events: auto;
-    }
-}
-
-/* ============================================ */
-/* SEARCH BAR - NUOVA SEZIONE */
+/* SEARCH BAR */
 /* ============================================ */
 
 .search-bar {
@@ -1732,16 +1905,6 @@ button, input, textarea, select, label, span, div, td, th, p, h1, h2, h3, h4 {
 }
 
 /* ============================================ */
-/* NASCONDERE SCANNER SU DESKTOP */
-/* ============================================ */
-
-@media (min-width: 769px) {
-    #tab-scanner-btn {
-        display: none !important;
-    }
-}
-
-/* ============================================ */
 /* AGGIORNAMENTO RESPONSIVE */
 /* ============================================ */
 
@@ -1773,10 +1936,9 @@ button, input, textarea, select, label, span, div, td, th, p, h1, h2, h3, h4 {
 }
 
 /* ============================================ */
-/* POP-UP NOVIT&Agrave; VERSIONE - CON Z-INDEX ALTISSIMO */
+/* POP-UP NOVITA VERSIONE */
 /* ============================================ */
 
-/* IMPORTANTE: Questo modal deve avere z-index pi&ugrave; alto di tutti gli altri */
 #whats-new-modal {
     z-index: 99999 !important;
 }
