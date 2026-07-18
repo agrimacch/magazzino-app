@@ -46,19 +46,14 @@ function saveInventoryFilters() {
 }
 
 function restoreInventoryFilters() {
-    const saved = sessionStorage.getItem('inventoryFilters');
-    if (saved) {
-        try {
-            const filters = JSON.parse(saved);
-            if (document.getElementById('filter-brand')) {
-                document.getElementById('filter-brand').value = filters.brand || '';
-                document.getElementById('search-input').value = filters.search || '';
-                document.getElementById('sort-select').value = filters.sort || 'fornitore-asc';
-                document.getElementById('group-by-supplier').checked = filters.group !== false;
-            }
-        } catch(e) {
-            console.error('Errore ripristino filtri inventario:', e);
-        }
+    // MODIFICA: prima venivano ripristinati ricerca/filtri salvati in sessionStorage.
+    // Ora si riparte sempre puliti ogni volta che si entra/rientra nella sezione,
+    // cosi' la ricerca non resta "appesa" quando si cambia sezione o si fa logout.
+    if (document.getElementById('filter-brand')) {
+        document.getElementById('filter-brand').value = '';
+        document.getElementById('search-input').value = '';
+        document.getElementById('sort-select').value = 'fornitore-asc';
+        document.getElementById('group-by-supplier').checked = true;
     }
 }
 
@@ -72,18 +67,11 @@ function saveMovementFilters() {
 }
 
 function restoreMovementFilters() {
-    const saved = sessionStorage.getItem('movementFilters');
-    if (saved) {
-        try {
-            const filters = JSON.parse(saved);
-            if (document.getElementById('filter-movement-type')) {
-                document.getElementById('filter-movement-type').value = filters.type || '';
-                document.getElementById('filter-date-from').value = filters.dateFrom || '';
-                document.getElementById('filter-date-to').value = filters.dateTo || '';
-            }
-        } catch(e) {
-            console.error('Errore ripristino filtri movimenti:', e);
-        }
+    // MODIFICA: reset sempre a default (vedi nota in restoreInventoryFilters)
+    if (document.getElementById('filter-movement-type')) {
+        document.getElementById('filter-movement-type').value = '';
+        document.getElementById('filter-date-from').value = '';
+        document.getElementById('filter-date-to').value = '';
     }
 }
 
@@ -251,19 +239,28 @@ function checkAndShowWhatsNew() {
     }
 }
 
+let whatsNewEscHandler = null;
+
 function showWhatsNewModal() {
     const modal = document.getElementById('whats-new-modal');
     if (!modal) return;
     
     modal.classList.remove('hidden');
     
-    const escHandler = (e) => {
+    // Rimuovi eventuale listener precedente prima di aggiungerne uno nuovo
+    // (previene accumulo di listener duplicati sul tasto ESC)
+    if (whatsNewEscHandler) {
+        document.removeEventListener('keydown', whatsNewEscHandler);
+    }
+    
+    whatsNewEscHandler = (e) => {
         if (e.key === 'Escape') {
             closeWhatsNewModal();
-            document.removeEventListener('keydown', escHandler);
+            document.removeEventListener('keydown', whatsNewEscHandler);
+            whatsNewEscHandler = null;
         }
     };
-    document.addEventListener('keydown', escHandler);
+    document.addEventListener('keydown', whatsNewEscHandler);
 }
 
 function closeWhatsNewModal() {
@@ -297,6 +294,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     sessionStorage.removeItem('inventoryFilters');
     sessionStorage.removeItem('movementFilters');
+    sessionStorage.removeItem('ricambiFilters');
+    sessionStorage.removeItem('movementRicambiFilters');
     
     loadSavedCredentials();
     
@@ -572,7 +571,7 @@ async function handleLogin(e) {
     });
     
     if (error) {
-        alert('Errore login: ' + error.message);
+        await showCustomAlert('Errore login: ' + error.message, 'Errore', '&#10060;');
         return;
     }
     
@@ -582,15 +581,20 @@ async function handleLogin(e) {
         clearSavedCredentials();
     }
     
-    currentUser = data.user;
-    await loadUserRole();
-    showMainScreen();
+    // NOTA: currentUser, loadUserRole() e showMainScreen() vengono gestiti
+    // automaticamente dal listener onAuthStateChange (evento SIGNED_IN) qui sotto.
+    // In precedenza venivano chiamati anche qui, causando una DOPPIA esecuzione
+    // di showMainScreen() ad ogni login (una volta qui, una volta dal listener).
+    // Questo doppio caricamento era la causa del pop-up "novita versione" che
+    // ricompariva dopo il login.
 }
 
 async function handleLogout() {
     // Pulisci tutti i filtri e stati salvati
     sessionStorage.removeItem('inventoryFilters');
     sessionStorage.removeItem('movementFilters');
+    sessionStorage.removeItem('ricambiFilters');
+    sessionStorage.removeItem('movementRicambiFilters');
     sessionStorage.removeItem('currentSection');
     sessionStorage.removeItem('currentTab');
     
@@ -907,7 +911,7 @@ async function handleNewArticle(e) {
         .single();
     
     if (existingCode) {
-        alert('Codice articolo gi\u00E0 esistente!');
+        await showCustomAlert('Codice articolo gi&#224; esistente!', 'Errore', '&#10060;');
         return;
     }
     
@@ -918,7 +922,7 @@ async function handleNewArticle(e) {
         .single();
     
     if (existingBarcode) {
-        alert('Codice a barre gi\u00E0 esistente!');
+        await showCustomAlert('Codice a barre gi&#224; esistente!', 'Errore', '&#10060;');
         return;
     }
     
@@ -941,7 +945,7 @@ async function handleNewArticle(e) {
         .single();
     
     if (error) {
-        alert('Errore durante il salvataggio: ' + error.message);
+        await showCustomAlert('Errore durante il salvataggio:<br>' + error.message, 'Errore', '&#10060;');
         return;
     }
     
@@ -961,7 +965,7 @@ async function handleNewArticle(e) {
         }
     }
     
-    alert('Articolo aggiunto con successo!');
+    await showCustomAlert('Articolo aggiunto con successo!', 'Successo', '&#10004;');
     document.getElementById('new-article-form').reset();
     document.getElementById('new-quantity').value = 0;
     document.getElementById('new-threshold').value = 10;
@@ -1030,11 +1034,11 @@ async function handleEditArticle(e) {
         .eq('id', id);
     
     if (error) {
-        alert('Errore durante la modifica: ' + error.message);
+        await showCustomAlert('Errore durante la modifica:<br>' + error.message, 'Errore', '&#10060;');
         return;
     }
     
-    alert('Articolo modificato con successo!');
+    await showCustomAlert('Articolo modificato con successo!', 'Successo', '&#10004;');
     closeEditModal();
     loadInventory();
 }
@@ -1057,11 +1061,11 @@ async function deleteArticle(articleId) {
         .eq('id', articleId);
     
     if (error) {
-        alert('Errore durante l\'eliminazione: ' + error.message);
+        await showCustomAlert('Errore durante l\'eliminazione:<br>' + error.message, 'Errore', '&#10060;');
         return;
     }
     
-    alert('Articolo eliminato con successo!');
+    await showCustomAlert('Articolo eliminato con successo!', 'Successo', '&#10004;');
     loadInventory();
 }
 
@@ -1092,7 +1096,7 @@ async function confirmMovement() {
     const notes = document.getElementById('modal-notes').value.trim();
     
     if (quantity <= 0) {
-        alert('Quantit\u00E0 non valida');
+        await showCustomAlert('Quantit&#224; non valida', 'Errore', '&#10060;');
         return;
     }
     
@@ -1102,7 +1106,7 @@ async function confirmMovement() {
     } else {
         newQuantity -= quantity;
         if (newQuantity < 0) {
-            alert('Quantit\u00E0 insufficiente in magazzino!');
+            await showCustomAlert('Quantit&#224; insufficiente in magazzino!', 'Errore', '&#10060;');
             return;
         }
     }
@@ -1113,7 +1117,7 @@ async function confirmMovement() {
         .eq('id', article.id);
     
     if (updateError) {
-        alert('Errore aggiornamento: ' + updateError.message);
+        await showCustomAlert('Errore aggiornamento:<br>' + updateError.message, 'Errore', '&#10060;');
         return;
     }
     
@@ -1136,9 +1140,21 @@ async function confirmMovement() {
     loadMovements();
     
     if (type === 'scarico' && newQuantity <= article.soglia_minima) {
-        alert('\u26A0\uFE0F ATTENZIONE!\n\nL\'articolo "' + article.nome + '" \u00C8 SOTTO SOGLIA!\n\nQuantit\u00E0 attuale: ' + newQuantity + '\nSoglia minima: ' + article.soglia_minima + '\n\n\uD83D\uDED2 \u00C8 necessario riordinare!');
+        await showCustomAlert(
+            '<strong>&#128230; ' + article.nome + '</strong><br><br>' +
+            '&#9888;&#65039; <strong>ARTICOLO SOTTO SOGLIA!</strong><br><br>' +
+            'Quantit&#224; attuale: <strong>' + newQuantity + '</strong><br>' +
+            'Soglia minima: <strong>' + article.soglia_minima + '</strong><br><br>' +
+            '&#128722; &#200; necessario riordinare!',
+            'Attenzione: Sotto Soglia',
+            '&#9888;&#65039;'
+        );
     } else {
-        alert((type === 'carico' ? 'Carico' : 'Scarico') + ' completato!');
+        await showCustomAlert(
+            (type === 'carico' ? 'Carico' : 'Scarico') + ' completato!',
+            'Successo',
+            '&#10004;'
+        );
     }
     
     // Se siamo nella sezione scanner, torna a scansionare
@@ -1297,14 +1313,14 @@ async function generateReport() {
     } else if (reportType === 'fornitore') {
         const supplier = document.getElementById('report-supplier').value;
         if (!supplier) {
-            alert('Seleziona un fornitore');
+            await showCustomAlert('Seleziona un fornitore', 'Attenzione', '&#9888;&#65039;');
             return;
         }
         reportContent = await generateSupplierOrderReport(supplier, dateFrom, dateTo);
     } else if (reportType === 'articolo') {
         const articleId = parseInt(document.getElementById('report-article').value);
         if (!articleId) {
-            alert('Seleziona un articolo');
+            await showCustomAlert('Seleziona un articolo', 'Attenzione', '&#9888;&#65039;');
             return;
         }
         reportContent = await generateArticleOrderReport(articleId, dateFrom, dateTo);
@@ -1612,7 +1628,7 @@ function initScanner() {
         onScanError
     ).catch(err => {
         console.error('Errore avvio scanner:', err);
-        alert('Impossibile avviare la fotocamera. Controlla i permessi.');
+        showCustomAlert('Impossibile avviare la fotocamera.<br>Controlla i permessi.', 'Errore', '&#10060;');
     });
 }
 
@@ -1891,7 +1907,7 @@ async function handleNewUserForm(e) {
         const { data: { session: adminSession } } = await supabaseClient.auth.getSession();
         
         if (!adminSession) {
-            alert('Errore: Sessione non valida');
+            await showCustomAlert('Errore: Sessione non valida', 'Errore', '&#10060;');
             return;
         }
         
@@ -1904,7 +1920,7 @@ async function handleNewUserForm(e) {
         });
         
         if (authError) {
-            alert('Errore creazione utente: ' + authError.message);
+            await showCustomAlert('Errore creazione utente:<br>' + authError.message, 'Errore', '&#10060;');
             return;
         }
         
@@ -1923,17 +1939,17 @@ async function handleNewUserForm(e) {
             ]);
         
         if (roleError) {
-            alert('Errore salvataggio ruolo: ' + roleError.message);
+            await showCustomAlert('Errore salvataggio ruolo:<br>' + roleError.message, 'Errore', '&#10060;');
             return;
         }
         
-        alert('Utente creato con successo!');
+        await showCustomAlert('Utente creato con successo!', 'Successo', '&#10004;');
         document.getElementById('new-user-form').reset();
         await renderUsersList();
         
     } catch (error) {
         console.error('Errore:', error);
-        alert('Errore durante la creazione dell\'utente');
+        await showCustomAlert('Errore durante la creazione dell\'utente', 'Errore', '&#10060;');
     }
 }
 
@@ -1945,16 +1961,16 @@ async function deleteUser(email) {
             .eq('email', email);
         
         if (error) {
-            alert('Errore eliminazione utente: ' + error.message);
+            await showCustomAlert('Errore eliminazione utente:<br>' + error.message, 'Errore', '&#10060;');
             return;
         }
         
-        alert('Utente eliminato con successo!');
+        await showCustomAlert('Utente eliminato con successo!', 'Successo', '&#10004;');
         renderUsersList();
         
     } catch (error) {
         console.error('Errore:', error);
-        alert('Errore durante l\'eliminazione dell\'utente');
+        await showCustomAlert('Errore durante l\'eliminazione dell\'utente', 'Errore', '&#10060;');
     }
 }
 
@@ -1989,17 +2005,17 @@ async function handleEditUserForm(e) {
             .eq('email', email);
         
         if (error) {
-            alert('Errore modifica utente: ' + error.message);
+            await showCustomAlert('Errore modifica utente:<br>' + error.message, 'Errore', '&#10060;');
             return;
         }
         
-        alert('Utente modificato con successo!');
+        await showCustomAlert('Utente modificato con successo!', 'Successo', '&#10004;');
         closeEditUserModal();
         renderUsersList();
         
     } catch (error) {
         console.error('Errore:', error);
-        alert('Errore durante la modifica dell\'utente');
+        await showCustomAlert('Errore durante la modifica dell\'utente', 'Errore', '&#10060;');
     }
 }
 
@@ -2189,6 +2205,44 @@ function setupEventListeners() {
     const printReportRicambiBtn = document.getElementById('print-report-ricambi');
     if (printReportRicambiBtn) {
         printReportRicambiBtn.addEventListener('click', printReportRicambi);
+    }
+    
+    // Fix: ridisegna la tabella della scheda attiva quando la finestra
+    // viene ridimensionata, per evitare che il contenuto sparisca
+    // (glitch di rendering dell'intestazione "sticky" nelle tabelle scrollabili)
+    window.addEventListener('resize', () => {
+        clearTimeout(resizeRenderTimeout);
+        resizeRenderTimeout = setTimeout(refreshActiveTabRendering, 250);
+    });
+}
+
+let resizeRenderTimeout = null;
+
+function refreshActiveTabRendering() {
+    // La correzione principale ora e' nel CSS (rimosso "position: sticky"
+    // dall'intestazione delle tabelle, causa piu' probabile del glitch).
+    // Qui forziamo solo un leggero ricalcolo del layout come rete di sicurezza,
+    // senza nascondere/rimostrare nulla (per non rischiare effetti collaterali).
+    void document.body.offsetHeight;
+    
+    // Ri-applichiamo anche i filtri della tabella dati attiva, usando i valori
+    // GIA' presenti nei campi di ricerca/filtro (senza cancellarli)
+    if (currentSection === 'consumabili') {
+        const activeBtn = document.querySelector('#tabs-consumabili .tab-btn.active');
+        const activeTab = activeBtn ? activeBtn.dataset.tab : null;
+        if (activeTab === 'inventario') {
+            applyFiltersAndSort();
+        } else if (activeTab === 'movimenti') {
+            applyMovementFilters();
+        }
+    } else if (currentSection === 'ricambi') {
+        const activeBtn = document.querySelector('#tabs-ricambi .tab-btn.active');
+        const activeTab = activeBtn ? activeBtn.dataset.tab : null;
+        if (activeTab === 'ricambi-inventario') {
+            applyRicambiFiltersAndSort();
+        } else if (activeTab === 'ricambi-movimenti') {
+            applyMovementRicambiFilters();
+        }
     }
 }
 

@@ -385,6 +385,12 @@ input[type="date"] {
     text-transform: none;
 }
 
+/* Eccezione basata su ID: rimane valida anche quando il tipo
+   passa da "password" a "text" (pulsante occhio mostra/nascondi) */
+#login-password {
+    text-transform: none !important;
+}
+
 /* Placeholder in grigio e non uppercase */
 input::placeholder,
 textarea::placeholder {
@@ -604,6 +610,7 @@ input:focus, textarea:focus, select:focus {
 /* Table */
 .table-container {
     overflow-x: auto;
+    overflow-y: visible;
     border-radius: var(--border-radius-sm);
     -webkit-overflow-scrolling: touch;
     margin: 0;
@@ -621,9 +628,6 @@ table {
 thead {
     background: var(--primary);
     color: white;
-    position: sticky;
-    top: 0;
-    z-index: 10;
 }
 
 th {

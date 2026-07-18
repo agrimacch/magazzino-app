@@ -2,9 +2,9 @@
 \cocoatextscaling0\cocoaplatform0{\fonttbl\f0\fswiss\fcharset0 Helvetica;\f1\fnil\fcharset0 Menlo-Regular;\f2\froman\fcharset0 Times-Roman;
 \f3\froman\fcharset0 Times-Bold;}
 {\colortbl;\red255\green255\blue255;\red0\green0\blue0;\red0\green0\blue0;\red155\green162\blue177;
-}
+\red162\green55\blue4;\red4\green57\blue181;}
 {\*\expandedcolortbl;;\csgray\c0;\cssrgb\c0\c0\c0;\cssrgb\c67059\c69804\c74902;
-}
+\cssrgb\c70196\c29020\c0;\cssrgb\c0\c31765\c76078;}
 \paperw11900\paperh16840\margl1440\margr1440\vieww13660\viewh8400\viewkind0
 \pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\pardirnatural\partightenfactor0
 
@@ -16,14 +16,13 @@ ENTRARE NELLA CARTELLA DI LAVORO\
 \f1\fs22 \cf2 \CocoaLigature0 cd ~/Desktop/magazzino-app\
 \
 \
-\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
 CARICARE LE MODIFICHE SU GITHUB.  NUOVO METODO\
 \
 \pard\pardeftab720\partightenfactor0
 
 \f2\fs24 \cf0 \expnd0\expndtw0\kerning0
-\CocoaLigature1 \outl0\strokewidth0 \strokec3 Setup iniziale (SOLO LA PRIMA VOLTA):
-\f1\fs22 \cf2 \kerning1\expnd0\expndtw0 \CocoaLigature0 \outl0\strokewidth0 \
+\CocoaLigature1 Setup iniziale (SOLO LA PRIMA VOLTA):
+\f1\fs22 \cf2 \kerning1\expnd0\expndtw0 \CocoaLigature0 \
 \pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
 cd ~/Desktop/magazzino-app\
 chmod +x push-all.sh\
@@ -32,7 +31,7 @@ chmod +x update-version.sh\
 \pard\pardeftab720\sa280\partightenfactor0
 
 \f3\b\fs28 \cf0 \expnd0\expndtw0\kerning0
-\CocoaLigature1 \outl0\strokewidth0 \strokec3 Uso quotidiano:\
+\CocoaLigature1 Uso quotidiano:\
 
 \fs24 Per caricare modifiche:\
 cd ~/Desktop/magazzino-app\
@@ -40,12 +39,12 @@ cd ~/Desktop/magazzino-app\
 \f2\b0 \
 \pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
 
-\f1\fs22 \cf2 \kerning1\expnd0\expndtw0 \CocoaLigature0 \outl0\strokewidth0 \
+\f1\fs22 \cf2 \kerning1\expnd0\expndtw0 \CocoaLigature0 \
 \pard\pardeftab720\partightenfactor0
 
 \f2\fs24 \cf0 \expnd0\expndtw0\kerning0
-\CocoaLigature1 \outl0\strokewidth0 \strokec3 Per aggiornare versione:
-\f1\fs22 \cf2 \kerning1\expnd0\expndtw0 \CocoaLigature0 \outl0\strokewidth0 \
+\CocoaLigature1 Per aggiornare versione:
+\f1\fs22 \cf2 \kerning1\expnd0\expndtw0 \CocoaLigature0 \
 \pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
 cd ~/Desktop/magazzino-app\
 ./update-version.sh\
@@ -59,7 +58,6 @@ cd ~/Desktop/magazzino-app\
 git add .
 \f2\fs24 \cf4 \expnd0\expndtw0\kerning0
 \CocoaLigature1 \shad\shadx0\shady-20\shadr0\shado0 \shadc0 \
-\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
 
 \f1\fs22 \cf2 \kerning1\expnd0\expndtw0 \CocoaLigature0 \shad0 git commit -m "v2.3.1 - Miglioramento carattere e proporzioni"
 \f2\fs24 \cf0 \expnd0\expndtw0\kerning0
@@ -81,8 +79,16 @@ Risposte:\
 3 s     sempre\
 \
 AVVIARE SERVER LOCALE\
-python3 -m http.server 8000\
-E poi andare su {\field{\*\fldinst{HYPERLINK "http://localhost:8000/"}}{\fldrslt http://localhost:8000}}
+\pard\pardeftab720\partightenfactor0
+
+\f2\fs24 \cf5 \expnd0\expndtw0\kerning0
+\CocoaLigature1 \outl0\strokewidth0 \strokec5 cd\cf0 \strokec3  ~/Desktop/magazzino-app \
+\cf6 \strokec6 bash\cf0 \strokec3  start-https-server.sh\
+\
+Control + c per interrompere server
+\f1\fs22 \cf2 \kerning1\expnd0\expndtw0 \CocoaLigature0 \outl0\strokewidth0 \
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
 \f0\fs24 \cf0 \CocoaLigature1 \
 \pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\pardirnatural\partightenfactor0
 \cf0 \

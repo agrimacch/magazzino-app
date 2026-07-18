@@ -261,19 +261,12 @@ function saveRicambiFilters() {
 }
 
 function restoreRicambiFilters() {
-    const saved = sessionStorage.getItem('ricambiFilters');
-    if (saved) {
-        try {
-            const filters = JSON.parse(saved);
-            if (document.getElementById('filter-ricambi-brand')) {
-                document.getElementById('filter-ricambi-brand').value = filters.brand || '';
-                document.getElementById('search-ricambi-input').value = filters.search || '';
-                document.getElementById('sort-ricambi-select').value = filters.sort || 'fornitore-asc';
-                document.getElementById('group-ricambi-by-supplier').checked = filters.group !== false;
-            }
-        } catch(e) {
-            console.error('Errore ripristino filtri:', e);
-        }
+    // MODIFICA: reset sempre a default (vedi nota in app.js restoreInventoryFilters)
+    if (document.getElementById('filter-ricambi-brand')) {
+        document.getElementById('filter-ricambi-brand').value = '';
+        document.getElementById('search-ricambi-input').value = '';
+        document.getElementById('sort-ricambi-select').value = 'fornitore-asc';
+        document.getElementById('group-ricambi-by-supplier').checked = true;
     }
 }
 
@@ -908,18 +901,11 @@ function saveMovementRicambiFilters() {
 }
 
 function restoreMovementRicambiFilters() {
-    const saved = sessionStorage.getItem('movementRicambiFilters');
-    if (saved) {
-        try {
-            const filters = JSON.parse(saved);
-            if (document.getElementById('filter-movement-ricambi-type')) {
-                document.getElementById('filter-movement-ricambi-type').value = filters.type || '';
-                document.getElementById('filter-ricambi-date-from').value = filters.dateFrom || '';
-                document.getElementById('filter-ricambi-date-to').value = filters.dateTo || '';
-            }
-        } catch(e) {
-            console.error('Errore ripristino filtri movimenti:', e);
-        }
+    // MODIFICA: reset sempre a default (vedi nota in app.js restoreInventoryFilters)
+    if (document.getElementById('filter-movement-ricambi-type')) {
+        document.getElementById('filter-movement-ricambi-type').value = '';
+        document.getElementById('filter-ricambi-date-from').value = '';
+        document.getElementById('filter-ricambi-date-to').value = '';
     }
 }
 
@@ -1059,22 +1045,37 @@ async function generateReportRicambi() {
     
     let reportContent = '';
     
-    if (reportType === 'generale') {
-        reportContent = await generateGeneralRicambiReport(dateFrom, dateTo);
-    } else if (reportType === 'fornitore') {
-        const supplier = document.getElementById('report-ricambi-supplier').value;
-        if (!supplier) {
-            await showCustomAlert('Seleziona un fornitore', 'Errore', '&#10060;');
-            return;
+    try {
+        if (reportType === 'generale') {
+            reportContent = await generateGeneralRicambiReport(dateFrom, dateTo);
+        } else if (reportType === 'fornitore') {
+            const supplier = document.getElementById('report-ricambi-supplier').value;
+            if (!supplier) {
+                await showCustomAlert('Seleziona un fornitore', 'Attenzione', '&#9888;&#65039;');
+                return;
+            }
+            reportContent = await generateSupplierRicambiReport(supplier, dateFrom, dateTo);
+        } else if (reportType === 'ricambio') {
+            const ricambioId = parseInt(document.getElementById('report-ricambi-item').value);
+            if (!ricambioId) {
+                await showCustomAlert('Seleziona un ricambio', 'Attenzione', '&#9888;&#65039;');
+                return;
+            }
+            reportContent = await generateRicambioReport(ricambioId, dateFrom, dateTo);
         }
-        reportContent = await generateSupplierRicambiReport(supplier, dateFrom, dateTo);
-    } else if (reportType === 'ricambio') {
-        const ricambioId = parseInt(document.getElementById('report-ricambi-item').value);
-        if (!ricambioId) {
-            await showCustomAlert('Seleziona un ricambio', 'Errore', '&#10060;');
-            return;
-        }
-        reportContent = await generateRicambioReport(ricambioId, dateFrom, dateTo);
+    } catch (err) {
+        // PRIMA: se la query falliva, l'errore veniva "inghiottito" in silenzio
+        // e il report restava vuoto/nascosto senza alcuna spiegazione.
+        // ORA: mostriamo sempre un messaggio chiaro con il dettaglio dell'errore.
+        console.error('Errore generazione report ricambi:', err);
+        await showCustomAlert(
+            'Non &#232; stato possibile generare il report.<br><br>' +
+            '<strong>Dettaglio errore:</strong><br>' + err.message +
+            '<br><br>Apri la Console del browser (F12) per maggiori dettagli tecnici.',
+            'Errore Generazione Report',
+            '&#10060;'
+        );
+        return;
     }
     
     document.getElementById('report-ricambi-content').innerHTML = reportContent;
@@ -1096,11 +1097,15 @@ async function generateGeneralRicambiReport(dateFrom, dateTo) {
         query = query.lte('created_at', endDate.toISOString());
     }
     
-    const { data: movements } = await query;
+    const { data: movements, error } = await query;
+    
+    if (error) {
+        throw new Error('Errore caricamento movimenti dal database: ' + error.message);
+    }
     
     const supplierData = {};
     
-    movements.forEach(movement => {
+    (movements || []).forEach(movement => {
         const ricambio = allRicambi.find(r => r.id === movement.ricambio_id);
         if (!ricambio) return;
         
@@ -1134,6 +1139,15 @@ async function generateGeneralRicambiReport(dateFrom, dateTo) {
             <strong style="color: var(--danger);">UTILIZZATO (scaricato)</strong> per ogni fornitore.
         </p>
     `;
+    
+    if (Object.keys(supplierData).length === 0) {
+        html += `
+            <div style="background: #fef3c7; padding: 15px; border-radius: 12px; border-left: 4px solid #f59e0b; text-align: center;">
+                <strong>&#9888;&#65039; Nessun movimento trovato</strong><br>
+                <span style="font-size: 13px; color: var(--gray);">Non risultano carichi o scarichi di ricambi nel periodo selezionato.<br>Prova ad allargare il periodo (campi Da/A) oppure lasciali vuoti per vedere tutto lo storico.</span>
+            </div>
+        `;
+    }
     
     Object.keys(supplierData).sort().forEach(supplier => {
         const data = supplierData[supplier];
@@ -1189,12 +1203,16 @@ async function generateSupplierRicambiReport(supplier, dateFrom, dateTo) {
         query = query.lte('created_at', endDate.toISOString());
     }
     
-    const { data: movements } = await query;
+    const { data: movements, error } = await query;
+    
+    if (error) {
+        throw new Error('Errore caricamento movimenti dal database: ' + error.message);
+    }
     
     const supplierRicambi = allRicambi.filter(r => r.marca_fornitore === supplier);
     const supplierRicambiIds = supplierRicambi.map(r => r.id);
     
-    const supplierMovements = movements.filter(m => supplierRicambiIds.includes(m.ricambio_id));
+    const supplierMovements = (movements || []).filter(m => supplierRicambiIds.includes(m.ricambio_id));
     
     const ricambioData = {};
     
@@ -1257,6 +1275,14 @@ async function generateSupplierRicambiReport(supplier, dateFrom, dateTo) {
             <tbody>
     `;
     
+    if (supplierRicambi.length === 0) {
+        html += `
+            <tr><td colspan="6" style="padding: 15px; text-align: center; background: #fef3c7;">
+                &#9888;&#65039; Nessun ricambio trovato per il fornitore "${supplier}"
+            </td></tr>
+        `;
+    }
+    
     Object.values(ricambioData).forEach(ricambio => {
         const diff = ricambio.carico - ricambio.scarico;
         const diffColor = diff >= 0 ? 'var(--success)' : 'var(--danger)';
@@ -1270,8 +1296,7 @@ async function generateSupplierRicambiReport(supplier, dateFrom, dateTo) {
                 <td style="padding: 8px; text-align: center; color: var(--danger);"><strong>-${ricambio.scarico}</strong></td>
                 <td style="padding: 8px; text-align: center; color: ${diffColor};"><strong>${diff >= 0 ? '+' : ''}${diff}</strong></td>
             </tr>
-        `;
-    });
+        `;    });
     
     html += `
             </tbody>
@@ -1300,10 +1325,15 @@ async function generateRicambioReport(ricambioId, dateFrom, dateTo) {
         query = query.lte('created_at', endDate.toISOString());
     }
     
-    const { data: movements } = await query;
+    const { data: movements, error } = await query;
     
-    const totalCarico = movements.filter(m => m.tipo === 'carico').reduce((sum, m) => sum + m.quantita, 0);
-    const totalScarico = movements.filter(m => m.tipo === 'scarico').reduce((sum, m) => sum + m.quantita, 0);
+    if (error) {
+        throw new Error('Errore caricamento movimenti dal database: ' + error.message);
+    }
+    
+    const safeMovements = movements || [];
+    const totalCarico = safeMovements.filter(m => m.tipo === 'carico').reduce((sum, m) => sum + m.quantita, 0);
+    const totalScarico = safeMovements.filter(m => m.tipo === 'scarico').reduce((sum, m) => sum + m.quantita, 0);
     const differenza = totalCarico - totalScarico;
     
     let html = `
@@ -1344,7 +1374,15 @@ async function generateRicambioReport(ricambioId, dateFrom, dateTo) {
             <tbody>
     `;
     
-    movements.forEach(m => {
+    if (safeMovements.length === 0) {
+        html += `
+            <tr><td colspan="5" style="padding: 15px; text-align: center; background: #fef3c7;">
+                &#9888;&#65039; Nessun movimento registrato per questo ricambio nel periodo selezionato
+            </td></tr>
+        `;
+    }
+    
+    safeMovements.forEach(m => {
         const date = new Date(m.created_at).toLocaleString('it-IT');
         const typeColor = m.tipo === 'carico' ? 'var(--success)' : 'var(--danger)';
         
