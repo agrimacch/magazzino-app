@@ -1,5 +1,8 @@
 # Changelog App Magazzino
 
+## v4.7.51 - 2026-10-27 (PRODUZIONE)
+Sistemazione piccoli bug
+
 ## v4.7.5 - 2026-07-18 (PRODUZIONE)
 MIGLIORAMENTI WEBAPP
 
