@@ -78,9 +78,9 @@
             <div class="card">
                 <h2>Accedi</h2>
                 <form id="login-form">
-                    <input type="email" id="login-email" placeholder="Email" required>
+                    <input type="email" id="login-email" placeholder="Email" required autocomplete="username">
                     <div style="position: relative; margin-bottom: 12px;">
-                        <input type="password" id="login-password" placeholder="Password" required style="padding-right: 50px; margin-bottom: 0;">
+                        <input type="password" id="login-password" placeholder="Password" required autocomplete="current-password" style="padding-right: 50px; margin-bottom: 0;">
                         <button type="button" id="toggle-password" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; font-size: 22px; padding: 0; width: 35px; height: 35px; display: flex; align-items: center; justify-content: center;">&#128065;</button>
                     </div>
                     <label class="checkbox-label" style="display: flex; align-items: center; gap: 10px; margin: 15px 0; cursor: pointer; user-select: none;">
@@ -634,7 +634,7 @@
                         <input type="email" id="new-user-email" placeholder="email@esempio.com" required>
                         
                         <label>Password *</label>
-                        <input type="password" id="new-user-password" placeholder="Minimo 6 caratteri" required minlength="6">
+                        <input type="password" id="new-user-password" placeholder="Minimo 6 caratteri" required minlength="6" autocomplete="new-password">
                         
                         <label>Iniziali * (es: GM per Giovanni Martini)</label>
                         <input type="text" id="new-user-initials" placeholder="GM" required maxlength="3" style="text-transform: uppercase;">
@@ -941,7 +941,8 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="https://unpkg.com/html5-qrcode"></script>
+    <!-- Versione bloccata (la libreria non e' piu' mantenuta: cosi' non cambia mai da sola) -->
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
     <script src="ricambi-functions.js?v=4.7.0"></script>
     <script src="app.js?v=4.7.5"></script>
 </body>

@@ -1,1 +1,8 @@
-node_modules/
+# Certificati locali per il server HTTPS di test (non vanno mai su GitHub)
+localhost.pem
+localhost-key.pem
+*.pem
+*.key
+
+# File di sistema macOS
+.DS_Store

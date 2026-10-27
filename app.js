@@ -2,7 +2,9 @@
 // CONFIGURAZIONE SUPABASE
 // ========================================
 const SUPABASE_URL = 'https://uiypndhemhgljceylqzl.supabase.co';  
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVpeXBuZGhlbWhnbGpjZXlscXpsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE2NTc2NDIsImV4cCI6MjA3NzIzMzY0Mn0.zyVrgj3JZaCmOoAGCugPDfEjdEyNj-elbiFFXZJkRmU';
+// Chiave "publishable" (sostituisce la vecchia chiave anon, in dismissione entro fine 2026).
+// E' pubblica per natura: la sicurezza dei dati e' garantita dalle regole RLS su Supabase.
+const SUPABASE_KEY = 'sb_publishable_OVFwbbEr_x9ElXSwu7tNcQ_5qtiUwjE';
 
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
@@ -198,20 +200,26 @@ function showVisualFeedback(type) {
 // ========================================
 // GESTIONE "RESTA CONNESSO"
 // ========================================
-function saveCredentials(email, password) {
+// MODIFICA SICUREZZA: la password NON viene piu' salvata nel browser.
+// Per "Resta connesso" ci pensa gia' la sessione di Supabase (resta valida
+// nel browser finche' non si fa logout). Si memorizza solo l'email, per
+// comodita' di compilazione del campo.
+function saveCredentials(email) {
     localStorage.setItem('savedEmail', email);
-    localStorage.setItem('savedPassword', password);
     localStorage.setItem('rememberMe', 'true');
+    // Pulizia: elimina eventuali password salvate in precedenza dalle versioni vecchie
+    localStorage.removeItem('savedPassword');
 }
 
 function loadSavedCredentials() {
+    // Pulizia: elimina eventuali password salvate in precedenza dalle versioni vecchie
+    localStorage.removeItem('savedPassword');
+    
     const rememberMe = localStorage.getItem('rememberMe') === 'true';
     if (rememberMe) {
         const email = localStorage.getItem('savedEmail');
-        const password = localStorage.getItem('savedPassword');
-        if (email && password) {
+        if (email) {
             document.getElementById('login-email').value = email;
-            document.getElementById('login-password').value = password;
             document.getElementById('remember-me').checked = true;
         }
     }
@@ -575,8 +583,9 @@ async function handleLogin(e) {
         return;
     }
     
+    // MODIFICA SICUREZZA: si salva solo l'email, mai la password
     if (rememberMe) {
-        saveCredentials(email, password);
+        saveCredentials(email);
     } else {
         clearSavedCredentials();
     }
