@@ -234,17 +234,52 @@ function clearSavedCredentials() {
 // ========================================
 // SISTEMA POP-UP NOVITA VERSIONE
 // ========================================
+// MODIFICA (fix pop-up su mobile): su smartphone la memoria del browser (localStorage)
+// puo' essere svuotata o non disponibile (navigazione privata, pulizia automatica di
+// Safari/iOS, app installata sulla Home separata dal browser). Prima, in quel caso,
+// il pop-up ricompariva ad ogni login. Ora la versione "gia' vista" viene ricordata in
+// DUE posti: nel browser (come prima) e sull'account dell'utente su Supabase, cosi'
+// resta valida anche cambiando dispositivo o browser. In piu', c'e' un blocco in memoria
+// per non riaprire il pop-up piu' volte durante la stessa sessione.
+let whatsNewSeenThisSession = false;
+
+function getSeenVersionLocal() {
+    try {
+        return localStorage.getItem('lastSeenVersion');
+    } catch (e) {
+        return null;
+    }
+}
+
+function setSeenVersionLocal(version) {
+    try {
+        localStorage.setItem('lastSeenVersion', version);
+    } catch (e) {
+        console.log('localStorage non disponibile:', e);
+    }
+}
+
 function checkAndShowWhatsNew() {
     if (!SHOW_WHATS_NEW_POPUP) {
-        localStorage.setItem('lastSeenVersion', CURRENT_VERSION);
+        setSeenVersionLocal(CURRENT_VERSION);
         return;
     }
-    
-    const lastSeenVersion = localStorage.getItem('lastSeenVersion');
-    
-    if (lastSeenVersion !== CURRENT_VERSION) {
-        showWhatsNewModal();
+
+    if (whatsNewSeenThisSession) return;
+
+    const localSeen = getSeenVersionLocal();
+    const accountSeen = (currentUser && currentUser.user_metadata)
+        ? currentUser.user_metadata.lastSeenVersion
+        : null;
+
+    if (localSeen === CURRENT_VERSION || accountSeen === CURRENT_VERSION) {
+        // Gia' visto: riallinea il browser con l'account e non mostrare nulla
+        whatsNewSeenThisSession = true;
+        setSeenVersionLocal(CURRENT_VERSION);
+        return;
     }
+
+    showWhatsNewModal();
 }
 
 let whatsNewEscHandler = null;
@@ -276,7 +311,24 @@ function closeWhatsNewModal() {
     if (!modal) return;
     
     modal.classList.add('hidden');
-    localStorage.setItem('lastSeenVersion', CURRENT_VERSION);
+    whatsNewSeenThisSession = true;
+    setSeenVersionLocal(CURRENT_VERSION);
+
+    // Ricorda la versione vista anche sull'account utente (Supabase)
+    if (currentUser) {
+        currentUser.user_metadata = Object.assign({}, currentUser.user_metadata, {
+            lastSeenVersion: CURRENT_VERSION
+        });
+        try {
+            supabaseClient.auth.updateUser({ data: { lastSeenVersion: CURRENT_VERSION } })
+                .then(({ error }) => {
+                    if (error) console.log('Salvataggio versione vista non riuscito:', error.message);
+                })
+                .catch(err => console.log('Salvataggio versione vista non riuscito:', err));
+        } catch (e) {
+            console.log('Salvataggio versione vista non riuscito:', e);
+        }
+    }
 }
 
 // ========================================
@@ -297,7 +349,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (whatsNewModal) {
             whatsNewModal.remove();
         }
-        localStorage.setItem('lastSeenVersion', CURRENT_VERSION);
+        setSeenVersionLocal(CURRENT_VERSION);
     }
     
     sessionStorage.removeItem('inventoryFilters');
@@ -425,9 +477,10 @@ async function showMainScreen() {
         // Ripristina la sezione dove eravamo
         openSection(savedSection);
         
-        // Ripristina anche la tab se salvata
-        if (savedTab) {
-            switchTab(savedTab);
+        // Ripristina anche la tab se salvata (solo per le sezioni che hanno le tab:
+        // Consumabili e Ricambi. Magazzino e Vendite sono solo menu, senza tab)
+        if (savedTab && (savedSection === 'consumabili' || savedSection === 'ricambi')) {
+            switchTab(savedTab, savedSection === 'ricambi' ? 'ricambi' : undefined);
         }
     } else {
         // Prima volta o era sulla dashboard
@@ -462,7 +515,16 @@ function openSection(sectionName) {
     
     // Salva sezione in sessionStorage
     sessionStorage.setItem('currentSection', sectionName);
-    
+
+    // La tab salvata appartiene alla sezione precedente: la azzeriamo.
+    // (se si ripristina la pagina, showMainScreen la rimette da solo)
+    sessionStorage.removeItem('currentTab');
+
+    // Se si esce dallo scanner (es. "Torna a Magazzino"), spegni la fotocamera
+    if (sectionName !== 'scanner') {
+        stopScanner();
+    }
+
     // Nascondi dashboard
     document.getElementById('dashboard-view').style.display = 'none';
     

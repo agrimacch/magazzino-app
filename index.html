@@ -42,6 +42,37 @@
             opacity: 1;
             transition: opacity 0.3s ease;
         }
+
+        /* ===== Menu categorie (Magazzino / Vendite) ===== */
+        /* Centra le card anche quando sono meno di 3 (es. scanner nascosto su PC) */
+        @media (min-width: 769px) {
+            .dashboard-grid.hub-grid {
+                grid-template-columns: repeat(auto-fit, minmax(220px, 280px));
+                justify-content: center;
+            }
+        }
+        
+        /* Sezioni segnaposto "in costruzione" */
+        .placeholder-card {
+            text-align: center;
+            padding: 40px 20px;
+        }
+        
+        .placeholder-icon {
+            font-size: 56px;
+            display: block;
+            margin-bottom: 15px;
+            line-height: 1;
+        }
+        
+        .placeholder-card h2 {
+            margin-bottom: 10px;
+        }
+        
+        .placeholder-card p {
+            color: var(--gray);
+            font-size: 14px;
+        }
     </style>
 </head>
 
@@ -115,25 +146,18 @@
                 <p>Seleziona una sezione per iniziare</p>
             </div>
             <div class="dashboard-grid">
-                <!-- Card Inventario Consumabili -->
-                <div class="dashboard-card" onclick="openSection('consumabili')">
-                    <span class="card-icon">&#128230;</span>
-                    <h3>Inventario Consumabili</h3>
-                    <p>Gestisci articoli consumabili, carichi e scarichi</p>
+                <!-- Card Magazzino (contiene: Consumabili, Ricambi Stock, Scanner) -->
+                <div class="dashboard-card" id="dashboard-magazzino-card" onclick="openSection('magazzino')">
+                    <span class="card-icon">&#127981;</span>
+                    <h3>Magazzino</h3>
+                    <p>Inventario consumabili, ricambi stock e scanner</p>
                 </div>
                 
-                <!-- Card Inventario Ricambi -->
-                <div class="dashboard-card" onclick="openSection('ricambi')">
-                    <span class="card-icon">&#128295;</span>
-                    <h3>Inventario Ricambi Stock</h3>
-                    <p>Gestisci ricambi, import Excel e movimenti</p>
-                </div>
-                
-                <!-- Card Scanner (visibile solo su mobile) -->
-                <div class="dashboard-card" id="dashboard-scanner-card" onclick="openSection('scanner')">
-                    <span class="card-icon">&#128247;</span>
-                    <h3>Scanner</h3>
-                    <p>Scansiona codici a barre di tutti gli articoli</p>
+                <!-- Card Vendite (contiene: Listino Vendite, Listini Fornitori) -->
+                <div class="dashboard-card" id="dashboard-vendite-card" onclick="openSection('vendite')">
+                    <span class="card-icon">&#128176;</span>
+                    <h3>Vendite</h3>
+                    <p>Listino vendite e listini fornitori</p>
                 </div>
                 
                 <!-- Card Gestione Utenti (solo admin) -->
@@ -146,13 +170,122 @@
         </div>
 
         <!-- ========================================== -->
+        <!-- CATEGORIA MAGAZZINO (menu con 3 sottocategorie) -->
+        <!-- ========================================== -->
+        <div id="section-magazzino" class="section-container hidden">
+            <div class="back-to-dashboard">
+                <button onclick="backToDashboard()" class="btn-back">
+                    &#8592; Torna alla Dashboard
+                </button>
+                <h2 class="section-title">&#127981; Magazzino</h2>
+            </div>
+            <div class="dashboard-container">
+                <div class="dashboard-header">
+                    <p>Seleziona una sezione del magazzino</p>
+                </div>
+                <div class="dashboard-grid hub-grid">
+                    <!-- Card Inventario Consumabili -->
+                    <div class="dashboard-card" onclick="openSection('consumabili')">
+                        <span class="card-icon">&#128230;</span>
+                        <h3>Inventario Consumabili</h3>
+                        <p>Gestisci articoli consumabili, carichi e scarichi</p>
+                    </div>
+                    
+                    <!-- Card Inventario Ricambi -->
+                    <div class="dashboard-card" onclick="openSection('ricambi')">
+                        <span class="card-icon">&#128295;</span>
+                        <h3>Inventario Ricambi Stock</h3>
+                        <p>Gestisci ricambi, import Excel e movimenti</p>
+                    </div>
+                    
+                    <!-- Card Scanner (visibile solo su mobile) -->
+                    <div class="dashboard-card" id="dashboard-scanner-card" onclick="openSection('scanner')">
+                        <span class="card-icon">&#128247;</span>
+                        <h3>Scanner</h3>
+                        <p>Scansiona codici a barre di tutti gli articoli</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- CATEGORIA VENDITE (menu con 2 sottocategorie) -->
+        <!-- ========================================== -->
+        <div id="section-vendite" class="section-container hidden">
+            <div class="back-to-dashboard">
+                <button onclick="backToDashboard()" class="btn-back">
+                    &#8592; Torna alla Dashboard
+                </button>
+                <h2 class="section-title">&#128176; Vendite</h2>
+            </div>
+            <div class="dashboard-container">
+                <div class="dashboard-header">
+                    <p>Seleziona una sezione delle vendite</p>
+                </div>
+                <div class="dashboard-grid hub-grid">
+                    <!-- Card Listino Vendite -->
+                    <div class="dashboard-card" onclick="openSection('listino-vendite')">
+                        <span class="card-icon">&#127991;</span>
+                        <h3>Listino Vendite</h3>
+                        <p>Prezzi di vendita al cliente</p>
+                    </div>
+                    
+                    <!-- Card Listini Fornitori -->
+                    <div class="dashboard-card" onclick="openSection('listini-fornitori')">
+                        <span class="card-icon">&#128209;</span>
+                        <h3>Listini Fornitori</h3>
+                        <p>Prezzi e condizioni dei fornitori</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- SEZIONE LISTINO VENDITE (segnaposto: da costruire) -->
+        <!-- ========================================== -->
+        <div id="section-listino-vendite" class="section-container hidden">
+            <div class="back-to-dashboard">
+                <button onclick="openSection('vendite')" class="btn-back">
+                    &#8592; Torna a Vendite
+                </button>
+                <h2 class="section-title">&#127991; Listino Vendite</h2>
+            </div>
+            <div class="container">
+                <div class="card placeholder-card">
+                    <span class="placeholder-icon">&#128679;</span>
+                    <h2>Sezione in costruzione</h2>
+                    <p>Il Listino Vendite sar&agrave; disponibile in un prossimo aggiornamento.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- SEZIONE LISTINI FORNITORI (segnaposto: da costruire) -->
+        <!-- ========================================== -->
+        <div id="section-listini-fornitori" class="section-container hidden">
+            <div class="back-to-dashboard">
+                <button onclick="openSection('vendite')" class="btn-back">
+                    &#8592; Torna a Vendite
+                </button>
+                <h2 class="section-title">&#128209; Listini Fornitori</h2>
+            </div>
+            <div class="container">
+                <div class="card placeholder-card">
+                    <span class="placeholder-icon">&#128679;</span>
+                    <h2>Sezione in costruzione</h2>
+                    <p>I Listini Fornitori saranno disponibili in un prossimo aggiornamento.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================================== -->
         <!-- SEZIONE CONSUMABILI -->
         <!-- ========================================== -->
         <div id="section-consumabili" class="section-container hidden">
             <!-- Pulsante Torna alla Dashboard -->
             <div class="back-to-dashboard">
-                <button onclick="backToDashboard()" class="btn-back">
-                    &#8592; Torna alla Dashboard
+                <button onclick="openSection('magazzino')" class="btn-back">
+                    &#8592; Torna a Magazzino
                 </button>
                 <h2 class="section-title">&#128230; Inventario Consumabili</h2>
             </div>
@@ -363,8 +496,8 @@
         <div id="section-ricambi" class="section-container hidden">
             <!-- Pulsante Torna alla Dashboard -->
             <div class="back-to-dashboard">
-                <button onclick="backToDashboard()" class="btn-back">
-                    &#8592; Torna alla Dashboard
+                <button onclick="openSection('magazzino')" class="btn-back">
+                    &#8592; Torna a Magazzino
                 </button>
                 <h2 class="section-title">&#128295; Inventario Ricambi Stock</h2>
             </div>
@@ -587,8 +720,8 @@
         <div id="section-scanner" class="section-container hidden">
             <!-- Pulsante Torna alla Dashboard -->
             <div class="back-to-dashboard">
-                <button onclick="backToDashboard()" class="btn-back">
-                    &#8592; Torna alla Dashboard
+                <button onclick="openSection('magazzino')" class="btn-back">
+                    &#8592; Torna a Magazzino
                 </button>
                 <h2 class="section-title">&#128247; Scanner Codice a Barre</h2>
             </div>
