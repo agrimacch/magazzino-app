@@ -11,7 +11,7 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 // ========================================
 // VARIABILI GLOBALI
 // ========================================
-const CURRENT_VERSION = '4.7.51';
+const CURRENT_VERSION = '4.7.52';
 const SHOW_WHATS_NEW_POPUP = false;
 
 let currentUser = null;

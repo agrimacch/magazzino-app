@@ -1,5 +1,8 @@
 # Changelog App Magazzino
 
+## v4.7.52 - 2026-10-27 (PRODUZIONE)
+vendite visibile solo admin
+
 ## v4.7.51 - 2026-10-27 (PRODUZIONE)
 Sistemazione piccoli bug
 
