@@ -33,6 +33,10 @@ let currentRicambioForMovement = null;
 // Variabile per sezione attiva
 let currentSection = 'dashboard';
 
+// Sezioni accessibili SOLO agli admin.
+// (Vendite e le sue sottosezioni sono per ora riservate agli admin)
+const ADMIN_ONLY_SECTIONS = ['vendite', 'listino-vendite', 'listini-fornitori', 'utenti'];
+
 // ========================================
 // FUNZIONI PERSISTENZA FILTRI
 // ========================================
@@ -423,25 +427,29 @@ function applyRolePermissions() {
     roleBadge.innerHTML = currentUserRole === 'admin' ? '&#128081; Admin' : '&#128100; Operatore';
     roleBadge.classList.add(currentUserRole);
     
+    const isAdmin = currentUserRole === 'admin';
+    
     // Gestione visibilit&agrave; card dashboard
     const utentiCard = document.getElementById('dashboard-utenti-card');
     if (utentiCard) {
-        if (currentUserRole === 'operatore') {
-            utentiCard.style.display = 'none';
-        } else {
-            utentiCard.style.display = 'flex';
-        }
+        utentiCard.style.display = isAdmin ? 'flex' : 'none';
+    }
+    
+    // Card Vendite: per ora visibile SOLO agli admin
+    const venditeCard = document.getElementById('dashboard-vendite-card');
+    if (venditeCard) {
+        venditeCard.style.display = isAdmin ? 'flex' : 'none';
     }
     
     // Gestione tab report (solo admin)
     const tabReportBtn = document.getElementById('tab-report-btn');
     if (tabReportBtn) {
-        tabReportBtn.style.display = currentUserRole === 'admin' ? 'inline-flex' : 'none';
+        tabReportBtn.style.display = isAdmin ? 'inline-flex' : 'none';
     }
     
     const tabRicambiReportBtn = document.getElementById('tab-ricambi-report-btn');
     if (tabRicambiReportBtn) {
-        tabRicambiReportBtn.style.display = currentUserRole === 'admin' ? 'inline-flex' : 'none';
+        tabRicambiReportBtn.style.display = isAdmin ? 'inline-flex' : 'none';
     }
 }
 
@@ -475,6 +483,8 @@ async function showMainScreen() {
     
     if (savedSection && savedSection !== 'dashboard') {
         // Ripristina la sezione dove eravamo
+        // (se e' una sezione solo-admin e l'utente non e' admin, openSection
+        // lo rimanda automaticamente alla dashboard)
         openSection(savedSection);
         
         // Ripristina anche la tab se salvata (solo per le sezioni che hanno le tab:
@@ -511,6 +521,14 @@ function showDashboard() {
 }
 
 function openSection(sectionName) {
+    // Blocco sezioni riservate agli admin (es. Vendite, Gestione Utenti).
+    // Anche se un operatore ci arrivasse (es. sezione salvata in sessione),
+    // viene riportato alla dashboard.
+    if (ADMIN_ONLY_SECTIONS.includes(sectionName) && currentUserRole !== 'admin') {
+        showDashboard();
+        return;
+    }
+    
     currentSection = sectionName;
     
     // Salva sezione in sessionStorage
