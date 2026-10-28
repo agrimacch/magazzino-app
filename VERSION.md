@@ -1,5 +1,8 @@
 # Changelog App Magazzino
 
+## v4.9.1 - 2026-10-28 (PRODUZIONE)
+migliorato notifica da web e app
+
 ## v4.9.0 - 2026-10-28 (PRODUZIONE)
 LISTINO VENDITE ATTIVO + NOTIFICHE TELEGRAM
 
