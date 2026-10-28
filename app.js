@@ -11,7 +11,7 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 // ========================================
 // VARIABILI GLOBALI
 // ========================================
-const CURRENT_VERSION = '4.7.52';
+const CURRENT_VERSION = '4.7.51';
 const SHOW_WHATS_NEW_POPUP = false;
 
 let currentUser = null;
@@ -34,8 +34,8 @@ let currentRicambioForMovement = null;
 let currentSection = 'dashboard';
 
 // Sezioni accessibili SOLO agli admin.
-// (Vendite e le sue sottosezioni sono per ora riservate agli admin)
-const ADMIN_ONLY_SECTIONS = ['vendite', 'listino-vendite', 'listini-fornitori', 'utenti'];
+// (Vendite e' visibile a tutti: admin e operatori hanno gli stessi permessi sul listino)
+const ADMIN_ONLY_SECTIONS = ['utenti'];
 
 // ========================================
 // FUNZIONI PERSISTENZA FILTRI
@@ -435,12 +435,12 @@ function applyRolePermissions() {
         utentiCard.style.display = isAdmin ? 'flex' : 'none';
     }
     
-    // Card Vendite: per ora visibile SOLO agli admin
+    // Card Vendite: visibile a tutti
     const venditeCard = document.getElementById('dashboard-vendite-card');
     if (venditeCard) {
-        venditeCard.style.display = isAdmin ? 'flex' : 'none';
+        venditeCard.style.display = 'flex';
     }
-    
+
     // Gestione tab report (solo admin)
     const tabReportBtn = document.getElementById('tab-report-btn');
     if (tabReportBtn) {
@@ -567,6 +567,13 @@ function openSection(sectionName) {
         setTimeout(() => initScanner(), 100);
     } else if (sectionName === 'utenti') {
         renderUsersList();
+    } else if (sectionName === 'vendite') {
+        // Entrando dal menu Vendite il listino riparte dalla scheda "Listino"
+        sessionStorage.removeItem('listinoTab');
+    } else if (sectionName === 'listino-vendite') {
+        if (typeof openListinoVendite === 'function') {
+            openListinoVendite();
+        }
     }
 }
 
@@ -686,7 +693,8 @@ async function handleLogout() {
     sessionStorage.removeItem('movementRicambiFilters');
     sessionStorage.removeItem('currentSection');
     sessionStorage.removeItem('currentTab');
-    
+    sessionStorage.removeItem('listinoTab');
+
     await supabaseClient.auth.signOut();
     currentUser = null;
     currentUserRole = null;

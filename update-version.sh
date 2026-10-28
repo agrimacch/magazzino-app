@@ -23,7 +23,7 @@ read -p "Mostrare pop-up? (s/n): " SHOW_POPUP
 
 if [ "$SHOW_POPUP" = "s" ] || [ "$SHOW_POPUP" = "S" ]; then
     ENABLE_POPUP=true
-    
+
     echo ""
     echo "Ora inserisci le NOVITA da mostrare nel pop-up (max 4 feature)"
     echo "Premi INVIO senza scrivere nulla per fermarti"
@@ -51,15 +51,15 @@ if [ "$SHOW_POPUP" = "s" ] || [ "$SHOW_POPUP" = "S" ]; then
     for i in {1..4}; do
         echo "--- Novita #$i ---"
         read -p "Titolo (lascia vuoto per finire): " TITLE
-        
+
         # Se vuoto, esci dal loop
         if [ -z "$TITLE" ]; then
             break
         fi
-        
+
         read -p "Descrizione: " DESC
         read -p "Numero icona (1-9): " ICON_NUM
-        
+
         # Converti numero in codice HTML entity
         case $ICON_NUM in
             1) ICON="&#11088;" ;;  # Stella
@@ -73,11 +73,11 @@ if [ "$SHOW_POPUP" = "s" ] || [ "$SHOW_POPUP" = "S" ]; then
             9) ICON="&#128295;" ;; # Strumento
             *) ICON="&#11088;" ;;  # Default stella
         esac
-        
+
         FEATURES_ICONS+=("$ICON")
         FEATURES_TITLES+=("$TITLE")
         FEATURES_DESCRIPTIONS+=("$DESC")
-        
+
         echo ""
     done
 else
@@ -110,11 +110,11 @@ if [ -f "VERSION.md" ]; then
 $DESCRIPTION
 
 EOF
-    
+
     # Aggiungi il resto del file (escluso l'header)
     tail -n +3 VERSION.md >> temp_version.md
     mv temp_version.md VERSION.md
-    
+
     echo "[OK] VERSION.md aggiornato"
 else
     echo "[WARN] VERSION.md non trovato"
@@ -138,17 +138,20 @@ fi
 if [ -f "index.html" ]; then
     # 3a. Badge versione
     sed -i.bak "s/<div class=\"version-badge\">v[0-9.]*<\/div>/<div class=\"version-badge\">v$NEW_VERSION<\/div>/g" index.html
-    
-    # 3b. Cache CSS e JS
+
+    # 3b. Cache CSS e JS (cosi' i browser scaricano sempre i file nuovi)
     sed -i.bak "s/style\.css?v=[0-9.]*/style.css?v=$NEW_VERSION/g" index.html
+    sed -i.bak "s/listino\.css?v=[0-9.]*/listino.css?v=$NEW_VERSION/g" index.html
     sed -i.bak "s/app\.js?v=[0-9.]*/app.js?v=$NEW_VERSION/g" index.html
-    
+    sed -i.bak "s/listino-functions\.js?v=[0-9.]*/listino-functions.js?v=$NEW_VERSION/g" index.html
+    sed -i.bak "s/ricambi-functions\.js?v=[0-9.]*/ricambi-functions.js?v=$NEW_VERSION/g" index.html
+
     # 3c. Titolo popup
     perl -i.bak -pe "s|<h3>&#127881; AGRIMAG v[0-9.]+[^<]*</h3>|<h3>&#127881; AGRIMAG v$NEW_VERSION - Aggiornamento!</h3>|g" index.html
-    
+
     # 3d. Data popup
     perl -i.bak -pe "s|<p class=\"version-date\">[^<]+</p>|<p class=\"version-date\">$FORMATTED_DATE</p>|g" index.html
-    
+
     # 3e. SOSTITUISCI CONTENUTO TRA I MARKER
     if [ "$ENABLE_POPUP" = true ]; then
         # Crea il nuovo contenuto
@@ -156,13 +159,13 @@ if [ -f "index.html" ]; then
             <!-- INIZIO_FEATURES -->
             <div class="whats-new-body">
 MARKER_START
-        
+
         # Aggiungi le features
         for i in "${!FEATURES_TITLES[@]}"; do
             ICON="${FEATURES_ICONS[$i]}"
             TITLE="${FEATURES_TITLES[$i]}"
             DESC="${FEATURES_DESCRIPTIONS[$i]}"
-            
+
             cat >> /tmp/new_features.txt << FEATURE_EOF
 
                 <div class="new-feature">
@@ -174,26 +177,26 @@ MARKER_START
                 </div>
 FEATURE_EOF
         done
-        
+
         # Chiudi
         cat >> /tmp/new_features.txt << 'MARKER_END'
 
             </div>
             <!-- FINE_FEATURES -->
 MARKER_END
-        
+
         # Sostituisci usando sed TRA I MARKER
-        sed -i.bak '/<!-- INIZIO_FEATURES -->/,/<!-- FINE_FEATURES -->/{ 
+        sed -i.bak '/<!-- INIZIO_FEATURES -->/,/<!-- FINE_FEATURES -->/{
             /<!-- INIZIO_FEATURES -->/r /tmp/new_features.txt
             d
         }' index.html
-        
+
         rm -f /tmp/new_features.txt
         echo "[OK] index.html aggiornato (badge, cache, titolo, data, novita)"
     else
         echo "[OK] index.html aggiornato (badge, cache - pop-up NON modificato)"
     fi
-    
+
     rm -f index.html.bak
 else
     echo "[WARN] index.html non trovato"
@@ -219,7 +222,7 @@ if [ "$AUTO_PUSH" = "s" ] || [ "$AUTO_PUSH" = "S" ]; then
     echo "[OK] Modifiche caricate su GitHub!"
     echo ""
     echo "Attendi 1-2 minuti per l'aggiornamento online"
-    
+
     if [ "$ENABLE_POPUP" = true ]; then
         echo ""
         echo "PER TESTARE IL POP-UP:"

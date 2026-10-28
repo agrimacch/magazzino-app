@@ -1,0 +1,755 @@
+/* ============================================ */
+/* LISTINO VENDITE                              */
+/* ============================================ */
+
+/* Filtri */
+.listino-filtri {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.listino-filtri select {
+    margin-bottom: 0;
+}
+
+.listino-filtri-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+#listino-count {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--gray);
+}
+
+#listino-reset-filtri {
+    width: auto;
+    display: inline-block;
+    font-size: 12px;
+    padding: 8px 14px;
+}
+
+/* Gruppi per attrezzo */
+.listino-gruppo {
+    background: white;
+    border-radius: var(--border-radius);
+    padding: 12px;
+    margin-bottom: 15px;
+    border: 2px solid var(--green-light);
+    box-shadow: 0 2px 10px rgba(22, 163, 74, 0.08);
+}
+
+.listino-gruppo-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid var(--primary);
+}
+
+.listino-gruppo-header h3 {
+    color: var(--primary);
+    font-size: 16px;
+    font-weight: 700;
+}
+
+.listino-gruppo-count {
+    font-size: 12px;
+    color: var(--gray);
+    white-space: nowrap;
+}
+
+/* Vista PC / mobile */
+.listino-mobile {
+    display: none;
+}
+
+@media (max-width: 768px) {
+    .listino-desktop {
+        display: none;
+    }
+    .listino-mobile {
+        display: block;
+    }
+}
+
+/* Tabella PC */
+.listino-table {
+    font-size: 13px;
+}
+
+.listino-table th,
+.listino-table td {
+    padding: 10px 8px;
+    white-space: nowrap;
+}
+
+/* Annulla le regole generiche pensate per le tabelle inventario
+   (prima colonna larga e ultima colonna "azioni") */
+.listino-table td:first-child,
+.listino-table th:first-child,
+.listino-table td:last-child,
+.listino-table th:last-child {
+    min-width: 0;
+    max-width: none;
+    white-space: nowrap !important;
+}
+
+.listino-table td.listino-col-note {
+    white-space: normal !important;
+    min-width: 110px;
+    max-width: 220px;
+    font-size: 12px;
+    color: #374151;
+}
+
+.listino-table td.listino-col-prezzo,
+.listino-table td.listino-col-netto {
+    text-align: right;
+}
+
+.listino-table th.listino-th-netto {
+    background: var(--primary-dark);
+}
+
+.listino-table td.listino-col-netto {
+    background: #f7faf5;
+}
+
+/* Occhio nell'intestazione dei netti */
+.listino-eye {
+    background: rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 15px;
+    line-height: 1;
+    padding: 3px 6px;
+    margin-left: 4px;
+    vertical-align: middle;
+}
+
+.listino-eye:hover {
+    background: rgba(255, 255, 255, 0.4);
+}
+
+/* Netti nascosti: valore sfocato e non selezionabile */
+.netto-val {
+    transition: filter 0.2s ease;
+}
+
+#section-listino-vendite.netti-nascosti .netto-val {
+    filter: blur(6px);
+    user-select: none;
+    -webkit-user-select: none;
+    pointer-events: none;
+}
+
+/* Schede mobile */
+.listino-card {
+    border: 2px solid var(--green-light);
+    border-radius: var(--border-radius-sm);
+    padding: 10px 12px;
+    margin-bottom: 8px;
+    background: white;
+}
+
+.listino-card-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.listino-card-title {
+    font-size: 14px;
+    line-height: 1.35;
+    word-break: break-word;
+}
+
+.listino-card-marchio {
+    color: var(--gray);
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.listino-info-btn {
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 2px solid var(--primary);
+    background: var(--light);
+    color: var(--primary);
+    font-family: Georgia, 'Times New Roman', serif;
+    font-style: italic;
+    font-weight: 700;
+    font-size: 17px;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+}
+
+.listino-info-btn:active {
+    background: var(--primary);
+    color: white;
+}
+
+.listino-card-sub {
+    font-size: 11px;
+    color: var(--gray);
+    margin-top: 3px;
+}
+
+.listino-card-note {
+    font-size: 12px;
+    margin-top: 4px;
+    color: #374151;
+}
+
+.listino-card-prezzi {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+    margin-top: 8px;
+}
+
+.listino-prezzo {
+    background: var(--light);
+    border-radius: 8px;
+    padding: 6px;
+    text-align: center;
+    min-width: 0;
+}
+
+.listino-prezzo span {
+    display: block;
+    font-size: 10px;
+    color: var(--gray);
+    margin-bottom: 2px;
+}
+
+.listino-prezzo strong {
+    display: block;
+    font-size: 12px;
+    word-break: break-word;
+}
+
+.listino-card-scadenza {
+    margin-top: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #92400e;
+    background: #fef3c7;
+    border-radius: 6px;
+    padding: 4px 8px;
+}
+
+/* Promo scaduta (data in SCADENZA PROMO gia' passata) */
+.listino-card-scaduta {
+    color: white;
+    background: var(--danger);
+}
+
+.listino-table td.listino-scaduta {
+    color: var(--danger);
+    font-weight: 700;
+    background: #fee2e2;
+}
+
+.listino-scaduta-badge {
+    display: inline-block;
+    margin-left: 6px;
+    font-size: 10px;
+    font-weight: 700;
+    color: white;
+    background: var(--danger);
+    border-radius: 6px;
+    padding: 1px 6px;
+    vertical-align: middle;
+}
+
+/* Pop-up "i" */
+.listino-info-content {
+    max-width: 380px;
+}
+
+.listino-info-sottotitolo {
+    font-size: 12px;
+    color: var(--gray);
+    margin-bottom: 15px;
+}
+
+.listino-info-box {
+    background: var(--light);
+    border: 2px solid var(--green-light);
+    border-radius: var(--border-radius-sm);
+    padding: 14px;
+    margin-bottom: 10px;
+}
+
+.listino-info-box span {
+    display: block;
+    font-size: 11px;
+    color: var(--gray);
+    margin-bottom: 4px;
+    text-transform: uppercase;
+}
+
+#listino-info-netto {
+    font-size: 26px;
+    font-weight: 700;
+    color: var(--primary);
+}
+
+#listino-info-note {
+    font-size: 14px;
+    font-weight: 600;
+}
+
+#listino-info-ok {
+    width: 100%;
+    margin-top: 10px;
+}
+
+/* Import */
+.listino-help {
+    font-size: 13px;
+    color: var(--gray);
+    margin-bottom: 15px;
+    line-height: 1.5;
+}
+
+.listino-import-pulsanti {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+#listino-import-anteprima {
+    margin-top: 20px;
+}
+
+.listino-file-info {
+    font-size: 13px;
+    margin-bottom: 12px;
+    word-break: break-word;
+}
+
+.listino-box {
+    padding: 12px 14px;
+    border-radius: var(--border-radius-sm);
+    margin-bottom: 12px;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.listino-box-info {
+    background: var(--green-light);
+    border-left: 4px solid var(--primary);
+}
+
+.listino-box-errore {
+    background: #fee2e2;
+    border-left: 4px solid var(--danger);
+}
+
+.listino-riepilogo {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.listino-riepilogo-item {
+    background: var(--light);
+    border-radius: 8px;
+    padding: 10px;
+    text-align: center;
+}
+
+.listino-riepilogo-item span {
+    display: block;
+    font-size: 11px;
+    color: var(--gray);
+    margin-bottom: 4px;
+}
+
+.listino-riepilogo-item strong {
+    font-size: 20px;
+}
+
+.listino-dettagli {
+    border: 2px solid var(--green-light);
+    border-radius: var(--border-radius-sm);
+    margin-bottom: 8px;
+    background: white;
+}
+
+.listino-dettagli summary {
+    cursor: pointer;
+    padding: 10px 12px;
+    font-weight: 600;
+    font-size: 13px;
+}
+
+.listino-dettagli ul {
+    margin: 0;
+    padding: 0 12px 12px 30px;
+    max-height: 300px;
+    overflow-y: auto;
+    font-size: 12px;
+    line-height: 1.6;
+}
+
+.listino-import-azioni {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+    margin-top: 15px;
+}
+
+.listino-import-azioni button {
+    width: 100%;
+}
+
+.listino-btn-annulla {
+    font-size: 13px !important;
+    padding: 10px 16px !important;
+}
+
+.listino-vuoto {
+    text-align: center;
+}
+
+.listino-vuoto p {
+    margin-bottom: 8px;
+}
+
+/* Caselline in alto: netti e note / netto 2 e netto 3 */
+.listino-toolbar {
+    padding-bottom: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.listino-toolbar.hidden {
+    display: none !important;
+}
+
+.listino-toggle-box {
+    display: inline-flex;
+    width: auto;
+}
+
+/* Colonne netto 2 / note 2 / netto 3 / note 3: nascoste se la casellina e' spenta */
+#section-listino-vendite.storici-nascosti .col-storici {
+    display: none;
+}
+
+@media (max-width: 768px) {
+    .listino-solo-pc {
+        display: none !important;
+    }
+
+    /* Da telefono le caselline in alto non servono:
+       i netti si vedono solo nel pop-up "i" e nello storico, senza sfocatura */
+    #listino-toolbar {
+        display: none !important;
+    }
+
+    #section-listino-vendite.netti-nascosti .netto-val {
+        filter: none;
+        user-select: auto;
+        -webkit-user-select: auto;
+        pointer-events: auto;
+    }
+}
+
+/* Pulsanti accanto al conteggio articoli */
+.listino-filtri-pulsanti {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.listino-filtri-pulsanti .btn-back {
+    width: auto;
+    display: inline-block;
+    font-size: 12px;
+    padding: 8px 14px;
+}
+
+/* Pulsante modifica (matita) */
+.listino-edit-btn {
+    background: white;
+    border: 2px solid var(--warning);
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 15px;
+    line-height: 1;
+    padding: 5px 8px;
+}
+
+.listino-edit-btn:hover {
+    background: #fef3c7;
+}
+
+.listino-table td.listino-col-azioni {
+    text-align: center;
+    width: 1%;
+}
+
+.listino-restore-btn {
+    font-size: 12px !important;
+    padding: 6px 10px !important;
+}
+
+.listino-card-btns {
+    display: flex;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.listino-edit-mobile {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+}
+
+/* Finestra modifica articolo */
+.listino-edit-content {
+    max-width: 720px;
+}
+
+.listino-edit-content input {
+    margin-bottom: 10px;
+}
+
+.listino-edit-netti {
+    background: var(--light);
+    border: 2px solid var(--green-light);
+    border-radius: var(--border-radius-sm);
+    padding: 12px 12px 2px;
+    margin: 4px 0 12px;
+}
+
+.listino-edit-precedenti {
+    font-size: 12px;
+    color: var(--gray);
+    line-height: 1.6;
+    margin-bottom: 10px;
+}
+
+.listino-edit-cancella {
+    margin-top: 15px;
+    width: 100% !important;
+    display: block !important;
+    font-size: 13px !important;
+    padding: 10px 16px !important;
+}
+
+/* Storico netti */
+.listino-storico-azioni {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+#listino-storico-count {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--gray);
+}
+
+.listino-storico-pulsanti {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.listino-storico-pulsanti .btn-back {
+    font-size: 13px;
+}
+
+.listino-storico-titolo {
+    font-size: 14px !important;
+    font-weight: 600 !important;
+    line-height: 1.4;
+}
+
+.listino-storico-note {
+    font-size: 12px;
+    color: var(--gray);
+    font-weight: 500;
+}
+
+.listino-badge-cancellato {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 700;
+    color: white;
+    background: var(--danger);
+    border-radius: 6px;
+    padding: 2px 6px;
+    vertical-align: middle;
+}
+
+.listino-table-storico {
+    min-width: 0 !important;
+}
+
+/* Stampa / PDF dello storico netti */
+#listino-storico-print {
+    display: none;
+}
+
+@media print {
+    body.stampa-storico > *:not(#listino-storico-print) {
+        display: none !important;
+    }
+
+    body.stampa-storico {
+        padding: 0 !important;
+        background: white !important;
+    }
+
+    body.stampa-storico #listino-storico-print,
+    body.stampa-storico #listino-storico-print * {
+        visibility: visible !important;
+    }
+
+    body.stampa-storico #listino-storico-print {
+        display: block !important;
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 11px;
+        color: black;
+    }
+
+    #listino-storico-print h2 {
+        font-size: 16px;
+        margin-bottom: 4px;
+    }
+
+    #listino-storico-print .stampa-sottotitolo {
+        font-size: 11px;
+        margin-bottom: 12px;
+    }
+
+    #listino-storico-print .stampa-gruppo {
+        page-break-inside: avoid;
+        break-inside: avoid;
+        margin-bottom: 12px;
+    }
+
+    #listino-storico-print h3 {
+        font-size: 12px;
+        margin-bottom: 4px;
+        border-bottom: 1px solid #999;
+        padding-bottom: 2px;
+    }
+
+    #listino-storico-print table {
+        width: 100%;
+        min-width: 0;
+        border-collapse: collapse;
+        font-size: 10px;
+        background: white;
+    }
+
+    #listino-storico-print thead {
+        background: #e5e5e5;
+        color: black;
+    }
+
+    #listino-storico-print table {
+        table-layout: fixed;
+    }
+
+    #listino-storico-print th,
+    #listino-storico-print td {
+        border: 1px solid #ccc;
+        padding: 3px 6px !important;
+        text-align: left;
+        white-space: normal !important;
+        font-size: 10px !important;
+        font-weight: normal;
+        min-width: 0 !important;
+        max-width: none !important;
+    }
+
+    #listino-storico-print th {
+        font-weight: bold;
+    }
+
+    #listino-storico-print th:nth-child(1) { width: 14%; }
+    #listino-storico-print th:nth-child(2) { width: 16%; }
+    #listino-storico-print th:nth-child(3) { width: 45%; }
+    #listino-storico-print th:nth-child(4) { width: 25%; }
+
+    #listino-storico-print td.stampa-num {
+        text-align: right;
+        white-space: nowrap;
+    }
+}
+
+@media (min-width: 769px) {
+    .listino-storico-azioni {
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .listino-filtri {
+        grid-template-columns: repeat(4, 1fr);
+        gap: 12px;
+    }
+
+    .listino-gruppo {
+        padding: 20px;
+    }
+
+    .listino-gruppo-header h3 {
+        font-size: 20px;
+    }
+
+    .listino-table {
+        font-size: 13px;
+    }
+
+    .listino-table th,
+    .listino-table td {
+        padding: 10px 8px;
+        font-size: 13px;
+    }
+
+    .listino-import-pulsanti {
+        flex-direction: row;
+    }
+
+    .listino-riepilogo {
+        grid-template-columns: repeat(6, 1fr);
+    }
+
+    .listino-import-azioni {
+        grid-template-columns: 2fr 1fr;
+    }
+}

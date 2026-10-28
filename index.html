@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AGRIMAG</title>
-    
+
     <!-- PWA Meta Tags -->
     <link rel="manifest" href="manifest.json">
     <link rel="icon" type="image/png" href="favicon.png">
@@ -13,31 +13,32 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="Magazzino">
-    
+
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=4.7.52">
-    
+    <link rel="stylesheet" href="style.css?v=4.7.53">
+    <link rel="stylesheet" href="listino.css?v=4.7.53">
+
     <!-- SheetJS per import Excel -->
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
-    
+
     <style>
         /* Nascondi tutte le schermate all'inizio */
         .screen {
             display: none;
         }
-        
+
         /* Mostra solo quella con classe active */
         .screen.active {
             display: block;
         }
-        
+
         /* Previene il flash nascondendo il body fino a quando JS &egrave; pronto */
         body.loading .screen {
             opacity: 0;
         }
-        
+
         body.ready .screen.active {
             opacity: 1;
             transition: opacity 0.3s ease;
@@ -51,24 +52,24 @@
                 justify-content: center;
             }
         }
-        
+
         /* Sezioni segnaposto "in costruzione" */
         .placeholder-card {
             text-align: center;
             padding: 40px 20px;
         }
-        
+
         .placeholder-icon {
             font-size: 56px;
             display: block;
             margin-bottom: 15px;
             line-height: 1;
         }
-        
+
         .placeholder-card h2 {
             margin-bottom: 10px;
         }
-        
+
         .placeholder-card p {
             color: var(--gray);
             font-size: 14px;
@@ -78,7 +79,7 @@
 
 <body class="loading">
     <!-- Version badge -->
-    <div class="version-badge">v4.7.52</div>
+    <div class="version-badge">v4.7.53</div>
 
     <!-- SCHERMATA LOGIN -->
     <div id="login-screen" class="screen">
@@ -87,13 +88,13 @@
                 <img src="logo.png" alt="Logo Azienda" class="logo">
             </div>
             <h1>&#128230; AGRIMAG</h1>
-            
+
             <!-- Avviso dispositivo mobile -->
             <div id="mobile-warning" class="mobile-warning hidden">
                 <div class="warning-content">
                     <span class="warning-icon">&#128241;</span>
                     <div class="warning-text">
-                        <strong>Consiglio:</strong> Per un'esperienza ottimale utilizza un PC o Tablet. 
+                        <strong>Consiglio:</strong> Per un'esperienza ottimale utilizza un PC o Tablet.
                         Su smartphone le funzionalit&agrave; sono limitate.
                     </div>
                 </div>
@@ -105,7 +106,7 @@
                     &#10133; Installa App sulla Home
                 </button>
             </div>
-            
+
             <div class="card">
                 <h2>Accedi</h2>
                 <form id="login-form">
@@ -152,14 +153,14 @@
                     <h3>Magazzino</h3>
                     <p>Inventario consumabili, ricambi stock e scanner</p>
                 </div>
-                
-                <!-- Card Vendite (contiene: Listino Vendite, Listini Fornitori) -->
+
+                <!-- Card Vendite (contiene: Listino Vendite, Listini Fornitori) - solo admin -->
                 <div class="dashboard-card" id="dashboard-vendite-card" onclick="openSection('vendite')">
                     <span class="card-icon">&#128176;</span>
                     <h3>Vendite</h3>
                     <p>Listino vendite e listini fornitori</p>
                 </div>
-                
+
                 <!-- Card Gestione Utenti (solo admin) -->
                 <div class="dashboard-card" id="dashboard-utenti-card" onclick="openSection('utenti')">
                     <span class="card-icon">&#128101;</span>
@@ -190,14 +191,14 @@
                         <h3>Inventario Consumabili</h3>
                         <p>Gestisci articoli consumabili, carichi e scarichi</p>
                     </div>
-                    
+
                     <!-- Card Inventario Ricambi -->
                     <div class="dashboard-card" onclick="openSection('ricambi')">
                         <span class="card-icon">&#128295;</span>
                         <h3>Inventario Ricambi Stock</h3>
                         <p>Gestisci ricambi, import Excel e movimenti</p>
                     </div>
-                    
+
                     <!-- Card Scanner (visibile solo su mobile) -->
                     <div class="dashboard-card" id="dashboard-scanner-card" onclick="openSection('scanner')">
                         <span class="card-icon">&#128247;</span>
@@ -229,7 +230,7 @@
                         <h3>Listino Vendite</h3>
                         <p>Prezzi di vendita al cliente</p>
                     </div>
-                    
+
                     <!-- Card Listini Fornitori -->
                     <div class="dashboard-card" onclick="openSection('listini-fornitori')">
                         <span class="card-icon">&#128209;</span>
@@ -241,20 +242,137 @@
         </div>
 
         <!-- ========================================== -->
-        <!-- SEZIONE LISTINO VENDITE (segnaposto: da costruire) -->
+        <!-- SEZIONE LISTINO VENDITE -->
         <!-- ========================================== -->
-        <div id="section-listino-vendite" class="section-container hidden">
+        <div id="section-listino-vendite" class="section-container hidden netti-nascosti">
             <div class="back-to-dashboard">
                 <button onclick="openSection('vendite')" class="btn-back">
                     &#8592; Torna a Vendite
                 </button>
                 <h2 class="section-title">&#127991; Listino Vendite</h2>
             </div>
-            <div class="container">
-                <div class="card placeholder-card">
-                    <span class="placeholder-icon">&#128679;</span>
-                    <h2>Sezione in costruzione</h2>
-                    <p>Il Listino Vendite sar&agrave; disponibile in un prossimo aggiornamento.</p>
+
+            <!-- Navigazione tab Listino -->
+            <nav class="tabs" id="tabs-listino">
+                <button class="tab-btn active" data-listino-tab="elenco">&#128203; Listino</button>
+                <button class="tab-btn" data-listino-tab="import">&#128193; Import Excel</button>
+                <button class="tab-btn" data-listino-tab="storico">&#128200; Storico netti</button>
+                <button class="tab-btn" data-listino-tab="cancellati" id="tab-listino-cancellati-btn">&#128465; Articoli cancellati</button>
+            </nav>
+
+            <!-- Caselline in alto (le scelte vengono ricordate per ogni utente) -->
+            <div class="container listino-toolbar" id="listino-toolbar">
+                <div class="toggle-container listino-toggle-box">
+                    <input type="checkbox" id="listino-toggle-netti" class="toggle-checkbox">
+                    <label for="listino-toggle-netti" class="toggle-label">
+                        <span class="toggle-text">&#128065; Mostra netti e note</span>
+                        <span class="toggle-switch"></span>
+                    </label>
+                </div>
+                <div class="toggle-container listino-toggle-box listino-solo-pc">
+                    <input type="checkbox" id="listino-toggle-storici" class="toggle-checkbox">
+                    <label for="listino-toggle-storici" class="toggle-label">
+                        <span class="toggle-text">&#128202; Mostra netto 2 e netto 3</span>
+                        <span class="toggle-switch"></span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- TAB: LISTINO -->
+            <div id="tab-listino-elenco" class="tab-content active">
+                <div class="container">
+                    <div class="search-bar">
+                        <input type="text" id="listino-search" placeholder="&#128269; Cerca modello, marchio, note...">
+                    </div>
+
+                    <div class="listino-filtri">
+                        <select id="listino-filter-attrezzo">
+                            <option value="">Tutti gli attrezzi</option>
+                        </select>
+                        <select id="listino-filter-marchio">
+                            <option value="">Tutti i marchi</option>
+                        </select>
+                        <select id="listino-filter-alimentazione">
+                            <option value="">Tutte le alimentazioni</option>
+                        </select>
+                        <select id="listino-filter-tipologia">
+                            <option value="">Tutte le tipologie</option>
+                        </select>
+                    </div>
+
+                    <div class="listino-filtri-footer">
+                        <span id="listino-count"></span>
+                        <div class="listino-filtri-pulsanti">
+                            <button type="button" id="listino-btn-nuovo" class="btn-back">&#10133; Nuovo articolo</button>
+                            <button type="button" id="listino-reset-filtri" class="btn-back">&#10006; Azzera filtri</button>
+                        </div>
+                    </div>
+
+                    <div id="listino-container">
+                        <!-- Contenuto dinamico -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB: IMPORT EXCEL -->
+            <div id="tab-listino-import" class="tab-content">
+                <div class="container">
+                    <div class="card">
+                        <h2>&#128193; Aggiorna il listino da Excel</h2>
+                        <p class="listino-help">
+                            Carica il file Excel del listino (.xls o .xlsx). Prima di salvare ti viene mostrata un'anteprima
+                            con articoli nuovi, netti cambiati e articoli cancellati: niente viene modificato finch&eacute; non confermi.<br><br>
+                            <strong>Netti:</strong> aggiorna solo <strong>NETTO 1</strong> e <strong>NOTE 1</strong>. Quando il netto cambia,
+                            l'app sposta da sola il vecchio netto 1 in netto 2 e il netto 2 in netto 3. Tutti i netti restano comunque salvati nello storico.<br><br>
+                            <strong>Regola importante:</strong> prima di lavorare sul tuo Excel scarica sempre il listino aggiornato da qui e usa quello
+                            come file di lavoro. Cos&igrave; non perdi le modifiche fatte dall'app e netto 2 e netto 3 restano allineati.
+                            Il file scaricato ha la prima riga bloccata e i filtri su tutte le colonne.
+                        </p>
+
+                        <input type="file" id="listino-file-input" accept=".xlsx,.xls" style="display: none;">
+                        <div class="listino-import-pulsanti">
+                            <button type="button" id="listino-btn-seleziona" class="btn-primary">&#128194; Seleziona file Excel</button>
+                            <button type="button" id="listino-btn-download" class="btn-back">&#128229; Scarica listino Excel aggiornato</button>
+                        </div>
+
+                        <div id="listino-import-anteprima" class="hidden"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB: STORICO NETTI -->
+            <div id="tab-listino-storico" class="tab-content">
+                <div class="container">
+                    <div class="card">
+                        <h2>&#128200; Storico netti per macchina</h2>
+                        <p class="listino-help">
+                            Qui trovi tutti i netti e le note che ogni macchina ha avuto nel tempo, dal pi&ugrave; recente al pi&ugrave; vecchio,
+                            compresi quelli gi&agrave; usciti da netto 3. Lo storico si aggiorna da solo a ogni caricamento del file Excel.<br>
+                            Puoi cercare una macchina e scaricare quello che vedi come file di testo, oppure stamparlo e salvarlo in PDF.
+                        </p>
+                        <div class="search-bar">
+                            <input type="text" id="listino-storico-search" placeholder="&#128269; Cerca macchina (modello, marchio, attrezzo...)">
+                        </div>
+                        <div class="listino-storico-azioni">
+                            <span id="listino-storico-count"></span>
+                            <div class="listino-storico-pulsanti">
+                                <button type="button" id="listino-storico-txt" class="btn-back">&#128196; Scarica TXT</button>
+                                <button type="button" id="listino-storico-pdf" class="btn-back">&#128424; Stampa / PDF</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="listino-storico-container">
+                        <!-- Contenuto dinamico -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB: ARTICOLI CANCELLATI -->
+            <div id="tab-listino-cancellati" class="tab-content">
+                <div class="container">
+                    <div id="listino-cancellati-container">
+                        <!-- Contenuto dinamico -->
+                    </div>
                 </div>
             </div>
         </div>
@@ -304,7 +422,7 @@
                     <div class="search-bar">
                         <input type="text" id="search-input" placeholder="&#128269; Cerca articolo...">
                     </div>
-                    
+
                     <div class="filters-bar">
                         <select id="filter-brand">
                             <option value="">Tutti i fornitori</option>
@@ -316,7 +434,7 @@
                             <option value="quantita-asc">Quantit&agrave; (crescente)</option>
                             <option value="quantita-desc">Quantit&agrave; (decrescente)</option>
                         </select>
-                        
+
                         <div class="toggle-container">
                             <input type="checkbox" id="group-by-supplier" checked class="toggle-checkbox">
                             <label for="group-by-supplier" class="toggle-label">
@@ -348,7 +466,7 @@
                                     <input type="text" id="new-code" placeholder="Codice articolo" required>
                                 </div>
                             </div>
-                            
+
                             <div class="form-row">
                                 <div class="form-col">
                                     <label>Codice a Barre *</label>
@@ -359,13 +477,13 @@
                                     <input type="text" id="new-brand" placeholder="Marca/Fornitore">
                                 </div>
                             </div>
-                            
+
                             <label>Descrizione</label>
                             <textarea id="new-description" placeholder="Descrizione (opzionale)" rows="3"></textarea>
-                            
+
                             <label>Note (es: confezione da 25 pz)</label>
                             <textarea id="new-notes" placeholder="Note sulla confezione (opzionale)" rows="2"></textarea>
-                            
+
                             <div class="form-row">
                                 <div class="form-col">
                                     <label>Quantit&agrave; Iniziale *</label>
@@ -376,7 +494,7 @@
                                     <input type="number" id="new-threshold" placeholder="Soglia minima" value="10" required>
                                 </div>
                             </div>
-                            
+
                             <div class="form-row">
                                 <div class="form-col">
                                     <label>Prezzo Acquisto NETTO &#8364; (no IVA) *</label>
@@ -387,10 +505,10 @@
                                     <input type="number" step="0.01" id="new-iva" placeholder="22" value="22" required>
                                 </div>
                             </div>
-                            
+
                             <label>Prezzo Vendita &#8364; (IVA inclusa) *</label>
                             <input type="number" step="0.01" id="new-price" placeholder="0.00" required>
-                            
+
                             <button type="submit" class="btn-primary">Salva Articolo</button>
                         </form>
                     </div>
@@ -440,7 +558,7 @@
                         <p style="color: var(--gray); font-size: 14px; margin-bottom: 20px;">
                             Analizza quanto materiale hai ordinato (caricato) e venduto (scaricato) per programmare ordini futuri.
                         </p>
-                        
+
                         <div class="report-options">
                             <label>Tipo Report:</label>
                             <select id="report-type">
@@ -517,7 +635,7 @@
                     <div class="search-bar">
                         <input type="text" id="search-ricambi-input" placeholder="&#128269; Cerca ricambio...">
                     </div>
-                    
+
                     <div class="filters-bar">
                         <select id="filter-ricambi-brand">
                             <option value="">Tutti i fornitori</option>
@@ -529,7 +647,7 @@
                             <option value="quantita-asc">Quantit&agrave; (crescente)</option>
                             <option value="quantita-desc">Quantit&agrave; (decrescente)</option>
                         </select>
-                        
+
                         <div class="toggle-container">
                             <input type="checkbox" id="group-ricambi-by-supplier" checked class="toggle-checkbox">
                             <label for="group-ricambi-by-supplier" class="toggle-label">
@@ -538,7 +656,7 @@
                             </label>
                         </div>
                     </div>
-                    
+
                     <div id="ricambi-inventory-container">
                         <!-- Contenuto dinamico -->
                     </div>
@@ -561,7 +679,7 @@
                                     <input type="text" id="new-ricambio-name" placeholder="Nome ricambio" required>
                                 </div>
                             </div>
-                            
+
                             <div class="form-row">
                                 <div class="form-col">
                                     <label>Codice a Barre (opzionale)</label>
@@ -572,13 +690,13 @@
                                     <input type="text" id="new-ricambio-brand" placeholder="Marca/Fornitore" required>
                                 </div>
                             </div>
-                            
+
                             <label>Quantit&agrave; Iniziale *</label>
                             <input type="number" id="new-ricambio-quantity" placeholder="0" value="0" required style="margin-bottom: 12px;">
-                            
+
                             <label>Note (opzionale)</label>
                             <textarea id="new-ricambio-notes" placeholder="Note aggiuntive" rows="2"></textarea>
-                            
+
                             <button type="submit" class="btn-primary">Salva Ricambio</button>
                         </form>
                     </div>
@@ -601,7 +719,7 @@
                             <strong style="color: var(--danger);">&#9888; ATTENZIONE!</strong><br>
                             <span style="font-size: 13px;">CON CARICAMENTO TRAMITE FOGLIO EXCEL MASSIMO 100 RIGHE!!</span>
                         </div>
-                        
+
                         <!-- Preview file caricato -->
                         <div id="excel-preview" style="display: none; background: white; padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 2px solid var(--primary);">
                             <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
@@ -614,7 +732,7 @@
                             </div>
                             <button id="btn-import-excel" class="btn-primary" style="width: 100%;">&#128229; IMPORTA RICAMBI</button>
                         </div>
-                        
+
                         <input type="file" id="excel-file-input" accept=".xlsx,.xls" style="display: none;">
                         <button id="btn-select-excel" class="btn-primary" style="width: 100%;">&#128194; Seleziona File Excel</button>
                     </div>
@@ -664,7 +782,7 @@
                         <p style="color: var(--gray); font-size: 14px; margin-bottom: 20px;">
                             Analizza i movimenti dei ricambi per programmare gli ordini.
                         </p>
-                        
+
                         <div class="report-options">
                             <label>Tipo Report:</label>
                             <select id="report-ricambi-type">
@@ -765,19 +883,19 @@
                     <form id="new-user-form">
                         <label>Email *</label>
                         <input type="email" id="new-user-email" placeholder="email@esempio.com" required>
-                        
+
                         <label>Password *</label>
                         <input type="password" id="new-user-password" placeholder="Minimo 6 caratteri" required minlength="6" autocomplete="new-password">
-                        
+
                         <label>Iniziali * (es: GM per Giovanni Martini)</label>
                         <input type="text" id="new-user-initials" placeholder="GM" required maxlength="3" style="text-transform: uppercase;">
-                        
+
                         <label>Ruolo *</label>
                         <select id="new-user-role" required>
                             <option value="operatore">Operatore</option>
                             <option value="admin">Amministratore</option>
                         </select>
-                        
+
                         <button type="submit" class="btn-primary">Crea Utente</button>
                     </form>
                 </div>
@@ -844,7 +962,7 @@
             <h3>Modifica Articolo</h3>
             <form id="edit-article-form">
                 <input type="hidden" id="edit-id">
-                
+
                 <div class="form-row">
                     <div class="form-col">
                         <label>Nome Articolo *</label>
@@ -855,19 +973,19 @@
                         <input type="text" id="edit-code" placeholder="Codice articolo" required>
                     </div>
                 </div>
-                
+
                 <label>Codice a Barre *</label>
                 <input type="text" id="edit-barcode" placeholder="Codice a barre" required>
-                
+
                 <label>Marca/Fornitore</label>
                 <input type="text" id="edit-brand" placeholder="Marca/Fornitore">
-                
+
                 <label>Descrizione</label>
                 <textarea id="edit-description" placeholder="Descrizione (opzionale)" rows="3"></textarea>
-                
+
                 <label>Note (es: confezione da 25 pz)</label>
                 <textarea id="edit-notes" placeholder="Note sulla confezione (opzionale)" rows="2"></textarea>
-                
+
                 <div class="form-row">
                     <div class="form-col">
                         <label>Quantit&agrave; *</label>
@@ -878,7 +996,7 @@
                         <input type="number" id="edit-threshold" placeholder="Soglia minima" required>
                     </div>
                 </div>
-                
+
                 <div class="form-row">
                     <div class="form-col">
                         <label>Prezzo Acquisto NETTO &#8364; (no IVA) *</label>
@@ -889,10 +1007,10 @@
                         <input type="number" step="0.01" id="edit-iva" placeholder="22" required>
                     </div>
                 </div>
-                
+
                 <label>Prezzo Vendita &#8364; (IVA inclusa) *</label>
                 <input type="number" step="0.01" id="edit-price" placeholder="0.00" required>
-                
+
                 <div class="modal-buttons">
                     <button type="submit" class="btn-primary">Salva Modifiche</button>
                     <button type="button" id="edit-cancel" class="btn-secondary">Annulla</button>
@@ -907,7 +1025,7 @@
             <h3>Modifica Ricambio</h3>
             <form id="edit-ricambio-form">
                 <input type="hidden" id="edit-ricambio-id">
-                
+
                 <div class="form-row">
                     <div class="form-col">
                         <label>Codice Articolo *</label>
@@ -918,7 +1036,7 @@
                         <input type="text" id="edit-ricambio-name" placeholder="Nome ricambio" required>
                     </div>
                 </div>
-                
+
                 <div class="form-row">
                     <div class="form-col">
                         <label>Codice a Barre</label>
@@ -929,13 +1047,13 @@
                         <input type="text" id="edit-ricambio-brand" placeholder="Marca/Fornitore" required>
                     </div>
                 </div>
-                
+
                 <label>Quantit&agrave; *</label>
                 <input type="number" id="edit-ricambio-quantity" placeholder="0" required style="margin-bottom: 12px;">
-                
+
                 <label>Note</label>
                 <textarea id="edit-ricambio-notes" placeholder="Note aggiuntive" rows="2"></textarea>
-                
+
                 <div class="modal-buttons">
                     <button type="submit" class="btn-primary">Salva Modifiche</button>
                     <button type="button" id="edit-ricambio-cancel" class="btn-secondary">Annulla</button>
@@ -953,21 +1071,21 @@
             </div>
             <form id="edit-user-form">
                 <input type="hidden" id="edit-user-email">
-                
+
                 <label>Email (non modificabile)</label>
                 <div style="background: var(--light); padding: 12px; border-radius: 8px; margin-bottom: 15px; color: var(--gray); font-weight: 600;">
                     <span id="edit-user-email-display"></span>
                 </div>
-                
+
                 <label>Iniziali * (es: GM)</label>
                 <input type="text" id="edit-user-initials" placeholder="GM" required maxlength="3" style="text-transform: uppercase;">
-                
+
                 <label>Ruolo *</label>
                 <select id="edit-user-role" required>
                     <option value="operatore">Operatore</option>
                     <option value="admin">Amministratore</option>
                 </select>
-                
+
                 <div class="modal-buttons">
                     <button type="submit" class="btn-primary">Salva Modifiche</button>
                     <button type="button" id="edit-user-cancel" class="btn-secondary">Annulla</button>
@@ -976,41 +1094,150 @@
         </div>
     </div>
 
+    <!-- Modal informazioni articolo listino (pulsante "i" su mobile) -->
+    <div id="listino-info-modal" class="modal hidden">
+        <div class="modal-content listino-info-content">
+            <div class="modal-header">
+                <h3 id="listino-info-titolo"></h3>
+                <button type="button" class="modal-close" id="listino-info-close">&times;</button>
+            </div>
+            <p id="listino-info-sottotitolo" class="listino-info-sottotitolo"></p>
+            <div class="listino-info-box">
+                <span>Netto 1</span>
+                <div id="listino-info-netto"></div>
+            </div>
+            <div class="listino-info-box">
+                <span>Note 1</span>
+                <div id="listino-info-note"></div>
+            </div>
+            <button type="button" id="listino-info-ok" class="btn-primary">Chiudi</button>
+        </div>
+    </div>
+
+    <!-- Modal nuovo / modifica articolo listino -->
+    <div id="listino-edit-modal" class="modal hidden">
+        <div class="modal-content listino-edit-content">
+            <div class="modal-header">
+                <h3 id="listino-edit-titolo">Modifica articolo</h3>
+                <button type="button" class="modal-close" id="listino-edit-close">&times;</button>
+            </div>
+            <form id="listino-edit-form" autocomplete="off">
+                <div class="form-row">
+                    <div class="form-col">
+                        <label>Attrezzo *</label>
+                        <input type="text" id="listino-edit-attrezzo" list="listino-sugg-attrezzo">
+                    </div>
+                    <div class="form-col">
+                        <label>Marchio</label>
+                        <input type="text" id="listino-edit-marchio" list="listino-sugg-marchio">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-col">
+                        <label>Alimentazione</label>
+                        <input type="text" id="listino-edit-alimentazione" list="listino-sugg-alimentazione">
+                    </div>
+                    <div class="form-col">
+                        <label>Tipologia alimentazione</label>
+                        <input type="text" id="listino-edit-tipologia-alimentazione" list="listino-sugg-tipologia">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-col">
+                        <label>Modello</label>
+                        <input type="text" id="listino-edit-modello">
+                    </div>
+                    <div class="form-col">
+                        <label>Note</label>
+                        <input type="text" id="listino-edit-note">
+                    </div>
+                </div>
+
+                <div class="listino-edit-netti">
+                    <div class="form-row">
+                        <div class="form-col">
+                            <label>Netto 1 &#8364;</label>
+                            <input type="text" inputmode="decimal" id="listino-edit-netto-1" placeholder="es. 284,50">
+                        </div>
+                        <div class="form-col">
+                            <label>Note 1</label>
+                            <input type="text" id="listino-edit-note-1">
+                        </div>
+                    </div>
+                    <div id="listino-edit-precedenti" class="listino-edit-precedenti hidden"></div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-col">
+                        <label>Vendita promo</label>
+                        <input type="text" id="listino-edit-vendita-promo" placeholder="prezzo o testo">
+                    </div>
+                    <div class="form-col">
+                        <label>Scadenza promo</label>
+                        <input type="text" id="listino-edit-scadenza-promo">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-col">
+                        <label>Vendita in scatola</label>
+                        <input type="text" id="listino-edit-vendita-scatola" placeholder="prezzo o testo">
+                    </div>
+                    <div class="form-col">
+                        <label>Vendita no promo</label>
+                        <input type="text" id="listino-edit-vendita-no-promo" placeholder="prezzo o testo">
+                    </div>
+                </div>
+                <label>Listino &#8364;</label>
+                <input type="text" inputmode="decimal" id="listino-edit-listino" placeholder="es. 485">
+
+                <div class="modal-buttons">
+                    <button type="submit" id="listino-edit-salva" class="btn-primary">Salva</button>
+                    <button type="button" id="listino-edit-annulla" class="btn-secondary">Annulla</button>
+                </div>
+                <button type="button" id="listino-edit-cancella" class="btn-danger listino-edit-cancella">&#128465; Sposta in articoli cancellati</button>
+            </form>
+            <datalist id="listino-sugg-attrezzo"></datalist>
+            <datalist id="listino-sugg-marchio"></datalist>
+            <datalist id="listino-sugg-alimentazione"></datalist>
+            <datalist id="listino-sugg-tipologia"></datalist>
+        </div>
+    </div>
+
     <!-- Modal Istruzioni Installazione -->
     <div id="install-instructions-modal" class="modal hidden">
         <div class="modal-content">
             <h3>&#128241; Installa l'App sulla Home</h3>
-            
+
             <div id="ios-instructions" class="install-instructions hidden">
                 <h4>&#63743; iPhone / iPad</h4>
                 <ol style="text-align: left; padding-left: 20px; line-height: 1.8;">
-                    <li>Premi il pulsante <strong>Condividi</strong> 
+                    <li>Premi il pulsante <strong>Condividi</strong>
                         <span style="font-size: 18px;">&#8599;&#65039;</span> in basso al centro</li>
-                    <li>Scorri e seleziona <strong>"Aggiungi a Home"</strong> 
+                    <li>Scorri e seleziona <strong>"Aggiungi a Home"</strong>
                         <span style="font-size: 18px;">&#10133;</span></li>
                     <li>Premi <strong>"Aggiungi"</strong> in alto a destra</li>
                     <li>L'icona apparir&agrave; sulla tua schermata Home! &#127881;</li>
                 </ol>
             </div>
-            
+
             <div id="android-instructions" class="install-instructions hidden">
                 <h4>&#129302; Android</h4>
                 <ol style="text-align: left; padding-left: 20px; line-height: 1.8;">
-                    <li>Premi il menu 
+                    <li>Premi il menu
                         <span style="font-size: 18px;">&#8942;</span> in alto a destra</li>
-                    <li>Seleziona <strong>"Installa app"</strong> o 
+                    <li>Seleziona <strong>"Installa app"</strong> o
                         <strong>"Aggiungi a schermata Home"</strong></li>
                     <li>Conferma premendo <strong>"Installa"</strong></li>
                     <li>L'icona apparir&agrave; sulla tua schermata Home! &#127881;</li>
                 </ol>
             </div>
-            
+
             <div id="desktop-message" class="install-instructions hidden">
                 <p style="text-align: center; color: var(--gray); padding: 20px;">
                     &#128241; Apri questa pagina dal tuo <strong>smartphone</strong> per installare l'app sulla Home Screen.
                 </p>
             </div>
-            
+
             <div class="modal-buttons">
                 <button id="close-install-modal" class="btn-primary">Ho capito!</button>
             </div>
@@ -1021,10 +1248,10 @@
     <div id="whats-new-modal" class="modal hidden">
         <div class="modal-content whats-new-content">
             <div class="whats-new-header">
-                <h3>&#127881; AGRIMAG v4.7.52 - Aggiornamento!</h3>
+                <h3>&#127881; AGRIMAG v4.7.53 - Aggiornamento!</h3>
                 <p class="version-date">27 Ottobre 2026</p>
             </div>
-            
+
             <!-- INIZIO_FEATURES -->
             <div class="whats-new-body">
 
@@ -1054,7 +1281,7 @@
 
             </div>
             <!-- FINE_FEATURES -->
-            
+
             <div class="modal-buttons">
                 <button id="close-whats-new" class="btn-primary">Perfetto! &#128077;</button>
             </div>
@@ -1073,10 +1300,14 @@
         </div>
     </div>
 
+    <!-- Area usata solo per stampare / salvare in PDF lo storico netti -->
+    <div id="listino-storico-print"></div>
+
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- Versione bloccata (la libreria non e' piu' mantenuta: cosi' non cambia mai da sola) -->
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-    <script src="ricambi-functions.js?v=4.7.0"></script>
-    <script src="app.js?v=4.7.52"></script>
+    <script src="ricambi-functions.js?v=4.7.53"></script>
+    <script src="listino-functions.js?v=4.7.53"></script>
+    <script src="app.js?v=4.7.53"></script>
 </body>
 </html>

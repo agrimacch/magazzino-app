@@ -1,0 +1,134 @@
+ISTRUZIONI PROGETTO AGRIMAG
+NON usare MAI emoji diretti
+USA SEMPRE codici HTML entities (es. &#128230; &#10133;)
+USA SEMPRE HTML entities ANCHE per accenti italiani (&agrave; &egrave; &ograve; &ugrave;) per evitare corruzione UTF-8
+Quando modifichi HTML/JS controlla sempre z-index per sovrapposizioni
+Fornisci sempre FILE COMPLETI, mai snippet
+Il deploy e' su VERCEL (non Netlify)
+Database: Supabase
+
+Non servono guide se devo solo sostituire i codici completi. FORNISCIMI FILE COMPLETI DA SCARICARE E SOSTITUIRE (li metti a fondo chat, io clicco sopra, si apre il file in un'altra finestra, copio il codice; cosi' le chat non diventano lunghissime).
+Ho ancora delle migliorie da apportare che apporteremo un po' alla volta assieme senza rompere codici :)
+
+
+STRUTTURA APP (v4.8.0)
+
+Dashboard con 3 card dopo il login:
+- Magazzino: Inventario Consumabili, Inventario Ricambi Stock, Scanner (solo mobile)
+- Vendite (admin E operatori, con gli stessi permessi): Listino Vendite, Listini Fornitori (ancora "in costruzione")
+- Gestione Utenti (solo admin)
+
+Sezione Ricambi Stock completa con import Excel (max 100 righe), movimenti dedicati e report.
+Scanner unificato: cerca sia in Articoli che in Ricambi.
+Persistenza sessione: quando cambi finestra browser l'app ricorda sezione/tab (fino a refresh manuale o logout).
+Maiuscolo automatico: tutti i campi testo convertiti in MAIUSCOLO al salvataggio (esclusi email/password/date).
+
+
+FILE PRINCIPALI
+- index.html - struttura pagina (contiene anche la sezione Listino Vendite e i suoi pop-up)
+- style.css - stili generali e responsive
+- listino.css - stili del Listino Vendite (NUOVO)
+- app.js - logica consumabili, navigazione, ruoli, login
+- ricambi-functions.js - logica ricambi stock (contiene anche showCustomAlert)
+- listino-functions.js - logica Listino Vendite (NUOVO)
+- update-version.sh - aggiorna versione, cache di tutti i file css/js (anche listino), pop-up novita'
+
+Librerie esterne: Supabase JS, SheetJS (lettura Excel), html5-qrcode 2.3.8, ExcelJS 4.4.0 (caricata solo quando si scarica il listino in Excel, da jsdelivr).
+
+
+TABELLE SUPABASE
+- articoli, movimenti (consumabili)
+- ricambi_stock, movimenti_ricambi
+- user_roles (email, role admin/operatore, iniziali)
+- listino_articoli (NUOVA): una riga per macchina
+  colonne: attrezzo, marchio, alimentazione, tipologia_alimentazione, modello, note,
+  netto_1, note_1, netto_2, note_2, netto_3, note_3 (netti numerici),
+  vendita_promo, scadenza_promo, vendita_scatola, vendita_no_promo (testo: se c'e' un numero l'app lo mostra come prezzo),
+  listino (numero), chiave (MARCHIO|MODELLO|NOTE, univoca), attivo (false = articolo cancellato), data_cancellazione
+- listino_storico_netti (NUOVA): ogni netto registrato con articolo_id, modello, netto, note, origine
+  (IMPORT INIZIALE / AGGIORNAMENTO / NUOVO ARTICOLO / MODIFICA APP), utente, data_registrazione
+- Funzione SQL public.is_admin() (controlla user_roles)
+- Regole RLS listino: accesso completo (lettura e scrittura) per tutti gli utenti collegati, admin e operatori. Nessun accesso senza login.
+- Preferenze utente salvate su user_metadata: lastSeenVersion, listinoNettiVisibili, listinoStoriciVisibili
+
+
+LISTINO VENDITE - COME FUNZIONA
+
+Schede: Listino | Import Excel | Storico netti | Articoli cancellati
+Admin e operatori possono fare tutto (vedere, importare, modificare, cancellare, ripristinare).
+
+Listino:
+- Articoli raggruppati per ATTREZZO in ordine alfabetico
+- Ricerca libera + filtri a cascata: attrezzo, marchio, alimentazione, tipologia alimentazione
+- PC: tutte le colonne. In alto due caselline (scelta ricordata per ogni utente, anche su altri dispositivi):
+  "Mostra netti e note" (di default netti e note sfocati) e "Mostra netto 2 e netto 3" (di default colonne nascoste)
+- Mobile: schede compatte (marchio, modello, alimentazione, tipologia, note, promo, in scatola, listino).
+  Se SCADENZA PROMO e' compilata compare sotto con la sveglia. Pulsante "i" = pop-up con netto 1 e note 1.
+- PROMO SCADUTE IN ROSSO: l'app cerca una data nel testo di SCADENZA PROMO (es. "VOLANTINO FINO 30/11/26",
+  anche con punti o anno a 4 cifre; se ci sono piu' date vale l'ultima). Se la data e' passata: da PC cella rossa
+  con etichetta SCADUTA, da mobile riquadro rosso "PROMO SCADUTA". Testo senza data = mai scaduta.
+  Da mobile le caselline non ci sono e i netti non sono sfocati (si vedono solo nel pop-up "i" e nello storico).
+- Matita su ogni articolo (modifica), pulsante "Nuovo articolo", "Sposta in articoli cancellati", "Ripristina"
+
+Import Excel:
+- File .xls/.xlsx, foglio "Elenco_attrezzi" (o il primo foglio), nessun limite di righe
+- Colonne: ATTREZZO, MARCHIO, ALIMENTAZIONE, TIPOLOGIA ALIM., MODELLO, NOTE, NETTO 1, NOTE 1, NETTO 2, NOTE 2,
+  NETTO 3, NOTE 3, VENDITA PROMO, SCADENZA PROMO, VENDITA IN SCATOLA, VENDITA NO PROMO, LISTINO
+- Chiave per riconoscere l'articolo: MARCHIO + MODELLO + NOTE (se cambio la NOTE l'app lo vede come cancellato + nuovo)
+- Anteprima prima di salvare: nuovi, netti cambiati, altre modifiche, ripristinati, cancellati, invariati, avvisi.
+  Avviso rosso se il file cancellerebbe molti articoli insieme. Doppioni nel file segnalati e saltati.
+- Primo caricamento: importa netto 1/2/3 cosi' come sono nel file
+- Caricamenti successivi: conta solo NETTO 1 e NOTE 1. Se il netto 1 cambia l'app scala: netto 1 -> netto 2 -> netto 3
+  (netto 2 e 3 del file vengono ignorati). Se NETTO 1 e' vuoto si tiene quello attuale.
+- Articoli non piu' presenti nel file -> "Articoli cancellati" (tornano attivi se rimessi nel file)
+- Pulsante "Scarica listino Excel aggiornato": file con prima riga bloccata, filtri su tutte le colonne, prezzi in euro
+
+Modifica dall'app:
+- Stessa logica dell'import: se cambio il netto 1 scala netto 1 -> 2 -> 3 e scrive nello storico ("Modifica da app")
+- Netto 2 e 3 visibili ma non modificabili (li gestisce l'app)
+- Controllo doppioni (stesso marchio + modello + note)
+- REGOLA DI LAVORO SCELTA: prima di lavorare sul mio Excel scarico SEMPRE il listino aggiornato dall'app e lavoro su quello
+
+Storico netti:
+- Per ogni macchina tutti i netti con data, nota e origine, dal piu' recente (anche quelli usciti da netto 3)
+- Ricerca macchina, "Scarica TXT", "Stampa / PDF" (dalla stampa si sceglie Salva come PDF)
+- I netti di partenza hanno la data del primo caricamento (le date vere partono dagli aggiornamenti successivi)
+
+
+SICUREZZA E SUPABASE
+- L'app usa la chiave publishable (sb_publishable_...) al posto della anon legacy: testata e funzionante
+- Le chiavi legacy NON sono ancora disattivate (Supabase > Project Settings > API Keys > Legacy API Keys)
+- La password non viene salvata nel browser, solo l'email
+- .gitignore con *.pem, *.key, .DS_Store
+- Script SQL gia' eseguiti: listino-vendite-setup.sql, listino-vendite-modifica-colonne.sql, listino-vendite-operatori.sql
+- Nota: lo sfocamento dei netti e' solo visivo (serve se qualcuno guarda lo schermo).
+
+
+POP-UP "NOVITA'"
+- Non ricompare a ogni login su mobile (vista salvata in localStorage, user_metadata.lastSeenVersion e flag di sessione)
+- Per mostrarne uno nuovo: ./update-version.sh, rispondere "s" al pop-up e scrivere le novita'
+
+
+DA FARE PIU' AVANTI
+- Listini Fornitori (ancora pagina "in costruzione")
+- Disattivare le chiavi legacy di Supabase
+- NOTIFICHE TELEGRAM (deciso, da fare in seguito): bot Telegram in un gruppo con gli utenti; quando si modifica un articolo
+  o si carica l'Excel arriva un messaggio (es. "HONDA HRG416PK: netto 284 -> 300"; per un import un solo messaggio di riepilogo).
+  Il codice del bot va tenuto sul server Supabase (Edge Function), non nell'app.
+- Bug Safari/WebKit (contenuto che sparisce ridimensionando la finestra) non del tutto risolto, Firefox ok
+
+
+COMANDI DA TERMINALE (lavoro da li)
+
+CARICARE FILE AGGIORNATI SU GITHUB
+cd ~/Desktop/magazzino-app
+./push-all.sh
+
+VARIARE VERSIONE (aggiorna anche la cache di tutti i file css/js)
+cd ~/Desktop/magazzino-app
+./update-version.sh
+
+AVVIARE SERVER HTTPS
+cd ~/Desktop/magazzino-app/ bash start-https-server.sh
+PER FERMARE IL SERVER
+Ctrl + C
