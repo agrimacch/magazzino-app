@@ -2095,7 +2095,10 @@ async function apriNotificheListino() {
 
 function chiudiNotificheListino() {
     const modal = document.getElementById('notifiche-modal');
-    if (modal) modal.classList.add('hidden');
+    if (!modal || modal.classList.contains('hidden')) return;
+    modal.classList.add('hidden');
+    // Tutto quello che era nel pannello ora conta come visto
+    listinoNotSegnaLette();
 }
 
 function listinoNotDataOra(iso) {
@@ -2121,15 +2124,21 @@ function renderNotificheListino() {
     const lista = document.getElementById('notifiche-lista');
     if (!lista) return;
 
-    if (listinoNotifiche.length === 0) {
-        lista.innerHTML = '<p class="notifiche-vuoto">Nessuna modifica al listino registrata.</p>';
+    const lette = listinoNotificheLetteAllApertura || LISTINO_NOT_DATA_ZERO;
+    const eNuova = n => !listinoNotEMia(n) && String(n.created_at) > lette;
+
+    // Solo le novita' (modifiche di altri non ancora viste all'apertura):
+    // una volta viste e chiuso il pannello, spariscono.
+    const elenco = listinoNotifiche.filter(eNuova);
+
+    if (elenco.length === 0) {
+        lista.innerHTML = '<p class="notifiche-vuoto">&#10004; Nessuna nuova modifica al listino.</p>';
         return;
     }
 
-    const lette = listinoNotificheLetteAllApertura || LISTINO_NOT_DATA_ZERO;
     let html = '';
-    listinoNotifiche.forEach(n => {
-        const nuova = !listinoNotEMia(n) && String(n.created_at) > lette;
+    elenco.forEach(n => {
+        const nuova = eNuova(n);
         const righe = Array.isArray(n.righe) ? n.righe : [];
         const visibili = righe.slice(0, LISTINO_NOTIFICHE_RIGHE_VISIBILI);
         const altre = righe.slice(LISTINO_NOTIFICHE_RIGHE_VISIBILI);
@@ -2265,7 +2274,9 @@ function listinoNotImpostaEventi() {
     if (toast) {
         toast.addEventListener('click', (e) => {
             toast.classList.add('hidden');
-            if (!e.target.closest('.notifiche-toast-chiudi')) apriNotificheListino();
+            // Da mobile la campanella non c'e': l'avviso si chiude e basta
+            const mobile = window.matchMedia && window.matchMedia('(max-width: 768px)').matches;
+            if (!mobile && !e.target.closest('.notifiche-toast-chiudi')) apriNotificheListino();
         });
     }
 

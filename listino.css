@@ -220,7 +220,8 @@
 
 .listino-card-prezzi {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    /* 4 prezzi (promo, no promo, in scatola, listino) su 2 righe da 2 */
+    grid-template-columns: repeat(2, 1fr);
     gap: 6px;
     margin-top: 8px;
 }
@@ -1043,5 +1044,12 @@
     @keyframes notificheEntra {
         from { opacity: 0; transform: translateY(-12px); }
         to { opacity: 1; transform: translateY(0); }
+    }
+}
+
+/* Da telefono niente campanella: bastano l'avviso a comparsa e Telegram */
+@media (max-width: 768px) {
+    .notifiche-btn {
+        display: none !important;
     }
 }
