@@ -1,5 +1,8 @@
 # Changelog App Magazzino
 
+## v4.8.0 - 2026-10-28 (PRODUZIONE)
+LISTINO VENDITE OPERATIVO
+
 ## v4.7.52 - 2026-10-27 (PRODUZIONE)
 vendite visibile solo admin
 
