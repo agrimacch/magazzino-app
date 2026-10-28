@@ -560,6 +560,9 @@
     margin-bottom: 10px;
 }
 
+/* Pulsanti sempre visibili in fondo, finestra in alto da telefono, "Annulla" leggibile:
+   ora valgono per tutte le finestre e sono in style.css (sezione FINESTRE) */
+
 .listino-edit-cancella {
     margin-top: 15px;
     width: 100% !important;

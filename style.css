@@ -886,7 +886,13 @@ td:last-child {
     max-width: 500px;
     width: 100%;
     max-height: 85vh;
+    /* Su iPhone 85vh comprende anche la zona coperta dalle barre di Safari:
+       la parte bassa della finestra (con i pulsanti) restava irraggiungibile.
+       dvh = altezza davvero visibile (i browser vecchi usano la riga sopra) */
+    max-height: 85dvh;
     overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
     border: 3px solid var(--primary);
     box-shadow: 0 8px 32px rgba(22, 163, 74, 0.3);
 }
@@ -895,6 +901,71 @@ td:last-child {
     color: var(--primary);
     margin-bottom: 12px;
     font-size: 18px;
+}
+
+/* ============================================ */
+/* FINESTRE (pop-up): pulsanti sempre raggiungibili */
+/* ============================================ */
+/* Salva / Conferma / Annulla restano attaccati in fondo alla finestra
+   mentre si scorre, cosi' si possono premere senza arrivare in fondo */
+.modal-content .modal-buttons {
+    position: sticky;
+    bottom: -20px;              /* copre anche il margine interno della finestra (20px) */
+    background: white;
+    padding: 12px 0 20px;
+    z-index: 2;
+}
+
+/* Ombra sopra i pulsanti nelle finestre lunghe (fa capire che sopra c'e' altro) */
+#edit-modal .modal-buttons,
+#edit-ricambio-modal .modal-buttons,
+#listino-edit-modal .modal-buttons {
+    box-shadow: 0 -8px 12px -8px rgba(0, 0, 0, 0.15);
+}
+
+/* Il pulsante grigio "Annulla" grande come quello verde (prima era minuscolo) */
+.modal-buttons .btn-secondary {
+    font-size: 14px;
+    padding: 12px 18px;
+}
+
+@media (min-width: 769px) {
+    .modal-content .modal-buttons {
+        bottom: -35px;          /* da PC il margine interno e' 35px */
+        padding-bottom: 35px;
+    }
+
+    .modal-buttons .btn-secondary {
+        font-size: 16px;
+        padding: 14px 28px;
+    }
+}
+
+/* Da telefono le finestre con campi da compilare partono dall'alto
+   (non centrate) e usano quasi tutta l'altezza dello schermo:
+   si vedono piu' campi e la tastiera non copre i pulsanti */
+@media (max-width: 768px) {
+    #edit-modal,
+    #edit-ricambio-modal,
+    #edit-user-modal,
+    #movement-modal,
+    #movement-ricambi-modal,
+    #listino-edit-modal,
+    #notifiche-modal {
+        align-items: flex-start;
+        padding-top: max(10px, env(safe-area-inset-top));
+    }
+
+    #edit-modal .modal-content,
+    #edit-ricambio-modal .modal-content,
+    #edit-user-modal .modal-content,
+    #movement-modal .modal-content,
+    #movement-ricambi-modal .modal-content,
+    #listino-edit-modal .modal-content,
+    #notifiche-modal .modal-content {
+        max-height: 92vh;
+        max-height: 92dvh;
+    }
 }
 
 /* Modal header con pulsante chiusura */

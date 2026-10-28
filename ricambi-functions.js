@@ -286,7 +286,8 @@ async function loadRicambi() {
     
     allRicambi = data || [];
     populateRicambiBrandFilter();
-    restoreRicambiFilters();
+    // I filtri NON si azzerano qui: dopo un carico/scarico o una modifica
+    // resta la ricerca che si stava usando (si azzerano solo entrando nella sezione)
     applyRicambiFiltersAndSort();
 }
 
@@ -335,27 +336,24 @@ function applyRicambiFiltersAndSort() {
     const [sortField, sortOrder] = sortValue.split('-');
     
     filtered.sort((a, b) => {
-        let valA, valB;
-        
+        // Ordinamento scelto; a parita' (es. stesso fornitore) vale il CODICE ARTICOLO
+        // in ordine alfabetico (i numeri dentro il codice in ordine naturale: A2 prima di A10)
+        const opzioni = { numeric: true, sensitivity: 'base' };
+        const perCodice = String(a.codice_articolo || '').localeCompare(String(b.codice_articolo || ''), 'it', opzioni);
+        let confronto = 0;
+
         if (sortField === 'nome') {
-            valA = a.nome.toLowerCase();
-            valB = b.nome.toLowerCase();
+            confronto = String(a.nome || '').localeCompare(String(b.nome || ''), 'it', opzioni);
         } else if (sortField === 'codice') {
-            valA = a.codice_articolo.toLowerCase();
-            valB = b.codice_articolo.toLowerCase();
+            confronto = perCodice;
         } else if (sortField === 'quantita') {
-            valA = a.quantita;
-            valB = b.quantita;
+            confronto = (Number(a.quantita) || 0) - (Number(b.quantita) || 0);
         } else if (sortField === 'fornitore') {
-            valA = (a.marca_fornitore || 'ZZZ').toLowerCase();
-            valB = (b.marca_fornitore || 'ZZZ').toLowerCase();
+            confronto = String(a.marca_fornitore || 'ZZZ').localeCompare(String(b.marca_fornitore || 'ZZZ'), 'it', opzioni);
         }
-        
-        if (sortOrder === 'asc') {
-            return valA > valB ? 1 : -1;
-        } else {
-            return valA < valB ? 1 : -1;
-        }
+
+        if (sortOrder === 'desc') confronto = -confronto;
+        return confronto || perCodice;
     });
     
     // SEPARA: Ricambi disponibili (qty > 0) ed esauriti (qty = 0)
@@ -922,8 +920,8 @@ async function loadMovementsRicambi() {
     }
     
     allMovementsRicambi = data || [];
-    restoreMovementRicambiFilters();
-    renderMovementsRicambi(allMovementsRicambi);
+    // Mantiene i filtri dei movimenti gia' impostati
+    applyMovementRicambiFilters();
 }
 
 function renderMovementsRicambi(movements) {
