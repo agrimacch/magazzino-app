@@ -181,12 +181,22 @@ Su iPhone serve connessione sicura (HTTPS): il sito su Vercel &egrave; gi&agrave
 
 ---
 
-## 8. VENDITE (IN COSTRUZIONE)
+## 8. VENDITE
 
-- **Listino Vendite**
-- **Listini Fornitori**
+- **Listino Vendite**: listino macchine con filtri, import Excel con anteprima, storico netti e articoli cancellati. Admin e operatori hanno gli stessi permessi.
+- **Listini Fornitori**: ancora in costruzione.
 
-Le due sezioni esistono gi&agrave; come pagine segnaposto ("Sezione in costruzione"). I contenuti verranno definiti insieme; probabilmente richiederanno nuove tabelle su Supabase.
+### 8.1 Notifiche delle modifiche al listino (v4.9.0)
+Ogni modifica al listino (modifica di un articolo, nuovo articolo, spostamento nei cancellati, ripristino, import Excel) viene registrata e notificata a tutti:
+
+- **Campanella in alto** (accanto al ruolo): il numerino rosso conta le modifiche fatte da *altri* utenti che non hai ancora visto. Si aggiorna da sola, senza ricaricare la pagina.
+- **Avviso a comparsa**: quando un altro utente modifica il listino compare un riquadro in alto; toccandolo si apre l'elenco.
+- **Elenco modifiche**: ultime 50 modifiche, con chi, quando e cosa (es. *NETTO 1: &euro; 284,00 &rarr; &euro; 300,00*). Le novit&agrave; sono evidenziate; il pulsante *Vai all'articolo* apre il listino gi&agrave; filtrato. Da PC i netti sono sfocati come nel listino (clic per vederli).
+- **Telegram**: lo stesso messaggio arriva nel gruppo Telegram. Un import Excel manda un solo messaggio di riepilogo.
+- Se salvi un articolo senza cambiare nulla, non parte nessuna notifica. Le tue modifiche non fanno salire il tuo numerino.
+- Gli admin hanno nell'elenco il pulsante **Prova Telegram** per controllare che il bot funzioni.
+
+Configurazione: tabella `listino_notifiche` (script `supabase/listino-notifiche-setup.sql`), funzione Supabase `notifica-telegram` (file `supabase/notifica-telegram.ts`) con i secrets `TELEGRAM_BOT_TOKEN` e `TELEGRAM_CHAT_ID`.
 
 ---
 
@@ -218,6 +228,8 @@ Percorso: Dashboard &rarr; Gestione Utenti.
 | `style.css` | Stili e adattamento mobile |
 | `app.js` | Login, navigazione, consumabili, scanner, utenti, pop-up novit&agrave; |
 | `ricambi-functions.js` | Tutta la logica dei ricambi stock |
+| `listino-functions.js`, `listino.css` | Listino Vendite e notifiche (campanella) |
+| `supabase/` | Script SQL e codice della funzione Telegram (si usano dal sito di Supabase) |
 | `manifest.json` | Impostazioni per installare l'app sul telefono |
 | `VERSION.md` | Storico versioni |
 | `push-all.sh`, `update-version.sh`, `start-https-server.sh` | Script di aiuto |
@@ -287,11 +299,15 @@ git rm --cached localhost.pem localhost-key.pem
 | Caratteri strani (&Atilde;...) | Sostituire accenti ed emoji con codici HTML |
 | Un report sembra vuoto | Allarga il periodo o lascia vuoti i campi Da/A |
 | Un'azione d&agrave; errore sui dati | Premi F12 per aprire la Console e leggi il dettaglio |
+| Telegram non riceve le notifiche | Campanella &rarr; *Prova Telegram* (admin): il messaggio d'errore dice cosa manca (funzione, &quot;Verify JWT&quot; spento, secrets) |
+| La campanella non si aggiorna da sola | Controlla di aver eseguito `listino-notifiche-setup.sql` (attiva il tempo reale); riaprendo l'app il conteggio si aggiorna comunque |
 
 ---
 
 ## 15. STORICO MODIFICHE PRINCIPALI
 
+- **v4.9.0 (ott 2026)** - Notifiche delle modifiche al listino: campanella in app con avvisi in tempo reale e messaggi Telegram.
+- **v4.8.0 (ott 2026)** - Listino Vendite completo (import Excel, storico netti, articoli cancellati), aperto anche agli operatori.
 - **v4.7.5 (2026)** - Pop-up novit&agrave; non ricompare pi&ugrave; ad ogni login su mobile; passaggio alla nuova chiave pubblicabile Supabase; password non pi&ugrave; salvata nel browser; nuova Dashboard con categorie **Magazzino** e **Vendite**; correzione ripristino scheda Ricambi dopo refresh; spegnimento fotocamera uscendo dallo Scanner.
 - **v4.7.0 (gen 2026)** - Aggiornamenti 2026.
 - **v4.5.x (dic 2025)** - Aggiornamenti vari, sicurezza e login.

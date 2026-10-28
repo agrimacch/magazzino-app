@@ -133,6 +133,8 @@
                 <img src="logo.png" alt="Logo Agrimag" class="logo-header">
             </div>
             <div class="user-info">
+                <!-- Campanella notifiche listino (numerino = modifiche di altri non ancora viste) -->
+                <button type="button" id="notifiche-btn" class="notifiche-btn" title="Modifiche al listino" aria-label="Modifiche al listino">&#128276;<span id="notifiche-badge" class="notifiche-badge hidden"></span></button>
                 <span id="user-role" class="role-badge"></span>
                 <button id="logout-btn" class="btn-secondary">Logout</button>
             </div>
@@ -1271,6 +1273,28 @@
             </div>
         </div>
     </div>
+
+    <!-- Pannello notifiche listino (campanella in alto) -->
+    <div id="notifiche-modal" class="modal hidden">
+        <div class="modal-content notifiche-content">
+            <div class="modal-header">
+                <h3>&#128276; Modifiche al listino</h3>
+                <button type="button" class="modal-close" id="notifiche-close">&times;</button>
+            </div>
+            <p class="notifiche-help">
+                Le ultime 50 modifiche al Listino Vendite, dalla pi&ugrave; recente.
+                Quelle fatte da altri che non avevi ancora visto sono evidenziate.
+            </p>
+            <div id="notifiche-lista"></div>
+            <div class="notifiche-azioni">
+                <button type="button" id="notifiche-prova-telegram" class="btn-back hidden">&#9992;&#65039; Prova Telegram</button>
+                <button type="button" id="notifiche-ok" class="btn-primary">Chiudi</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Avviso a comparsa: arriva una modifica al listino da un altro utente -->
+    <div id="notifiche-toast" class="notifiche-toast hidden"></div>
 
     <!-- MODAL ALERT PERSONALIZZATO -->
     <div id="custom-alert-modal" class="modal hidden">

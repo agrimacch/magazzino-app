@@ -498,6 +498,11 @@ async function showMainScreen() {
     }
     
     checkAndShowWhatsNew();
+
+    // Notifiche listino: campanella + avvisi in tempo reale (una sola volta per sessione)
+    if (typeof avviaNotificheListino === 'function') {
+        avviaNotificheListino();
+    }
 }
 
 // ========================================

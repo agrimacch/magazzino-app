@@ -753,3 +753,295 @@
         grid-template-columns: 2fr 1fr;
     }
 }
+/* ============================================ */
+/* NOTIFICHE LISTINO: campanella, pannello, avviso */
+/* ============================================ */
+/* Livelli (z-index): header 100, avviso a comparsa 9000,
+   pannello notifiche 10000 come gli altri pop-up (il pop-up di avviso
+   "showCustomAlert" e' piu' in basso nella pagina, quindi resta sopra) */
+
+.notifiche-btn {
+    position: relative;
+    width: 30px;
+    height: 30px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    border: 2px solid var(--green-light);
+    background: white;
+    font-size: 15px;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    transition: all 0.2s ease;
+}
+
+.notifiche-btn:hover {
+    border-color: var(--primary);
+    background: var(--light);
+}
+
+.notifiche-btn-attivo {
+    border-color: var(--danger);
+    animation: notificheScuoti 1.2s ease-in-out 2;
+}
+
+@keyframes notificheScuoti {
+    0%, 100% { transform: rotate(0); }
+    15% { transform: rotate(14deg); }
+    30% { transform: rotate(-12deg); }
+    45% { transform: rotate(8deg); }
+    60% { transform: rotate(-5deg); }
+}
+
+.notifiche-badge {
+    position: absolute;
+    top: -6px;
+    right: -8px;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 4px;
+    border-radius: 9px;
+    background: var(--danger);
+    color: white;
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 18px;
+    text-align: center;
+    box-shadow: 0 0 0 2px white;
+    pointer-events: none;
+}
+
+/* Pannello */
+.notifiche-content {
+    max-width: 640px;
+    display: flex;
+    flex-direction: column;
+}
+
+.notifiche-help {
+    font-size: 12px !important;
+    color: var(--gray);
+    margin-bottom: 12px !important;
+    line-height: 1.5;
+}
+
+#notifiche-lista {
+    flex: 1;
+    min-height: 80px;
+}
+
+.notifiche-vuoto {
+    text-align: center;
+    color: var(--gray);
+    padding: 20px 0;
+}
+
+.notifica-item {
+    border: 2px solid var(--green-light);
+    border-left-width: 5px;
+    border-radius: var(--border-radius-sm);
+    padding: 10px 12px;
+    margin-bottom: 8px;
+    background: white;
+}
+
+.notifica-item.notifica-modifica { border-left-color: var(--warning); }
+.notifica-item.notifica-nuovo { border-left-color: var(--primary); }
+.notifica-item.notifica-cancellato { border-left-color: var(--danger); }
+.notifica-item.notifica-ripristinato { border-left-color: var(--success); }
+.notifica-item.notifica-import { border-left-color: #3b82f6; }
+
+.notifica-item.notifica-nuova {
+    background: #fffbeb;
+    box-shadow: 0 2px 8px rgba(245, 158, 11, 0.15);
+}
+
+.notifica-testa {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+}
+
+.notifica-icona {
+    font-size: 20px;
+    line-height: 1.2;
+    flex-shrink: 0;
+}
+
+.notifica-info {
+    min-width: 0;
+    flex: 1;
+}
+
+.notifica-titolo {
+    font-weight: 700;
+    font-size: 13px;
+    word-break: break-word;
+}
+
+.notifica-meta {
+    font-size: 11px;
+    color: var(--gray);
+    margin-top: 2px;
+}
+
+.notifica-pallino {
+    display: inline-block;
+    background: var(--warning);
+    color: white;
+    font-size: 9px;
+    font-weight: 700;
+    border-radius: 6px;
+    padding: 1px 5px;
+    vertical-align: middle;
+}
+
+.notifica-righe {
+    margin: 8px 0 0;
+    padding-left: 20px;
+    font-size: 12px;
+    line-height: 1.55;
+    word-break: break-word;
+}
+
+.notifica-etichetta {
+    color: #374151;
+}
+
+.notifica-val {
+    font-weight: 700;
+    transition: filter 0.2s ease;
+}
+
+.notifica-altre summary {
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--primary);
+    margin-top: 6px;
+}
+
+.notifica-vai {
+    margin-top: 8px;
+    font-size: 12px !important;
+    padding: 6px 12px !important;
+}
+
+.notifiche-azioni {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.notifiche-azioni .btn-primary,
+.notifiche-azioni .btn-back {
+    width: auto;
+    display: inline-block;
+}
+
+/* Netti sfocati anche nel pannello (solo da PC, come nel listino) */
+@media (min-width: 769px) {
+    .notifiche-netti-nascosti .notifica-riga-netti .notifica-val {
+        filter: blur(6px);
+        cursor: pointer;
+        user-select: none;
+        -webkit-user-select: none;
+    }
+
+    .notifiche-netti-nascosti .notifica-riga-netti.svelata .notifica-val {
+        filter: none;
+        user-select: auto;
+        -webkit-user-select: auto;
+    }
+}
+
+/* Avviso a comparsa (arriva una modifica da un altro utente) */
+.notifiche-toast {
+    position: fixed;
+    top: 14px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 9000;
+    width: calc(100% - 24px);
+    max-width: 420px;
+    background: white;
+    border: 2px solid var(--primary);
+    border-left: 6px solid var(--warning);
+    border-radius: var(--border-radius-sm);
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.2);
+    padding: 10px 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    animation: notificheEntra 0.3s ease-out;
+}
+
+.notifiche-toast.hidden {
+    display: none !important;
+}
+
+@keyframes notificheEntra {
+    from { opacity: 0; transform: translate(-50%, -12px); }
+    to { opacity: 1; transform: translate(-50%, 0); }
+}
+
+.notifiche-toast-icona {
+    font-size: 22px;
+    flex-shrink: 0;
+}
+
+.notifiche-toast-testo {
+    flex: 1;
+    min-width: 0;
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+.notifiche-toast-testo strong {
+    display: block;
+}
+
+.notifiche-toast-testo span {
+    display: block;
+    color: var(--gray);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.notifiche-toast-chiudi {
+    background: none;
+    border: none;
+    font-size: 22px;
+    color: var(--gray);
+    cursor: pointer;
+    padding: 0 4px;
+    line-height: 1;
+    flex-shrink: 0;
+}
+
+@media (min-width: 769px) {
+    .notifiche-btn {
+        width: 38px;
+        height: 38px;
+        font-size: 18px;
+    }
+
+    .notifiche-toast {
+        left: auto;
+        right: 20px;
+        transform: none;
+        top: 20px;
+    }
+
+    @keyframes notificheEntra {
+        from { opacity: 0; transform: translateY(-12px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+}

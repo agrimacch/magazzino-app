@@ -10,6 +10,7 @@
 // - Storico completo dei netti (tabella listino_storico_netti)
 // - Articoli rimossi dal file -> "Articoli cancellati"
 // - Download del listino aggiornato in Excel
+// - Notifiche delle modifiche: campanella in app (tempo reale) + Telegram
 // Tabelle Supabase: listino_articoli, listino_storico_netti (solo admin)
 // ========================================
 
@@ -530,6 +531,7 @@ function renderListino(articoli) {
                     (a.note && a.modello ? '<div class="listino-card-note">' + listinoEsc(a.note) + '</div>' : '') +
                     '<div class="listino-card-prezzi">' +
                         '<div class="listino-prezzo"><span>Promo</span><strong>' + listinoFormatVendita(a.vendita_promo) + '</strong></div>' +
+                        '<div class="listino-prezzo"><span>No promo</span><strong>' + listinoFormatVendita(a.vendita_no_promo) + '</strong></div>' +
                         '<div class="listino-prezzo"><span>In scatola</span><strong>' + listinoFormatVendita(a.vendita_scatola) + '</strong></div>' +
                         '<div class="listino-prezzo"><span>Listino</span><strong>' + listinoFormatEuro(a.listino) + '</strong></div>' +
                     '</div>' +
@@ -845,6 +847,8 @@ function listinoCostruisciPiano(righeFile, articoliDb) {
 
         if (cambiato) {
             piano.upserts.push(aggiornato);
+            // Per la notifica: quali campi sono cambiati
+            r._differenze = listinoNotDifferenze(esistente, aggiornato);
             if (!nettoCambiato && esistente.attivo) piano.aggiornati.push(r);
         } else {
             piano.invariati++;
@@ -1071,6 +1075,9 @@ async function confirmListinoImport() {
         'Ripristinati: <strong>' + piano.riattivati.length + '</strong><br>' +
         'Spostati in cancellati: <strong>' + piano.cancellati.length + '</strong>';
 
+    // Notifica (campanella + Telegram): un solo messaggio di riepilogo
+    listinoRegistraNotifica('IMPORT', 'Import Excel: ' + (listinoImportFileName || 'file'), listinoNotRigheImport(piano), null);
+
     cancelListinoImport();
     listinoStoricoCaricato = false; // lo storico verra' ricaricato quando si apre la scheda
     await loadListino();
@@ -1280,6 +1287,11 @@ function openListinoEdit(id) {
 function closeListinoEdit() {
     document.getElementById('listino-edit-modal').classList.add('hidden');
     listinoArticoloInModifica = null;
+    // Se nel frattempo un altro utente ha modificato il listino, ricarico adesso
+    if (listinoDaAggiornare) {
+        listinoDaAggiornare = false;
+        listinoAggiornaDaRemoto();
+    }
 }
 
 async function saveListinoEdit(e) {
@@ -1324,6 +1336,7 @@ async function saveListinoEdit(e) {
 
     const utente = currentUser ? currentUser.email : null;
     const storico = [];
+    let notifica = null; // { tipo, righe, articolo } da registrare dopo il salvataggio
     const btn = document.getElementById('listino-edit-salva');
     btn.disabled = true;
 
@@ -1336,6 +1349,8 @@ async function saveListinoEdit(e) {
             if (dati.netto_1 !== null) {
                 storico.push({ articolo_id: data.id, modello: dati.modello, netto: dati.netto_1, note: dati.note_1, origine: 'NUOVO ARTICOLO', utente: utente });
             }
+            const articoloNuovo = Object.assign({}, nuovo, { id: data.id });
+            notifica = { tipo: 'NUOVO', righe: listinoNotRigheNuovo(articoloNuovo), articolo: articoloNuovo };
         } else {
             // MODIFICA: se il netto 1 cambia scala netto 1 -> 2 -> 3, come con l'Excel
             const agg = Object.assign({}, dati);
@@ -1353,6 +1368,12 @@ async function saveListinoEdit(e) {
             }
             const { error } = await supabaseClient.from('listino_articoli').update(agg).eq('id', a.id);
             if (error) throw error;
+
+            const articoloDopo = Object.assign({}, a, agg);
+            const differenze = listinoNotDifferenze(a, articoloDopo);
+            if (differenze.length > 0) {
+                notifica = { tipo: 'MODIFICA', righe: differenze, articolo: articoloDopo };
+            }
         }
 
         if (storico.length > 0) {
@@ -1364,6 +1385,11 @@ async function saveListinoEdit(e) {
         btn.disabled = false;
         await showCustomAlert('Errore durante il salvataggio:<br>' + listinoEsc(error.message), 'Errore', '&#10060;');
         return;
+    }
+
+    // Notifica (campanella + Telegram). Se non e' cambiato nulla non si manda niente.
+    if (notifica) {
+        listinoRegistraNotifica(notifica.tipo, listinoNotNome(notifica.articolo), notifica.righe, notifica.articolo);
     }
 
     btn.disabled = false;
@@ -1391,6 +1417,7 @@ async function spostaInCancellatiListino() {
         await showCustomAlert('Errore:<br>' + listinoEsc(error.message), 'Errore', '&#10060;');
         return;
     }
+    listinoRegistraNotifica('CANCELLATO', listinoNotNome(a), [], a);
     closeListinoEdit();
     await loadListino();
 }
@@ -1406,6 +1433,7 @@ async function ripristinaListino(id) {
         await showCustomAlert('Errore:<br>' + listinoEsc(error.message), 'Errore', '&#10060;');
         return;
     }
+    listinoRegistraNotifica('RIPRISTINATO', listinoNotNome(a), [], a);
     await loadListino();
 }
 
@@ -1642,6 +1670,611 @@ function stampaStorico() {
 }
 
 // ========================================
+// NOTIFICHE LISTINO (campanella in app + Telegram)
+// ----------------------------------------
+// Ogni modifica al listino (modifica articolo, nuovo, cancellato, ripristinato,
+// import Excel) salva una riga nella tabella listino_notifiche.
+// - Campanella in alto: numerino con le modifiche fatte da ALTRI utenti
+//   che non hai ancora visto. Si aggiorna da sola (tempo reale di Supabase).
+// - Telegram: subito dopo il salvataggio l'app chiama la funzione Supabase
+//   "notifica-telegram", che manda il messaggio al gruppo. Il token del bot
+//   sta solo su Supabase, mai nell'app.
+// - "Gia' viste": data dell'ultima notifica vista, salvata nel browser e
+//   sull'account (user_metadata.listinoNotificheLette), cosi' vale su tutti i dispositivi.
+// Se le notifiche non funzionano (tabella mancante, Telegram non configurato)
+// il listino continua a funzionare normalmente: gli errori finiscono solo in console.
+// ========================================
+let listinoNotifiche = [];               // ultime notifiche caricate (dalla piu' recente)
+let listinoNotificheNonLette = 0;
+let listinoNotificheAvviate = false;
+let listinoNotificheCanale = null;
+let listinoNotificheToastTimer = null;
+let listinoNotificheLetteAllApertura = null;
+let listinoDaAggiornare = false;          // modifica arrivata mentre la finestra di modifica era aperta
+
+const LISTINO_NOTIFICHE_MAX = 50;
+const LISTINO_NOTIFICHE_RIGHE_MAX = 300;
+const LISTINO_NOTIFICHE_RIGHE_VISIBILI = 4;
+const LISTINO_NOT_FRECCIA = ' \u2192 ';
+const LISTINO_NOT_DATA_ZERO = '1970-01-01T00:00:00.000Z';
+
+const LISTINO_NOTIFICHE_ICONE = {
+    MODIFICA: '&#9999;&#65039;',
+    NUOVO: '&#10133;',
+    CANCELLATO: '&#128465;&#65039;',
+    RIPRISTINATO: '&#9851;&#65039;',
+    IMPORT: '&#128194;'
+};
+
+const LISTINO_NOTIFICHE_TIPI = {
+    MODIFICA: 'Modifica',
+    NUOVO: 'Nuovo articolo',
+    CANCELLATO: 'Spostato nei cancellati',
+    RIPRISTINATO: 'Ripristinato',
+    IMPORT: 'Import Excel'
+};
+
+const LISTINO_NOTIFICHE_AZIONI = {
+    MODIFICA: 'ha modificato',
+    NUOVO: 'ha aggiunto',
+    CANCELLATO: 'ha spostato nei cancellati',
+    RIPRISTINATO: 'ha ripristinato',
+    IMPORT: 'ha caricato un Excel'
+};
+
+// ---------- Testi delle notifiche (testo semplice, salvato nel database) ----------
+function listinoNotEuro(n) {
+    if (n === null || n === undefined || n === '') return '-';
+    const num = Number(n);
+    if (!isFinite(num)) return String(n);
+    return '\u20AC ' + num.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function listinoNotValore(campo, v) {
+    if (v === null || v === undefined || v === '') return '-';
+    if (LISTINO_CAMPI_NUMERICI.indexOf(campo) !== -1) return listinoNotEuro(v);
+    if (LISTINO_CAMPI_VENDITA_TESTO.indexOf(campo) !== -1 && /^-?\d+(\.\d+)?$/.test(String(v))) return listinoNotEuro(v);
+    return String(v);
+}
+
+function listinoNotNome(a) {
+    if (!a) return 'ARTICOLO';
+    const nome = [a.marchio, a.modello, a.note].filter(Boolean).join(' ') || 'ARTICOLO';
+    return a.attrezzo ? nome + ' (' + a.attrezzo + ')' : nome;
+}
+
+// Testo da mettere nella ricerca del listino per ritrovare l'articolo
+function listinoNotCerca(a) {
+    if (!a) return null;
+    return [a.marchio, a.modello].filter(Boolean).join(' ') || a.note || null;
+}
+
+// Differenze tra due versioni dello stesso articolo: [{ e: etichetta, v: valore, n: netto? }]
+function listinoNotDifferenze(vecchio, nuovo) {
+    const righe = [];
+    if (!listinoStessoNumero(vecchio.netto_1, nuovo.netto_1)) {
+        righe.push({
+            e: 'NETTO 1',
+            v: listinoNotValore('netto_1', vecchio.netto_1) + LISTINO_NOT_FRECCIA + listinoNotValore('netto_1', nuovo.netto_1) +
+                (nuovo.note_1 ? ' (' + nuovo.note_1 + ')' : ''),
+            n: true
+        });
+    } else if (!listinoStessoTesto(vecchio.note_1, nuovo.note_1)) {
+        righe.push({
+            e: 'NOTE 1',
+            v: listinoNotValore('note_1', vecchio.note_1) + LISTINO_NOT_FRECCIA + listinoNotValore('note_1', nuovo.note_1),
+            n: true
+        });
+    }
+    LISTINO_CAMPI.forEach(({ campo, titolo }) => {
+        if (LISTINO_CAMPI_NETTI.indexOf(campo) !== -1) return;
+        if (!(campo in nuovo)) return;
+        const uguale = LISTINO_CAMPI_NUMERICI.indexOf(campo) !== -1
+            ? listinoStessoNumero(vecchio[campo], nuovo[campo])
+            : listinoStessoTesto(vecchio[campo], nuovo[campo]);
+        if (!uguale) {
+            righe.push({ e: titolo, v: listinoNotValore(campo, vecchio[campo]) + LISTINO_NOT_FRECCIA + listinoNotValore(campo, nuovo[campo]) });
+        }
+    });
+    return righe;
+}
+
+function listinoNotRigheNuovo(a) {
+    const righe = [];
+    if (a.netto_1 !== null && a.netto_1 !== undefined) {
+        righe.push({ e: 'NETTO 1', v: listinoNotEuro(a.netto_1) + (a.note_1 ? ' (' + a.note_1 + ')' : ''), n: true });
+    }
+    [['vendita_promo', 'VENDITA PROMO'], ['scadenza_promo', 'SCADENZA PROMO'], ['vendita_scatola', 'VENDITA IN SCATOLA'],
+     ['vendita_no_promo', 'VENDITA NO PROMO'], ['listino', 'LISTINO']].forEach(([campo, titolo]) => {
+        if (a[campo] !== null && a[campo] !== undefined && a[campo] !== '') {
+            righe.push({ e: titolo, v: listinoNotValore(campo, a[campo]) });
+        }
+    });
+    return righe;
+}
+
+function listinoNotRigheImport(piano) {
+    const conteggi = [
+        [piano.nettiCambiati.length, 'netti cambiati'],
+        [piano.nuovi.length, 'nuovi'],
+        [piano.aggiornati.length, 'altre modifiche'],
+        [piano.riattivati.length, 'ripristinati'],
+        [piano.cancellati.length, 'cancellati']
+    ].filter(c => c[0] > 0).map(c => c[0] + ' ' + c[1]);
+
+    if (piano.primoCaricamento) {
+        return [{ e: 'Primo caricamento', v: piano.nuovi.length + ' articoli importati' }];
+    }
+
+    const righe = [{ e: 'Riepilogo', v: conteggi.join(', ') || 'nessuna modifica' }];
+    piano.nettiCambiati.forEach(nc => {
+        righe.push({
+            e: listinoNotNome(nc.riga),
+            v: listinoNotEuro(nc.vecchio) + LISTINO_NOT_FRECCIA + listinoNotEuro(nc.nuovo) + (nc.riga.note_1 ? ' (' + nc.riga.note_1 + ')' : ''),
+            n: true
+        });
+        // Altri campi cambiati nella stessa riga (es. prezzo promo)
+        (nc.riga._differenze || []).filter(d => !d.n).forEach(d => {
+            righe.push({ e: listinoNotNome(nc.riga) + ' - ' + d.e, v: d.v });
+        });
+    });
+    piano.nuovi.forEach(r => righe.push({ e: 'NUOVO', v: listinoNotNome(r) }));
+    piano.aggiornati.forEach(r => {
+        const diff = r._differenze || [];
+        if (diff.length === 0) {
+            righe.push({ e: 'MODIFICATO', v: listinoNotNome(r) });
+        } else {
+            diff.forEach(d => righe.push({ e: listinoNotNome(r) + ' - ' + d.e, v: d.v, n: !!d.n }));
+        }
+    });
+    piano.riattivati.forEach(r => righe.push({ e: 'RIPRISTINATO', v: listinoNotNome(r) }));
+    piano.cancellati.forEach(a => righe.push({ e: 'CANCELLATO', v: listinoNotNome(a) }));
+    return righe;
+}
+
+// ---------- Salvataggio della notifica + invio Telegram ----------
+// Non blocca mai il listino: se qualcosa va storto lo scrive solo in console.
+async function listinoRegistraNotifica(tipo, titolo, righe, articolo) {
+    if (typeof currentUser === 'undefined' || !currentUser) return;
+    try {
+        let elenco = Array.isArray(righe) ? righe : [];
+        if (elenco.length > LISTINO_NOTIFICHE_RIGHE_MAX) {
+            const altre = elenco.length - LISTINO_NOTIFICHE_RIGHE_MAX;
+            elenco = elenco.slice(0, LISTINO_NOTIFICHE_RIGHE_MAX).concat([{ e: '...', v: 'e altre ' + altre + ' righe' }]);
+        }
+        const riga = {
+            utente: currentUser.email,
+            utente_nome: (typeof userInitials !== 'undefined' && userInitials[currentUser.email]) || null,
+            tipo: tipo,
+            titolo: titolo,
+            righe: elenco,
+            articolo_id: articolo && articolo.id ? articolo.id : null,
+            cerca: listinoNotCerca(articolo)
+        };
+        const { data, error } = await supabaseClient.from('listino_notifiche').insert([riga]).select().single();
+        if (error) throw error;
+        listinoNotAggiungi(data);
+        listinoNotInviaTelegram(data.id);
+    } catch (err) {
+        console.log('Notifica listino non registrata:', err && err.message ? err.message : err);
+    }
+}
+
+function listinoNotInviaTelegram(id) {
+    try {
+        supabaseClient.functions.invoke('notifica-telegram', { body: { id: id } })
+            .then(({ error }) => {
+                if (error) console.log('Notifica Telegram non inviata:', error.message);
+            })
+            .catch(err => console.log('Notifica Telegram non inviata:', err));
+    } catch (e) {
+        console.log('Notifica Telegram non inviata:', e);
+    }
+}
+
+// ---------- Stato "gia' viste" ----------
+function listinoNotEMia(n) {
+    return !!(n && typeof currentUser !== 'undefined' && currentUser && currentUser.email &&
+        String(n.utente || '').toLowerCase() === currentUser.email.toLowerCase());
+}
+
+function listinoNotLetteIl() {
+    try {
+        const meta = (typeof currentUser !== 'undefined' && currentUser) ? currentUser.user_metadata : null;
+        if (meta && typeof meta.listinoNotificheLette === 'string') return meta.listinoNotificheLette;
+    } catch (e) { /* ignora */ }
+    try {
+        const v = localStorage.getItem('listinoNotificheLette_' + listinoEmailUtente());
+        if (v) return v;
+    } catch (e) { /* ignora */ }
+    return LISTINO_NOT_DATA_ZERO;
+}
+
+function listinoNotSegnaLette() {
+    // Uso l'ora della notifica piu' recente (ora del server), non quella del dispositivo
+    let segno = listinoNotLetteIl();
+    listinoNotifiche.forEach(n => {
+        if (n.created_at && n.created_at > segno) segno = n.created_at;
+    });
+    listinoNotificheNonLette = 0;
+    listinoNotAggiornaBadge();
+    if (segno === listinoNotLetteIl()) return;
+
+    try {
+        localStorage.setItem('listinoNotificheLette_' + listinoEmailUtente(), segno);
+    } catch (e) { /* ignora */ }
+    if (typeof currentUser !== 'undefined' && currentUser) {
+        currentUser.user_metadata = Object.assign({}, currentUser.user_metadata, { listinoNotificheLette: segno });
+        try {
+            supabaseClient.auth.updateUser({ data: { listinoNotificheLette: segno } })
+                .then(({ error }) => { if (error) console.log('Salvataggio notifiche viste non riuscito:', error.message); })
+                .catch(err => console.log('Salvataggio notifiche viste non riuscito:', err));
+        } catch (e) {
+            console.log('Salvataggio notifiche viste non riuscito:', e);
+        }
+    }
+}
+
+async function listinoNotContaNonLette() {
+    if (typeof currentUser === 'undefined' || !currentUser) return;
+    try {
+        const { count, error } = await supabaseClient
+            .from('listino_notifiche')
+            .select('id', { count: 'exact', head: true })
+            .gt('created_at', listinoNotLetteIl())
+            .neq('utente', currentUser.email);
+        if (error) throw error;
+        listinoNotificheNonLette = count || 0;
+    } catch (err) {
+        console.log('Conteggio notifiche non riuscito:', err && err.message ? err.message : err);
+        listinoNotificheNonLette = 0;
+    }
+    listinoNotAggiornaBadge();
+}
+
+function listinoNotAggiornaBadge() {
+    const badge = document.getElementById('notifiche-badge');
+    const btn = document.getElementById('notifiche-btn');
+    if (!badge) return;
+    if (listinoNotificheNonLette > 0) {
+        badge.textContent = listinoNotificheNonLette > 99 ? '99+' : String(listinoNotificheNonLette);
+        badge.classList.remove('hidden');
+        if (btn) btn.classList.add('notifiche-btn-attivo');
+    } else {
+        badge.textContent = '';
+        badge.classList.add('hidden');
+        if (btn) btn.classList.remove('notifiche-btn-attivo');
+    }
+}
+
+function listinoNotAggiungi(n) {
+    if (!n || listinoNotifiche.some(x => x.id === n.id)) return false;
+    listinoNotifiche.unshift(n);
+    listinoNotifiche.sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)) || b.id - a.id);
+    if (listinoNotifiche.length > LISTINO_NOTIFICHE_MAX) listinoNotifiche.length = LISTINO_NOTIFICHE_MAX;
+    if (listinoNotPannelloAperto()) renderNotificheListino();
+    return true;
+}
+
+// ---------- Avvio (dopo il login) e tempo reale ----------
+async function avviaNotificheListino() {
+    if (listinoNotificheAvviate || typeof currentUser === 'undefined' || !currentUser) return;
+    listinoNotificheAvviate = true;
+
+    await listinoNotContaNonLette();
+
+    try {
+        listinoNotificheCanale = supabaseClient
+            .channel('listino-notifiche')
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'listino_notifiche' },
+                payload => listinoNotRicevuta(payload.new))
+            .subscribe();
+    } catch (err) {
+        console.log('Tempo reale notifiche non disponibile:', err);
+    }
+
+    // Quando si torna sull'app (es. telefono sbloccato) ricontrollo: il tempo reale
+    // puo' interrompersi mentre l'app e' in background
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState !== 'visible' || !currentUser) return;
+        if (listinoNotPannelloAperto()) {
+            listinoNotCaricaElenco().then(() => {
+                renderNotificheListino();
+                listinoNotSegnaLette();
+            });
+        } else {
+            listinoNotContaNonLette();
+        }
+    });
+}
+
+function listinoNotRicevuta(n) {
+    if (!n || typeof currentUser === 'undefined' || !currentUser) return;
+    if (!listinoNotAggiungi(n)) return; // gia' presente (es. l'ho appena salvata io)
+
+    // Il listino e' cambiato: aggiorno i dati se lo sto guardando
+    listinoAggiornaDaRemoto();
+
+    if (listinoNotEMia(n)) return; // fatta da me su un altro dispositivo: niente avviso
+
+    if (listinoNotPannelloAperto()) {
+        listinoNotSegnaLette();
+    } else {
+        listinoNotificheNonLette++;
+        listinoNotAggiornaBadge();
+        listinoNotMostraToast(n);
+    }
+}
+
+// Ricarica listino / storico quando un altro utente fa una modifica
+function listinoAggiornaDaRemoto() {
+    listinoStoricoCaricato = false;
+    if (!listinoCaricato) return; // il listino verra' caricato quando si apre
+
+    const sezione = document.getElementById('section-listino-vendite');
+    if (!sezione || sezione.classList.contains('hidden')) return; // si ricarica comunque all'apertura
+
+    const editModal = document.getElementById('listino-edit-modal');
+    if ((editModal && !editModal.classList.contains('hidden')) || listinoImportPlan) {
+        // Non disturbo chi sta modificando o importando: ricarico dopo
+        listinoDaAggiornare = true;
+        return;
+    }
+
+    loadListino();
+    const tabStorico = document.getElementById('tab-listino-storico');
+    if (tabStorico && tabStorico.classList.contains('active')) loadListinoStorico();
+}
+
+// ---------- Avviso a comparsa ----------
+function listinoNotChi(n) {
+    if (n.utente_nome) return n.utente_nome;
+    return String(n.utente || '').split('@')[0].toUpperCase();
+}
+
+function listinoNotMostraToast(n) {
+    const toast = document.getElementById('notifiche-toast');
+    if (!toast) return;
+    toast.innerHTML =
+        '<span class="notifiche-toast-icona">&#128276;</span>' +
+        '<div class="notifiche-toast-testo">' +
+            '<strong>' + listinoEsc(listinoNotChi(n)) + ' ' + (LISTINO_NOTIFICHE_AZIONI[n.tipo] || 'ha modificato') + '</strong>' +
+            '<span>' + listinoEsc(n.titolo) + '</span>' +
+        '</div>' +
+        '<button type="button" class="notifiche-toast-chiudi" aria-label="Chiudi">&times;</button>';
+    toast.classList.remove('hidden');
+    clearTimeout(listinoNotificheToastTimer);
+    listinoNotificheToastTimer = setTimeout(() => toast.classList.add('hidden'), 7000);
+}
+
+// ---------- Pannello notifiche ----------
+function listinoNotPannelloAperto() {
+    const modal = document.getElementById('notifiche-modal');
+    return !!(modal && !modal.classList.contains('hidden'));
+}
+
+async function listinoNotCaricaElenco() {
+    const { data, error } = await supabaseClient
+        .from('listino_notifiche')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .order('id', { ascending: false })
+        .limit(LISTINO_NOTIFICHE_MAX);
+    if (error) throw error;
+    listinoNotifiche = data || [];
+}
+
+async function apriNotificheListino() {
+    const modal = document.getElementById('notifiche-modal');
+    const lista = document.getElementById('notifiche-lista');
+    if (!modal || !lista) return;
+
+    // Toast e scelta "mostra netti" (sfocati come nel listino, solo da PC)
+    const toast = document.getElementById('notifiche-toast');
+    if (toast) toast.classList.add('hidden');
+    listinoNettiVisibili = listinoLeggiPreferenza('listinoNettiVisibili');
+    modal.classList.toggle('notifiche-netti-nascosti', !listinoNettiVisibili);
+
+    const btnProva = document.getElementById('notifiche-prova-telegram');
+    if (btnProva) btnProva.classList.toggle('hidden', !(typeof currentUserRole !== 'undefined' && currentUserRole === 'admin'));
+
+    listinoNotificheLetteAllApertura = listinoNotLetteIl();
+    lista.innerHTML = '<p class="notifiche-vuoto">&#8987; Caricamento...</p>';
+    modal.classList.remove('hidden');
+
+    try {
+        await listinoNotCaricaElenco();
+    } catch (err) {
+        console.log('Caricamento notifiche non riuscito:', err);
+        lista.innerHTML = '<p class="notifiche-vuoto">&#10060; Notifiche non disponibili: ' + listinoEsc(err.message || err) + '</p>';
+        return;
+    }
+    renderNotificheListino();
+    listinoNotSegnaLette();
+}
+
+function chiudiNotificheListino() {
+    const modal = document.getElementById('notifiche-modal');
+    if (modal) modal.classList.add('hidden');
+}
+
+function listinoNotDataOra(iso) {
+    if (!iso) return '-';
+    const d = new Date(iso);
+    const ora = String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+    const oggi = new Date();
+    const ieri = new Date();
+    ieri.setDate(oggi.getDate() - 1);
+    if (d.toDateString() === oggi.toDateString()) return 'oggi ' + ora;
+    if (d.toDateString() === ieri.toDateString()) return 'ieri ' + ora;
+    return listinoDataBreve(iso) + ' ' + ora;
+}
+
+function listinoNotRigaHtml(r) {
+    if (typeof r === 'string') return '<li class="notifica-riga">' + listinoEsc(r) + '</li>';
+    const etichetta = r.e ? '<span class="notifica-etichetta">' + listinoEsc(r.e) + (r.v ? ':' : '') + '</span> ' : '';
+    const valore = r.v ? '<span class="notifica-val"' + (r.n ? ' title="Clicca per mostrare"' : '') + '>' + listinoEsc(r.v) + '</span>' : '';
+    return '<li class="notifica-riga' + (r.n ? ' notifica-riga-netti' : '') + '">' + etichetta + valore + '</li>';
+}
+
+function renderNotificheListino() {
+    const lista = document.getElementById('notifiche-lista');
+    if (!lista) return;
+
+    if (listinoNotifiche.length === 0) {
+        lista.innerHTML = '<p class="notifiche-vuoto">Nessuna modifica al listino registrata.</p>';
+        return;
+    }
+
+    const lette = listinoNotificheLetteAllApertura || LISTINO_NOT_DATA_ZERO;
+    let html = '';
+    listinoNotifiche.forEach(n => {
+        const nuova = !listinoNotEMia(n) && String(n.created_at) > lette;
+        const righe = Array.isArray(n.righe) ? n.righe : [];
+        const visibili = righe.slice(0, LISTINO_NOTIFICHE_RIGHE_VISIBILI);
+        const altre = righe.slice(LISTINO_NOTIFICHE_RIGHE_VISIBILI);
+        const chi = listinoNotEMia(n) ? 'Tu' : listinoNotChi(n);
+
+        html +=
+            '<div class="notifica-item notifica-' + listinoEsc(String(n.tipo || '').toLowerCase()) + (nuova ? ' notifica-nuova' : '') + '">' +
+                '<div class="notifica-testa">' +
+                    '<span class="notifica-icona">' + (LISTINO_NOTIFICHE_ICONE[n.tipo] || '&#128276;') + '</span>' +
+                    '<div class="notifica-info">' +
+                        '<div class="notifica-titolo">' + listinoEsc(n.titolo) + '</div>' +
+                        '<div class="notifica-meta">' +
+                            (nuova ? '<span class="notifica-pallino">NUOVA</span> ' : '') +
+                            listinoEsc(chi) + ' &middot; ' + listinoEsc(listinoNotDataOra(n.created_at)) +
+                            ' &middot; ' + listinoEsc(LISTINO_NOTIFICHE_TIPI[n.tipo] || n.tipo) +
+                        '</div>' +
+                    '</div>' +
+                '</div>' +
+                (visibili.length > 0 ? '<ul class="notifica-righe">' + visibili.map(listinoNotRigaHtml).join('') + '</ul>' : '') +
+                (altre.length > 0
+                    ? '<details class="notifica-altre"><summary>Mostra altre ' + altre.length + ' righe</summary>' +
+                        '<ul class="notifica-righe">' + altre.map(listinoNotRigaHtml).join('') + '</ul></details>'
+                    : '') +
+                (n.cerca
+                    ? '<button type="button" class="btn-back notifica-vai" data-cerca="' + listinoEsc(n.cerca) + '" data-tipo="' +
+                        listinoEsc(n.tipo) + '">&#128269; Vai all\'articolo</button>'
+                    : '') +
+            '</div>';
+    });
+    lista.innerHTML = html;
+}
+
+// Apre il listino gia' filtrato sull'articolo della notifica
+function listinoNotVaiArticolo(cerca, tipo) {
+    chiudiNotificheListino();
+    sessionStorage.setItem('listinoTab', tipo === 'CANCELLATO' ? 'cancellati' : 'elenco');
+    const search = document.getElementById('listino-search');
+    if (search) search.value = cerca || '';
+    LISTINO_FILTRI.forEach(f => {
+        const el = document.getElementById(f.id);
+        if (el) el.value = '';
+    });
+    if (typeof openSection === 'function') openSection('listino-vendite');
+}
+
+// Pulsante (solo admin) per controllare che Telegram sia configurato bene
+async function provaTelegramListino() {
+    const btn = document.getElementById('notifiche-prova-telegram');
+    const testo = btn ? btn.innerHTML : '';
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '&#8987; Invio in corso...';
+    }
+    let esito = null;
+    try {
+        const { data, error } = await supabaseClient.functions.invoke('notifica-telegram', { body: { prova: true } });
+        if (error) {
+            let messaggio = error.message || String(error);
+            try {
+                if (error.context && typeof error.context.json === 'function') {
+                    const corpo = await error.context.json();
+                    if (corpo && corpo.errore) messaggio = corpo.errore;
+                }
+            } catch (e) { /* ignora */ }
+            esito = { ok: false, errore: messaggio };
+        } else if (data && data.ok === true) {
+            esito = data;
+        } else {
+            // La funzione ha risposto, ma non con il codice di AGRIMAG
+            // (es. e' rimasto il codice d'esempio di Supabase): mostro cosa ha risposto
+            let testoRisposta = '';
+            try {
+                testoRisposta = typeof data === 'string' ? data : JSON.stringify(data);
+            } catch (e) {
+                testoRisposta = String(data);
+            }
+            esito = {
+                ok: false,
+                errore: (data && data.errore) ? data.errore
+                    : 'Risposta inattesa dalla funzione: ' + String(testoRisposta || '(vuota)').slice(0, 200)
+            };
+        }
+    } catch (err) {
+        esito = { ok: false, errore: err && err.message ? err.message : String(err) };
+    }
+    if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = testo;
+    }
+
+    if (esito && esito.ok) {
+        await showCustomAlert('Messaggio di prova inviato: controlla il gruppo Telegram.', 'Telegram OK', '&#10004;');
+    } else {
+        await showCustomAlert(
+            'Il messaggio non &#232; partito:<br><strong>' + listinoEsc(esito && esito.errore ? esito.errore : 'errore sconosciuto') + '</strong><br><br>' +
+            'Controlla su Supabase che la funzione <strong>notifica-telegram</strong> sia pubblicata (con &quot;Verify JWT&quot; spento) ' +
+            'e che i secrets TELEGRAM_BOT_TOKEN e TELEGRAM_CHAT_ID siano giusti.',
+            'Telegram non configurato', '&#9888;&#65039;'
+        );
+    }
+}
+
+function listinoNotImpostaEventi() {
+    const btn = document.getElementById('notifiche-btn');
+    if (btn) btn.addEventListener('click', apriNotificheListino);
+
+    const modal = document.getElementById('notifiche-modal');
+    if (modal) {
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                chiudiNotificheListino();
+                return;
+            }
+            const vai = e.target.closest('.notifica-vai');
+            if (vai) {
+                listinoNotVaiArticolo(vai.dataset.cerca, vai.dataset.tipo);
+                return;
+            }
+            // Netti sfocati: un clic sul valore lo mostra
+            const riga = e.target.closest('.notifica-riga-netti');
+            if (riga) riga.classList.toggle('svelata');
+        });
+    }
+
+    const btnClose = document.getElementById('notifiche-close');
+    if (btnClose) btnClose.addEventListener('click', chiudiNotificheListino);
+    const btnOk = document.getElementById('notifiche-ok');
+    if (btnOk) btnOk.addEventListener('click', chiudiNotificheListino);
+    const btnProva = document.getElementById('notifiche-prova-telegram');
+    if (btnProva) btnProva.addEventListener('click', provaTelegramListino);
+
+    const toast = document.getElementById('notifiche-toast');
+    if (toast) {
+        toast.addEventListener('click', (e) => {
+            toast.classList.add('hidden');
+            if (!e.target.closest('.notifiche-toast-chiudi')) apriNotificheListino();
+        });
+    }
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && listinoNotPannelloAperto()) chiudiNotificheListino();
+    });
+}
+
+// ========================================
 // EVENT LISTENERS
 // ========================================
 document.addEventListener('DOMContentLoaded', () => {
@@ -1748,6 +2381,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (btnStoricoTxt) btnStoricoTxt.addEventListener('click', downloadStoricoTxt);
     const btnStoricoPdf = document.getElementById('listino-storico-pdf');
     if (btnStoricoPdf) btnStoricoPdf.addEventListener('click', stampaStorico);
+    // Notifiche (campanella, pannello, avviso a comparsa)
+    listinoNotImpostaEventi();
 });
 
 // ========================================
@@ -1764,3 +2399,6 @@ window.downloadStoricoTxt = downloadStoricoTxt;
 window.openListinoEdit = openListinoEdit;
 window.closeListinoEdit = closeListinoEdit;
 window.stampaStorico = stampaStorico;
+window.avviaNotificheListino = avviaNotificheListino;
+window.apriNotificheListino = apriNotificheListino;
+window.chiudiNotificheListino = chiudiNotificheListino;
