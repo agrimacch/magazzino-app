@@ -11,7 +11,7 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 // ========================================
 // VARIABILI GLOBALI
 // ========================================
-const CURRENT_VERSION = '4.9.5';
+const CURRENT_VERSION = '4.10.0';
 const SHOW_WHATS_NEW_POPUP = true;
 
 let currentUser = null;
@@ -575,6 +575,10 @@ function openSection(sectionName) {
     } else if (sectionName === 'vendite') {
         // Entrando dal menu Vendite il listino riparte dalla scheda "Listino"
         sessionStorage.removeItem('listinoTab');
+    } else if (sectionName === 'listini-fornitori') {
+        if (typeof openListiniFornitori === 'function') {
+            openListiniFornitori();
+        }
     } else if (sectionName === 'listino-vendite') {
         if (typeof openListinoVendite === 'function') {
             openListinoVendite();

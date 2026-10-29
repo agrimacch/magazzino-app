@@ -15,7 +15,7 @@ STRUTTURA APP (v4.10.0)
 
 Dashboard con 3 card dopo il login:
 - Magazzino: Inventario Consumabili, Inventario Ricambi Stock, Scanner (solo mobile)
-- Vendite (admin E operatori, con gli stessi permessi): Listino Vendite, Listini Fornitori (ancora "in costruzione")
+- Vendite (admin E operatori, con gli stessi permessi): Listino Vendite, Listini Fornitori (PDF su Google Drive)
 - Gestione Utenti (solo admin)
 
 Sezione Ricambi Stock completa con import Excel (max 100 righe), movimenti dedicati e report.
@@ -25,6 +25,8 @@ Maiuscolo automatico: tutti i campi testo convertiti in MAIUSCOLO al salvataggio
 Consumabili e Ricambi: dentro ogni fornitore gli articoli sono in ordine di CODICE ARTICOLO (ordine naturale: X30 prima di X100).
   Anche i Consumabili hanno la voce "Codice (A-Z)" nel menu ordinamento.
   Dopo carico/scarico/modifica i filtri e la ricerca RESTANO (si azzerano solo entrando nella sezione). Vale anche per i movimenti.
+Sezioni Consumabili, Ricambi, Scanner, Listino Vendite, Listini Fornitori: oltre a "Torna a Magazzino/Vendite" c'e' il pulsante
+  "Dashboard" (classe .back-buttons in style.css).
 Finestre (pop-up) con campi: pulsanti Salva/Conferma/Annulla sempre visibili in fondo mentre si scorre (sticky);
   da telefono partono dall'alto e usano il 92% dello schermo (dvh, per le barre di Safari). Regole in style.css, sezione "FINESTRE".
 
@@ -36,7 +38,11 @@ FILE PRINCIPALI
 - app.js - logica consumabili, navigazione, ruoli, login
 - ricambi-functions.js - logica ricambi stock (contiene anche showCustomAlert)
 - listino-functions.js - logica Listino Vendite (NUOVO)
-- update-version.sh - aggiorna versione, cache di tutti i file css/js (anche listino), pop-up novita'
+- fornitori-functions.js + fornitori.css - Listini Fornitori (v4.10.0)
+- update-version.sh - aggiorna versione, cache di TUTTI i file .css/.js con "?v=" (regola unica, vale anche per file nuovi), pop-up novita'
+- google/listini-drive.gs - script Google (account aziendale, script.google.com, pubblicato come App web "Esegui come: Me", accesso "Chiunque")
+- supabase/listini-drive.ts - Edge Function "listini-drive" (Verify JWT spento; secrets DRIVE_SCRIPT_URL, DRIVE_SCRIPT_KEY)
+- GUIDA_LISTINI_FORNITORI.md - guida passo passo di configurazione
 - supabase/listino-notifiche-setup.sql - script tabella notifiche (eseguito su Supabase)
 - supabase/notifica-telegram.ts - codice della Edge Function Telegram (incollato su Supabase, NON gira nell'app)
 
@@ -55,7 +61,7 @@ TABELLE SUPABASE
 - listino_storico_netti (NUOVA): ogni netto registrato con articolo_id, modello, netto, note, origine
   (IMPORT INIZIALE / AGGIORNAMENTO / NUOVO ARTICOLO / MODIFICA APP), utente, data_registrazione
 - listino_notifiche (NUOVA v4.9.0): una riga per ogni modifica al listino
-  e (dalla v4.10.0) anche gli avvisi di magazzino: il nome e' rimasto "listino_notifiche" ma la tabella e' per tutte le notifiche
+  e (dalla v4.9.5) anche gli avvisi di magazzino: il nome e' rimasto "listino_notifiche" ma la tabella e' per tutte le notifiche
   colonne: created_at, utente (email), utente_nome (iniziali), tipo (MODIFICA / NUOVO / CANCELLATO / RIPRISTINATO / IMPORT /
   SOTTOSOGLIA_CONSUMABILI / ESAURITO_CONSUMABILI / ESAURITO_RICAMBI),
   titolo, righe (jsonb: [{e: etichetta, v: valore, n: true se e' un netto}]), articolo_id, cerca (testo per "Vai all'articolo")
@@ -104,7 +110,7 @@ Modifica dall'app:
 - Controllo doppioni (stesso marchio + modello + note)
 - REGOLA DI LAVORO SCELTA: prima di lavorare sul mio Excel scarico SEMPRE il listino aggiornato dall'app e lavoro su quello
 
-NOTIFICHE (v4.9.0, magazzino dalla v4.10.0):
+NOTIFICHE (v4.9.0, magazzino dalla v4.9.5):
 - Ogni modifica al listino di qualsiasi utente (modifica articolo, nuovo, sposta in cancellati, ripristina, import Excel)
   salva una riga in listino_notifiche e chiama la Edge Function notifica-telegram (messaggio nel gruppo Telegram).
 - Salvataggio senza cambiamenti = nessuna notifica. Import = un solo messaggio di riepilogo (max 25 righe su Telegram, max 300 salvate).
@@ -113,7 +119,7 @@ NOTIFICHE (v4.9.0, magazzino dalla v4.10.0):
 - Pannello "Notifiche": mostra SOLO le novita' non ancora viste; chiudendolo spariscono (non c'e' storico da consultare).
   "Vai all'articolo" apre il listino (o Consumabili/Ricambi) gia' filtrato. Netti sfocati da PC se "Mostra netti e note" e' spenta.
   Admin: pulsante "Prova Telegram".
-- MAGAZZINO (promemoria ordini, v4.10.0): funzione magazzinoNotificaScorta(sezione, prima, dopo) in listino-functions.js,
+- MAGAZZINO (promemoria ordini, v4.9.5): funzione magazzinoNotificaScorta(sezione, prima, dopo) in listino-functions.js,
   chiamata dopo carico/scarico (anche da Scanner) e dopo la modifica articolo/ricambio. Scatta SOLO nel momento in cui si passa il limite:
   * Consumabili: SOTTO SOGLIA quando la quantita' passa da sopra a <= soglia_minima (e resta > 0); ESAURITO quando arriva a 0
   * Ricambi stock: solo ESAURITO (la soglia dei ricambi e' fissa a 1 e non si gestisce)
@@ -143,13 +149,26 @@ SICUREZZA E SUPABASE
 - Nota: lo sfocamento dei netti e' solo visivo (serve se qualcuno guarda lo schermo).
 
 
+LISTINI FORNITORI (v4.10.0)
+- PDF su Google Drive dell'account AZIENDALE, cartella principale condivisa con i colleghi (Editor: anche gli operatori caricano).
+  Struttura: CARTELLA / FORNITORE / file (fornitore diretto) oppure CARTELLA / IMPORTATORE / MARCHIO / file.
+  Nomi file: "LISTINO 2026", "CATALOGO 2026" (+ nota dopo l'anno). Sottocartella ARCHIVIO dentro un marchio = archiviati.
+- Flusso: app -> Edge Function listini-drive (controlla login, aggiunge la chiave segreta) -> script Google doGet(key) -> JSON
+  {ok, aggiornato, cartella{nome,url}, fornitori[{nome,url,marchi[{nome,url,diretto,file[{id,nome,url,tipo,dimensione,modificato,creato,cartella}]}]}], fuoriPosto[]}
+  Lo script tiene l'elenco in cache 10 minuti; "Aggiorna elenco" nell'app forza la rilettura (aggiorna=1).
+- App: guida "Come caricare e aggiornare i listini" in cima, ricerca (fornitore/marchio/nome file), schede per fornitore,
+  per marchio listino e catalogo dell'anno piu' recente in evidenza, altri anni in "Archivio", avviso per nomi fuori regola,
+  avviso file nella cartella principale. I file si aprono su Google Drive (nuova scheda / app Drive).
+- Telegram: lo script ha un attivatore ogni 15 minuti (controllaNuoviFile) che manda "Nuovo"/"Aggiornato" con link.
+  Token e chat id sono scritti nelle prime righe dello script (oltre che nei secrets Supabase).
+- Se si modifica lo script: Esegui il deployment > Gestisci deployment > matita > Nuova versione (l'URL resta uguale).
+
 POP-UP "NOVITA'"
 - Non ricompare a ogni login su mobile (vista salvata in localStorage, user_metadata.lastSeenVersion e flag di sessione)
 - Per mostrarne uno nuovo: ./update-version.sh, rispondere "s" al pop-up e scrivere le novita'
 
 
 DA FARE PIU' AVANTI
-- Listini Fornitori (ancora pagina "in costruzione")
 - Disattivare le chiavi legacy di Supabase
 - Bug Safari/WebKit (contenuto che sparisce ridimensionando la finestra) non del tutto risolto, Firefox ok
 

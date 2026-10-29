@@ -59,7 +59,7 @@ Dashboard
   |
   |-- Vendite
   |     |-- Listino Vendite      (in costruzione)
-  |     |-- Listini Fornitori    (in costruzione)
+  |     |-- Listini Fornitori    (PDF su Google Drive)
   |
   |-- Gestione Utenti            (solo admin)
 ```
@@ -184,7 +184,7 @@ Su iPhone serve connessione sicura (HTTPS): il sito su Vercel &egrave; gi&agrave
 ## 8. VENDITE
 
 - **Listino Vendite**: listino macchine con filtri, import Excel con anteprima, storico netti e articoli cancellati. Admin e operatori hanno gli stessi permessi.
-- **Listini Fornitori**: ancora in costruzione.
+- **Listini Fornitori**: listini e cataloghi PDF dei fornitori, presi da Google Drive (vedi 8.3).
 
 ### 8.1 Notifiche delle modifiche al listino (v4.9.0)
 Ogni modifica al listino (modifica di un articolo, nuovo articolo, spostamento nei cancellati, ripristino, import Excel) viene registrata e notificata a tutti:
@@ -196,7 +196,7 @@ Ogni modifica al listino (modifica di un articolo, nuovo articolo, spostamento n
 - Se salvi un articolo senza cambiare nulla, non parte nessuna notifica. Le tue modifiche non fanno salire il tuo numerino.
 - Gli admin hanno nell'elenco il pulsante **Prova Telegram** per controllare che il bot funzioni.
 
-### 8.2 Promemoria ordini: articoli sotto soglia ed esauriti (v4.10.0)
+### 8.2 Promemoria ordini: articoli sotto soglia ed esauriti (v4.9.5)
 Quando un carico/scarico (anche dallo Scanner) o una modifica fa scendere un articolo di magazzino al limite, parte un avviso a tutti, in app (campanella da PC, avviso a comparsa anche da telefono) e su Telegram:
 
 - **Consumabili**: *Sotto soglia - da ordinare* quando la quantit&agrave; scende alla soglia minima o sotto; *Esaurito - da ordinare* quando arriva a 0.
@@ -204,7 +204,20 @@ Quando un carico/scarico (anche dallo Scanner) o una modifica fa scendere un art
 - L'avviso parte solo nel momento in cui si supera il limite, non a ogni scarico successivo. I carichi non generano avvisi.
 - *Vai all'articolo* apre Consumabili o Ricambi gi&agrave; filtrati sul codice dell'articolo.
 
-Configurazione: tabella `listino_notifiche` (script `supabase/listino-notifiche-setup.sql`), funzione Supabase `notifica-telegram` (file `supabase/notifica-telegram.ts`) con i secrets `TELEGRAM_BOT_TOKEN` e `TELEGRAM_CHAT_ID`.
+### 8.3 Listini Fornitori (v4.10.0)
+I PDF stanno su **Google Drive**, nella cartella aziendale dei listini, condivisa con i colleghi. L'app legge le cartelle da sola: per aggiungere fornitori o listini **non si modifica l'app**.
+
+- **Cartelle**: `FORNITORE / file` per i fornitori diretti, `IMPORTATORE / MARCHIO / file` per gli importatori.
+- **Nomi dei file**: `LISTINO 2026`, `CATALOGO 2026`, con un'eventuale nota dopo l'anno (`LISTINO 2026 RICAMBI`).
+- Per ogni marchio l'app mette in evidenza listino e catalogo dell'**anno pi&ugrave; recente**; gli altri anni (e i file in una sottocartella `ARCHIVIO`) vanno in **Archivio**.
+- I file con il nome fuori regola si vedono lo stesso, con un avviso. I file lasciati nella cartella principale vengono segnalati.
+- Toccando un file si apre su Google Drive (da telefono nell'app Drive: sfogliare, cercare, salvare offline).
+- **Telegram**: lo script Google controlla ogni 15 minuti se ci sono file nuovi o aggiornati e manda un messaggio al gruppo.
+- La guida per caricare e aggiornare i listini &egrave; scritta anche nell'app, in cima alla sezione.
+
+Configurazione (una volta sola): vedi `GUIDA_LISTINI_FORNITORI.md`. Pezzi: script Google `google/listini-drive.gs` (account aziendale, pubblicato come App web), funzione Supabase `listini-drive` (file `supabase/listini-drive.ts`) con i secrets `DRIVE_SCRIPT_URL` e `DRIVE_SCRIPT_KEY`.
+
+Configurazione notifiche: tabella `listino_notifiche` (script `supabase/listino-notifiche-setup.sql`), funzione Supabase `notifica-telegram` (file `supabase/notifica-telegram.ts`) con i secrets `TELEGRAM_BOT_TOKEN` e `TELEGRAM_CHAT_ID`.
 
 ---
 
@@ -237,7 +250,10 @@ Percorso: Dashboard &rarr; Gestione Utenti.
 | `app.js` | Login, navigazione, consumabili, scanner, utenti, pop-up novit&agrave; |
 | `ricambi-functions.js` | Tutta la logica dei ricambi stock |
 | `listino-functions.js`, `listino.css` | Listino Vendite e notifiche (campanella) |
-| `supabase/` | Script SQL e codice della funzione Telegram (si usano dal sito di Supabase) |
+| `fornitori-functions.js`, `fornitori.css` | Listini Fornitori (cartelle Google Drive) |
+| `supabase/` | Script SQL e codice delle funzioni Supabase (notifica-telegram, listini-drive) |
+| `google/listini-drive.gs` | Script Google dei listini (si incolla su script.google.com) |
+| `GUIDA_LISTINI_FORNITORI.md` | Guida di configurazione Drive + script + Supabase |
 | `manifest.json` | Impostazioni per installare l'app sul telefono |
 | `VERSION.md` | Storico versioni |
 | `push-all.sh`, `update-version.sh`, `start-https-server.sh` | Script di aiuto |
@@ -314,7 +330,8 @@ git rm --cached localhost.pem localhost-key.pem
 
 ## 15. STORICO MODIFICHE PRINCIPALI
 
-- **v4.10.0 (ott 2026)** - Promemoria ordini: notifiche (app e Telegram) per consumabili sotto soglia o esauriti e ricambi esauriti; filtri che restano dopo carico/scarico; ordinamento per codice articolo; finestre con pulsanti sempre visibili; prezzo "No promo" da mobile.
+- **v4.10.0 (ott 2026)** - Listini Fornitori: PDF su Google Drive letti in automatico dall'app (fornitori, marchi, pi&ugrave; recenti e archivio), guida in app, avvisi Telegram dei file nuovi o aggiornati.
+- **v4.9.5 (ott 2026)** - Promemoria ordini: notifiche (app e Telegram) per consumabili sotto soglia o esauriti e ricambi esauriti; filtri che restano dopo carico/scarico; ordinamento per codice articolo; finestre con pulsanti sempre visibili; prezzo "No promo" da mobile; pulsante "Dashboard" accanto a "Torna a Magazzino/Vendite".
 - **v4.9.0 (ott 2026)** - Notifiche delle modifiche al listino: campanella in app con avvisi in tempo reale e messaggi Telegram.
 - **v4.8.0 (ott 2026)** - Listino Vendite completo (import Excel, storico netti, articoli cancellati), aperto anche agli operatori.
 - **v4.7.5 (2026)** - Pop-up novit&agrave; non ricompare pi&ugrave; ad ogni login su mobile; passaggio alla nuova chiave pubblicabile Supabase; password non pi&ugrave; salvata nel browser; nuova Dashboard con categorie **Magazzino** e **Vendite**; correzione ripristino scheda Ricambi dopo refresh; spegnimento fotocamera uscendo dallo Scanner.

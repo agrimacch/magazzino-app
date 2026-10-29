@@ -140,11 +140,8 @@ if [ -f "index.html" ]; then
     sed -i.bak "s/<div class=\"version-badge\">v[0-9.]*<\/div>/<div class=\"version-badge\">v$NEW_VERSION<\/div>/g" index.html
 
     # 3b. Cache CSS e JS (cosi' i browser scaricano sempre i file nuovi)
-    sed -i.bak "s/style\.css?v=[0-9.]*/style.css?v=$NEW_VERSION/g" index.html
-    sed -i.bak "s/listino\.css?v=[0-9.]*/listino.css?v=$NEW_VERSION/g" index.html
-    sed -i.bak "s/app\.js?v=[0-9.]*/app.js?v=$NEW_VERSION/g" index.html
-    sed -i.bak "s/listino-functions\.js?v=[0-9.]*/listino-functions.js?v=$NEW_VERSION/g" index.html
-    sed -i.bak "s/ricambi-functions\.js?v=[0-9.]*/ricambi-functions.js?v=$NEW_VERSION/g" index.html
+    #     Vale per TUTTI i file .css e .js dell'app che hanno "?v=" (anche quelli aggiunti in futuro)
+    sed -i.bak -E "s/([A-Za-z0-9_-]+\.(css|js))\?v=[0-9.]+/\1?v=$NEW_VERSION/g" index.html
 
     # 3c. Titolo popup
     perl -i.bak -pe "s|<h3>&#127881; AGRIMAG v[0-9.]+[^<]*</h3>|<h3>&#127881; AGRIMAG v$NEW_VERSION - Aggiornamento!</h3>|g" index.html

@@ -17,8 +17,9 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=4.9.5">
-    <link rel="stylesheet" href="listino.css?v=4.9.5">
+    <link rel="stylesheet" href="style.css?v=4.10.0">
+    <link rel="stylesheet" href="listino.css?v=4.10.0">
+    <link rel="stylesheet" href="fornitori.css?v=4.10.0">
 
     <!-- SheetJS per import Excel -->
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
@@ -79,7 +80,7 @@
 
 <body class="loading">
     <!-- Version badge -->
-    <div class="version-badge">v4.9.5</div>
+    <div class="version-badge">v4.10.0</div>
 
     <!-- SCHERMATA LOGIN -->
     <div id="login-screen" class="screen">
@@ -385,7 +386,7 @@
         </div>
 
         <!-- ========================================== -->
-        <!-- SEZIONE LISTINI FORNITORI (segnaposto: da costruire) -->
+        <!-- SEZIONE LISTINI FORNITORI (PDF su Google Drive) -->
         <!-- ========================================== -->
         <div id="section-listini-fornitori" class="section-container hidden">
             <div class="back-to-dashboard">
@@ -400,10 +401,66 @@
                 <h2 class="section-title">&#128209; Listini Fornitori</h2>
             </div>
             <div class="container">
-                <div class="card placeholder-card">
-                    <span class="placeholder-icon">&#128679;</span>
-                    <h2>Sezione in costruzione</h2>
-                    <p>I Listini Fornitori saranno disponibili in un prossimo aggiornamento.</p>
+                <!-- Guida: resta sempre scritta nell'app -->
+                <details class="card fornitori-guida">
+                    <summary>&#128214; Come caricare e aggiornare i listini</summary>
+                    <div class="fornitori-guida-testo">
+                        <p>I listini e i cataloghi stanno su <strong>Google Drive</strong>, nella cartella aziendale dei listini
+                        (pulsante <em>Apri cartella su Drive</em>). L'app legge le cartelle da sola: <strong>non serve modificare nulla nell'app</strong>.</p>
+
+                        <h4>1. Le cartelle</h4>
+                        <ul>
+                            <li><strong>Fornitore diretto</strong> (es. Honda, John Deere): una cartella col nome del fornitore, con dentro i file.<br>
+                                <code>HONDA / LISTINO 2026.pdf</code></li>
+                            <li><strong>Importatore con pi&ugrave; marchi</strong>: cartella dell'importatore e dentro una sottocartella per ogni marchio.<br>
+                                <code>ROSSI SRL / STIHL / LISTINO 2026.pdf</code></li>
+                            <li>Il nome che vedi nell'app &egrave; quello della cartella: scrivilo come vuoi vederlo (es. <code>JOHN DEERE</code>).</li>
+                        </ul>
+
+                        <h4>2. Il nome dei file</h4>
+                        <ul>
+                            <li><strong>LISTINO</strong> oppure <strong>CATALOGO</strong>, poi l'<strong>anno</strong>: <code>LISTINO 2026</code>, <code>CATALOGO 2026</code></li>
+                            <li>Se servono pi&ugrave; file nello stesso anno, aggiungi una nota dopo l'anno: <code>LISTINO 2026 RICAMBI</code>, <code>CATALOGO 2026 ATTREZZI</code></li>
+                            <li>Maiuscole, minuscole, spazi o trattini bassi vanno bene. Se il nome non segue la regola il file si vede lo stesso, con un avviso.</li>
+                        </ul>
+
+                        <h4>3. Arriva il listino nuovo</h4>
+                        <ul>
+                            <li>Caricalo nella cartella giusta chiamandolo con il nuovo anno (es. <code>LISTINO 2027</code>).</li>
+                            <li>L'app lo mette in evidenza da sola e sposta il vecchio in <strong>Archivio</strong>. Il vecchio puoi lasciarlo o spostarlo in una sottocartella <code>ARCHIVIO</code>.</li>
+                            <li>Entro 15 minuti arriva l'avviso nel gruppo Telegram.</li>
+                        </ul>
+
+                        <h4>4. Correggere un file dello stesso anno</h4>
+                        <ul>
+                            <li>Su Google Drive: tasto destro sul file &#8594; <strong>Informazioni sul file &#8594; Gestisci versioni &#8594; Carica nuova versione</strong>.
+                                Il file viene sostituito e il link resta lo stesso.</li>
+                        </ul>
+
+                        <h4>5. Consigli</h4>
+                        <ul>
+                            <li>Se un PDF &egrave; molto pesante, comprimilo prima di caricarlo: si apre prima dal telefono.</li>
+                            <li>Da telefono puoi rendere un listino <strong>disponibile offline</strong> dall'app Google Drive.</li>
+                            <li>Se un file appena caricato non compare, premi <strong>Aggiorna elenco</strong>.</li>
+                        </ul>
+                    </div>
+                </details>
+
+                <div class="search-bar">
+                    <input type="text" id="fornitori-search" placeholder="&#128269; Cerca fornitore, marchio o listino...">
+                </div>
+
+                <div class="fornitori-barra">
+                    <span id="fornitori-count"></span>
+                    <div class="fornitori-barra-pulsanti">
+                        <a id="fornitori-cartella" class="btn-back hidden" href="#" target="_blank" rel="noopener">&#128193; Apri cartella su Drive</a>
+                        <button type="button" id="fornitori-aggiorna" class="btn-back">&#128260; Aggiorna elenco</button>
+                    </div>
+                </div>
+                <p id="fornitori-stato" class="fornitori-stato"></p>
+
+                <div id="fornitori-container">
+                    <!-- Contenuto dinamico -->
                 </div>
             </div>
         </div>
@@ -1276,20 +1333,12 @@
     <div id="whats-new-modal" class="modal hidden">
         <div class="modal-content whats-new-content">
             <div class="whats-new-header">
-                <h3>&#127881; AGRIMAG v4.9.5 - Aggiornamento!</h3>
+                <h3>&#127881; AGRIMAG v4.10.0 - Aggiornamento!</h3>
                 <p class="version-date">29 Ottobre 2026</p>
             </div>
 
             <!-- INIZIO_FEATURES -->
             <div class="whats-new-body">
-
-                <div class="new-feature">
-                    <span class="feature-icon">&#128276;</span>
-                    <div class="feature-content">
-                        <h4>NOTIFICHE TELEGRAM ATTIVE</h4>
-                        <p></p>
-                    </div>
-                </div>
 
             </div>
             <!-- FINE_FEATURES -->
@@ -1340,8 +1389,9 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- Versione bloccata (la libreria non e' piu' mantenuta: cosi' non cambia mai da sola) -->
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-    <script src="ricambi-functions.js?v=4.9.5"></script>
-    <script src="listino-functions.js?v=4.9.5"></script>
-    <script src="app.js?v=4.9.5"></script>
+    <script src="ricambi-functions.js?v=4.10.0"></script>
+    <script src="listino-functions.js?v=4.10.0"></script>
+    <script src="fornitori-functions.js?v=4.10.0"></script>
+    <script src="app.js?v=4.10.0"></script>
 </body>
 </html>

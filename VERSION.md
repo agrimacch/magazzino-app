@@ -1,5 +1,8 @@
 # Changelog App Magazzino
 
+## v4.10.0 - 2026-10-29 (PRODUZIONE)
+
+
 ## v4.9.5 - 2026-10-29 (PRODUZIONE)
 notifiche anche per i consumabili
 
