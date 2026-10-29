@@ -14,6 +14,28 @@
 let fornitoriDati = null;        // ultima risposta della funzione
 let fornitoriCaricamento = false;
 let fornitoriSearchTimeout = null;
+let fornitoriAperti = fornLeggiAperti();  // fornitori aperti (ricordati durante la sessione)
+const FORNITORI_GIORNI_NOVITA = 7;        // file caricati/aggiornati da meno di 7 giorni = "NUOVO"
+
+function fornLeggiAperti() {
+    try {
+        const v = JSON.parse(sessionStorage.getItem('fornitoriAperti') || '[]');
+        return new Set(Array.isArray(v) ? v : []);
+    } catch (e) {
+        return new Set();
+    }
+}
+
+function fornSalvaAperti() {
+    try {
+        sessionStorage.setItem('fornitoriAperti', JSON.stringify(Array.from(fornitoriAperti)));
+    } catch (e) { /* ignora */ }
+}
+
+function fornERecente(iso) {
+    const d = new Date(iso);
+    return !isNaN(d.getTime()) && (Date.now() - d.getTime()) < FORNITORI_GIORNI_NOVITA * 24 * 3600 * 1000;
+}
 
 const FORNITORI_TIPI = {
     LISTINO: { etichetta: 'Listino', icona: '&#128210;' },
@@ -245,8 +267,31 @@ function renderListiniFornitori() {
     }
 
     const ricerca = fornTestoRicerca();
-    const fornitori = (fornitoriDati.fornitori || []).slice()
+    // Cartelle vuote nascoste: si vedono solo i marchi con almeno un file
+    // e i fornitori con almeno un marchio non vuoto
+    let marchiVuoti = 0;
+    let fornitoriVuoti = 0;
+    const fornitori = (fornitoriDati.fornitori || [])
+        .map(f => {
+            const pieni = (f.marchi || []).filter(m => (m.file || []).length > 0);
+            marchiVuoti += (f.marchi || []).filter(m => !m.diretto && (m.file || []).length === 0).length;
+            return Object.assign({}, f, { marchi: pieni });
+        })
+        .filter(f => {
+            if (f.marchi.length > 0) return true;
+            fornitoriVuoti++;
+            return false;
+        })
         .sort((a, b) => String(a.nome).localeCompare(String(b.nome), 'it', { numeric: true }));
+
+    if (stato) {
+        const nascosti = [];
+        if (fornitoriVuoti > 0) nascosti.push(fornitoriVuoti + (fornitoriVuoti === 1 ? ' fornitore' : ' fornitori'));
+        if (marchiVuoti > 0) nascosti.push(marchiVuoti + (marchiVuoti === 1 ? ' marchio' : ' marchi'));
+        if (nascosti.length > 0) {
+            stato.textContent += ' \u00B7 non mostrati perch\u00E9 senza file: ' + nascosti.join(' e ');
+        }
+    }
 
     let html = '';
     let mostrati = 0;
@@ -260,35 +305,54 @@ function renderListiniFornitori() {
     }
 
     fornitori.forEach(fornitore => {
-        const marchi = (fornitore.marchi || []).slice()
+        const tuttiMarchi = (fornitore.marchi || []).slice()
             .sort((a, b) => (a.diretto ? -1 : 0) - (b.diretto ? -1 : 0) ||
-                String(a.nome).localeCompare(String(b.nome), 'it', { numeric: true }))
-            .filter(m => fornCorrisponde(
-                [fornitore.nome, m.nome].concat((m.file || []).map(f => f.nome)), ricerca));
-        const cartellaVuota = (fornitore.marchi || []).length === 0;
+                String(a.nome).localeCompare(String(b.nome), 'it', { numeric: true }));
+        const marchi = tuttiMarchi.filter(m => fornCorrisponde(
+            [fornitore.nome, m.nome].concat((m.file || []).map(f => f.nome)), ricerca));
+        const cartellaVuota = tuttiMarchi.length === 0;
         if (ricerca && marchi.length === 0 && !(cartellaVuota && fornCorrisponde([fornitore.nome], ricerca))) return;
         mostrati++;
 
-        const importatore = (fornitore.marchi || []).some(m => !m.diretto);
-        const nMarchi = (fornitore.marchi || []).filter(m => !m.diretto).length;
+        const importatore = tuttiMarchi.some(m => !m.diretto);
+        const nomiMarchi = tuttiMarchi.filter(m => !m.diretto).map(m => m.nome);
+        const tuttiFile = [].concat.apply([], tuttiMarchi.map(m => m.file || []));
+        const novita = tuttiFile.some(f => fornERecente(f.modificato));
+        // Con una ricerca attiva i risultati si aprono da soli
+        const aperto = ricerca ? true : fornitoriAperti.has(fornitore.nome);
 
         html +=
-            '<div class="fornitori-card">' +
-                '<div class="fornitori-card-header">' +
-                    '<div>' +
+            '<details class="fornitori-card"' + (aperto ? ' open' : '') + ' data-nome="' + fornEsc(fornitore.nome) + '">' +
+                '<summary class="fornitori-card-header">' +
+                    '<div class="fornitori-card-titolo">' +
                         '<h3>' + fornEsc(fornitore.nome) + '</h3>' +
                         '<span class="fornitori-card-tipo">' +
-                            (importatore ? 'Importatore &middot; ' + nMarchi + (nMarchi === 1 ? ' marchio' : ' marchi') : 'Fornitore diretto') +
+                            (importatore
+                                ? 'Importatore &middot; ' + nomiMarchi.length + (nomiMarchi.length === 1 ? ' marchio' : ' marchi')
+                                : 'Fornitore diretto') +
                         '</span>' +
+                        (importatore ? '<span class="fornitori-card-marchi">' + nomiMarchi.map(fornEsc).join(' &middot; ') + '</span>' : '') +
                     '</div>' +
-                    '<a class="fornitori-cartella-link" href="' + fornLink(fornitore.url) + '" target="_blank" rel="noopener">Cartella &#8599;</a>' +
-                '</div>';
+                    '<div class="fornitori-card-badge">' +
+                        (novita ? '<span class="fornitori-badge fornitori-badge-nuovo">NUOVO</span>' : '') +
+                        (tuttiFile.length > 0
+                            ? '<span class="fornitori-badge">' + tuttiFile.length + ' file</span>'
+                            : '<span class="fornitori-badge fornitori-badge-vuoto">vuota</span>') +
+                    '</div>' +
+                    '<span class="fornitori-chevron" aria-hidden="true">&#9662;</span>' +
+                '</summary>' +
+                '<div class="fornitori-card-corpo">' +
+                    '<a class="fornitori-cartella-link fornitori-cartella-fornitore" href="' + fornLink(fornitore.url) +
+                        '" target="_blank" rel="noopener">&#128193; Apri la cartella di ' + fornEsc(fornitore.nome) + ' su Drive &#8599;</a>';
 
         if (marchi.length === 0) {
             html += '<p class="fornitori-vuoto">Cartella vuota: aggiungi il listino su Drive.</p>';
+        } else {
+            html += '<div class="fornitori-marchi-griglia">';
+            marchi.forEach(m => { html += fornBloccoMarchio(m, !m.diretto); });
+            html += '</div>';
         }
-        marchi.forEach(m => { html += fornBloccoMarchio(m, !m.diretto); });
-        html += '</div>';
+        html += '</div></details>';
     });
 
     if (mostrati === 0) {
@@ -304,6 +368,7 @@ function renderListiniFornitori() {
             : fornitori.length + (fornitori.length === 1 ? ' fornitore' : ' fornitori');
     }
     container.innerHTML = html;
+    fornAggiornaPulsanteTutti();
 }
 
 // ---------- Eventi ----------
@@ -317,7 +382,46 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     const btn = document.getElementById('fornitori-aggiorna');
     if (btn) btn.addEventListener('click', () => caricaListiniFornitori(true));
+
+    // Apertura / chiusura di un fornitore: la scelta viene ricordata
+    // ("toggle" non risale fino al contenitore: serve l'ascolto in fase di cattura)
+    const container = document.getElementById('fornitori-container');
+    if (container) {
+        container.addEventListener('toggle', (e) => {
+            const card = e.target;
+            if (!card || !card.classList || !card.classList.contains('fornitori-card')) return;
+            if (fornTestoRicerca()) return; // con la ricerca attiva le aperture sono automatiche
+            const nome = card.getAttribute('data-nome');
+            if (card.open) fornitoriAperti.add(nome);
+            else fornitoriAperti.delete(nome);
+            fornSalvaAperti();
+            fornAggiornaPulsanteTutti();
+        }, true);
+    }
+
+    const btnTutti = document.getElementById('fornitori-tutti');
+    if (btnTutti) {
+        btnTutti.addEventListener('click', () => {
+            const cards = document.querySelectorAll('#fornitori-container details.fornitori-card');
+            const apri = !Array.from(cards).every(c => c.open);
+            fornitoriAperti = new Set();
+            cards.forEach(c => {
+                c.open = apri;
+                if (apri) fornitoriAperti.add(c.getAttribute('data-nome'));
+            });
+            fornSalvaAperti();
+            fornAggiornaPulsanteTutti();
+        });
+    }
 });
+
+function fornAggiornaPulsanteTutti() {
+    const btnTutti = document.getElementById('fornitori-tutti');
+    if (!btnTutti) return;
+    const cards = document.querySelectorAll('#fornitori-container details.fornitori-card');
+    const tuttiAperti = cards.length > 0 && Array.from(cards).every(c => c.open);
+    btnTutti.innerHTML = tuttiAperti ? '&#9650; Chiudi tutti' : '&#9660; Apri tutti';
+}
 
 window.openListiniFornitori = openListiniFornitori;
 window.caricaListiniFornitori = caricaListiniFornitori;

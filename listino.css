@@ -823,6 +823,14 @@
     max-width: 640px;
     display: flex;
     flex-direction: column;
+    /* Titolo e pulsanti fermi: scorre solo l'elenco delle notifiche */
+    overflow: hidden !important;
+}
+
+.notifiche-content > .modal-header,
+.notifiche-content > .notifiche-help,
+.notifiche-content > .notifiche-azioni {
+    flex-shrink: 0;
 }
 
 .notifiche-help {
@@ -833,8 +841,12 @@
 }
 
 #notifiche-lista {
-    flex: 1;
+    flex: 1 1 auto;
     min-height: 80px;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    padding-right: 4px;
 }
 
 .notifiche-vuoto {
@@ -944,7 +956,9 @@
     flex-wrap: wrap;
     justify-content: flex-end;
     gap: 8px;
-    margin-top: 12px;
+    margin-top: 0;
+    padding-top: 12px;
+    border-top: 1px solid var(--green-light);
 }
 
 .notifiche-azioni .btn-primary,

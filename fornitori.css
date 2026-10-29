@@ -78,35 +78,127 @@
     margin-bottom: 12px;
 }
 
-/* Scheda fornitore */
+/* Scheda fornitore: riga compatta che si apre con un clic (fisarmonica) */
 .fornitori-card {
     background: white;
     border: 2px solid var(--green-light);
     border-radius: var(--border-radius);
     box-shadow: 0 2px 10px rgba(22, 163, 74, 0.08);
-    padding: 12px;
-    margin-bottom: 12px;
+    margin-bottom: 10px;
+    overflow: hidden;
+}
+
+.fornitori-card[open] {
+    border-color: var(--primary);
 }
 
 .fornitori-card-header {
     display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
+    align-items: center;
     gap: 10px;
-    padding-bottom: 8px;
-    margin-bottom: 8px;
+    padding: 12px 14px;
+    cursor: pointer;
+    list-style: none;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+.fornitori-card-header::-webkit-details-marker {
+    display: none;
+}
+
+.fornitori-card-header::marker {
+    content: '';
+}
+
+.fornitori-card-header:hover {
+    background: var(--light);
+}
+
+.fornitori-card[open] > .fornitori-card-header {
+    background: var(--light);
     border-bottom: 2px solid var(--primary);
+}
+
+.fornitori-card-titolo {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
 }
 
 .fornitori-card-header h3 {
     color: var(--primary);
     font-size: 16px;
     word-break: break-word;
+    margin: 0;
 }
 
 .fornitori-card-tipo {
     font-size: 11px;
     color: var(--gray);
+}
+
+.fornitori-card-marchi {
+    font-size: 11px;
+    color: #374151;
+    margin-top: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.fornitori-card-badge {
+    display: flex;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.fornitori-badge {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--primary);
+    background: var(--green-light);
+    border-radius: 10px;
+    padding: 2px 8px;
+    white-space: nowrap;
+}
+
+.fornitori-badge-vuoto {
+    color: var(--gray);
+    background: #f3f4f6;
+}
+
+.fornitori-badge-nuovo {
+    color: white;
+    background: var(--warning);
+}
+
+.fornitori-chevron {
+    flex-shrink: 0;
+    color: var(--primary);
+    font-size: 16px;
+    transition: transform 0.2s ease;
+}
+
+.fornitori-card[open] .fornitori-chevron {
+    transform: rotate(180deg);
+}
+
+.fornitori-card-corpo {
+    padding: 12px 14px 14px;
+}
+
+.fornitori-cartella-fornitore {
+    display: inline-block;
+    margin-bottom: 10px;
+    padding: 5px 10px;
+}
+
+.fornitori-marchi-griglia {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
 }
 
 .fornitori-cartella-link {
@@ -126,10 +218,11 @@
 }
 
 /* Marchio (solo per gli importatori) */
-.fornitori-marchio + .fornitori-marchio {
-    margin-top: 10px;
-    padding-top: 10px;
-    border-top: 1px dashed var(--green-light);
+.fornitori-marchio {
+    border: 1px solid var(--green-light);
+    border-radius: var(--border-radius-sm);
+    padding: 10px;
+    background: #fcfdfb;
 }
 
 .fornitori-marchio-titolo {
@@ -248,26 +341,24 @@
 }
 
 @media (min-width: 769px) {
-    .fornitori-card {
-        padding: 18px 20px;
+    .fornitori-card-header {
+        padding: 14px 20px;
     }
 
     .fornitori-card-header h3 {
-        font-size: 20px;
+        font-size: 19px;
     }
 
-    #fornitori-container {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
-        gap: 14px;
+    .fornitori-card-marchi {
+        font-size: 12px;
+    }
+
+    .fornitori-card-corpo {
+        padding: 16px 20px 20px;
+    }
+
+    .fornitori-marchi-griglia {
+        grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
         align-items: start;
-    }
-
-    #fornitori-container > .card {
-        grid-column: 1 / -1;
-    }
-
-    #fornitori-container .fornitori-card {
-        margin-bottom: 0;
     }
 }
