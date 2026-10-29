@@ -1,5 +1,8 @@
 # Changelog App Magazzino
 
+## v5.0.0 - 2026-10-29 (PRODUZIONE)
+LISTINI E CATALOGHI FORNITORI
+
 ## v4.10.0 - 2026-10-29 (PRODUZIONE)
 
 
