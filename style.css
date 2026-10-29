@@ -295,6 +295,13 @@ header {
     transform: scale(0.98);
 }
 
+/* "Torna a Magazzino/Vendite" + "Dashboard" affiancati */
+.back-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
 .section-title {
     font-size: 18px;
     color: var(--primary);

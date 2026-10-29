@@ -134,7 +134,7 @@
             </div>
             <div class="user-info">
                 <!-- Campanella notifiche listino (numerino = modifiche di altri non ancora viste) -->
-                <button type="button" id="notifiche-btn" class="notifiche-btn" title="Modifiche al listino" aria-label="Modifiche al listino">&#128276;<span id="notifiche-badge" class="notifiche-badge hidden"></span></button>
+                <button type="button" id="notifiche-btn" class="notifiche-btn" title="Notifiche" aria-label="Notifiche">&#128276;<span id="notifiche-badge" class="notifiche-badge hidden"></span></button>
                 <span id="user-role" class="role-badge"></span>
                 <button id="logout-btn" class="btn-secondary">Logout</button>
             </div>
@@ -248,9 +248,14 @@
         <!-- ========================================== -->
         <div id="section-listino-vendite" class="section-container hidden netti-nascosti">
             <div class="back-to-dashboard">
-                <button onclick="openSection('vendite')" class="btn-back">
-                    &#8592; Torna a Vendite
-                </button>
+                <div class="back-buttons">
+                    <button onclick="openSection('vendite')" class="btn-back">
+                        &#8592; Torna a Vendite
+                    </button>
+                    <button onclick="backToDashboard()" class="btn-back btn-dashboard">
+                        &#127968; Dashboard
+                    </button>
+                </div>
                 <h2 class="section-title">&#127991; Listino Vendite</h2>
             </div>
 
@@ -384,9 +389,14 @@
         <!-- ========================================== -->
         <div id="section-listini-fornitori" class="section-container hidden">
             <div class="back-to-dashboard">
-                <button onclick="openSection('vendite')" class="btn-back">
-                    &#8592; Torna a Vendite
-                </button>
+                <div class="back-buttons">
+                    <button onclick="openSection('vendite')" class="btn-back">
+                        &#8592; Torna a Vendite
+                    </button>
+                    <button onclick="backToDashboard()" class="btn-back btn-dashboard">
+                        &#127968; Dashboard
+                    </button>
+                </div>
                 <h2 class="section-title">&#128209; Listini Fornitori</h2>
             </div>
             <div class="container">
@@ -404,9 +414,14 @@
         <div id="section-consumabili" class="section-container hidden">
             <!-- Pulsante Torna alla Dashboard -->
             <div class="back-to-dashboard">
-                <button onclick="openSection('magazzino')" class="btn-back">
-                    &#8592; Torna a Magazzino
-                </button>
+                <div class="back-buttons">
+                    <button onclick="openSection('magazzino')" class="btn-back">
+                        &#8592; Torna a Magazzino
+                    </button>
+                    <button onclick="backToDashboard()" class="btn-back btn-dashboard">
+                        &#127968; Dashboard
+                    </button>
+                </div>
                 <h2 class="section-title">&#128230; Inventario Consumabili</h2>
             </div>
 
@@ -617,9 +632,14 @@
         <div id="section-ricambi" class="section-container hidden">
             <!-- Pulsante Torna alla Dashboard -->
             <div class="back-to-dashboard">
-                <button onclick="openSection('magazzino')" class="btn-back">
-                    &#8592; Torna a Magazzino
-                </button>
+                <div class="back-buttons">
+                    <button onclick="openSection('magazzino')" class="btn-back">
+                        &#8592; Torna a Magazzino
+                    </button>
+                    <button onclick="backToDashboard()" class="btn-back btn-dashboard">
+                        &#127968; Dashboard
+                    </button>
+                </div>
                 <h2 class="section-title">&#128295; Inventario Ricambi Stock</h2>
             </div>
 
@@ -841,9 +861,14 @@
         <div id="section-scanner" class="section-container hidden">
             <!-- Pulsante Torna alla Dashboard -->
             <div class="back-to-dashboard">
-                <button onclick="openSection('magazzino')" class="btn-back">
-                    &#8592; Torna a Magazzino
-                </button>
+                <div class="back-buttons">
+                    <button onclick="openSection('magazzino')" class="btn-back">
+                        &#8592; Torna a Magazzino
+                    </button>
+                    <button onclick="backToDashboard()" class="btn-back btn-dashboard">
+                        &#127968; Dashboard
+                    </button>
+                </div>
                 <h2 class="section-title">&#128247; Scanner Codice a Barre</h2>
             </div>
 
@@ -1287,12 +1312,12 @@
     <div id="notifiche-modal" class="modal hidden">
         <div class="modal-content notifiche-content">
             <div class="modal-header">
-                <h3>&#128276; Modifiche al listino</h3>
+                <h3>&#128276; Notifiche</h3>
                 <button type="button" class="modal-close" id="notifiche-close">&times;</button>
             </div>
             <p class="notifiche-help">
-                Le modifiche al Listino Vendite fatte dagli altri che non hai ancora visto.
-                Quando chiudi questa finestra spariscono.
+                Le novit&agrave; che non hai ancora visto: modifiche al Listino Vendite e articoli di magazzino
+                sotto soglia o esauriti (da ordinare). Quando chiudi questa finestra spariscono.
             </p>
             <div id="notifiche-lista"></div>
             <div class="notifiche-azioni">

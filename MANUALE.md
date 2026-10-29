@@ -189,12 +189,20 @@ Su iPhone serve connessione sicura (HTTPS): il sito su Vercel &egrave; gi&agrave
 ### 8.1 Notifiche delle modifiche al listino (v4.9.0)
 Ogni modifica al listino (modifica di un articolo, nuovo articolo, spostamento nei cancellati, ripristino, import Excel) viene registrata e notificata a tutti:
 
-- **Campanella in alto** (accanto al ruolo): il numerino rosso conta le modifiche fatte da *altri* utenti che non hai ancora visto. Si aggiorna da sola, senza ricaricare la pagina.
+- **Campanella in alto** (accanto al ruolo, solo da PC): il numerino rosso conta le notifiche degli *altri* utenti che non hai ancora visto. Si aggiorna da sola, senza ricaricare la pagina. Da telefono non c'&egrave;: bastano l'avviso a comparsa e Telegram.
 - **Avviso a comparsa**: quando un altro utente modifica il listino compare un riquadro in alto; toccandolo si apre l'elenco.
-- **Elenco modifiche**: ultime 50 modifiche, con chi, quando e cosa (es. *NETTO 1: &euro; 284,00 &rarr; &euro; 300,00*). Le novit&agrave; sono evidenziate; il pulsante *Vai all'articolo* apre il listino gi&agrave; filtrato. Da PC i netti sono sfocati come nel listino (clic per vederli).
+- **Elenco notifiche**: mostra solo le novit&agrave; non ancora viste, con chi, quando e cosa (es. *NETTO 1: &euro; 284,00 &rarr; &euro; 300,00*). Quando chiudi la finestra spariscono. Il pulsante *Vai all'articolo* apre il listino gi&agrave; filtrato. I netti sono sfocati come nel listino (clic per vederli).
 - **Telegram**: lo stesso messaggio arriva nel gruppo Telegram. Un import Excel manda un solo messaggio di riepilogo.
 - Se salvi un articolo senza cambiare nulla, non parte nessuna notifica. Le tue modifiche non fanno salire il tuo numerino.
 - Gli admin hanno nell'elenco il pulsante **Prova Telegram** per controllare che il bot funzioni.
+
+### 8.2 Promemoria ordini: articoli sotto soglia ed esauriti (v4.10.0)
+Quando un carico/scarico (anche dallo Scanner) o una modifica fa scendere un articolo di magazzino al limite, parte un avviso a tutti, in app (campanella da PC, avviso a comparsa anche da telefono) e su Telegram:
+
+- **Consumabili**: *Sotto soglia - da ordinare* quando la quantit&agrave; scende alla soglia minima o sotto; *Esaurito - da ordinare* quando arriva a 0.
+- **Ricambi stock**: solo *Esaurito - da ordinare* (la soglia dei ricambi &egrave; fissa e non si gestisce).
+- L'avviso parte solo nel momento in cui si supera il limite, non a ogni scarico successivo. I carichi non generano avvisi.
+- *Vai all'articolo* apre Consumabili o Ricambi gi&agrave; filtrati sul codice dell'articolo.
 
 Configurazione: tabella `listino_notifiche` (script `supabase/listino-notifiche-setup.sql`), funzione Supabase `notifica-telegram` (file `supabase/notifica-telegram.ts`) con i secrets `TELEGRAM_BOT_TOKEN` e `TELEGRAM_CHAT_ID`.
 
@@ -306,6 +314,7 @@ git rm --cached localhost.pem localhost-key.pem
 
 ## 15. STORICO MODIFICHE PRINCIPALI
 
+- **v4.10.0 (ott 2026)** - Promemoria ordini: notifiche (app e Telegram) per consumabili sotto soglia o esauriti e ricambi esauriti; filtri che restano dopo carico/scarico; ordinamento per codice articolo; finestre con pulsanti sempre visibili; prezzo "No promo" da mobile.
 - **v4.9.0 (ott 2026)** - Notifiche delle modifiche al listino: campanella in app con avvisi in tempo reale e messaggi Telegram.
 - **v4.8.0 (ott 2026)** - Listino Vendite completo (import Excel, storico netti, articoli cancellati), aperto anche agli operatori.
 - **v4.7.5 (2026)** - Pop-up novit&agrave; non ricompare pi&ugrave; ad ogni login su mobile; passaggio alla nuova chiave pubblicabile Supabase; password non pi&ugrave; salvata nel browser; nuova Dashboard con categorie **Magazzino** e **Vendite**; correzione ripristino scheda Ricambi dopo refresh; spegnimento fotocamera uscendo dallo Scanner.

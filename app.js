@@ -1106,6 +1106,7 @@ async function handleEditArticle(e) {
     e.preventDefault();
     
     const id = parseInt(document.getElementById('edit-id').value);
+    const articoloPrima = allArticles.find(a => a.id === id);
     // Converti tutto in maiuscolo
     const name = document.getElementById('edit-name').value.toUpperCase();
     const code = document.getElementById('edit-code').value.toUpperCase();
@@ -1139,6 +1140,14 @@ async function handleEditArticle(e) {
     if (error) {
         await showCustomAlert('Errore durante la modifica:<br>' + error.message, 'Errore', '&#10060;');
         return;
+    }
+    
+    // Promemoria ordini: notifica (campanella + Telegram) se scende sotto soglia o finisce
+    if (typeof magazzinoNotificaScorta === 'function') {
+        magazzinoNotificaScorta('consumabili', articoloPrima, Object.assign({}, articoloPrima, {
+            id: id, nome: name, codice_articolo: code, marca_fornitore: brand || null,
+            quantita: quantity, soglia_minima: threshold
+        }));
     }
     
     await showCustomAlert('Articolo modificato con successo!', 'Successo', '&#10004;');
@@ -1222,6 +1231,11 @@ async function confirmMovement() {
     if (updateError) {
         await showCustomAlert('Errore aggiornamento:<br>' + updateError.message, 'Errore', '&#10060;');
         return;
+    }
+    
+    // Promemoria ordini: notifica (campanella + Telegram) se scende sotto soglia o finisce
+    if (typeof magazzinoNotificaScorta === 'function') {
+        magazzinoNotificaScorta('consumabili', article, Object.assign({}, article, { quantita: newQuantity }));
     }
     
     const { error: movementError } = await supabaseClient

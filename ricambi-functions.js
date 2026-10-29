@@ -720,6 +720,7 @@ async function handleEditRicambio(e) {
     e.preventDefault();
     
     const id = parseInt(document.getElementById('edit-ricambio-id').value);
+    const ricambioPrima = allRicambi.find(r => r.id === id);
     // Converti tutto in maiuscolo
     const code = document.getElementById('edit-ricambio-code').value.trim().toUpperCase();
     const name = document.getElementById('edit-ricambio-name').value.trim().toUpperCase();
@@ -744,6 +745,13 @@ async function handleEditRicambio(e) {
     if (error) {
         await showCustomAlert('Errore durante la modifica:<br>' + error.message, 'Errore', '&#10060;');
         return;
+    }
+    
+    // Promemoria ordini: notifica (campanella + Telegram) se scende sotto soglia o finisce
+    if (typeof magazzinoNotificaScorta === 'function') {
+        magazzinoNotificaScorta('ricambi', ricambioPrima, Object.assign({}, ricambioPrima, {
+            id: id, nome: name, codice_articolo: code, marca_fornitore: brand, quantita: quantity
+        }));
     }
     
     await showCustomAlert('Ricambio modificato con successo!', 'Successo', '&#10004;');
@@ -830,6 +838,11 @@ async function confirmMovementRicambi() {
     if (updateError) {
         await showCustomAlert('Errore aggiornamento:<br>' + updateError.message, 'Errore', '&#10060;');
         return;
+    }
+    
+    // Promemoria ordini: notifica (campanella + Telegram) se scende sotto soglia o finisce
+    if (typeof magazzinoNotificaScorta === 'function') {
+        magazzinoNotificaScorta('ricambi', ricambio, Object.assign({}, ricambio, { quantita: newQuantity }));
     }
     
     const { error: movementError } = await supabaseClient

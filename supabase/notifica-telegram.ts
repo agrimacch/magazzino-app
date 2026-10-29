@@ -1,7 +1,8 @@
 // ============================================================
-// AGRIMAG - Edge Function "notifica-telegram" (v4.9.0)
+// AGRIMAG - Edge Function "notifica-telegram" (v5.0.0)
 // ------------------------------------------------------------
-// Manda su Telegram la notifica di una modifica al listino.
+// Manda su Telegram la notifica di una modifica al listino
+// o di un articolo di magazzino sotto soglia / esaurito (promemoria ordini).
 // L'app la chiama subito dopo aver salvato una riga nella tabella
 // listino_notifiche, passando solo l'id: il testo viene riletto
 // qui dal database, con i permessi dell'utente collegato.
@@ -29,7 +30,18 @@ const ICONE: Record<string, string> = {
     RIPRISTINATO: '\u267B\uFE0F',
     IMPORT: '\uD83D\uDCC2',
     PROVA: '\uD83E\uDDEA',
+    SOTTOSOGLIA_CONSUMABILI: '\u26A0\uFE0F',
+    ESAURITO_CONSUMABILI: '\uD83D\uDEAB',
+    ESAURITO_RICAMBI: '\uD83D\uDEAB',
 };
+
+// Intestazione del messaggio: magazzino (promemoria ordini) o listino vendite
+const TIPI_MAGAZZINO: Record<string, string> = {
+    SOTTOSOGLIA_CONSUMABILI: 'SOTTO SOGLIA - da ordinare',
+    ESAURITO_CONSUMABILI: 'ESAURITO - da ordinare',
+    ESAURITO_RICAMBI: 'RICAMBIO ESAURITO - da ordinare',
+};
+const PACCO = '\uD83D\uDCE6';
 const CAMPANELLA = '\uD83D\uDD14';
 const OMINO = '\uD83D\uDC64';
 const MAX_RIGHE = 25;
@@ -68,8 +80,11 @@ function testoMessaggio(n: {
 }): string {
     const icona = ICONE[n.tipo] || CAMPANELLA;
     const righe = Array.isArray(n.righe) ? n.righe : [];
-    let msg = CAMPANELLA + ' <b>AGRIMAG - Listino vendite</b>\n' +
-        icona + ' <b>' + esc(n.titolo) + '</b>\n';
+    const magazzino = TIPI_MAGAZZINO[n.tipo];
+    let msg = magazzino
+        ? PACCO + ' <b>AGRIMAG - Magazzino</b>\n' + icona + ' <b>' + esc(magazzino) + '</b>\n'
+        : CAMPANELLA + ' <b>AGRIMAG - Listino vendite</b>\n';
+    msg += (magazzino ? '' : icona + ' ') + '<b>' + esc(n.titolo) + '</b>\n';
 
     righe.slice(0, MAX_RIGHE).forEach((r) => {
         if (typeof r === 'string') {

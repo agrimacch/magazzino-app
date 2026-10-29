@@ -857,6 +857,11 @@
 .notifica-item.notifica-cancellato { border-left-color: var(--danger); }
 .notifica-item.notifica-ripristinato { border-left-color: var(--success); }
 .notifica-item.notifica-import { border-left-color: #3b82f6; }
+.notifica-item.notifica-sottosoglia_consumabili { border-left-color: var(--warning); background: #fffbeb; }
+.notifica-item.notifica-esaurito_consumabili,
+.notifica-item.notifica-esaurito_ricambi { border-left-color: var(--danger); background: #fef2f2; }
+.notifica-item.notifica-nuova.notifica-esaurito_consumabili,
+.notifica-item.notifica-nuova.notifica-esaurito_ricambi { background: #fef2f2; }
 
 .notifica-item.notifica-nuova {
     background: #fffbeb;
@@ -984,6 +989,11 @@
     gap: 10px;
     cursor: pointer;
     animation: notificheEntra 0.3s ease-out;
+}
+
+/* Avviso magazzino (sotto soglia / esaurito): bordo rosso */
+.notifiche-toast.notifiche-toast-scorta {
+    border-left-color: var(--danger);
 }
 
 .notifiche-toast.hidden {

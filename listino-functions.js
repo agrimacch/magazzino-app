@@ -1703,7 +1703,10 @@ const LISTINO_NOTIFICHE_ICONE = {
     NUOVO: '&#10133;',
     CANCELLATO: '&#128465;&#65039;',
     RIPRISTINATO: '&#9851;&#65039;',
-    IMPORT: '&#128194;'
+    IMPORT: '&#128194;',
+    SOTTOSOGLIA_CONSUMABILI: '&#9888;&#65039;',
+    ESAURITO_CONSUMABILI: '&#128683;',
+    ESAURITO_RICAMBI: '&#128683;'
 };
 
 const LISTINO_NOTIFICHE_TIPI = {
@@ -1711,7 +1714,10 @@ const LISTINO_NOTIFICHE_TIPI = {
     NUOVO: 'Nuovo articolo',
     CANCELLATO: 'Spostato nei cancellati',
     RIPRISTINATO: 'Ripristinato',
-    IMPORT: 'Import Excel'
+    IMPORT: 'Import Excel',
+    SOTTOSOGLIA_CONSUMABILI: 'Sotto soglia - consumabili',
+    ESAURITO_CONSUMABILI: 'Esaurito - consumabili',
+    ESAURITO_RICAMBI: 'Esaurito - ricambi stock'
 };
 
 const LISTINO_NOTIFICHE_AZIONI = {
@@ -1721,6 +1727,54 @@ const LISTINO_NOTIFICHE_AZIONI = {
     RIPRISTINATO: 'ha ripristinato',
     IMPORT: 'ha caricato un Excel'
 };
+
+// ---------- Notifiche magazzino (promemoria ordini) ----------
+// Consumabili: quando un articolo scende sotto la soglia minima e quando finisce.
+// Ricambi stock: solo quando finisce (la soglia dei ricambi e' fissa a 1, non gestita).
+// Scattano solo nel momento in cui si supera il limite, non a ogni scarico successivo.
+const MAGAZZINO_TIPI_SCORTE = {
+    SOTTOSOGLIA_CONSUMABILI: { sezione: 'consumabili', testo: 'Sotto soglia: da ordinare' },
+    ESAURITO_CONSUMABILI: { sezione: 'consumabili', testo: 'Esaurito: da ordinare' },
+    ESAURITO_RICAMBI: { sezione: 'ricambi', testo: 'Ricambio esaurito: da ordinare' }
+};
+
+function magazzinoENotificaScorta(tipo) {
+    return Object.prototype.hasOwnProperty.call(MAGAZZINO_TIPI_SCORTE, tipo);
+}
+
+// prima / dopo = l'articolo prima e dopo il salvataggio (servono quantita, soglia_minima, nome, codice)
+function magazzinoNotificaScorta(sezione, prima, dopo) {
+    try {
+        if (!prima || !dopo) return;
+        const qPrima = Number(prima.quantita) || 0;
+        const qDopo = Number(dopo.quantita) || 0;
+        let tipo = null;
+
+        if (qPrima > 0 && qDopo <= 0) {
+            tipo = sezione === 'ricambi' ? 'ESAURITO_RICAMBI' : 'ESAURITO_CONSUMABILI';
+        } else if (sezione === 'consumabili' && qDopo > 0) {
+            const sogliaPrima = Number(prima.soglia_minima) || 0;
+            const sogliaDopo = Number(dopo.soglia_minima) || 0;
+            if (qPrima > sogliaPrima && qDopo <= sogliaDopo) tipo = 'SOTTOSOGLIA_CONSUMABILI';
+        }
+        if (!tipo) return;
+
+        const nome = dopo.nome || prima.nome || 'ARTICOLO';
+        const codice = dopo.codice_articolo || prima.codice_articolo || '';
+        const righe = [
+            { e: 'Magazzino', v: sezione === 'ricambi' ? 'RICAMBI STOCK' : 'CONSUMABILI' },
+            { e: 'Codice', v: codice || '-' },
+            { e: 'Quantit\u00E0 rimasta', v: String(qDopo) +
+                (sezione === 'consumabili' ? ' (soglia minima ' + (Number(dopo.soglia_minima) || 0) + ')' : '') }
+        ];
+        if (dopo.marca_fornitore) righe.push({ e: 'Fornitore', v: dopo.marca_fornitore });
+
+        listinoRegistraNotifica(tipo, nome + (codice ? ' (' + codice + ')' : ''), righe,
+            { id: dopo.id || prima.id }, codice || nome);
+    } catch (err) {
+        console.log('Notifica scorta non registrata:', err && err.message ? err.message : err);
+    }
+}
 
 // ---------- Testi delle notifiche (testo semplice, salvato nel database) ----------
 function listinoNotEuro(n) {
@@ -1834,7 +1888,7 @@ function listinoNotRigheImport(piano) {
 
 // ---------- Salvataggio della notifica + invio Telegram ----------
 // Non blocca mai il listino: se qualcosa va storto lo scrive solo in console.
-async function listinoRegistraNotifica(tipo, titolo, righe, articolo) {
+async function listinoRegistraNotifica(tipo, titolo, righe, articolo, cercaTesto) {
     if (typeof currentUser === 'undefined' || !currentUser) return;
     try {
         let elenco = Array.isArray(righe) ? righe : [];
@@ -1849,7 +1903,7 @@ async function listinoRegistraNotifica(tipo, titolo, righe, articolo) {
             titolo: titolo,
             righe: elenco,
             articolo_id: articolo && articolo.id ? articolo.id : null,
-            cerca: listinoNotCerca(articolo)
+            cerca: cercaTesto || listinoNotCerca(articolo)
         };
         const { data, error } = await supabaseClient.from('listino_notifiche').insert([riga]).select().single();
         if (error) throw error;
@@ -1992,8 +2046,18 @@ function listinoNotRicevuta(n) {
     if (!n || typeof currentUser === 'undefined' || !currentUser) return;
     if (!listinoNotAggiungi(n)) return; // gia' presente (es. l'ho appena salvata io)
 
-    // Il listino e' cambiato: aggiorno i dati se lo sto guardando
-    listinoAggiornaDaRemoto();
+    if (magazzinoENotificaScorta(n.tipo)) {
+        // Un altro utente ha cambiato le quantita' in magazzino: aggiorno la tabella
+        // (i filtri impostati restano)
+        if (MAGAZZINO_TIPI_SCORTE[n.tipo].sezione === 'ricambi') {
+            if (typeof loadRicambi === 'function') loadRicambi();
+        } else if (typeof loadInventory === 'function') {
+            loadInventory();
+        }
+    } else {
+        // Il listino e' cambiato: aggiorno i dati se lo sto guardando
+        listinoAggiornaDaRemoto();
+    }
 
     if (listinoNotEMia(n)) return; // fatta da me su un altro dispositivo: niente avviso
 
@@ -2035,10 +2099,14 @@ function listinoNotChi(n) {
 function listinoNotMostraToast(n) {
     const toast = document.getElementById('notifiche-toast');
     if (!toast) return;
+    const scorta = magazzinoENotificaScorta(n.tipo);
+    toast.classList.toggle('notifiche-toast-scorta', scorta);
     toast.innerHTML =
-        '<span class="notifiche-toast-icona">&#128276;</span>' +
+        '<span class="notifiche-toast-icona">' + (scorta ? LISTINO_NOTIFICHE_ICONE[n.tipo] : '&#128276;') + '</span>' +
         '<div class="notifiche-toast-testo">' +
-            '<strong>' + listinoEsc(listinoNotChi(n)) + ' ' + (LISTINO_NOTIFICHE_AZIONI[n.tipo] || 'ha modificato') + '</strong>' +
+            '<strong>' + (scorta
+                ? MAGAZZINO_TIPI_SCORTE[n.tipo].testo
+                : listinoEsc(listinoNotChi(n)) + ' ' + (LISTINO_NOTIFICHE_AZIONI[n.tipo] || 'ha modificato')) + '</strong>' +
             '<span>' + listinoEsc(n.titolo) + '</span>' +
         '</div>' +
         '<button type="button" class="notifiche-toast-chiudi" aria-label="Chiudi">&times;</button>';
@@ -2174,6 +2242,20 @@ function renderNotificheListino() {
 // Apre il listino gia' filtrato sull'articolo della notifica
 function listinoNotVaiArticolo(cerca, tipo) {
     chiudiNotificheListino();
+
+    // Notifiche magazzino: apre Consumabili o Ricambi gia' filtrati sul codice
+    if (magazzinoENotificaScorta(tipo)) {
+        const ricambi = MAGAZZINO_TIPI_SCORTE[tipo].sezione === 'ricambi';
+        if (typeof openSection === 'function') openSection(ricambi ? 'ricambi' : 'consumabili');
+        if (typeof switchTab === 'function') switchTab('inventario', ricambi ? 'ricambi' : undefined);
+        const search = document.getElementById(ricambi ? 'search-ricambi-input' : 'search-input');
+        const fornitore = document.getElementById(ricambi ? 'filter-ricambi-brand' : 'filter-brand');
+        if (fornitore) fornitore.value = '';
+        if (search) search.value = cerca || '';
+        if (ricambi && typeof applyRicambiFiltersAndSort === 'function') applyRicambiFiltersAndSort();
+        if (!ricambi && typeof applyFiltersAndSort === 'function') applyFiltersAndSort();
+        return;
+    }
     sessionStorage.setItem('listinoTab', tipo === 'CANCELLATO' ? 'cancellati' : 'elenco');
     const search = document.getElementById('listino-search');
     if (search) search.value = cerca || '';
@@ -2413,3 +2495,4 @@ window.stampaStorico = stampaStorico;
 window.avviaNotificheListino = avviaNotificheListino;
 window.apriNotificheListino = apriNotificheListino;
 window.chiudiNotificheListino = chiudiNotificheListino;
+window.magazzinoNotificaScorta = magazzinoNotificaScorta;
