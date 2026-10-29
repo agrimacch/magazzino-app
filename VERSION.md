@@ -1,5 +1,8 @@
 # Changelog App Magazzino
 
+## v4.9.5 - 2026-10-29 (PRODUZIONE)
+notifiche anche per i consumabili
+
 ## v4.9.2 - 2026-10-28 (PRODUZIONE)
 miglioria finestra modifica articoli + filtri ricambi
 
