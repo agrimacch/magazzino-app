@@ -1018,3 +1018,35 @@ body.ruolo-tecnico #notifiche-btn {
     margin-top: 10px;
     font-size: 11px;
 }
+
+/* ---------- Meteo piu' grande (v6.1.x) ---------- */
+.int-meteo {
+    font-size: 14px;
+    padding: 2px 7px;
+    border-radius: 7px;
+    line-height: 1.3;
+}
+
+/* Telefono: un po' piu' grande ancora */
+@media (max-width: 768px) {
+    .int-meteo {
+        font-size: 16px;
+        padding: 2px 8px;
+    }
+
+    .int-m-riga-alto {
+        flex-wrap: wrap;
+    }
+}
+
+/* Pioggia sulla linguetta del giorno (telefono) */
+.int-tab-pioggia {
+    font-size: 20px;
+    top: -11px;
+    left: -6px;
+}
+
+/* Pioggia sulla casella del giorno (PC) */
+.int-giorno-pioggia {
+    font-size: 22px;
+}
