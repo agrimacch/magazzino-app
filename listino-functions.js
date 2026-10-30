@@ -1596,7 +1596,7 @@ function downloadStoricoTxt() {
 
     const adesso = new Date();
     const righe = [
-        'AGRIMAG - STORICO NETTI LISTINO VENDITE',
+        'AGRIDESK - STORICO NETTI LISTINO VENDITE',
         'Generato il ' + adesso.toLocaleString('it-IT'),
         'Macchine: ' + gruppi.length,
         ''
@@ -1637,7 +1637,7 @@ function stampaStorico() {
     }
 
     let html =
-        '<h2>AGRIMAG - Storico netti listino vendite</h2>' +
+        '<h2>AGRIDESK - Storico netti listino vendite</h2>' +
         '<p class="stampa-sottotitolo">Generato il ' + listinoEsc(new Date().toLocaleString('it-IT')) +
         ' &middot; ' + gruppi.length + (gruppi.length === 1 ? ' macchina' : ' macchine') + '</p>';
 

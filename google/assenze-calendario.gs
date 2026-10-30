@@ -41,6 +41,7 @@ function controllaCalendario() {
   const minuto = Number(Utilities.formatDate(adesso, FUSO, 'm'));
   const props = PropertiesService.getScriptProperties();
   const mattina = ora >= ORA_RESOCONTO && props.getProperty('ultimoResoconto') !== oggi;
+
   if (minuto % 2 !== 0 && !mattina) return;   // minuto dispari: salto
 
   const risposta = chiamaFunzione(Object.assign({ azione: 'controlla', mattina: mattina, oggi: oggi }, leggiEventi()));

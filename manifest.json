@@ -1,7 +1,7 @@
 {
-  "name": "Gestione Magazzino",
-  "short_name": "Magazzino",
-  "description": "App gestione inventario aziendale",
+  "name": "AGRIDESK - Agrimacch",
+  "short_name": "AGRIDESK",
+  "description": "Magazzino, vendite e interventi dei tecnici Agrimacch",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#f0fdf4",

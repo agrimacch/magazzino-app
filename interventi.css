@@ -646,6 +646,13 @@
     resize: vertical;
 }
 
+/* Suggerimento sotto il campo Cliente */
+#int-edit-modal textarea + .int-nota {
+    display: block;
+    margin: -6px 0 14px;
+    font-size: 12px;
+}
+
 .int-btn-svuota {
     width: 100%;
     margin-top: 4px;
@@ -880,4 +887,134 @@ body.ruolo-tecnico #notifiche-btn {
     padding: 8px 10px;
     font-size: 14px;
     text-transform: none;
+}
+
+/* ---------- Promemoria WhatsApp ai clienti (v6.1.0) ---------- */
+.int-promemoria {
+    padding: 12px 14px;
+    border-color: #25D366;
+}
+
+.int-promemoria summary {
+    cursor: pointer;
+    font-weight: 700;
+    color: #128C7E;
+    font-size: 14px;
+    list-style-position: outside;
+}
+
+.int-promemoria .int-nota {
+    margin: 8px 0;
+    font-size: 12px;
+}
+
+.int-tag.int-tag-pm {
+    background: #25D366;
+    color: #fff;
+}
+
+.int-pm-riga {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 8px 0;
+    border-top: 1px solid #eef2ee;
+    flex-wrap: wrap;
+}
+
+.int-pm-riga.inviato .int-pm-info,
+.int-pm-riga.attesa .int-pm-info {
+    color: var(--gray);
+}
+
+.int-pm-info {
+    font-size: 13px;
+    line-height: 1.4;
+    flex: 1 1 220px;
+    word-break: break-word;
+}
+
+.int-pm-azione {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.int-pm-stato {
+    font-size: 12px;
+    color: var(--gray);
+}
+
+.int-btn-whatsapp {
+    background: #25D366;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 9px 12px;
+    font-family: 'Roboto Mono', monospace;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.int-btn-whatsapp:hover {
+    background: #1ebe5b;
+}
+
+/* Riquadro promemoria nella finestra di modifica */
+.int-pm-finestra {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    background: #f0fdf4;
+    border: 2px solid #bbf7d0;
+    border-radius: var(--border-radius-sm);
+    padding: 10px;
+    margin-bottom: 10px;
+}
+
+.int-pm-finestra.hidden {
+    display: none !important;
+}
+
+/* ---------- Meteo per intervento (v6.1.0) ---------- */
+.int-meteo {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 0 5px;
+    border-radius: 5px;
+    white-space: nowrap;
+    vertical-align: middle;
+}
+
+.int-meteo.pioggia { background: #1d4ed8; color: #fff; }
+.int-meteo.debole  { background: #dbeafe; color: #1e3a8a; }
+.int-meteo.ok      { background: transparent; }
+
+/* Sulle righe rosse/blu il badge resta leggibile */
+#section-interventi-esterni tr.col-ROSSO .int-meteo.ok,
+.int-m-riga.col-ROSSO .int-meteo.ok { color: #fff; }
+
+.int-tab-pioggia {
+    position: absolute;
+    top: -8px;
+    left: -4px;
+    font-size: 14px;
+    line-height: 1;
+}
+
+.int-giorno-pioggia {
+    display: block;
+    margin-top: 6px;
+    font-size: 15px;
+}
+
+.int-meteo-fonte {
+    margin-top: 10px;
+    font-size: 11px;
 }

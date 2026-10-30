@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AGRIMAG</title>
+    <title>AGRIDESK</title>
 
     <!-- PWA Meta Tags -->
     <link rel="manifest" href="manifest.json">
@@ -12,7 +12,7 @@
     <meta name="theme-color" content="#16a34a">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    <meta name="apple-mobile-web-app-title" content="Magazzino">
+    <meta name="apple-mobile-web-app-title" content="AGRIDESK">
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -89,7 +89,7 @@
             <div class="logo-container">
                 <img src="logo.png" alt="Logo Azienda" class="logo">
             </div>
-            <h1>&#128230; AGRIMAG</h1>
+            <h1>&#128230; AGRIDESK</h1>
 
             <!-- Avviso dispositivo mobile -->
             <div id="mobile-warning" class="mobile-warning hidden">
@@ -132,7 +132,7 @@
         <!-- Header semplificato -->
         <header>
             <div class="logo-container-header">
-                <img src="logo.png" alt="Logo Agrimag" class="logo-header">
+                <img src="logo.png" alt="Logo AGRIDESK" class="logo-header">
             </div>
             <div class="user-info">
                 <!-- Campanella notifiche listino (numerino = modifiche di altri non ancora viste) -->
@@ -1001,6 +1001,14 @@
             </div>
             <div class="container">
                 <!-- Elenco settimane -->
+                <!-- Promemoria WhatsApp ai clienti del giorno lavorativo dopo (admin e operatori) -->
+                <details id="int-promemoria" class="card int-promemoria hidden" ontoggle="intPromemoriaAperto = this.open">
+                    <summary id="int-promemoria-titolo"></summary>
+                    <p class="int-nota">Il pulsante apre WhatsApp con la chat del cliente e il messaggio gi&agrave; scritto: premi solo Invia.
+                    Il messaggio parte dal WhatsApp di questo dispositivo (per il numero aziendale usa WhatsApp Business o WhatsApp Web dell'azienda).</p>
+                    <div id="int-promemoria-lista"></div>
+                </details>
+
                 <div id="int-vista-elenco">
                     <div class="int-elenco-testa">
                         <label for="int-anno">&#128197; Anno</label>
@@ -1040,6 +1048,8 @@
                     <div id="int-griglia" class="int-griglia"></div>
                     <!-- Telefono: un giorno alla volta -->
                     <div id="int-mobile" class="int-mobile"></div>
+                    <p class="int-nota int-meteo-fonte">&#127783;&#65039; Meteo per paese del cliente (scritto dopo il trattino nel campo Cliente, es. ROSSI MARIO - MIRA):
+                    previsioni MET Norway, luoghi OpenStreetMap. Pioggia = almeno 1 mm nella mezza giornata.</p>
                 </div>
             </div>
         </div>
@@ -1429,7 +1439,7 @@
     <div id="whats-new-modal" class="modal hidden">
         <div class="modal-content whats-new-content">
             <div class="whats-new-header">
-                <h3>&#127881; AGRIMAG v6.0.1 - Aggiornamento!</h3>
+                <h3>&#127881; AGRIDESK v6.0.1 - Aggiornamento!</h3>
                 <p class="version-date">30 Ottobre 2026</p>
             </div>
 
@@ -1508,7 +1518,8 @@
             </div>
 
             <label for="int-edit-cliente">Cliente</label>
-            <textarea id="int-edit-cliente" rows="2" placeholder="Cliente, localit&agrave;, telefono"></textarea>
+            <textarea id="int-edit-cliente" rows="2" placeholder="Nome Cognome - Paese - Telefono   (es. MARIO ROSSI - MIRA - 3471234567)"></textarea>
+            <small class="int-nota">Il <strong>paese</strong> serve per il meteo, il <strong>cellulare</strong> per il promemoria WhatsApp.</small>
 
             <label>Colore riga</label>
             <div id="int-edit-colore" class="int-scelte int-scelte-colore" data-valore="">
@@ -1518,6 +1529,8 @@
                 <button type="button" data-valore="VERDE" onclick="intSelezionaScelta('int-edit-colore', 'VERDE')">Verde</button>
                 <button type="button" data-valore="BLU" onclick="intSelezionaScelta('int-edit-colore', 'BLU')">Blu</button>
             </div>
+
+            <div id="int-edit-promemoria" class="int-pm-finestra hidden"></div>
 
             <button type="button" id="int-edit-svuota" class="int-btn-svuota hidden" onclick="intSvuotaRiga()">&#128465;&#65039; Svuota riga</button>
 

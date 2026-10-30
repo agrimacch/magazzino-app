@@ -144,7 +144,7 @@ if [ -f "index.html" ]; then
     sed -i.bak -E "s/([A-Za-z0-9_-]+\.(css|js))\?v=[0-9.]+/\1?v=$NEW_VERSION/g" index.html
 
     # 3c. Titolo popup
-    perl -i.bak -pe "s|<h3>&#127881; AGRIMAG v[0-9.]+[^<]*</h3>|<h3>&#127881; AGRIMAG v$NEW_VERSION - Aggiornamento!</h3>|g" index.html
+    perl -i.bak -pe "s|<h3>&#127881; (AGRIMAG\|AGRIDESK) v[0-9.]+[^<]*</h3>|<h3>&#127881; AGRIDESK v$NEW_VERSION - Aggiornamento!</h3>|g" index.html
 
     # 3d. Data popup
     perl -i.bak -pe "s|<p class=\"version-date\">[^<]+</p>|<p class=\"version-date\">$FORMATTED_DATE</p>|g" index.html

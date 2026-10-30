@@ -157,6 +157,7 @@ async function openInterventiEsterni() {
     // Settimana gia' aperta sullo schermo (es. tornando da WhatsApp l'app ricarica la sezione):
     // aggiorno solo i dati, senza tornare al lunedi' e senza scorrere in cima
     const vista = document.getElementById('int-vista-settimana');
+    intCaricaPromemoria();
     if (salvata && salvata === intSettimana && vista && !vista.classList.contains('hidden')) {
         await intCaricaSettimana();
         return;
@@ -340,6 +341,7 @@ async function intCaricaSettimana() {
     });
     intRender();
     intAggiornaDaInviare();
+    intCaricaMeteo();
 }
 
 // Tecnici della settimana: fissi attivi + aggiunti a questa settimana + chi ha gia' righe
@@ -406,7 +408,7 @@ function intCelleRiga(r) {
     return '<td class="int-c-ora">' + intEsc(r && r.ora) + '</td>' +
         '<td class="int-c-tipo">' + intEsc(r && r.tipo) + '</td>' +
         '<td class="int-c-esito"><span class="int-esito ' + intClasseEsito(esito) + '">' + intEsc(esito) + '</span></td>' +
-        '<td class="int-c-cliente">' + intEsc(r && r.cliente) + '</td>';
+        '<td class="int-c-cliente">' + intEsc(r && r.cliente) + (r ? ' ' + intMeteoBadge(r) : '') + '</td>';
 }
 
 function intClasseEsito(esito) {
@@ -444,6 +446,7 @@ function intRenderTabellaTecnico(t) {
                         '<span class="int-giorno-nome">' + INT_GIORNI[gi] + '</span>' +
                         '<span class="int-giorno-num">' + intDaIso(data).getDate() + '</span>' +
                         (eMio && intMieiNelGiorno(data, mioId) ? '<span class="int-mio-pallino">' + intMieiNelGiorno(data, mioId) + '</span>' : '') +
+                        (intPioggiaNelGiorno(data, t.id) ? '<span class="int-giorno-pioggia" title="Pioggia prevista">&#127783;&#65039;</span>' : '') +
                         (modificabile ? '<span class="int-giorno-colora">&#127912;</span>' : '') +
                         '</td>';
                 }
@@ -472,6 +475,7 @@ function intRenderMobile(tecnici) {
         const miei = mioId ? intMieiNelGiorno(data, mioId) : 0;
         html += '<button type="button" class="int-giorno-tab' + (gi === intGiornoMobile ? ' attivo' : '') + (data === oggi ? ' oggi' : '') +
             (miei ? ' con-miei' : '') + '" onclick="intScegliGiorno(' + gi + ')">' +
+            (intPioggiaNelGiorno(data) ? '<span class="int-tab-pioggia" title="Pioggia prevista su qualche intervento">&#127783;&#65039;</span>' : '') +
             '<span>' + INT_GIORNI[gi] + '</span><strong>' + intDaIso(data).getDate() + '</strong>' +
             (miei ? '<span class="int-mio-pallino" title="I tuoi interventi">' + miei + '</span>' : '') + '</button>';
     });
@@ -509,6 +513,7 @@ function intRenderMobile(tecnici) {
                         '<span class="int-m-ora">' + intEsc(r.ora || '--') + '</span>' +
                         (r.tipo ? '<span class="int-m-tipo">' + intEsc(r.tipo) + '</span>' : '') +
                         (r.esito ? '<span class="int-esito ' + intClasseEsito(r.esito) + '">' + intEsc(r.esito) + '</span>' : '') +
+                        intMeteoBadge(r) +
                         '</div>' +
                         '<div class="int-m-cliente">' + intEsc(r.cliente || '') + '</div>';
                 } else {
@@ -656,6 +661,7 @@ function intApriModifica(tid, data, turno, pos) {
     intSelezionaScelta('int-edit-esito', r && r.esito ? r.esito : '');
     intSelezionaScelta('int-edit-colore', r && r.colore ? r.colore : '');
     document.getElementById('int-edit-svuota').classList.toggle('hidden', !r);
+    intRenderPromemoriaFinestra(r);
 
     document.getElementById('int-edit-modal').classList.remove('hidden');
     if (!isMobile()) setTimeout(() => document.getElementById('int-edit-ora').focus(), 50);
@@ -690,6 +696,11 @@ async function intSalvaModifica() {
         colore: intValoreScelta('int-edit-colore') || null
     };
     const vuota = !valori.ora && !valori.tipo && !valori.esito && !valori.cliente && !valori.colore;
+    // Ora cambiata: il promemoria gia' mandato non e' piu' giusto -> tolgo il segno "inviato"
+    if (c.riga && c.riga.promemoria_at && (c.riga.ora || '') !== (valori.ora || '')) {
+        valori.promemoria_at = null;
+        valori.promemoria_da = null;
+    }
 
     const btn = document.getElementById('int-edit-salva');
     btn.disabled = true;
@@ -948,6 +959,7 @@ function intRicaricaDaRemoto() {
     if (typeof currentSection === 'undefined' || currentSection !== 'interventi-esterni' || !currentUser) return;
     clearTimeout(intRicaricaTimer);
     intRicaricaTimer = setTimeout(() => {
+        intCaricaPromemoria();
         if (intSettimana) {
             intCaricaSettimana().then(() => {
                 const finestra = document.getElementById('int-tecnici-modal');
@@ -957,6 +969,258 @@ function intRicaricaDaRemoto() {
             intCaricaElenco();
         }
     }, 500);
+}
+
+// ========================================
+// PROMEMORIA WHATSAPP AI CLIENTI (v6.1.0)
+// ----------------------------------------
+// Il pulsante apre WhatsApp (telefono, WhatsApp Web o Desktop) con la chat del
+// cliente e il messaggio gia' scritto: si preme solo Invia. Il cellulare viene
+// preso dal campo CLIENTE (es. "ROSSI MARIO - 3471234567").
+// Premendo il pulsante l'intervento viene segnato "promemoria inviato"
+// (colonne promemoria_at / promemoria_da). Se si cambia l'ora il segno si toglie.
+// Ogni giorno alle 17 la funzione Supabase organizzazione-interventi (sistema separato,
+// bot @organizzazioneinterventi_bot) manda nel gruppo Telegram "Organizzazione interventi"
+// l'elenco del giorno lavorativo dopo, con meteo, avvisi pioggia e link WhatsApp.
+// METEO: per ogni intervento (paese preso dal campo Cliente) la stessa funzione
+// restituisce la previsione MET Norway per mattina/pomeriggio: icona sulle righe,
+// pioggia segnata sui giorni. Se la funzione non risponde il planning funziona lo stesso.
+// IL TESTO E' SCRITTO ANCHE IN supabase/assenze-tecnici.ts: se si cambia, cambiarlo in tutti e due.
+// ========================================
+const INT_TEL_AZIENDA = '+39 041 5401030';
+const INT_FIRMA = 'Agrimacch srl';
+const INT_GIORNI_MIN = ['luned\u00EC', 'marted\u00EC', 'mercoled\u00EC', 'gioved\u00EC', 'venerd\u00EC', 'sabato', 'domenica'];
+const INT_MESI_MIN = ['gennaio', 'febbraio', 'marzo', 'aprile', 'maggio', 'giugno',
+    'luglio', 'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre'];
+const INT_TIPI_TESTO = { INT: "l'intervento di assistenza", SOP: 'il sopralluogo', MONT: 'il montaggio' };
+let intPromemoriaRighe = [];
+let intPromemoriaGiorno = null;
+let intPromemoriaAperto = null;    // ricorda se il riquadro e' stato aperto/chiuso a mano
+
+// Giorno lavorativo dopo (il sabato -> lunedi')
+function intProssimoLavorativo(iso) {
+    let d = intPiuGiorni(iso, 1);
+    if (intDaIso(d).getDay() === 0) d = intPiuGiorni(d, 1);
+    return d;
+}
+
+// Cellulare italiano nel testo (3xx..., anche con spazi/punti/trattini e +39) -> "39xxxxxxxxxx"
+function intCellulare(testo) {
+    const t = String(testo || '').replace(/(\+|00)39[\s.\-]?/g, ' ');   // tolgo il prefisso internazionale
+    const re = /(?<!\d)(3\d{2}(?:[\s.\-]?\d){6,7})(?!\d)/g;
+    let m;
+    while ((m = re.exec(t))) {
+        const cifre = m[1].replace(/\D/g, '');
+        if (cifre.length >= 9 && cifre.length <= 10) return '39' + cifre;
+    }
+    return null;
+}
+
+function intOraTesto(ora, turno) {
+    let o = String(ora || '').trim().toUpperCase();
+    const circa = /\b(CCA|CIRCA|CA)\b/.test(o);
+    o = o.replace(/\b(CCA|CIRCA|CA)\b\.?/g, '').trim();
+    const orari = o.match(/\d{1,2}(?:[.:,]\d{2})?/g);
+    if (!orari) return turno === 'P' ? 'nel pomeriggio' : 'in mattinata';
+    const f = s => s.replace(/[:,]/, '.');
+    if (orari.length >= 2) return 'tra le ore ' + f(orari[0]) + ' e le ' + f(orari[1]) + (circa ? ' circa' : '');
+    return 'alle ore ' + f(orari[0]) + (circa ? ' circa' : '');
+}
+
+function intTestoPromemoria(r, oggi) {
+    const d = intDaIso(r.data);
+    const dataTxt = INT_GIORNI_MIN[(d.getDay() + 6) % 7] + ' ' + d.getDate() + ' ' + INT_MESI_MIN[d.getMonth()];
+    const quando = r.data === oggi ? 'di oggi, ' : (r.data === intPiuGiorni(oggi, 1) ? 'di domani, ' : 'di ');
+    return 'Buongiorno,\n' +
+        "le ricordiamo l'appuntamento " + quando + '*' + dataTxt + ' ' + intOraTesto(r.ora, r.turno) + '*' +
+        ', con un nostro tecnico per ' + (INT_TIPI_TESTO[r.tipo] || "l'intervento") + '.\n' +
+        'Se ha bisogno di spostarlo o annullarlo, la preghiamo di contattarci telefonicamente al numero ' + INT_TEL_AZIENDA + '.\n' +
+        'La ringraziamo e le porgiamo cordiali saluti.\n\n' +
+        '*' + INT_FIRMA + '*';
+}
+
+function intLinkWhatsApp(r) {
+    const num = intCellulare(r.cliente);
+    if (!num) return null;
+    return 'https://wa.me/' + num + '?text=' + encodeURIComponent(intTestoPromemoria(r, intOggi()));
+}
+
+function intDataOra(iso) {
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return '';
+    return intPad(d.getDate()) + '/' + intPad(d.getMonth() + 1) + ' ' + intPad(d.getHours()) + ':' + intPad(d.getMinutes());
+}
+
+function intStatoPromemoria(r) {
+    if (!r.promemoria_at) return '';
+    const chi = r.promemoria_da === 'TELEGRAM' ? 'da Telegram'
+        : ((typeof userInitials !== 'undefined' && userInitials[r.promemoria_da]) || r.promemoria_da || '');
+    return '&#9989; Promemoria inviato il ' + intDataOra(r.promemoria_at) + (chi ? ' (' + intEsc(chi) + ')' : '');
+}
+
+function intTrovaRiga(id) {
+    return intPromemoriaRighe.find(x => x.id === id) || Object.values(intDati).find(x => x.id === id) || null;
+}
+
+// Pulsante: apre WhatsApp SUBITO (i browser bloccano le finestre aperte dopo un'attesa), poi segna "inviato"
+async function intInviaPromemoria(id) {
+    if (!intPuoModificare()) return;
+    const r = intTrovaRiga(id);
+    if (!r) return;
+    const url = intLinkWhatsApp(r);
+    if (!url) {
+        showCustomAlert('Nel campo <strong>Cliente</strong> non c&#39;&egrave; un numero di cellulare.<br>Scrivilo (es. ROSSI MARIO - 3471234567) e riprova.',
+            'Promemoria WhatsApp', '&#128241;');
+        return;
+    }
+    if (r.promemoria_at && !window.confirm('Promemoria gi\u00E0 inviato il ' + intDataOra(r.promemoria_at) + '.\nInviarlo di nuovo?')) return;
+    window.open(url, '_blank');
+    const { error } = await supabaseClient.from('interventi')
+        .update({ promemoria_at: new Date().toISOString(), promemoria_da: loggedInUserEmail || null })
+        .eq('id', id);
+    if (error) { intErrore(error, 'segno promemoria inviato'); return; }
+    if (intModifica && intModifica.riga && intModifica.riga.id === id) {
+        intModifica.riga.promemoria_at = new Date().toISOString();
+        intModifica.riga.promemoria_da = loggedInUserEmail;
+        intRenderPromemoriaFinestra(intModifica.riga);
+    }
+    intCaricaPromemoria();
+    if (intSettimana) intCaricaSettimana();
+}
+
+// Riquadro nella finestra di modifica
+function intRenderPromemoriaFinestra(r) {
+    const box = document.getElementById('int-edit-promemoria');
+    if (!box) return;
+    if (!r || !intHaContenuto(r) || r.esito === 'NO') { box.classList.add('hidden'); return; }
+    const num = intCellulare(r.cliente);
+    let html = '';
+    if (!num) {
+        html = '<span class="int-nota">&#128241; Per il promemoria WhatsApp scrivi il cellulare nel campo Cliente.</span>';
+    } else {
+        html = '<button type="button" class="int-btn-whatsapp" onclick="intInviaPromemoria(' + r.id + ')">&#128242; Promemoria WhatsApp</button>' +
+            '<span class="int-pm-stato">' + (intStatoPromemoria(r) || 'Promemoria non ancora inviato') + '</span>';
+        if (r.esito === '?') html += '<span class="int-nota">Esito &quot;?&quot;: il cliente non &egrave; ancora stato chiamato.</span>';
+    }
+    box.innerHTML = html;
+    box.classList.remove('hidden');
+}
+
+// Riquadro "Promemoria clienti" del giorno lavorativo dopo (admin e operatori)
+async function intCaricaPromemoria() {
+    const box = document.getElementById('int-promemoria');
+    if (!box) return;
+    if (!intPuoModificare()) { box.classList.add('hidden'); return; }
+    const giorno = intProssimoLavorativo(intOggi());
+    const { data, error } = await supabaseClient.from('interventi').select('*').eq('data', giorno);
+    if (error) {
+        console.log('Promemoria non disponibili (eseguito organizzazione-setup.sql?):', error);
+        box.classList.add('hidden');
+        return;
+    }
+    if (!intTecnici.length) {
+        const resTec = await supabaseClient.from('tecnici').select('*').order('ordine').order('nome');
+        if (!resTec.error) intTecnici = resTec.data || [];
+    }
+    const ordine = id => { const t = intTecnici.find(x => x.id === id); return t ? (t.ordine || 0) : 999; };
+    const righe = (data || []).filter(r => intHaContenuto(r) && r.esito !== 'NO').sort((a, b) =>
+        ordine(a.tecnico_id) - ordine(b.tecnico_id) || a.turno.localeCompare(b.turno) || a.posizione - b.posizione);
+    intPromemoriaRighe = righe;
+    intPromemoriaGiorno = giorno;
+    intRenderPromemoria();
+    intCaricaMeteo();
+}
+
+function intRenderPromemoria() {
+    const box = document.getElementById('int-promemoria');
+    const righe = intPromemoriaRighe;
+    const giorno = intPromemoriaGiorno;
+    if (!box || !giorno) return;
+    if (!righe.length) { box.classList.add('hidden'); return; }
+
+    const daInviare = righe.filter(r => r.esito !== '?' && !r.promemoria_at && intCellulare(r.cliente)).length;
+    const d = intDaIso(giorno);
+    const giornoTxt = INT_GIORNI_LUNGHI[(d.getDay() + 6) % 7] + ' ' + d.getDate() + ' ' + INT_MESI[d.getMonth()];
+    document.getElementById('int-promemoria-titolo').innerHTML =
+        '&#128242; Promemoria clienti &middot; ' + giornoTxt +
+        ' <span class="int-tag ' + (daInviare ? 'int-tag-pm' : '') + '">' + (daInviare ? daInviare + ' da inviare' : 'tutti inviati') + '</span>';
+
+    document.getElementById('int-promemoria-lista').innerHTML = righe.map(r => {
+        let azione;
+        let classe = '';
+        if (r.esito === '?') { azione = '<span class="int-pm-stato">&#10067; Da confermare (esito ?)</span>'; classe = 'attesa'; }
+        else if (r.promemoria_at) {
+            azione = '<span class="int-pm-stato">' + intStatoPromemoria(r) + '</span>' +
+                (intCellulare(r.cliente) ? '<button type="button" class="int-btn-piccolo grigio" onclick="intInviaPromemoria(' + r.id + ')">Di nuovo</button>' : '');
+            classe = 'inviato';
+        } else if (!intCellulare(r.cliente)) { azione = '<span class="int-pm-stato">&#9888;&#65039; Manca il cellulare nel campo Cliente</span>'; classe = 'senza'; }
+        else azione = '<button type="button" class="int-btn-whatsapp" onclick="intInviaPromemoria(' + r.id + ')">&#128242; Invia promemoria</button>';
+        return '<div class="int-pm-riga ' + classe + '">' +
+            '<div class="int-pm-info"><strong>' + intEsc(r.ora || (r.turno === 'P' ? 'POM.' : 'MAT.')) + '</strong> &middot; ' +
+            intEsc(intNomeTecnico(r.tecnico_id)) + (r.tipo ? ' &middot; ' + intEsc(r.tipo) : '') +
+            '<br>' + intEsc(r.cliente || '') + ' ' + intMeteoBadge(r) + '</div>' +
+            '<div class="int-pm-azione">' + azione + '</div></div>';
+    }).join('');
+
+    if (intPromemoriaAperto === null) box.open = daInviare > 0;
+    box.classList.remove('hidden');
+}
+
+// ---------- Meteo (MET Norway, tramite la funzione organizzazione-interventi) ----------
+let intMeteo = {};          // id intervento -> { loc, stato: PIOGGIA/DEBOLE/OK/ND, mm, icona, nota }
+let intMeteoChiesto = {};   // id -> { firma, t } per non richiedere di continuo
+let intMeteoInCorso = false;
+
+function intRigheMeteo() {
+    const oggi = intOggi();
+    const limite = intPiuGiorni(oggi, 9);
+    const viste = {};
+    return Object.values(intDati).concat(intPromemoriaRighe).filter(r => {
+        if (!r || viste[r.id] || !intHaContenuto(r) || r.esito === 'NO' || r.data < oggi || r.data > limite) return false;
+        viste[r.id] = true;
+        return true;
+    });
+}
+
+async function intCaricaMeteo() {
+    if (intMeteoInCorso) return;
+    const adesso = Date.now();
+    const daChiedere = intRigheMeteo().filter(r => {
+        const f = intMeteoChiesto[r.id];
+        return !f || f.firma !== (r.cliente + '|' + r.data + '|' + r.turno) || adesso - f.t > 30 * 60 * 1000;
+    });
+    if (!daChiedere.length) return;
+    intMeteoInCorso = true;
+    try {
+        const { data, error } = await supabaseClient.functions.invoke('organizzazione-interventi', {
+            body: { azione: 'meteo', righe: daChiedere.map(r => ({ id: r.id, cliente: r.cliente, data: r.data, turno: r.turno })) }
+        });
+        if (error || !data || !data.ok) { console.log('Meteo non disponibile:', error || data); return; }
+        daChiedere.forEach(r => { intMeteoChiesto[r.id] = { firma: r.cliente + '|' + r.data + '|' + r.turno, t: adesso }; });
+        Object.keys(data.meteo || {}).forEach(id => { intMeteo[id] = data.meteo[id]; });
+        if (intSettimana) intRender();
+        intRenderPromemoria();
+    } catch (err) {
+        console.log('Meteo non disponibile:', err);
+    } finally {
+        intMeteoInCorso = false;
+    }
+}
+
+function intMeteoBadge(r) {
+    const m = r && intMeteo[r.id];
+    if (!m || m.stato === 'ND' || !m.icona || !intHaContenuto(r) || r.esito === 'NO') return '';
+    const classe = m.stato === 'PIOGGIA' ? 'pioggia' : (m.stato === 'DEBOLE' ? 'debole' : 'ok');
+    const mm = (m.stato === 'PIOGGIA' || m.stato === 'DEBOLE') ? ' ' + String(m.mm).replace('.', ',') + ' mm' : '';
+    const descr = m.stato === 'PIOGGIA' ? 'PIOGGIA prevista' : (m.stato === 'DEBOLE' ? 'pioggia debole possibile' : 'niente pioggia');
+    return '<span class="int-meteo ' + classe + '" title="' + intEsc((m.loc || '') + ': ' + descr + ' (' + INT_TURNI[r.turno] + ') - MET Norway') + '">' +
+        m.icona + mm + '</span>';
+}
+
+// C'e' pioggia prevista su qualche intervento di quel giorno (di un tecnico o di tutti)?
+function intPioggiaNelGiorno(data, tid) {
+    return Object.values(intDati).some(r => r.data === data && (!tid || r.tecnico_id === tid) &&
+        intHaContenuto(r) && r.esito !== 'NO' && intMeteo[r.id] && intMeteo[r.id].stato === 'PIOGGIA');
 }
 
 // ========================================
@@ -1215,7 +1479,7 @@ async function intCreaExcelArchivio(righe, anno) {
     try {
         const ExcelJS = await intCaricaExcelJS();
         const wb = new ExcelJS.Workbook();
-        wb.creator = 'AGRIMAG';
+        wb.creator = 'AGRIDESK';
         const ws = wb.addWorksheet('INTERVENTI ' + anno, { views: [{ state: 'frozen', ySplit: 1 }] });
         ws.columns = INT_COLONNE_ARCHIVIO.map(c => ({ header: c.titolo, width: c.larghezza }));
         const testa = ws.getRow(1);
@@ -1321,6 +1585,7 @@ async function intArchiviaAnno() {
 window.intProvaTelegram = intProvaTelegram;
 window.intInviaTelegram = intInviaTelegram;
 window.intImpostaUtente = intImpostaUtente;
+window.intInviaPromemoria = intInviaPromemoria;
 window.intArchiviaAnno = intArchiviaAnno;
 window.openInterventiEsterni = openInterventiEsterni;
 window.intMostraElenco = intMostraElenco;
