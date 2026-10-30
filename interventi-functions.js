@@ -153,8 +153,15 @@ async function intLeggiTutti(creaQuery) {
 // ========================================
 async function openInterventiEsterni() {
     intAvviaTempoReale();
-    intPennello = null;
     const salvata = sessionStorage.getItem('interventiSettimana');
+    // Settimana gia' aperta sullo schermo (es. tornando da WhatsApp l'app ricarica la sezione):
+    // aggiorno solo i dati, senza tornare al lunedi' e senza scorrere in cima
+    const vista = document.getElementById('int-vista-settimana');
+    if (salvata && salvata === intSettimana && vista && !vista.classList.contains('hidden')) {
+        await intCaricaSettimana();
+        return;
+    }
+    intPennello = null;
     if (salvata && salvata >= INT_INIZIO) {
         await intApriSettimana(salvata, true);
     } else {
@@ -198,12 +205,18 @@ async function intCaricaElenco() {
         return;
     }
 
-    // Conteggio interventi e assenze per settimana
+    // Conteggio interventi e assenze per settimana (+ i miei, se l'utente e' un tecnico)
     const conteggi = {};
     const assenze = {};
+    const miei = {};
+    if (!intTecnici.length) {
+        const resTec = await supabaseClient.from('tecnici').select('*').order('ordine').order('nome');
+        if (!resTec.error) intTecnici = resTec.data || [];
+    }
+    const mioId = intMioTecnicoId();
     const { data, error } = await intLeggiTutti(() => supabaseClient
         .from('interventi')
-        .select('data, ora, tipo, esito, cliente, colore')
+        .select('tecnico_id, data, ora, tipo, esito, cliente, colore')
         .gte('data', settimane[0])
         .lte('data', intPiuGiorni(settimane[settimane.length - 1], 5))
         .order('id'));
@@ -214,6 +227,7 @@ async function intCaricaElenco() {
             const lun = intLunediDi(r.data);
             if (intHaContenuto(r) && r.esito !== 'NO') conteggi[lun] = (conteggi[lun] || 0) + 1;
             if (r.colore === 'ROSSO') assenze[lun] = true;
+            if (intEMio(r, mioId)) miei[lun] = (miei[lun] || 0) + 1;
         });
     }
 
@@ -237,6 +251,7 @@ async function intCaricaElenco() {
             '<span class="int-sett-titolo">' + intEtichettaSettimana(lun) + '</span>' +
             '<span class="int-sett-info">' + etichetta +
             (n ? '<span class="int-sett-conta">' + n + ' interv.</span>' : '') +
+            (miei[lun] ? '<span class="int-tag int-tag-miei">&#11088; ' + miei[lun] + ' TUOI</span>' : '') +
             (assenze[lun] ? '<span class="int-sett-assenza" title="Ci sono righe rosse (assenze)"></span>' : '') +
             '</span></button>';
     });
@@ -265,9 +280,12 @@ async function intApriSettimana(lunedi, ripristino) {
     sessionStorage.setItem('interventiSettimana', intSettimana);
     intAnno = intDaIso(intSettimana).getFullYear();
 
-    // Da telefono si parte dal giorno di oggi (se e' in questa settimana)
+    // Da telefono: giorno ricordato per questa settimana (se c'e'), altrimenti oggi
+    // (se e' in questa settimana), altrimenti lunedi'
+    const ricordato = intGiornoRicordato(intSettimana);
     const diff = Math.round((intDaIso(intOggi()) - intDaIso(intSettimana)) / 86400000);
-    intGiornoMobile = (diff >= 0 && diff <= 5) ? diff : 0;
+    intGiornoMobile = ricordato !== null ? ricordato : ((diff >= 0 && diff <= 5) ? diff : 0);
+    intRicordaGiorno();
     if (!ripristino) intPennello = null;
 
     document.getElementById('int-vista-elenco').classList.add('hidden');
@@ -335,6 +353,37 @@ function intDateSettimana() {
     return INT_GIORNI.map((g, i) => intPiuGiorni(intSettimana, i));
 }
 
+// ---------- "I miei interventi" (utente collegato a un tecnico) ----------
+// Il collegamento si fa nella finestra Tecnici ("Utente dell'app").
+function intMioTecnicoId() {
+    const email = String(loggedInUserEmail || '').toLowerCase();
+    if (!email) return null;
+    const t = intTecnici.find(x => x.email && String(x.email).toLowerCase() === email);
+    return t ? t.id : null;
+}
+
+// Intervento "vivo" in carico al tecnico: riga compilata e non annullata (esito NO)
+function intEMio(r, mioId) {
+    return !!(mioId && r && r.tecnico_id === mioId && intHaContenuto(r) && r.esito !== 'NO');
+}
+
+function intMieiNelGiorno(data, mioId) {
+    let n = 0;
+    ['M', 'P'].forEach(turno => {
+        for (let pos = 1; pos <= 4; pos++) {
+            if (intEMio(intDati[intChiave(mioId, data, turno, pos)], mioId)) n++;
+        }
+    });
+    return n;
+}
+
+// Il mio tecnico per primo
+function intOrdinaMioPrimo(tecnici) {
+    const mio = intMioTecnicoId();
+    if (!mio) return tecnici;
+    return tecnici.slice().sort((a, b) => (b.id === mio) - (a.id === mio));
+}
+
 // ---------- Disegno ----------
 function intRender() {
     const tecnici = intTecniciSettimana();
@@ -347,8 +396,9 @@ function intRender() {
         mobile.innerHTML = msg;
         return;
     }
-    griglia.innerHTML = tecnici.map(t => intRenderTabellaTecnico(t)).join('');
-    mobile.innerHTML = intRenderMobile(tecnici);
+    const ordinati = intOrdinaMioPrimo(tecnici);
+    griglia.innerHTML = ordinati.map(t => intRenderTabellaTecnico(t)).join('');
+    mobile.innerHTML = intRenderMobile(ordinati);
 }
 
 function intCelleRiga(r) {
@@ -379,18 +429,21 @@ function intClassiRiga(r, turno, pos) {
 function intRenderTabellaTecnico(t) {
     const oggi = intOggi();
     const modificabile = intPuoModificare();
+    const mioId = intMioTecnicoId();
+    const eMio = mioId === t.id;
     let righe = '';
     intDateSettimana().forEach((data, gi) => {
         ['M', 'P'].forEach(turno => {
             for (let pos = 1; pos <= 4; pos++) {
                 const r = intDati[intChiave(t.id, data, turno, pos)];
-                righe += '<tr class="' + intClassiRiga(r, turno, pos) + '"' +
+                righe += '<tr class="' + intClassiRiga(r, turno, pos) + (intEMio(r, mioId) ? ' mia' : '') + '"' +
                     (modificabile ? ' onclick="intClickRiga(' + t.id + ',\'' + data + '\',\'' + turno + '\',' + pos + ')"' : '') + '>';
                 if (turno === 'M' && pos === 1) {
                     righe += '<td rowspan="8" class="int-c-giorno' + (data === oggi ? ' oggi' : '') + '"' +
                         (modificabile ? ' onclick="event.stopPropagation(); intApriColora(' + t.id + ',\'' + data + '\')" title="Colora mattina / pomeriggio / giornata"' : '') + '>' +
                         '<span class="int-giorno-nome">' + INT_GIORNI[gi] + '</span>' +
                         '<span class="int-giorno-num">' + intDaIso(data).getDate() + '</span>' +
+                        (eMio && intMieiNelGiorno(data, mioId) ? '<span class="int-mio-pallino">' + intMieiNelGiorno(data, mioId) + '</span>' : '') +
                         (modificabile ? '<span class="int-giorno-colora">&#127912;</span>' : '') +
                         '</td>';
                 }
@@ -399,8 +452,9 @@ function intRenderTabellaTecnico(t) {
         });
     });
 
-    return '<div class="int-tecnico-blocco">' +
-        '<div class="int-tecnico-nome">' + intEsc(t.nome) + (t.attivo ? '' : ' <small>(non attivo)</small>') + '</div>' +
+    return '<div class="int-tecnico-blocco' + (eMio ? ' mio' : '') + '">' +
+        '<div class="int-tecnico-nome">' + (eMio ? '&#11088; I TUOI INTERVENTI &middot; ' : '') + intEsc(t.nome) +
+        (t.attivo ? '' : ' <small>(non attivo)</small>') + '</div>' +
         '<table class="int-tabella">' +
         '<colgroup><col class="int-col-giorno"><col class="int-col-ora"><col class="int-col-tipo"><col class="int-col-esito"><col></colgroup>' +
         '<thead><tr><th>GIORNO</th><th>ORA</th><th>TIPO</th><th>ESITO</th><th>CLIENTE</th></tr></thead>' +
@@ -411,21 +465,32 @@ function intRenderMobile(tecnici) {
     const date = intDateSettimana();
     const oggi = intOggi();
     const modificabile = intPuoModificare();
+    const mioId = intMioTecnicoId();
 
     let html = '<div class="int-giorni-tab">';
     date.forEach((data, gi) => {
-        html += '<button type="button" class="int-giorno-tab' + (gi === intGiornoMobile ? ' attivo' : '') + (data === oggi ? ' oggi' : '') + '" onclick="intScegliGiorno(' + gi + ')">' +
-            '<span>' + INT_GIORNI[gi] + '</span><strong>' + intDaIso(data).getDate() + '</strong></button>';
+        const miei = mioId ? intMieiNelGiorno(data, mioId) : 0;
+        html += '<button type="button" class="int-giorno-tab' + (gi === intGiornoMobile ? ' attivo' : '') + (data === oggi ? ' oggi' : '') +
+            (miei ? ' con-miei' : '') + '" onclick="intScegliGiorno(' + gi + ')">' +
+            '<span>' + INT_GIORNI[gi] + '</span><strong>' + intDaIso(data).getDate() + '</strong>' +
+            (miei ? '<span class="int-mio-pallino" title="I tuoi interventi">' + miei + '</span>' : '') + '</button>';
     });
     html += '</div>';
+    if (mioId) {
+        const totale = date.reduce((n, d) => n + intMieiNelGiorno(d, mioId), 0);
+        html += '<div class="int-miei-riepilogo">' + (totale
+            ? '&#11088; Questa settimana hai <strong>' + totale + (totale === 1 ? ' intervento' : ' interventi') + '</strong> (numeri sui giorni)'
+            : 'Questa settimana non hai interventi in carico') + '</div>';
+    }
 
     const data = date[intGiornoMobile];
     const d = intDaIso(data);
     html += '<div class="int-giorno-titolo">' + INT_GIORNI_LUNGHI[intGiornoMobile] + ' ' + d.getDate() + ' ' + INT_MESI[d.getMonth()] + '</div>';
 
     tecnici.forEach(t => {
-        html += '<div class="int-m-tecnico">' +
-            '<div class="int-m-tecnico-nome"><span>' + intEsc(t.nome) + '</span>' +
+        const eMio = mioId === t.id;
+        html += '<div class="int-m-tecnico' + (eMio ? ' mio' : '') + '">' +
+            '<div class="int-m-tecnico-nome"><span>' + (eMio ? '&#11088; ' : '') + intEsc(t.nome) + '</span>' +
             (modificabile ? '<button type="button" class="int-m-colora" onclick="intApriColora(' + t.id + ',\'' + data + '\')">&#127912; Colora</button>' : '') +
             '</div>';
         ['M', 'P'].forEach(turno => {
@@ -436,6 +501,7 @@ function intRenderMobile(tecnici) {
                 if (r && r.colore) classi.push('col-' + r.colore);
                 if (r && r.esito === 'NO') classi.push('annullato');
                 if (!intHaContenuto(r)) classi.push('vuota');
+                if (intEMio(r, mioId)) classi.push('mia');
                 html += '<div class="' + classi.join(' ') + '"' +
                     (modificabile ? ' onclick="intClickRiga(' + t.id + ',\'' + data + '\',\'' + turno + '\',' + pos + ')"' : '') + '>';
                 if (intHaContenuto(r)) {
@@ -458,7 +524,24 @@ function intRenderMobile(tecnici) {
 
 function intScegliGiorno(gi) {
     intGiornoMobile = gi;
-    document.getElementById('int-mobile').innerHTML = intRenderMobile(intTecniciSettimana());
+    intRicordaGiorno();
+    document.getElementById('int-mobile').innerHTML = intRenderMobile(intOrdinaMioPrimo(intTecniciSettimana()));
+}
+
+// Giorno scelto da telefono, ricordato nella sessione (settimana + giorno):
+// dopo un salvataggio o tornando da un'altra app si resta sullo stesso giorno
+function intRicordaGiorno() {
+    try {
+        sessionStorage.setItem('interventiGiorno', JSON.stringify({ s: intSettimana, g: intGiornoMobile }));
+    } catch (e) { /* ignora */ }
+}
+
+function intGiornoRicordato(settimana) {
+    try {
+        const v = JSON.parse(sessionStorage.getItem('interventiGiorno') || 'null');
+        if (v && v.s === settimana && v.g >= 0 && v.g <= 5) return v.g;
+    } catch (e) { /* ignora */ }
+    return null;
 }
 
 // ========================================
@@ -701,6 +784,7 @@ function intApriTecnici() {
     document.getElementById('int-nuovo-tecnico').value = '';
     document.getElementById('int-nuovo-fisso').checked = false;
     intRenderTecnici();
+    intCaricaUtentiApp().then(() => intRenderTecnici());
     const prova = document.getElementById('int-btn-prova-telegram');
     if (prova) prova.classList.toggle('hidden', currentUserRole !== 'admin');
     document.getElementById('int-tecnici-modal').classList.remove('hidden');
@@ -729,8 +813,39 @@ function intRenderTecnici() {
             ' onchange="intImpostaInSettimana(' + t.id + ', this.checked)"> In questa settimana</label>' +
             '<button type="button" class="int-btn-piccolo ' + (t.attivo ? 'grigio' : '') + '" onclick="intImpostaAttivo(' + t.id + ',' + (!t.attivo) + ')">' +
             (t.attivo ? 'Disattiva' : 'Riattiva') + '</button>' +
-            '</div></div>';
+            '</div>' +
+            '<label class="int-tec-utente">Utente dell\'app (vede evidenziati i suoi interventi):' +
+            '<select onchange="intImpostaUtente(' + t.id + ', this.value)">' + intOpzioniUtenti(t.email) + '</select></label>' +
+            '</div>';
     }).join('');
+}
+
+// Utenti dell'app (Gestione Utenti) per collegarli ai tecnici
+let intUtentiApp = [];
+
+async function intCaricaUtentiApp() {
+    const { data, error } = await supabaseClient.from('user_roles').select('email, role, iniziali').order('email');
+    if (!error) intUtentiApp = data || [];
+}
+
+function intOpzioniUtenti(emailAttuale) {
+    const attuale = String(emailAttuale || '').toLowerCase();
+    let html = '<option value="">&ndash; nessuno &ndash;</option>';
+    let trovato = !attuale;
+    intUtentiApp.forEach(u => {
+        const e = String(u.email || '').toLowerCase();
+        if (e === attuale) trovato = true;
+        html += '<option value="' + intEsc(e) + '"' + (e === attuale ? ' selected' : '') + '>' +
+            intEsc(u.email) + ' (' + intEsc(u.role || '') + ')</option>';
+    });
+    if (!trovato) html += '<option value="' + intEsc(attuale) + '" selected>' + intEsc(attuale) + '</option>';
+    return html;
+}
+
+async function intImpostaUtente(id, email) {
+    const { error } = await supabaseClient.from('tecnici').update({ email: email || null }).eq('id', id);
+    if (error) { intErrore(error, 'collegamento utente'); return; }
+    await intDopoCambioTecnici();
 }
 
 async function intRinominaTecnico(id) {
@@ -1205,6 +1320,7 @@ async function intArchiviaAnno() {
 // ========================================
 window.intProvaTelegram = intProvaTelegram;
 window.intInviaTelegram = intInviaTelegram;
+window.intImpostaUtente = intImpostaUtente;
 window.intArchiviaAnno = intArchiviaAnno;
 window.openInterventiEsterni = openInterventiEsterni;
 window.intMostraElenco = intMostraElenco;

@@ -130,6 +130,12 @@ function controllaAdesso() {
   chiamaFunzione(Object.assign({ azione: 'controlla', mattina: false, oggi: oggi }, leggiEventi()));
 }
 
+// 5. DIAGNOSI: controlla secrets, bot, webhook, chat e database (risultato nel log)
+//    e manda un messaggio di prova nelle due chat (gruppo interventi e chat assenze)
+function diagnosi() {
+  chiamaFunzione({ azione: 'diagnosi' });
+}
+
 // 4. Se serve rifare il resoconto di oggi (es. per prova)
 function rifaiResocontoOggi() {
   PropertiesService.getScriptProperties().deleteProperty('ultimoResoconto');

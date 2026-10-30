@@ -522,6 +522,90 @@ async function gestisciTelegram(update: any) {
 }
 
 // ============================================================
+// 3. DIAGNOSI (dallo script Google: funzione "diagnosi")
+//    Controlla secrets, bot, webhook, chat e database. Manda un
+//    messaggio di prova nelle due chat (assenze e gruppo interventi).
+//    Non mostra mai token o chiavi per intero.
+// ============================================================
+async function diagnosi(): Promise<string[]> {
+    const r: string[] = [];
+    const ok = (t: string) => r.push('OK      ' + t);
+    const ko = (t: string) => r.push('ERRORE  ' + t);
+
+    // Secrets
+    const token = Deno.env.get('TELEGRAM_BOT_TOKEN_INTERVENTI') || '';
+    if (!token) ko('Secret TELEGRAM_BOT_TOKEN_INTERVENTI mancante');
+    else if (!/^\d+:[\w-]{30,}$/.test(token.trim())) ko('TELEGRAM_BOT_TOKEN_INTERVENTI non sembra un token (deve essere tipo 123456789:AAH...)' );
+    else ok('TELEGRAM_BOT_TOKEN_INTERVENTI presente (bot n. ' + token.split(':')[0] + ')');
+    if (token && token !== token.trim()) ko('TELEGRAM_BOT_TOKEN_INTERVENTI ha spazi prima o dopo: ricopialo');
+    for (const k of ['TELEGRAM_CHAT_ID_INTERVENTI', 'ASSENZE_CHAT_ID']) {
+        const v = Deno.env.get(k) || '';
+        if (!v) ko('Secret ' + k + ' mancante');
+        else if (!/^-?\d+$/.test(v)) ko(k + ' = "' + v + '": deve contenere solo il numero (col meno se c\'e\'), senza spazi');
+        else ok(k + ' = ' + v);
+    }
+    for (const k of ['ASSENZE_SCRIPT_KEY', 'ASSENZE_WEBHOOK_SECRET']) {
+        if (Deno.env.get(k)) ok(k + ' presente'); else ko('Secret ' + k + ' mancante');
+    }
+    const sk = chiaveServizio();
+    if (!sk) ko('Chiave di servizio mancante (ASSENZE_SERVICE_KEY)');
+    else ok('Chiave di servizio: ' + (Deno.env.get('ASSENZE_SERVICE_KEY') ? 'ASSENZE_SERVICE_KEY' : 'chiave vecchia di Supabase') +
+        ' (' + (sk.startsWith('sb_secret_') ? 'sb_secret_...' : sk.startsWith('eyJ') ? 'JWT vecchia' : 'formato strano') + ')');
+
+    // Database
+    try {
+        const t: Tecnico[] = await db('tecnici?select=id,nome,attivo');
+        ok('Database: ' + t.length + ' tecnici (' + t.filter((x) => x.attivo).map((x) => x.nome).join(', ') + ')');
+        const a: Riga[] = await db('assenze_eventi?select=id,stato');
+        ok('Database: ' + a.length + ' eventi di assenza registrati');
+    } catch (err) {
+        ko('Database: ' + String((err as Error)?.message || err));
+    }
+
+    if (!token) return r;
+    // Bot
+    const me = await telegram('getMe', {});
+    if (me.ok) ok('Bot: @' + me.result.username + ' (deve essere @interventiesterni_bot)');
+    else { ko('Bot: token rifiutato da Telegram (' + (me.description || 'errore') + ')'); return r; }
+
+    // Webhook (pulsanti delle assenze)
+    const wh = await telegram('getWebhookInfo', {});
+    if (wh.ok) {
+        const url = wh.result.url || '';
+        if (!url) ko('Webhook NON impostato: i pulsanti delle assenze non funzionano (rifare il punto 5 della guida)');
+        else if (!url.includes('/functions/v1/assenze-tecnici')) ko('Webhook puntato altrove: ' + url);
+        else ok('Webhook: ' + url);
+        if (wh.result.last_error_message) {
+            ko('Ultimo errore del webhook: ' + wh.result.last_error_message +
+                (/401/.test(wh.result.last_error_message) ? ' (secret_token diverso da ASSENZE_WEBHOOK_SECRET)' : ''));
+        }
+    }
+
+    // Chat: informazioni + messaggio di prova
+    for (const [k, nome] of [['TELEGRAM_CHAT_ID_INTERVENTI', 'gruppo Interventi esterni'], ['ASSENZE_CHAT_ID', 'chat delle assenze']]) {
+        const id = (Deno.env.get(k) || '').trim();
+        if (!id) continue;
+        const info = await telegram('getChat', { chat_id: id });
+        if (!info.ok) {
+            const nuovo = info.parameters?.migrate_to_chat_id;
+            ko(nome + ' (' + k + '): ' + (info.description || 'errore') +
+                (nuovo ? ' -> NUOVO chat id: ' + nuovo + ' (mettilo in ' + k + ')' : ''));
+            continue;
+        }
+        const c = info.result;
+        ok(nome + ': "' + (c.title || c.first_name || '') + '" (tipo ' + c.type + ')');
+        const prova = await telegram('sendMessage', { chat_id: id, text: '\uD83D\uDD27 Diagnosi AGRIMAG: il bot scrive correttamente in questa chat (' + nome + ').' });
+        if (prova.ok) ok(nome + ': messaggio di prova inviato');
+        else {
+            const nuovo = prova.parameters?.migrate_to_chat_id;
+            ko(nome + ': invio non riuscito: ' + (prova.description || 'errore') +
+                (nuovo ? ' -> NUOVO chat id: ' + nuovo + ' (mettilo in ' + k + ')' : ''));
+        }
+    }
+    return r;
+}
+
+// ============================================================
 Deno.serve(async (req: Request) => {
     if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
     if (req.method !== 'POST') return risposta({ ok: false, errore: 'Metodo non consentito' }, 405);
@@ -552,6 +636,9 @@ Deno.serve(async (req: Request) => {
     if (!chiaveServizio()) return risposta({ ok: false, errore: 'Manca la chiave di servizio (ASSENZE_SERVICE_KEY)' }, 500);
 
     try {
+        if (corpo.azione === 'diagnosi') {
+            return risposta({ ok: true, riepilogo: await diagnosi() });
+        }
         if (corpo.azione === 'prova') {
             const r = await telegram('sendMessage', {
                 chat_id: chatAssenze(),

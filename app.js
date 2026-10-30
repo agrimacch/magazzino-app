@@ -755,6 +755,7 @@ async function handleLogout() {
     sessionStorage.removeItem('currentTab');
     sessionStorage.removeItem('listinoTab');
     sessionStorage.removeItem('interventiSettimana');
+    sessionStorage.removeItem('interventiGiorno');
 
     await supabaseClient.auth.signOut();
     currentUser = null;

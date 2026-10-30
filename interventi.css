@@ -796,3 +796,88 @@ body.ruolo-tecnico #notifiche-btn {
 .int-btn-prova {
     margin-top: 12px;
 }
+
+/* ---------- I miei interventi (utente collegato a un tecnico) ---------- */
+.int-mio-pallino {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: 9px;
+    background: #f59e0b;
+    color: #000;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1;
+}
+
+/* Linguetta del giorno con interventi miei: pallino in alto a destra + bordo arancione */
+.int-giorno-tab {
+    position: relative;
+}
+
+.int-giorno-tab.con-miei {
+    border-color: #f59e0b;
+    box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.35);
+}
+
+.int-giorno-tab .int-mio-pallino {
+    position: absolute;
+    top: -7px;
+    right: -5px;
+    z-index: 1;
+}
+
+/* Casella del giorno (PC) */
+#section-interventi-esterni table.int-tabella td.int-c-giorno .int-mio-pallino {
+    margin-top: 6px;
+}
+
+.int-miei-riepilogo {
+    background: #fffbeb;
+    border: 2px solid #f59e0b;
+    border-radius: var(--border-radius-sm);
+    padding: 8px 10px;
+    font-size: 13px;
+    margin: 6px 0 2px;
+}
+
+/* Blocco del mio tecnico */
+.int-tecnico-blocco.mio,
+.int-m-tecnico.mio {
+    border-color: #f59e0b;
+    box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.35);
+}
+
+/* Le mie righe: barra arancione a sinistra */
+#section-interventi-esterni table.int-tabella tr.mia td.int-c-ora {
+    box-shadow: inset 5px 0 0 #f59e0b;
+}
+
+.int-m-riga.mia {
+    box-shadow: inset 6px 0 0 #f59e0b;
+    font-weight: 600;
+}
+
+.int-tag.int-tag-miei {
+    background: #f59e0b;
+    color: #000;
+}
+
+/* Finestra tecnici: utente collegato */
+.int-tec-utente {
+    display: block;
+    margin: 10px 0 0;
+    font-weight: 500;
+    font-size: 12px;
+    color: var(--gray);
+}
+
+.int-tec-utente select {
+    margin: 4px 0 0;
+    padding: 8px 10px;
+    font-size: 14px;
+    text-transform: none;
+}

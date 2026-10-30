@@ -159,7 +159,12 @@ async function inviaTelegram(testo: string): Promise<{ ok: boolean; errore?: str
     });
     const dati = await res.json().catch(() => ({}));
     if (!res.ok || !dati.ok) {
-        return { ok: false, errore: 'Telegram ha risposto: ' + (dati.description || res.status) };
+        const nuovo = dati.parameters?.migrate_to_chat_id;
+        return {
+            ok: false,
+            errore: 'Telegram ha risposto: ' + (dati.description || res.status) +
+                (nuovo ? ' - NUOVO chat id del gruppo: ' + nuovo + ' (mettilo nel secret TELEGRAM_CHAT_ID_INTERVENTI)' : ''),
+        };
     }
     return { ok: true };
 }
