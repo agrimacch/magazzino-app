@@ -1,6 +1,9 @@
 # Changelog App Magazzino
 
 ## v6.2.0 - 2026-10-31 (PRODUZIONE)
+MAGAZZINO MACCHINE CON REPORT
+
+## v6.2.0 - 2026-10-31 (PRODUZIONE)
 inventario e magazzino macchine
 
 ## v6.1.1 - 2026-10-30 (PRODUZIONE)
