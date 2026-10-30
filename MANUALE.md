@@ -227,6 +227,62 @@ Configurazione notifiche: tabella `listino_notifiche` (script `supabase/listino-
 
 ---
 
+### 8.4 Inventario Macchine (admin e operatori)
+Si apre da **Magazzino &rarr; Inventario Macchine** (la sezione sta in Magazzino; gli Ordini Clienti in Vendite). &Egrave; collegato al Listino Vendite: ogni macchina fisica &egrave; una riga legata a un articolo del listino (stessa suddivisione: attrezzo, marchio, alimentazione, tipologia, modello, note), senza prezzi.
+
+**Stati (i colori del quadernone)**
+| Quadratino | Significato |
+|---|---|
+| Bianco + nome | Da ordinare (venduta, non ancora ordinata al fornitore) |
+| Blu + nome | Ordinata al fornitore per quel cliente |
+| Verde + nome | In casa, assegnata al cliente |
+| Verde senza nome | In casa, disponibile alla vendita |
+| Verde con la croce | Consegnata |
+
+**Schede**
+- **Inventario**: per ogni articolo disponibili / assegnate / ordinate / da ordinare, stessi filtri del listino, riepilogo in alto con il valore in casa (somma dei netti al carico). Casellina "Solo articoli con pezzi".
+- **Quaderno**: riproduce il raccoglitore. Divisori per marchio (da PC a destra, da telefono in alto), evidenziatore giallo con attrezzo + marchio, per ogni modello la tabella a quadratini con il nome del cliente. Tocca un quadratino per cambiare stato, cliente, matricola, netto o note; tocca il "+" per aggiungere una riga. La ricerca cerca in tutti i marchi anche per **nome cliente** e **matricola**.
+- **Carico Excel**: un file unico per tutti i marchi (colonne del listino + QUANTITA + MATRICOLE). Si scarica il modello (vuoto oppure gi&agrave; compilato con il listino di un marchio), si scrivono quantit&agrave;, netti e prezzi della conferma d'ordine e si ricarica. Abbinamento MARCHIO + MODELLO + NOTE (se manca la NOTE e c'&egrave; un solo articolo con quel modello viene abbinato a quello). Articolo non in listino = creato (serve l'ATTREZZO); netto 1 diverso = listino aggiornato con scalamento e storico (origine &quot;Carico macchine (Excel)&quot;); prezzi compilati = aggiornati (le celle vuote non cancellano niente); QUANTITA vuota o 0 = solo listino; righe ripetute unite; matricole separate da virgola. Anteprima riga per riga (CARICO / NUOVO / SOLO LISTINO / ERRORE): le righe con errori non vengono caricate. Una sola notifica di riepilogo (campanella + Telegram).
+- **Set**: dice di cosa &egrave; fatto ogni set del listino (es. SET BGA110 = BGA110 + AP30 + caricatore). In magazzino si caricano solo i componenti singoli; i set componibili vengono calcolati da soli. L'app propone gli articoli con SET, KIT, CPL o COMPLETA nel nome/note.
+- **Movimenti**: registro di carichi, nuove voci, modifiche e cancellazioni (chi e quando).
+- **Report**: vendite = macchine **consegnate**, alla **data di consegna**. Filtri: periodo (quest'anno, anno scorso, mese, date a scelta), marchio, attrezzo, ricerca (modello, cliente, matricola, operatore). Raggruppa per marchio, attrezzo, modello, operatore o mese. Per ogni gruppo: pezzi, ricavo (prezzo della riga dell'ordine; per una riga con piu' macchine o un set il prezzo si divide in proporzione ai netti), costo (netto di carico), margine e margine % sul prezzo. Tutti i prezzi (vendita e netti) sono IVA inclusa; casellina &quot;mostra gli importi senza IVA&quot; (attiva di default, scelta ricordata): toglie il 22% sia dal ricavo sia dal costo (il margine % non cambia). Le macchine consegnate senza ordine (segnate a mano) contano nei pezzi e nel costo ma non nel ricavo (&quot;s.p.&quot; = senza prezzo). Dettaglio macchina per macchina; **Scarica Excel** (fogli RIEPILOGO e DETTAGLIO) e **PDF / Stampa** (documento A4 compatto che si apre in una nuova scheda: da l&igrave; si stampa o si salva, senza le scritte del browser in alto e in fondo).
+- **Valore**: valore del magazzino macchine **adesso** (macchine in casa, comprese quelle gi&agrave; assegnate a clienti e non consegnate) oppure **a una data** (es. 31/12: le macchine caricate entro quella data e non ancora consegnate quel giorno; le righe cancellate dal quaderno non si possono ricostruire). Valore = netto di carico (se manca, netto 1 del listino); casellina &quot;senza IVA&quot; come nel report. Raggruppa per marchio, attrezzo o modello; filtri; dettaglio; Excel e PDF.
+
+**Carico macchine**: scegli l'articolo, quantit&agrave;, netto (proposto il netto 1) e, se vuoi, le matricole (scritte o lette con la fotocamera da QR/codice a barre). Con la casellina attiva le macchine arrivate vanno **prima ai clienti che le aspettano** (prima le ordinate, poi le da ordinare, in ordine di inserimento): l'anteprima "Cosa succede" lo mostra prima di salvare. Caricando un set si caricano i suoi componenti. Se l'articolo non c'&egrave; nel listino: "Non c'&egrave; nel listino? Crealo" apre la finestra Nuovo articolo del listino (con netti e prezzi) e poi lo seleziona da solo.
+
+**Nuova voce**: serve per riportare il quadernone (e per i casi senza carico): articolo, stato, cliente, quantit&agrave;, matricola. Se l'articolo &egrave; un set crea una riga per ogni componente con lo stesso cliente.
+
+**Nel Listino Vendite** (admin e operatori) accanto al modello compare in piccolo &#127968; N (disponibili in casa, pi&ugrave; quelle gi&agrave; assegnate) oppure &#129513; N set componibili.
+
+**Configurazione**: eseguire una volta `supabase/inventario-macchine-setup.sql` (Supabase &rarr; SQL Editor). Dalla versione con gli ordini la sezione &egrave; aperta anche agli **operatori** (stessi permessi dell'admin; i tecnici no): `MACCHINE_PER_OPERATORI = true` in `macchine-functions.js` e su Supabase `supabase/macchine-operatori.sql` (funzione `puo_gestire_macchine()` con `role in ('admin', 'operatore')`).
+
+### 8.5 Ordini Clienti (admin e operatori)
+Si apre da **Vendite &rarr; Ordini Clienti**. Sostituisce il blocchetto delle commissioni (niente preventivi: solo ordini).
+
+**Nuovo ordine** (come il modulo cartaceo): data, **operatore** che fa il contratto (proposto chi &egrave; collegato, si pu&ograve; cambiare; compare sulla stampa), Sig. (cliente, obbligatorio), indirizzo, tel/cell, e-mail, C.F., P.IVA, note, pagamento (testo libero). Il numero viene assegnato al salvataggio: progressivo, riparte da 1 ogni anno (es. 12/2026).
+- **Articoli dal listino**: per ogni riga scegli **Disponibile** (l'app prende una macchina in casa e la assegna al cliente: nel quaderno diventa verde con il nome) oppure **Da ordinare** (nel quaderno compare il quadratino bianco con il nome). Se in casa non ce ne sono abbastanza l'app lo dice e propone &quot;Da ordinare&quot;. I set assegnano/creano i singoli componenti.
+- **Prezzo proposto**: vendita promo (se non scaduta), altrimenti no promo, altrimenti listino; si pu&ograve; sempre cambiare (&egrave; il prezzo totale della riga).
+- **Riga libera**: accessori, olio, servizi... non tocca il magazzino.
+- **Firma per accettazione**: il cliente firma sullo schermo con il dito o la penna.
+
+**Elenco ordini**: filtri per anno e stato, ricerca per cliente, numero, modello o matricola. Stato calcolato dalle macchine collegate: Da ordinare &rarr; Ordinato &rarr; In casa &rarr; Consegnato (oppure Annullato).
+
+**Dettaglio ordine** (tocca un ordine):
+- **Stampa / PDF**: apre in una nuova scheda il PDF dell'ordine (stesso aspetto del modulo Agrimacch, con condizioni di vendita e firma): da l&igrave; si stampa o si salva, senza le scritte del browser.
+- **Ordinato al fornitore**: le macchine da ordinare diventano blu nel quaderno.
+- Quando arrivano, il **Carico macchine** (o il Carico Excel) le assegna da solo al cliente dell'ordine.
+- **Consegnato al cliente**: le macchine in casa diventano consegnate (croce nel quaderno).
+- **Modifica dati cliente / firma**: le righe restano bloccate; cambiando il nome si aggiorna anche nel quaderno.
+- **Annulla ordine**: le macchine in casa tornano disponibili, le righe da ordinare spariscono, quelle gi&agrave; ordinate al fornitore restano ordinate senza cliente. Il numero resta usato (l'ordine si vede barrato, il PDF viene rifatto con la scritta ANNULLATO).
+- **Elimina ordine**: come l'annullo, ma l'ordine sparisce del tutto e il PDF va nel cestino di Drive. Se era l'ultimo dell'anno il numero viene riusato, altrimenti resta un buco nella numerazione (l'app avvisa prima).
+- **PDF su Google Drive**: salvato da solo a ogni nuovo ordine (e rifatto dopo modifica o annullo) in `ORDINI CLIENTI / ORDINI CLIENTI <anno>`; le cartelle si creano da sole. Nel dettaglio: Apri / Salva di nuovo / Riprova. Pulsante **Prova Drive** sopra l'elenco. Configurazione: `GUIDA_ORDINI_DRIVE.md`.
+
+**Configurazione**: eseguire una volta `supabase/ordini-clienti-setup.sql` (dopo quello dell'inventario macchine). I dati aziendali e le condizioni stampate sono in cima a `ordini-functions.js` (ORD_AZIENDA, ORD_CONDIZIONI).
+
+**Pulizia delle prove**: `supabase/pulizia-prove-macchine.sql` svuota quaderno, movimenti e ordini e fa ripartire i numeri (non tocca listino, consumabili, ricambi, utenti). I PDF di prova su Drive si cancellano a mano.
+
+**Prossime fasi**: Telegram, apertura agli operatori.
+
 ## 8bis. TECNICI &rarr; INTERVENTI ESTERNI (v6.0.0)
 
 Percorso: Dashboard &rarr; Tecnici &rarr; Interventi Esterni. Modificano **admin e operatori**; i **tecnici** vedono soltanto.
@@ -307,10 +363,15 @@ Percorso: Dashboard &rarr; Gestione Utenti.
 | `listino-functions.js`, `listino.css` | Listino Vendite e notifiche (campanella) |
 | `fornitori-functions.js`, `fornitori.css` | Listini Fornitori (cartelle Google Drive) |
 | `interventi-functions.js`, `interventi.css` | Tecnici &rarr; Interventi Esterni (planning, Telegram, archivio) |
+| `macchine-functions.js`, `macchine.css` | Magazzino &rarr; Inventario Macchine (inventario, quaderno, carico, carico Excel, set, movimenti) |
+| `macchine-report.js` | Inventario Macchine &rarr; schede Report (vendite) e Valore (magazzino), Excel e PDF |
+| `ordini-functions.js`, `ordini.css` | Vendite &rarr; Ordini Clienti (commissioni con firma, stampa) |
 | `supabase/` | Script SQL e codice delle funzioni Supabase (notifica-telegram, listini-drive, notifica-interventi, assenze-tecnici) |
 | `google/listini-drive.gs` | Script Google dei listini (si incolla su script.google.com) |
 | `google/assenze-calendario.gs` | Script Google delle assenze dei tecnici (account agrimacchricambi) |
 | `GUIDA_LISTINI_FORNITORI.md` | Guida di configurazione Drive + script + Supabase |
+| `google/ordini-drive.gs`, `supabase/ordini-drive.ts` | PDF degli ordini clienti su Google Drive (script Google + funzione Supabase) |
+| `GUIDA_ORDINI_DRIVE.md` | Guida di configurazione del salvataggio ordini su Drive |
 | `GUIDA_ASSENZE_CALENDARIO.md` | Guida di configurazione assenze: calendario + script + Supabase + Telegram |
 | `manifest.json` | Impostazioni per installare l'app sul telefono |
 | `VERSION.md` | Storico versioni |
@@ -385,6 +446,9 @@ git rm --cached localhost.pem localhost-key.pem
 | "Invia a Telegram" d&agrave; errore | Finestra Tecnici &rarr; *Prova Telegram* (admin): l'errore dice cosa manca (funzione `notifica-interventi`, secrets `TELEGRAM_BOT_TOKEN_INTERVENTI` / `TELEGRAM_CHAT_ID_INTERVENTI`) |
 | Non arrivano gli avvisi delle assenze | Apps Script &rarr; esegui `controllaAdesso` e leggi il log (una riga per evento). Vedi `GUIDA_ASSENZE_CALENDARIO.md` |
 | Email gi&agrave; registrata creando un utente | L'account &egrave; ancora in Supabase &rarr; Authentication &rarr; Users: eliminarlo da l&igrave; |
+| Inventario Macchine: &quot;Errore caricamento&quot; | Eseguire `supabase/inventario-macchine-setup.sql` su Supabase |
+| Ordini Clienti: &quot;Errore caricamento ordini&quot; | Eseguire `supabase/ordini-clienti-setup.sql` su Supabase |
+| PDF ordine non salvato su Drive | Pulsante *Prova Drive*: il messaggio dice cosa manca. Vedi `GUIDA_ORDINI_DRIVE.md` |
 | La campanella non si aggiorna da sola | Controlla di aver eseguito `listino-notifiche-setup.sql` (attiva il tempo reale); riaprendo l'app il conteggio si aggiorna comunque |
 
 ---

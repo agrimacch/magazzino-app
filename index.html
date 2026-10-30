@@ -16,11 +16,13 @@
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=6.1.1">
-    <link rel="stylesheet" href="listino.css?v=6.1.1">
-    <link rel="stylesheet" href="fornitori.css?v=6.1.1">
-    <link rel="stylesheet" href="interventi.css?v=6.1.1">
+    <link href="https://fonts.googleapis.com/css2?family=Kalam:wght@400;700&family=Roboto+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css?v=6.2.0">
+    <link rel="stylesheet" href="listino.css?v=6.2.0">
+    <link rel="stylesheet" href="fornitori.css?v=6.2.0">
+    <link rel="stylesheet" href="interventi.css?v=6.2.0">
+    <link rel="stylesheet" href="macchine.css?v=6.2.0">
+    <link rel="stylesheet" href="ordini.css?v=6.2.0">
 
     <!-- SheetJS per import Excel -->
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
@@ -81,7 +83,7 @@
 
 <body class="loading">
     <!-- Version badge -->
-    <div class="version-badge">v6.1.1</div>
+    <div class="version-badge">v6.2.0</div>
 
     <!-- SCHERMATA LOGIN -->
     <div id="login-screen" class="screen">
@@ -155,10 +157,10 @@
                 <div class="dashboard-card" id="dashboard-magazzino-card" onclick="openSection('magazzino')">
                     <span class="card-icon">&#127981;</span>
                     <h3>Magazzino</h3>
-                    <p>Inventario consumabili, ricambi stock e scanner</p>
+                    <p>Consumabili, ricambi stock, macchine e scanner</p>
                 </div>
 
-                <!-- Card Vendite (contiene: Listino Vendite, Listini Fornitori) - solo admin -->
+                <!-- Card Vendite (contiene: Listino Vendite, Listini Fornitori, Ordini Clienti) -->
                 <div class="dashboard-card" id="dashboard-vendite-card" onclick="openSection('vendite')">
                     <span class="card-icon">&#128176;</span>
                     <h3>Vendite</h3>
@@ -182,7 +184,7 @@
         </div>
 
         <!-- ========================================== -->
-        <!-- CATEGORIA MAGAZZINO (menu con 3 sottocategorie) -->
+        <!-- CATEGORIA MAGAZZINO (menu con 4 sottocategorie) -->
         <!-- ========================================== -->
         <div id="section-magazzino" class="section-container hidden">
             <div class="back-to-dashboard">
@@ -210,6 +212,13 @@
                         <p>Gestisci ricambi, import Excel e movimenti</p>
                     </div>
 
+                    <!-- Card Inventario Macchine (admin e operatori) -->
+                    <div class="dashboard-card" id="magazzino-macchine-card" onclick="openSection('inventario-macchine')" style="display: none;">
+                        <span class="card-icon">&#128666;</span>
+                        <h3>Inventario Macchine</h3>
+                        <p>Macchine in casa, ordinate e da ordinare: il quaderno</p>
+                    </div>
+
                     <!-- Card Scanner (visibile solo su mobile) -->
                     <div class="dashboard-card" id="dashboard-scanner-card" onclick="openSection('scanner')">
                         <span class="card-icon">&#128247;</span>
@@ -221,7 +230,7 @@
         </div>
 
         <!-- ========================================== -->
-        <!-- CATEGORIA VENDITE (menu con 2 sottocategorie) -->
+        <!-- CATEGORIA VENDITE (menu con 3 sottocategorie: Listino, Listini Fornitori, Ordini Clienti) -->
         <!-- ========================================== -->
         <div id="section-vendite" class="section-container hidden">
             <div class="back-to-dashboard">
@@ -248,6 +257,14 @@
                         <h3>Listini Fornitori</h3>
                         <p>Prezzi e condizioni dei fornitori</p>
                     </div>
+
+                    <!-- Card Ordini Clienti (admin e operatori) -->
+                    <div class="dashboard-card" id="vendite-ordini-card" onclick="openSection('ordini-clienti')" style="display: none;">
+                        <span class="card-icon">&#128221;</span>
+                        <h3>Ordini Clienti</h3>
+                        <p>Commissioni con firma, collegate al quaderno macchine</p>
+                    </div>
+
                 </div>
             </div>
         </div>
@@ -470,6 +487,392 @@
 
                 <div id="fornitori-container">
                     <!-- Contenuto dinamico -->
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- SEZIONE INVENTARIO MACCHINE (collegata al Listino Vendite) -->
+        <!-- ========================================== -->
+        <div id="section-inventario-macchine" class="section-container hidden">
+            <div class="back-to-dashboard">
+                <div class="back-buttons">
+                    <button onclick="openSection('magazzino')" class="btn-back">
+                        &#8592; Torna a Magazzino
+                    </button>
+                    <button onclick="backToDashboard()" class="btn-back btn-dashboard">
+                        &#127968; Dashboard
+                    </button>
+                </div>
+                <h2 class="section-title">&#128666; Inventario Macchine</h2>
+            </div>
+
+            <!-- Azioni principali -->
+            <div class="container mac-azioni-top">
+                <button type="button" id="mac-btn-carico" class="btn-primary">&#128230; Carico macchine</button>
+                <button type="button" id="mac-btn-nuova-voce" class="btn-back">&#9997;&#65039; Nuova voce</button>
+            </div>
+
+            <!-- Navigazione tab -->
+            <nav class="tabs" id="tabs-macchine">
+                <button class="tab-btn active" data-mac-tab="inventario">&#128203; Inventario</button>
+                <button class="tab-btn" data-mac-tab="quaderno">&#128210; Quaderno</button>
+                <button class="tab-btn" data-mac-tab="excel">&#128193; Carico Excel</button>
+                <button class="tab-btn" data-mac-tab="set">&#129513; Set</button>
+                <button class="tab-btn" data-mac-tab="movimenti">&#128337; Movimenti</button>
+                <button class="tab-btn" data-mac-tab="report">&#128202; Report</button>
+                <button class="tab-btn" data-mac-tab="valore">&#128176; Valore</button>
+            </nav>
+
+            <!-- TAB: INVENTARIO (stesse colonne del listino, senza prezzi) -->
+            <div id="tab-mac-inventario" class="tab-content active">
+                <div class="container">
+                    <div id="mac-inv-riepilogo" class="mac-riepilogo"></div>
+
+                    <div class="search-bar">
+                        <input type="text" id="mac-inv-search" placeholder="&#128269; Cerca modello, marchio, note...">
+                    </div>
+                    <div class="listino-filtri">
+                        <select id="mac-inv-f-attrezzo"><option value="">Tutti gli attrezzi</option></select>
+                        <select id="mac-inv-f-marchio"><option value="">Tutti i marchi</option></select>
+                        <select id="mac-inv-f-alimentazione"><option value="">Tutte le alimentazioni</option></select>
+                        <select id="mac-inv-f-tipologia"><option value="">Tutte le tipologie</option></select>
+                    </div>
+                    <div class="listino-filtri-footer">
+                        <span id="mac-inv-count" class="mac-count"></span>
+                        <div class="listino-filtri-pulsanti">
+                            <label class="mac-check"><input type="checkbox" id="mac-inv-solo-pezzi" checked> Solo articoli con pezzi</label>
+                            <button type="button" id="mac-inv-reset" class="btn-back mac-btn-piccolo">&#10006; Azzera filtri</button>
+                        </div>
+                    </div>
+
+                    <div id="mac-inv-container"></div>
+                </div>
+            </div>
+
+            <!-- TAB: QUADERNO (riproduce il quadernone cartaceo) -->
+            <div id="tab-mac-quaderno" class="tab-content">
+                <div class="container">
+                    <div class="mac-q-barra">
+                        <div class="search-bar">
+                            <input type="text" id="mac-q-search" placeholder="&#128269; Cerca in tutto il quaderno: modello, cliente, matricola...">
+                        </div>
+                        <label class="mac-check"><input type="checkbox" id="mac-q-consegnate" checked> Mostra consegnate</label>
+                    </div>
+                    <div class="mac-legenda">
+                        <span><span class="mac-quadro st-daordinare"></span> + nome = da ordinare</span>
+                        <span><span class="mac-quadro st-ordinata"></span> + nome = ordinata</span>
+                        <span><span class="mac-quadro st-incasa"></span> + nome = in casa per il cliente</span>
+                        <span><span class="mac-quadro st-incasa"></span> senza nome = disponibile</span>
+                        <span><span class="mac-quadro st-consegnata">&#10005;</span> = consegnata</span>
+                    </div>
+                    <div class="mac-quaderno">
+                        <div id="mac-q-pagina" class="mac-q-pagina"></div>
+                        <div id="mac-q-divisori" class="mac-q-divisori"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB: CARICO EXCEL (file unico per tutti i marchi) -->
+            <div id="tab-mac-excel" class="tab-content">
+                <div class="container">
+                    <div class="card">
+                        <h2>&#128193; Carico da Excel</h2>
+                        <p class="mac-aiuto">
+                            Un solo file per tutti i marchi: quando arriva la conferma d'ordine scrivi quantit&agrave;, netti e prezzi
+                            e l'app carica le macchine e aggiorna il listino. Le colonne sono quelle del Listino Vendite pi&ugrave;
+                            <strong>QUANTITA</strong> e <strong>MATRICOLE</strong>. L'articolo viene riconosciuto da <strong>MARCHIO + MODELLO + NOTE</strong>.<br><br>
+                            &bull; Articolo non presente nel listino: viene creato (serve l'ATTREZZO).<br>
+                            &bull; Netto 1 diverso da quello del listino: il listino si aggiorna (netto 1 &rarr; 2 &rarr; 3 e storico).<br>
+                            &bull; Prezzi di vendita compilati: aggiornano il listino. Le celle vuote non cancellano niente.<br>
+                            &bull; QUANTITA vuota o 0: la riga aggiorna solo il listino.<br>
+                            &bull; Le macchine arrivate vanno prima ai clienti che le aspettano.<br><br>
+                            Prima di salvare vedi un'anteprima di tutto: niente viene modificato finch&eacute; non confermi.
+                        </p>
+
+                        <label>1. Scarica il modello</label>
+                        <div class="mac-excel-modello">
+                            <select id="mac-excel-marchio"><option value="">Modello vuoto</option></select>
+                            <button type="button" id="mac-excel-modello" class="btn-back">&#128229; Scarica modello Excel</button>
+                        </div>
+                        <p class="mac-aiuto">&quot;Con gli articoli di un marchio&quot; ti d&agrave; il file gi&agrave; compilato con il listino di quel marchio: scrivi solo le quantit&agrave; arrivate e correggi i netti.</p>
+
+                        <label>2. Carica il file compilato</label>
+                        <input type="file" id="mac-excel-file" accept=".xlsx,.xls" style="display: none;">
+                        <label class="mac-check mac-check-blocco"><input type="checkbox" id="mac-excel-aggiorna-listino" checked> Aggiorna il listino con netti e prezzi del file</label>
+                        <label class="mac-check mac-check-blocco"><input type="checkbox" id="mac-excel-assegna" checked> Assegna in automatico ai clienti che aspettano</label>
+                        <button type="button" id="mac-excel-seleziona" class="btn-primary">&#128194; Seleziona file Excel</button>
+                    </div>
+                    <div id="mac-excel-anteprima" class="card mac-excel-anteprima hidden"></div>
+                </div>
+            </div>
+
+            <!-- TAB: SET -->
+            <div id="tab-mac-set" class="tab-content">
+                <div class="container">
+                    <div class="card">
+                        <h2>&#129513; Composizione dei set</h2>
+                        <p class="mac-aiuto">
+                            Qui dici di cosa &egrave; fatto ogni set del listino (es. SET BGA110 = BGA110 + batteria AP30 + caricatore).
+                            In magazzino si caricano sempre i <strong>singoli componenti</strong>: il numero di set disponibili viene calcolato da solo.
+                            I componenti devono esistere nel listino (anche senza prezzo): se mancano, creali con &quot;Nuovo articolo&quot;.
+                        </p>
+                        <label>Configura un altro articolo come set</label>
+                        <div class="mac-picker">
+                            <input type="text" id="mac-set-nuovo-search" placeholder="&#128269; Cerca il set nel listino..." autocomplete="off">
+                            <div id="mac-set-nuovo-results" class="mac-picker-lista hidden"></div>
+                        </div>
+                    </div>
+                    <div id="mac-set-container"></div>
+                </div>
+            </div>
+
+            <!-- TAB: REPORT VENDITE (macchine consegnate) -->
+            <div id="tab-mac-report" class="tab-content">
+                <div class="container">
+                    <div class="card rep-filtri-card">
+                        <h2>&#128202; Report vendite</h2>
+                        <p class="mac-aiuto">Contano le macchine <strong>consegnate</strong>, alla data di consegna. Il ricavo viene dal prezzo dell'ordine cliente, il costo dal netto di carico.</p>
+                        <div class="rep-filtri">
+                            <div>
+                                <label>Periodo</label>
+                                <select id="rep-periodo">
+                                    <option value="anno">Quest'anno</option>
+                                    <option value="anno-scorso">Anno scorso</option>
+                                    <option value="mese">Questo mese</option>
+                                    <option value="mese-scorso">Mese scorso</option>
+                                    <option value="tutto">Tutte le date</option>
+                                    <option value="personalizzato">Personalizzato</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label>Dal</label>
+                                <input type="date" id="rep-da">
+                            </div>
+                            <div>
+                                <label>Al</label>
+                                <input type="date" id="rep-a">
+                            </div>
+                            <div>
+                                <label>Raggruppa per</label>
+                                <select id="rep-gruppo">
+                                    <option value="marchio">Marchio</option>
+                                    <option value="attrezzo">Attrezzo</option>
+                                    <option value="modello">Modello</option>
+                                    <option value="operatore">Operatore</option>
+                                    <option value="mese">Mese</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label>Marchio</label>
+                                <select id="rep-f-marchio"><option value="">Tutti i marchi</option></select>
+                            </div>
+                            <div>
+                                <label>Attrezzo</label>
+                                <select id="rep-f-attrezzo"><option value="">Tutti gli attrezzi</option></select>
+                            </div>
+                        </div>
+                        <div class="search-bar">
+                            <input type="text" id="rep-search" placeholder="&#128269; Cerca modello, cliente, matricola, operatore...">
+                        </div>
+                        <div class="rep-azioni">
+                            <label class="mac-check"><input type="checkbox" id="rep-iva" checked> Mostra gli importi senza IVA (prezzi e netti sono IVA inclusa: scorpora l'iva a entrambi)</label>
+                            <div class="rep-pulsanti">
+                                <button type="button" id="rep-excel" class="btn-back mac-btn-piccolo">&#128229; Scarica Excel</button>
+                                <button type="button" id="rep-stampa" class="btn-back mac-btn-piccolo">&#128196; PDF / Stampa</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="rep-risultato"></div>
+                </div>
+            </div>
+
+            <!-- TAB: VALORE DEL MAGAZZINO (adesso o a una data) -->
+            <div id="tab-mac-valore" class="tab-content">
+                <div class="container">
+                    <div class="card rep-filtri-card">
+                        <h2>&#128176; Valore magazzino</h2>
+                        <p class="mac-aiuto">Le macchine in casa (anche quelle gi&agrave; assegnate a un cliente ma non consegnate) per il loro netto di carico. Con una data: quello che c'era in casa quel giorno.</p>
+                        <div class="rep-filtri">
+                            <div>
+                                <label>Quando</label>
+                                <select id="val-quando">
+                                    <option value="adesso">Adesso</option>
+                                    <option value="data">A una data</option>
+                                </select>
+                            </div>
+                            <div id="val-data-box" class="hidden">
+                                <label>Data</label>
+                                <input type="date" id="val-data">
+                            </div>
+                            <div>
+                                <label>Raggruppa per</label>
+                                <select id="val-gruppo">
+                                    <option value="marchio">Marchio</option>
+                                    <option value="attrezzo">Attrezzo</option>
+                                    <option value="modello">Modello</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label>Marchio</label>
+                                <select id="val-f-marchio"><option value="">Tutti i marchi</option></select>
+                            </div>
+                            <div>
+                                <label>Attrezzo</label>
+                                <select id="val-f-attrezzo"><option value="">Tutti gli attrezzi</option></select>
+                            </div>
+                        </div>
+                        <div class="search-bar">
+                            <input type="text" id="val-search" placeholder="&#128269; Cerca modello, matricola, cliente...">
+                        </div>
+                        <div class="rep-azioni">
+                            <label class="mac-check"><input type="checkbox" id="val-iva" checked> Mostra gli importi senza IVA (prezzi e netti sono IVA inclusa: scorpora l'iva a entrambi)</label>
+                            <div class="rep-pulsanti">
+                                <button type="button" id="val-excel" class="btn-back mac-btn-piccolo">&#128229; Scarica Excel</button>
+                                <button type="button" id="val-pdf" class="btn-back mac-btn-piccolo">&#128196; PDF / Stampa</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="val-risultato"></div>
+                </div>
+            </div>
+
+            <!-- TAB: MOVIMENTI -->
+            <div id="tab-mac-movimenti" class="tab-content">
+                <div class="container">
+                    <div class="search-bar">
+                        <input type="text" id="mac-mov-search" placeholder="&#128269; Cerca movimento (modello, cliente, matricola...)">
+                    </div>
+                    <div class="listino-filtri-footer">
+                        <span id="mac-mov-count" class="mac-count"></span>
+                        <button type="button" id="mac-mov-aggiorna" class="btn-back mac-btn-piccolo">&#128260; Aggiorna</button>
+                    </div>
+                    <div id="mac-mov-container"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- SEZIONE ORDINI CLIENTI (commissioni) -->
+        <!-- ========================================== -->
+        <div id="section-ordini-clienti" class="section-container hidden">
+            <div class="back-to-dashboard">
+                <div class="back-buttons">
+                    <button onclick="openSection('vendite')" class="btn-back">
+                        &#8592; Torna a Vendite
+                    </button>
+                    <button onclick="backToDashboard()" class="btn-back btn-dashboard">
+                        &#127968; Dashboard
+                    </button>
+                </div>
+                <h2 class="section-title">&#128221; Ordini Clienti</h2>
+            </div>
+
+            <nav class="tabs" id="tabs-ordini">
+                <button class="tab-btn active" data-ord-tab="elenco">&#128203; Ordini</button>
+                <button class="tab-btn" data-ord-tab="nuovo">&#10133; Nuovo ordine</button>
+            </nav>
+
+            <!-- TAB: ELENCO ORDINI -->
+            <div id="tab-ord-elenco" class="tab-content active">
+                <div class="container">
+                    <div class="search-bar">
+                        <input type="text" id="ord-search" placeholder="&#128269; Cerca cliente, numero, modello, matricola...">
+                    </div>
+                    <div class="ord-filtri">
+                        <select id="ord-f-anno"></select>
+                        <select id="ord-f-stato">
+                            <option value="">Tutti gli stati</option>
+                            <option value="DA_ORDINARE">Da ordinare</option>
+                            <option value="ORDINATO">Ordinato</option>
+                            <option value="IN_CASA">In casa</option>
+                            <option value="CONSEGNATO">Consegnato</option>
+                            <option value="ANNULLATO">Annullato</option>
+                        </select>
+                    </div>
+                    <div class="listino-filtri-footer">
+                        <span id="ord-count" class="mac-count"></span>
+                        <button type="button" id="ord-prova-drive" class="btn-back mac-btn-piccolo">&#128193; Prova Drive</button>
+                    </div>
+                    <div id="ord-container"></div>
+                </div>
+            </div>
+
+            <!-- TAB: NUOVO ORDINE (come il modulo della commissione) -->
+            <div id="tab-ord-nuovo" class="tab-content">
+                <div class="container">
+                    <div class="card ord-modulo">
+                        <h2 id="ord-form-titolo">&#128221; Nuovo ordine</h2>
+                        <p class="mac-aiuto">Il numero d'ordine viene assegnato al salvataggio (progressivo, riparte da 1 ogni anno).</p>
+
+                        <div class="form-row ord-due">
+                            <div class="form-col">
+                                <label>Data</label>
+                                <input type="date" id="ord-data">
+                            </div>
+                            <div class="form-col">
+                                <label>Operatore <small>(chi fa il contratto)</small></label>
+                                <input type="text" id="ord-operatore" list="ord-operatori" autocomplete="off">
+                                <datalist id="ord-operatori"></datalist>
+                            </div>
+                        </div>
+                        <label>Sig. (cliente) *</label>
+                        <input type="text" id="ord-cliente" autocomplete="off">
+                        <label>Indirizzo</label>
+                        <input type="text" id="ord-indirizzo" autocomplete="off">
+                        <div class="form-row ord-due">
+                            <div class="form-col">
+                                <label>Tel / Cell</label>
+                                <input type="tel" id="ord-telefono" autocomplete="off">
+                            </div>
+                            <div class="form-col">
+                                <label>E-mail</label>
+                                <input type="email" id="ord-email" autocomplete="off">
+                            </div>
+                        </div>
+                        <div class="form-row ord-due">
+                            <div class="form-col">
+                                <label>C.F.</label>
+                                <input type="text" id="ord-cf" autocomplete="off">
+                            </div>
+                            <div class="form-col">
+                                <label>P.IVA</label>
+                                <input type="text" id="ord-piva" autocomplete="off">
+                            </div>
+                        </div>
+                        <label>Note</label>
+                        <textarea id="ord-note" rows="2"></textarea>
+                        <label>Pagamento <small>(la fattura potr&agrave; essere richiesta solo all'ordine)</small></label>
+                        <textarea id="ord-pagamento" rows="2"></textarea>
+
+                        <h3 class="ord-sottotitolo">Articoli</h3>
+                        <div id="ord-righe"></div>
+                        <div id="ord-aggiungi-box" class="ord-aggiungi">
+                            <label>Aggiungi articolo dal listino</label>
+                            <div class="mac-picker">
+                                <input type="text" id="ord-art-search" placeholder="&#128269; Cerca modello, marchio..." autocomplete="off">
+                                <div id="ord-art-results" class="mac-picker-lista hidden"></div>
+                            </div>
+                            <div class="ord-aggiungi-pulsanti">
+                                <button type="button" id="ord-btn-libera" class="btn-back">&#10133; Riga libera (accessori, olio...)</button>
+                                <button type="button" id="ord-btn-nuovo-listino" class="mac-link">Macchina non presente nel listino? Creala</button>
+                            </div>
+                        </div>
+
+                        <div class="ord-totale-box"><span>TOTALE</span><strong id="ord-totale">-</strong></div>
+
+                        <label>Firma per accettazione <small>(il cliente firma qui con il dito o la penna)</small></label>
+                        <div id="ord-firma-box" class="ord-firma-box">
+                            <canvas id="ord-firma"></canvas>
+                            <span class="ord-firma-segno">&#10005;</span>
+                            <button type="button" id="ord-firma-cancella" class="btn-back mac-btn-piccolo">Cancella firma</button>
+                        </div>
+
+                        <div class="ord-pulsanti">
+                            <button type="button" id="ord-salva" class="btn-primary">&#128190; Salva ordine</button>
+                            <button type="button" id="ord-annulla-form" class="btn-secondary">Svuota</button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1285,6 +1688,173 @@
         </div>
     </div>
 
+    <!-- ========================================== -->
+    <!-- FINESTRE INVENTARIO MACCHINE -->
+    <!-- (stanno PRIMA della finestra "Nuovo articolo" del listino, cosi' quella
+         si apre sopra quando si crea un articolo dal carico) -->
+    <!-- ========================================== -->
+
+    <!-- Riga del quaderno: nuova voce / modifica -->
+    <div id="mac-pezzo-modal" class="modal hidden">
+        <div class="modal-content mac-modal-content">
+            <div class="modal-header">
+                <h3 id="mac-pezzo-titolo">Nuova voce</h3>
+                <button type="button" class="modal-close" id="mac-pezzo-close">&times;</button>
+            </div>
+            <form id="mac-pezzo-form" autocomplete="off">
+                <label>Articolo del listino *</label>
+                <div id="mac-pezzo-art-ricerca">
+                    <div class="mac-picker">
+                        <input type="text" id="mac-pezzo-art-search" placeholder="&#128269; Cerca modello, marchio..." autocomplete="off">
+                        <div id="mac-pezzo-art-results" class="mac-picker-lista hidden"></div>
+                    </div>
+                    <button type="button" class="mac-link mac-btn-nuovo-listino">&#10133; Non c'&egrave; nel listino? Crealo</button>
+                </div>
+                <div id="mac-pezzo-art-scelto" class="hidden"></div>
+                <div id="mac-pezzo-set-info" class="mac-info hidden"></div>
+
+                <label>Stato *</label>
+                <div id="mac-pezzo-stati" class="mac-stati">
+                    <button type="button" data-stato="DA_ORDINARE"><span class="mac-quadro st-daordinare"></span>Da ordinare</button>
+                    <button type="button" data-stato="ORDINATA"><span class="mac-quadro st-ordinata"></span>Ordinata</button>
+                    <button type="button" data-stato="IN_CASA"><span class="mac-quadro st-incasa"></span>In casa</button>
+                    <button type="button" data-stato="CONSEGNATA"><span class="mac-quadro st-consegnata">&#10005;</span>Consegnata</button>
+                </div>
+                <p id="mac-pezzo-stato-aiuto" class="mac-aiuto"></p>
+
+                <label id="mac-pezzo-cliente-label">Cliente</label>
+                <input type="text" id="mac-pezzo-cliente" placeholder="Nome del cliente">
+
+                <div id="mac-pezzo-qta-box">
+                    <label>Quantit&agrave;</label>
+                    <input type="number" id="mac-pezzo-qta" min="1" max="50" value="1" inputmode="numeric">
+                </div>
+
+                <label>Matricola <small>(facoltativa)</small></label>
+                <div class="mac-matr-riga">
+                    <input type="text" id="mac-pezzo-matricola" placeholder="Scrivi o leggi con la fotocamera">
+                    <button type="button" class="mac-btn-scan" data-scan="mac-pezzo-matricola" title="Leggi QR / codice a barre">&#128247;</button>
+                </div>
+
+                <div id="mac-pezzo-netto-box">
+                    <label>Netto &#8364; <small>(netto 1 al carico, serve per il valore di magazzino)</small></label>
+                    <input type="text" inputmode="decimal" id="mac-pezzo-netto" placeholder="es. 284,50">
+                </div>
+
+                <label>Note</label>
+                <input type="text" id="mac-pezzo-note">
+
+                <div id="mac-pezzo-storico" class="mac-storico"></div>
+
+                <div class="modal-buttons">
+                    <button type="submit" id="mac-pezzo-salva" class="btn-primary">Salva</button>
+                    <button type="button" id="mac-pezzo-annulla" class="btn-secondary">Annulla</button>
+                </div>
+                <button type="button" id="mac-pezzo-elimina" class="btn-danger mac-btn-elimina hidden">&#128465; Elimina riga</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Carico macchine -->
+    <div id="mac-carico-modal" class="modal hidden">
+        <div class="modal-content mac-modal-content">
+            <div class="modal-header">
+                <h3>&#128230; Carico macchine</h3>
+                <button type="button" class="modal-close" id="mac-carico-close">&times;</button>
+            </div>
+            <form id="mac-carico-form" autocomplete="off">
+                <label>Articolo del listino *</label>
+                <div id="mac-carico-art-ricerca">
+                    <div class="mac-picker">
+                        <input type="text" id="mac-carico-art-search" placeholder="&#128269; Cerca modello, marchio..." autocomplete="off">
+                        <div id="mac-carico-art-results" class="mac-picker-lista hidden"></div>
+                    </div>
+                    <button type="button" class="mac-link mac-btn-nuovo-listino">&#10133; Non c'&egrave; nel listino? Crealo (con netti e prezzi)</button>
+                    <button type="button" class="mac-link" id="mac-carico-vai-excel">&#128193; Hai una conferma d'ordine con tante righe? Usa il Carico Excel</button>
+                </div>
+                <div id="mac-carico-art-scelto" class="hidden"></div>
+
+                <div id="mac-carico-dettagli" class="hidden">
+                    <div id="mac-carico-set-info" class="mac-info hidden"></div>
+                    <div class="form-row">
+                        <div class="form-col">
+                            <label id="mac-carico-qta-label">Quantit&agrave; *</label>
+                            <input type="number" id="mac-carico-qta" min="1" max="50" value="1" inputmode="numeric">
+                        </div>
+                        <div class="form-col" id="mac-carico-netto-box">
+                            <label>Netto &#8364; <small>(proposto il netto 1)</small></label>
+                            <input type="text" inputmode="decimal" id="mac-carico-netto" placeholder="es. 284,50">
+                        </div>
+                    </div>
+                    <div id="mac-carico-matricole" class="mac-carico-matricole"></div>
+                    <label class="mac-check mac-check-blocco">
+                        <input type="checkbox" id="mac-carico-assegna" checked>
+                        Assegna in automatico ai clienti che aspettano questa macchina
+                    </label>
+                    <div id="mac-carico-anteprima" class="mac-anteprima"></div>
+                </div>
+
+                <div class="modal-buttons">
+                    <button type="submit" id="mac-carico-salva" class="btn-primary">Carica</button>
+                    <button type="button" id="mac-carico-annulla" class="btn-secondary">Annulla</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Composizione set -->
+    <div id="mac-set-modal" class="modal hidden">
+        <div class="modal-content mac-modal-content">
+            <div class="modal-header">
+                <h3 id="mac-set-titolo">Set</h3>
+                <button type="button" class="modal-close" id="mac-set-close">&times;</button>
+            </div>
+            <p id="mac-set-note-listino" class="mac-info"></p>
+            <label>Componenti del set <small>(quantit&agrave; + articolo)</small></label>
+            <div id="mac-set-righe" class="mac-set-righe"></div>
+            <label>Aggiungi componente</label>
+            <div class="mac-picker">
+                <input type="text" id="mac-set-art-search" placeholder="&#128269; Cerca macchina, batteria, caricatore..." autocomplete="off">
+                <div id="mac-set-art-results" class="mac-picker-lista hidden"></div>
+            </div>
+            <button type="button" class="mac-link mac-btn-nuovo-listino">&#10133; Il componente non c'&egrave; nel listino? Crealo</button>
+            <div class="modal-buttons">
+                <button type="button" id="mac-set-salva" class="btn-primary">Salva set</button>
+                <button type="button" id="mac-set-annulla" class="btn-secondary">Annulla</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dettaglio ordine cliente -->
+    <div id="ord-dettaglio-modal" class="modal hidden">
+        <div class="modal-content mac-modal-content">
+            <div class="modal-header">
+                <h3 id="ord-dettaglio-titolo">Ordine</h3>
+                <button type="button" class="modal-close" id="ord-dettaglio-close">&times;</button>
+            </div>
+            <div id="ord-dettaglio-corpo"></div>
+            <div id="ord-dettaglio-azioni" class="ord-azioni"></div>
+            <div class="modal-buttons" style="grid-template-columns: 1fr;">
+                <button type="button" id="ord-dettaglio-chiudi" class="btn-secondary">Chiudi</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lettore matricola (QR / codice a barre) -->
+    <div id="mac-scan-modal" class="modal hidden">
+        <div class="modal-content mac-scan-content">
+            <div class="modal-header">
+                <h3>&#128247; Leggi matricola</h3>
+                <button type="button" class="modal-close" id="mac-scan-close">&times;</button>
+            </div>
+            <p class="mac-aiuto">Inquadra il QR code o il codice a barre della matricola.</p>
+            <div id="mac-scan-reader" class="mac-scan-reader"></div>
+            <div class="modal-buttons" style="grid-template-columns: 1fr;">
+                <button type="button" id="mac-scan-annulla" class="btn-secondary">Annulla</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Modal informazioni articolo listino (pulsante "i" su mobile) -->
     <div id="listino-info-modal" class="modal hidden">
         <div class="modal-content listino-info-content">
@@ -1439,18 +2009,18 @@
     <div id="whats-new-modal" class="modal hidden">
         <div class="modal-content whats-new-content">
             <div class="whats-new-header">
-                <h3>&#127881; AGRIDESK v6.1.1 - Aggiornamento!</h3>
-                <p class="version-date">30 Ottobre 2026</p>
+                <h3>&#127881; AGRIDESK v6.2.0 - Aggiornamento!</h3>
+                <p class="version-date">31 Ottobre 2026</p>
             </div>
 
             <!-- INIZIO_FEATURES -->
             <div class="whats-new-body">
 
                 <div class="new-feature">
-                    <span class="feature-icon">&#128295;</span>
+                    <span class="feature-icon">&#11088;</span>
                     <div class="feature-content">
-                        <h4>SCHEDA TECNICI - INTERVENTI ESTERNI</h4>
-                        <p>Dal 2° Novembre OneNote tecnici va in pensione :)</p>
+                        <h4>INVENTARIO E MAGAZZINO MACCHINE ONLINE !!</h4>
+                        <p></p>
                     </div>
                 </div>
 
@@ -1617,13 +2187,22 @@
     <!-- Area usata solo per stampare / salvare in PDF lo storico netti -->
     <div id="listino-storico-print"></div>
 
+    <!-- Area usata solo per stampare / salvare in PDF un ordine cliente -->
+    <div id="ordine-print"></div>
+
+    <!-- Area usata solo per stampare il report vendite macchine -->
+    <div id="report-print"></div>
+
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- Versione bloccata (la libreria non e' piu' mantenuta: cosi' non cambia mai da sola) -->
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-    <script src="ricambi-functions.js?v=6.1.1"></script>
-    <script src="listino-functions.js?v=6.1.1"></script>
-    <script src="fornitori-functions.js?v=6.1.1"></script>
-    <script src="interventi-functions.js?v=6.1.1"></script>
-    <script src="app.js?v=6.1.1"></script>
+    <script src="ricambi-functions.js?v=6.2.0"></script>
+    <script src="listino-functions.js?v=6.2.0"></script>
+    <script src="fornitori-functions.js?v=6.2.0"></script>
+    <script src="interventi-functions.js?v=6.2.0"></script>
+    <script src="macchine-functions.js?v=6.2.0"></script>
+    <script src="macchine-report.js?v=6.2.0"></script>
+    <script src="ordini-functions.js?v=6.2.0"></script>
+    <script src="app.js?v=6.2.0"></script>
 </body>
 </html>

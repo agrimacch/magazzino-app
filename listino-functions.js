@@ -221,6 +221,8 @@ async function loadListino() {
     try {
         listinoArticoli = await listinoFetchAll('listino_articoli');
         listinoCaricato = true;
+        // Inventario macchine: conteggi per il badge "in casa" (solo chi lo gestisce)
+        if (typeof macCaricaPerListino === 'function') await macCaricaPerListino();
     } catch (error) {
         console.error('Errore caricamento listino:', error);
         if (container) {
@@ -486,12 +488,14 @@ function renderListino(articoli) {
         // ----- Vista PC: tabella completa -----
         let righe = '';
         lista.forEach(a => {
+            // Pezzi in casa (inventario macchine), in piccolo accanto al modello
+            const macBadge = (typeof macBadgeListino === 'function') ? macBadgeListino(a) : '';
             righe +=
                 '<tr>' +
                 '<td>' + listinoVal(a.marchio) + '</td>' +
                 '<td>' + listinoVal(a.alimentazione) + '</td>' +
                 '<td>' + listinoVal(a.tipologia_alimentazione) + '</td>' +
-                '<td><strong>' + listinoVal(a.modello) + '</strong></td>' +
+                '<td><strong>' + listinoVal(a.modello) + '</strong>' + macBadge + '</td>' +
                 '<td class="listino-col-note">' + listinoVal(a.note) + '</td>' +
                 '<td class="listino-col-netto"><span class="netto-val">' + listinoFormatEuro(a.netto_1) + '</span></td>' +
                 '<td class="listino-col-note"><span class="netto-val">' + listinoVal(a.note_1) + '</span></td>' +
@@ -515,12 +519,13 @@ function renderListino(articoli) {
         let schede = '';
         lista.forEach(a => {
             const sotto = [a.alimentazione, a.tipologia_alimentazione].filter(Boolean).map(listinoEsc).join(' &middot; ');
+            const macBadgeMobile = (typeof macBadgeListino === 'function') ? macBadgeListino(a) : '';
             schede +=
                 '<div class="listino-card">' +
                     '<div class="listino-card-top">' +
                         '<div class="listino-card-title">' +
                             '<span class="listino-card-marchio">' + listinoVal(a.marchio) + '</span> ' +
-                            '<strong>' + listinoVal(a.modello || a.note) + '</strong>' +
+                            '<strong>' + listinoVal(a.modello || a.note) + '</strong>' + macBadgeMobile +
                         '</div>' +
                         '<div class="listino-card-btns">' +
                             '<button type="button" class="listino-edit-btn listino-edit-mobile" data-id="' + a.id + '" title="Modifica">&#9997;&#65039;</button>' +
@@ -1337,6 +1342,7 @@ async function saveListinoEdit(e) {
     const utente = currentUser ? currentUser.email : null;
     const storico = [];
     let notifica = null; // { tipo, righe, articolo } da registrare dopo il salvataggio
+    let idSalvato = a ? a.id : null; // serve all'inventario macchine (articolo creato dal carico)
     const btn = document.getElementById('listino-edit-salva');
     btn.disabled = true;
 
@@ -1346,6 +1352,7 @@ async function saveListinoEdit(e) {
             const nuovo = Object.assign({ netto_2: null, note_2: null, netto_3: null, note_3: null, attivo: true, data_cancellazione: null }, dati);
             const { data, error } = await supabaseClient.from('listino_articoli').insert([nuovo]).select('id').single();
             if (error) throw error;
+            idSalvato = data.id;
             if (dati.netto_1 !== null) {
                 storico.push({ articolo_id: data.id, modello: dati.modello, netto: dati.netto_1, note: dati.note_1, origine: 'NUOVO ARTICOLO', utente: utente });
             }
@@ -1396,6 +1403,8 @@ async function saveListinoEdit(e) {
     closeListinoEdit();
     listinoStoricoCaricato = false;
     await loadListino();
+    // Se l'articolo e' stato creato dal carico dell'inventario macchine, lo seleziona li'
+    if (typeof macDopoSalvataggioListino === 'function') macDopoSalvataggioListino(idSalvato, !a);
     await showCustomAlert(
         (a ? 'Articolo modificato.' : 'Articolo aggiunto.') +
         '<br><br>Ricorda: prima di lavorare sul tuo Excel scarica il listino aggiornato dalla scheda Import Excel.',
@@ -1448,7 +1457,8 @@ const LISTINO_ORIGINI = {
     'IMPORT INIZIALE': 'Import iniziale',
     'AGGIORNAMENTO': 'Aggiornamento',
     'NUOVO ARTICOLO': 'Nuovo articolo',
-    'MODIFICA APP': 'Modifica da app'
+    'MODIFICA APP': 'Modifica da app',
+    'CARICO MACCHINE': 'Carico macchine (Excel)'
 };
 
 function listinoOrigineTesto(origine) {

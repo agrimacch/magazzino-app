@@ -1,0 +1,681 @@
+/* ============================================ */
+/* ORDINI CLIENTI                               */
+/* ============================================ */
+/* La finestra di dettaglio usa .modal (10000) come le altre e sta
+   PRIMA del pop-up di avviso nella pagina, quindi l'avviso resta sopra.
+   Riusa i colori dei quadratini di macchine.css */
+
+.ord-filtri {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+
+.ord-filtri select {
+    margin-bottom: 8px;
+}
+
+/* Elenco */
+.ord-table tr.ord-riga-click {
+    cursor: pointer;
+}
+
+.ord-table tr.ord-riga-click:hover td {
+    background: var(--light);
+}
+
+.ord-col-articoli {
+    font-size: 12px;
+    max-width: 420px;
+    white-space: normal !important;
+}
+
+.ord-col-totale {
+    text-align: right;
+    white-space: nowrap;
+    font-weight: 700;
+}
+
+.ord-annullato {
+    opacity: 0.55;
+}
+
+.ord-annullato td:nth-child(3),
+.ord-annullato .ord-card-cliente {
+    text-decoration: line-through;
+}
+
+.ord-stato {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.mac-quadro.st-annullato {
+    background: #f3f4f6;
+    border-color: #9ca3af;
+}
+
+.ord-card {
+    border: 2px solid var(--green-light);
+    border-radius: var(--border-radius-sm);
+    padding: 10px 12px;
+    margin-bottom: 8px;
+    background: white;
+    cursor: pointer;
+}
+
+.ord-card-top,
+.ord-card-bottom {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+}
+
+.ord-card-cliente {
+    font-family: 'Kalam', 'Comic Sans MS', cursive;
+    font-size: 19px;
+    font-weight: 700;
+    color: var(--mac-penna);
+    margin: 2px 0;
+}
+
+.ord-card-articoli {
+    font-size: 12px;
+    color: var(--gray);
+    margin-bottom: 6px;
+}
+
+/* Modulo */
+.ord-modulo textarea {
+    resize: vertical;
+}
+
+@media (min-width: 769px) {
+    .ord-due {
+        grid-template-columns: 1fr 1fr;
+        gap: 0 12px;
+    }
+}
+
+.ord-sottotitolo {
+    color: var(--primary);
+    font-size: 16px;
+    margin: 10px 0 8px;
+    padding-bottom: 6px;
+    border-bottom: 2px solid var(--primary);
+}
+
+.ord-riga-form {
+    border: 2px solid var(--green-light);
+    border-radius: var(--border-radius-sm);
+    padding: 8px 10px 4px;
+    margin-bottom: 8px;
+    background: white;
+}
+
+.ord-riga-libera {
+    border-style: dashed;
+}
+
+.ord-riga-campi {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0 8px;
+    align-items: end;
+    position: relative;
+    padding-right: 40px;
+}
+
+.ord-campo label {
+    font-size: 11px;
+    margin-bottom: 3px;
+    color: var(--gray);
+}
+
+.ord-campo input,
+.ord-campo select {
+    margin-bottom: 6px;
+    padding: 9px;
+    font-size: 14px;
+}
+
+.ord-campo-descr {
+    grid-column: 1 / -1;
+}
+
+.ord-togli {
+    position: absolute;
+    top: 18px;
+    right: 0;
+}
+
+@media (min-width: 769px) {
+    .ord-riga-campi {
+        grid-template-columns: 3fr 1.2fr 0.6fr 1fr 1.2fr;
+    }
+    .ord-campo-descr {
+        grid-column: auto;
+    }
+}
+
+.ord-libera {
+    display: block;
+    font-size: 12px;
+    color: var(--gray);
+    padding: 11px 0 12px;
+}
+
+.ord-riga-info {
+    font-size: 11px;
+    color: var(--gray);
+    margin: 0 0 6px;
+    line-height: 1.5;
+}
+
+.ord-riga-poche {
+    color: #b45309;
+    font-weight: 700;
+}
+
+.ord-aggiungi {
+    margin-top: 6px;
+}
+
+.ord-aggiungi-pulsanti {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 14px;
+    margin-bottom: 8px;
+}
+
+.ord-aggiungi-pulsanti .btn-back {
+    width: auto;
+}
+
+.ord-aggiungi-pulsanti .mac-link {
+    margin: 0;
+}
+
+.ord-totale-box {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #688E53;
+    color: white;
+    border-radius: var(--border-radius-sm);
+    padding: 10px 14px;
+    margin: 12px 0 16px;
+    font-weight: 700;
+}
+
+.ord-totale-box strong {
+    font-size: 20px;
+}
+
+/* Firma */
+.ord-firma-box {
+    position: relative;
+    border: 2px dashed #94a3b8;
+    border-radius: var(--border-radius-sm);
+    background: #fcfcfd;
+    height: 170px;
+    margin-bottom: 14px;
+}
+
+.ord-firma-box.firmata {
+    border-style: solid;
+    border-color: var(--primary);
+}
+
+#ord-firma {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    touch-action: none;
+    cursor: crosshair;
+    z-index: 1;
+}
+
+.ord-firma-segno {
+    position: absolute;
+    left: 14px;
+    bottom: 34px;
+    right: 14px;
+    border-bottom: 1px solid #cbd5e1;
+    color: #94a3b8;
+    font-size: 14px;
+    pointer-events: none;
+}
+
+#ord-firma-cancella {
+    position: absolute;
+    right: 8px;
+    bottom: 6px;
+    z-index: 2;
+}
+
+.ord-pulsanti {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 8px;
+}
+
+.ord-pulsanti .btn-secondary {
+    font-size: 14px;
+    padding: 12px 18px;
+}
+
+/* Dettaglio */
+.ord-det-testa {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+
+.ord-det-cliente {
+    font-family: 'Kalam', 'Comic Sans MS', cursive;
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--mac-penna);
+}
+
+.ord-det-dati {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px 12px;
+    font-size: 13px;
+    margin-bottom: 12px;
+}
+
+.ord-det-dati span {
+    display: block;
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--gray);
+}
+
+.ord-det-riga {
+    border-top: 1px solid #e5e7eb;
+    padding: 8px 0;
+    font-size: 13px;
+}
+
+.ord-det-riga-testa {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.ord-det-riga-testa small {
+    color: var(--gray);
+}
+
+.ord-det-pezzi {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 5px;
+}
+
+.ord-det-pezzo {
+    display: inline-flex;
+    align-items: center;
+    font-size: 11px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 2px 6px;
+}
+
+.ord-det-pezzo small {
+    margin-left: 4px;
+    color: var(--gray);
+}
+
+.ord-det-libera {
+    font-size: 11px;
+    color: var(--gray);
+    margin-top: 3px;
+}
+
+.ord-det-totale {
+    display: flex;
+    justify-content: space-between;
+    border-top: 2px solid var(--primary);
+    padding: 8px 0;
+    font-weight: 700;
+    font-size: 15px;
+}
+
+.ord-det-firma {
+    margin: 6px 0 10px;
+    font-size: 11px;
+    color: var(--gray);
+}
+
+.ord-det-firma img {
+    display: block;
+    max-width: 100%;
+    height: 90px;
+    object-fit: contain;
+    object-position: left;
+    border-bottom: 1px solid #cbd5e1;
+}
+
+.ord-azioni {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.ord-azioni .btn-back,
+.ord-azioni .btn-primary,
+.ord-azioni .btn-danger {
+    width: 100%;
+    white-space: normal;
+}
+
+/* ============================================ */
+/* STAMPA ORDINE (come il modulo cartaceo)       */
+/* ============================================ */
+#ordine-print {
+    display: none;
+}
+
+@media print {
+    @page {
+        size: A4;
+        margin: 10mm;
+    }
+
+    body.stampa-ordine > *:not(#ordine-print) {
+        display: none !important;
+    }
+
+    body.stampa-ordine {
+        padding: 0 !important;
+        margin: 0 !important;
+        background: white !important;
+    }
+
+    body.stampa-ordine #ordine-print {
+        display: block !important;
+    }
+
+    body.stampa-ordine #ordine-print,
+    body.stampa-ordine #ordine-print * {
+        visibility: visible !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+}
+
+.ost-pagina {
+    position: relative;
+    font-family: Arial, Helvetica, sans-serif;
+    color: #111;
+    font-size: 13px;
+    width: 100%;
+}
+
+/* Altezza utile del foglio (A4 con margini 10 mm): serve all'app per
+   calcolare quante righe vuote aggiungere alla tabella articoli */
+.ost-pagina.ost-a4-pdf {
+    width: 718px;
+}
+
+.ost-testa {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 14px;
+}
+
+.ost-logo {
+    height: 78px;
+    max-width: 48%;
+    object-fit: contain;
+    object-position: left center;
+}
+
+.ost-azienda {
+    border: 1px solid #555;
+    padding: 7px 12px;
+    font-size: 12.5px;
+    line-height: 1.45;
+    min-width: 46%;
+}
+
+.ost-riga-tipo {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+    font-size: 14px;
+}
+
+.ost-data {
+    min-width: 40%;
+    border-bottom: 1px solid #777;
+}
+
+.ost-casella {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 15px;
+    height: 15px;
+    border: 1.5px solid #222;
+    margin-right: 5px;
+    font-size: 12px;
+    line-height: 1;
+    vertical-align: middle;
+}
+
+.ost-linea {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    border-bottom: 1px solid #777;
+    padding: 5px 0 2px;
+    min-height: 24px;
+}
+
+.ost-etich {
+    font-weight: 700;
+    font-size: 11.5px;
+    flex: 0 0 auto;
+}
+
+.ost-val {
+    font-size: 14px;
+}
+
+.ost-doppia {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+
+.ost-box {
+    border: 1px solid #5a7d3a;
+    margin: 10px 0;
+}
+
+.ost-box-testa {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #5a7d3a;
+    color: white;
+    font-weight: 700;
+    padding: 3px 8px;
+    font-size: 13px;
+}
+
+.ost-piccolo {
+    font-size: 9.5px;
+}
+
+.ost-box-corpo {
+    min-height: 32px;
+    padding: 4px 8px;
+    font-size: 14px;
+}
+
+.ost-tabella {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+}
+
+.ost-tabella th {
+    background: #5a7d3a;
+    color: white;
+    text-align: left;
+    font-size: 13px;
+    padding: 4px 6px;
+}
+
+.ost-tabella th:nth-child(1) { width: 56%; }
+.ost-tabella th:nth-child(2) { width: 18%; }
+.ost-tabella th:nth-child(3) { width: 8%; }
+.ost-tabella th:nth-child(4) { width: 18%; }
+
+/* Righe strette come sul blocchetto (si aggiungono righe vuote fino a riempire il foglio) */
+.ost-tabella td {
+    border: 1px solid #9aa7a0;
+    padding: 2px 6px;
+    height: 24px;
+    font-size: 13.5px;
+    vertical-align: middle;
+    word-wrap: break-word;
+}
+
+.ost-tabella td em {
+    font-size: 10.5px;
+    color: #555;
+}
+
+.ost-c { text-align: center !important; }
+.ost-r { text-align: right !important; }
+
+.ost-piede {
+    display: grid;
+    grid-template-columns: 1fr 260px;
+    align-items: stretch;
+}
+
+.ost-caselle {
+    display: flex;
+    gap: 40px;
+    align-items: center;
+    font-size: 13px;
+}
+
+.ost-totale {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #a7bf8f;
+    padding: 6px 8px;
+    font-weight: 700;
+    font-size: 14px;
+}
+
+.ost-condizioni {
+    font-size: 8.5px;
+    line-height: 1.35;
+    margin: 8px 0 12px;
+    text-align: justify;
+}
+
+.ost-firma {
+    margin-left: auto;
+    width: 50%;
+    text-align: center;
+    font-size: 10.5px;
+    font-weight: 700;
+}
+
+.ost-firma img {
+    display: block;
+    height: 60px;
+    max-width: 100%;
+    margin: 0 auto;
+    object-fit: contain;
+}
+
+.ost-firma-vuota {
+    height: 60px;
+}
+
+.ost-firma span {
+    display: block;
+    border-top: 1px solid #555;
+    padding-top: 3px;
+}
+
+.ost-annullato {
+    position: absolute;
+    top: 40%;
+    left: 10%;
+    right: 10%;
+    text-align: center;
+    font-size: 64px;
+    font-weight: 700;
+    color: rgba(220, 38, 38, 0.25);
+    border: 6px solid rgba(220, 38, 38, 0.25);
+    transform: rotate(-18deg);
+}
+
+/* Operatore */
+.ord-operatore {
+    color: var(--gray);
+    font-weight: 600;
+}
+
+/* Operatore accanto al numero d'ordine */
+.ost-operatore {
+    margin-left: 28px;
+}
+
+/* PDF su Drive (riga nel dettaglio) */
+.ord-drive {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: var(--border-radius-sm);
+    padding: 8px 10px;
+    font-size: 12px;
+    line-height: 2;
+    margin-top: 8px;
+    word-break: break-word;
+}
+
+.ord-drive .mac-btn-piccolo {
+    text-decoration: none;
+    margin-left: 4px;
+    line-height: 1.2;
+}
+
+/* Contenitore temporaneo per creare il PDF (fuori dallo schermo) */
+.ord-pdf-temp {
+    position: fixed;
+    left: -10000px;
+    top: 0;
+    width: 760px;
+    background: white;
+    padding: 0;
+    z-index: -1;
+}

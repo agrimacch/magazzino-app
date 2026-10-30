@@ -11,8 +11,8 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 // ========================================
 // VARIABILI GLOBALI
 // ========================================
-const CURRENT_VERSION = '6.1.1';
-const SHOW_WHATS_NEW_POPUP = false;
+const CURRENT_VERSION = '6.2.0';
+const SHOW_WHATS_NEW_POPUP = true;
 
 let currentUser = null;
 let currentUserRole = null;
@@ -43,8 +43,14 @@ const ADMIN_ONLY_SECTIONS = ['utenti'];
 const SEZIONI_TECNICI = ['tecnici', 'interventi-esterni'];
 const TECNICI_PER_OPERATORI = true;
 
+// Inventario Macchine (dentro Magazzino): admin e operatori.
+// Il permesso e' deciso da macPuoGestire() in macchine-functions.js
+// Ordini Clienti (dentro Vendite): stessi permessi dell'inventario macchine.
+const SEZIONI_MACCHINE = ['inventario-macchine', 'ordini-clienti'];
+
 function sezioneConsentita(sectionName) {
     if (currentUserRole === 'tecnico') return SEZIONI_TECNICI.includes(sectionName);
+    if (SEZIONI_MACCHINE.includes(sectionName)) return typeof macPuoGestire === 'function' && macPuoGestire();
     if (ADMIN_ONLY_SECTIONS.includes(sectionName)) return currentUserRole === 'admin';
     if (SEZIONI_TECNICI.includes(sectionName)) return currentUserRole === 'admin' || TECNICI_PER_OPERATORI;
     return true;
@@ -474,6 +480,18 @@ function applyRolePermissions() {
         venditeCard.style.display = isTecnico ? 'none' : 'flex';
     }
 
+    // Card Inventario Macchine (dentro Magazzino): admin e operatori
+    const macchineCard = document.getElementById('magazzino-macchine-card');
+    if (macchineCard) {
+        macchineCard.style.display = sezioneConsentita('inventario-macchine') ? 'flex' : 'none';
+    }
+
+    // Card Ordini Clienti (dentro Vendite): admin e operatori
+    const ordiniCard = document.getElementById('vendite-ordini-card');
+    if (ordiniCard) {
+        ordiniCard.style.display = sezioneConsentita('ordini-clienti') ? 'flex' : 'none';
+    }
+
     // Gestione tab report (solo admin)
     const tabReportBtn = document.getElementById('tab-report-btn');
     if (tabReportBtn) {
@@ -616,9 +634,14 @@ function openSection(sectionName) {
         setTimeout(() => initScanner(), 100);
     } else if (sectionName === 'utenti') {
         renderUsersList();
+    } else if (sectionName === 'magazzino') {
+        // Entrando dal menu Magazzino l'inventario macchine riparte dalla scheda "Inventario"
+        sessionStorage.removeItem('macchineTab');
     } else if (sectionName === 'vendite') {
         // Entrando dal menu Vendite il listino riparte dalla scheda "Listino"
+        // (e gli ordini dall'elenco)
         sessionStorage.removeItem('listinoTab');
+        sessionStorage.removeItem('ordiniTab');
     } else if (sectionName === 'listini-fornitori') {
         if (typeof openListiniFornitori === 'function') {
             openListiniFornitori();
@@ -626,6 +649,14 @@ function openSection(sectionName) {
     } else if (sectionName === 'listino-vendite') {
         if (typeof openListinoVendite === 'function') {
             openListinoVendite();
+        }
+    } else if (sectionName === 'inventario-macchine') {
+        if (typeof openInventarioMacchine === 'function') {
+            openInventarioMacchine();
+        }
+    } else if (sectionName === 'ordini-clienti') {
+        if (typeof openOrdiniClienti === 'function') {
+            openOrdiniClienti();
         }
     } else if (sectionName === 'tecnici') {
         // Entrando dal menu Tecnici gli interventi ripartono dall'elenco settimane
@@ -754,6 +785,9 @@ async function handleLogout() {
     sessionStorage.removeItem('currentSection');
     sessionStorage.removeItem('currentTab');
     sessionStorage.removeItem('listinoTab');
+    sessionStorage.removeItem('macchineTab');
+    sessionStorage.removeItem('macchineMarchio');
+    sessionStorage.removeItem('ordiniTab');
     sessionStorage.removeItem('interventiSettimana');
     sessionStorage.removeItem('interventiGiorno');
 
