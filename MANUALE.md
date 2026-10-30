@@ -1,6 +1,6 @@
 # &#128230; AGRIMAG - Manuale d'uso e di manutenzione
 
-**Versione app:** 4.7.5
+**Versione app:** 6.0.0
 **Ultimo aggiornamento manuale:** Ottobre 2026
 **Tecnologie:** HTML + CSS + JavaScript (senza framework), Supabase (database e login), Vercel (pubblicazione), GitHub (codice)
 
@@ -15,7 +15,8 @@
 5. Magazzino &rarr; Inventario Consumabili
 6. Magazzino &rarr; Inventario Ricambi Stock
 7. Magazzino &rarr; Scanner (solo mobile)
-8. Vendite (in costruzione)
+8. Vendite
+8bis. Tecnici &rarr; Interventi Esterni
 9. Gestione Utenti (solo admin)
 10. Funzioni automatiche dell'app
 11. Manutenzione: file e comandi da terminale
@@ -58,8 +59,11 @@ Dashboard
   |     |-- Scanner (solo smartphone/tablet)
   |
   |-- Vendite
-  |     |-- Listino Vendite      (in costruzione)
+  |     |-- Listino Vendite
   |     |-- Listini Fornitori    (PDF su Google Drive)
+  |
+  |-- Tecnici
+  |     |-- Interventi Esterni   (planning settimanale dei tecnici)
   |
   |-- Gestione Utenti            (solo admin)
 ```
@@ -85,8 +89,9 @@ In ogni sezione c'&egrave; un pulsante per tornare indietro (es. "Torna a Magazz
 |-------|---------------------|
 | **Admin** | Tutto: modificare ed eliminare articoli/ricambi, import Excel, gestire utenti |
 | **Operatore** | Consultare, caricare e scaricare, usare scanner e report. Non pu&ograve; modificare/eliminare n&eacute; gestire utenti |
+| **Tecnico** | Vede **solo** Tecnici &rarr; Interventi Esterni, in sola lettura (tutte le settimane, tutti i tecnici). Entra direttamente nel planning; niente pop-up novit&agrave; n&eacute; campanella. Bloccato anche nel database fuori da questa sezione |
 
-La sezione **Vendite** per ora &egrave; visibile sia ad admin che ad operatori.
+La sezione **Vendite** &egrave; visibile ad admin e operatori. La sezione **Tecnici** ad admin, operatori e tecnici (admin e operatori possono modificare).
 
 ### 3.4 Password dimenticata
 Chiedi a un admin di reimpostarla da Gestione Utenti oppure dal pannello Supabase (Authentication &rarr; Users).
@@ -99,6 +104,7 @@ Dopo il login compare la Dashboard con le card:
 
 - &#127981; **Magazzino** - apre le tre sottocategorie (Consumabili, Ricambi Stock, Scanner)
 - &#128176; **Vendite** - apre Listino Vendite e Listini Fornitori
+- &#128119; **Tecnici** - apre Interventi Esterni (il tecnico vede solo questa)
 - &#128101; **Gestione Utenti** - visibile solo agli admin
 
 Cliccando su una card si entra nella sezione. Se cambi finestra del browser o torni all'app, **l'app ricorda in quale sezione e scheda eri** (fino a refresh manuale o logout).
@@ -221,13 +227,62 @@ Configurazione notifiche: tabella `listino_notifiche` (script `supabase/listino-
 
 ---
 
+## 8bis. TECNICI &rarr; INTERVENTI ESTERNI (v6.0.0)
+
+Percorso: Dashboard &rarr; Tecnici &rarr; Interventi Esterni. Modificano **admin e operatori**; i **tecnici** vedono soltanto.
+
+### 8bis.1 Elenco settimane
+- Settimane da luned&igrave; a sabato, divise per mese, dal 2 novembre 2026. In alto si sceglie l'anno.
+- "QUESTA SETTIMANA" in evidenza; su ogni settimana il numero di interventi e un pallino rosso se ci sono righe rosse (assenze).
+
+### 8bis.2 Planning della settimana
+- **PC**: una tabella per tecnico (GIORNO, ORA, TIPO, ESITO, CLIENTE), 4 righe la mattina e 4 il pomeriggio (separate da una linea tratteggiata). Pulsanti *Settimane*, *Prec.*, *Oggi*, *Succ.*
+- **Telefono**: un giorno alla volta (linguette LUN...SAB), parte dal giorno di oggi.
+- **Modificare una riga**: toccarla. Ora (testo libero), Tipo (INT / SOP / MONT), Esito (? / NR / OK / NO), Cliente, Colore. **NO** = intervento annullato (riga barrata). *Svuota riga* cancella testo e colore.
+- **Colori** (rosso = assente, giallo, verde, blu):
+  - una riga: dalla finestra di modifica;
+  - pi&ugrave; righe: **Pennello** (scegli il colore e tocca le righe; la X = gomma, toglie il colore);
+  - mezza giornata / giornata intera: toccare la casella del giorno (da telefono "Colora").
+- **Tecnici**: pulsante *Tecnici* nella settimana. "Tutte le settimane" = compare sempre; altrimenti "In questa settimana" lo aggiunge solo alla settimana aperta. Si pu&ograve; rinominare e disattivare (resta dove ha gi&agrave; interventi). Per eliminarlo del tutto: SQL su Supabase (vedi sotto).
+- Le modifiche dei colleghi compaiono da sole (tempo reale).
+
+### 8bis.3 Telegram: pulsante "Invia a Telegram"
+- Salvando le righe **non parte nulla**: le modifiche si accumulano e il pulsante &#128232; *Invia a Telegram* diventa azzurro con il numero di modifiche.
+- Premendolo (anteprima + conferma) parte **un solo messaggio** nel gruppo "Interventi esterni" (bot @interventiesterni_bot), raggruppato per tecnico: *Interventi aggiunti per...*, *modificati* (ora/tipo/cliente, con prima &rarr; dopo), *riprogrammati* (tolto l'esito NO), *cancellati* (esito NO o riga svuotata). Arriva solo lo stato finale delle righe.
+- **Esito "?"** (cliente non ancora chiamato): la riga resta in attesa e parte quando l'esito cambia; se viene svuotata non parte nulla.
+- Non generano avvisi: colori, esiti NR/OK, giorni passati.
+- Admin: pulsante *Prova Telegram* nella finestra Tecnici.
+
+### 8bis.4 Assenze da Google Calendar
+- Uno script Google (account agrimacchricambi) legge ogni 2 minuti il calendario condiviso delle assenze e lo passa alla funzione Supabase `assenze-tecnici`.
+- Per ogni assenza nuova o modificata di un tecnico arriva a Donny (chat privata con @interventiesterni_bot) un messaggio con la parte di giornata capita e i pulsanti *Come proposto / Solo mattina / Solo pomeriggio / Giornata intera / No*: premendo, il planning si colora di rosso da solo.
+- Titoli: serve una parola di assenza (assente, assenza, ferie, malattia, permesso, esce, uscita) e il tecnico (nome e cognome in qualsiasi ordine, o solo nome/cognome se nessun altro tecnico ce l'ha). Persone che non sono tecnici: ignorate. Giornata 8-19: mattina 8-13, pomeriggio 13-19. "Esce ore X": mattina o pomeriggio secondo l'ora.
+- Dopo le 7:00 il resoconto "Assenze di oggi"; se un evento viene tolto dal calendario arriva l'avviso con *Togli il rosso*.
+- Configurazione completa: `GUIDA_ASSENZE_CALENDARIO.md`.
+
+### 8bis.5 Archivio di fine anno (solo admin)
+Nell'elenco settimane: **Archivia anno** scarica `INTERVENTI_ESTERNI_anno.xlsx` (tutte le righe con colori e filtri), chiede di controllare il file e, solo dopo aver scritto l'anno per conferma, svuota il server. Farlo da PC.
+
+### 8bis.6 Configurazione (gi&agrave; fatta)
+- Script SQL eseguiti su Supabase: `interventi-esterni-setup.sql`, `tecnici-ruolo-setup.sql`, `interventi-telegram-setup.sql`, `assenze-tecnici-setup.sql`.
+- Funzioni Supabase (Verify JWT spento): `notifica-interventi` (file `supabase/notifica-interventi.ts`) e `assenze-tecnici` (file `supabase/assenze-tecnici.ts`). Ogni volta che cambia il file va reincollato e ripubblicato (Deploy).
+- Secrets: `TELEGRAM_BOT_TOKEN_INTERVENTI`, `TELEGRAM_CHAT_ID_INTERVENTI`, `ASSENZE_CHAT_ID`, `ASSENZE_SCRIPT_KEY`, `ASSENZE_WEBHOOK_SECRET`, `ASSENZE_SERVICE_KEY`.
+- Il bot @interventiesterni_bot ha il webhook verso `assenze-tecnici`: `getUpdates` non funziona pi&ugrave;; per sapere il chat id di una chat scrivere `/id` al bot.
+- Eliminare un tecnico (SQL Editor):
+```
+delete from public.interventi where tecnico_id = (select id from public.tecnici where nome = 'NOME COGNOME');
+delete from public.tecnici where nome = 'NOME COGNOME';
+```
+
+---
+
 ## 9. GESTIONE UTENTI (SOLO ADMIN)
 
 Percorso: Dashboard &rarr; Gestione Utenti.
 
-- **Aggiungere** un utente: email, password iniziale, ruolo (admin / operatore) e **iniziali** (usate nelle tabelle movimenti su mobile).
+- **Aggiungere** un utente: email, password iniziale, ruolo (admin / operatore / **tecnico**) e **iniziali** (usate nelle tabelle movimenti su mobile).
 - **Modificare** ruolo e iniziali con &#9997;.
-- **Eliminare** un utente con &#128465;.
+- **Eliminare** un utente con &#128465;. Attenzione: cancella solo il ruolo, l'account resta in Supabase &rarr; Authentication &rarr; Users. Per riusare la stessa email eliminare anche l'account da l&igrave; (o con SQL: `delete from auth.users where lower(email) = lower('email@esempio.it');`).
 
 ---
 
@@ -251,9 +306,12 @@ Percorso: Dashboard &rarr; Gestione Utenti.
 | `ricambi-functions.js` | Tutta la logica dei ricambi stock |
 | `listino-functions.js`, `listino.css` | Listino Vendite e notifiche (campanella) |
 | `fornitori-functions.js`, `fornitori.css` | Listini Fornitori (cartelle Google Drive) |
-| `supabase/` | Script SQL e codice delle funzioni Supabase (notifica-telegram, listini-drive) |
+| `interventi-functions.js`, `interventi.css` | Tecnici &rarr; Interventi Esterni (planning, Telegram, archivio) |
+| `supabase/` | Script SQL e codice delle funzioni Supabase (notifica-telegram, listini-drive, notifica-interventi, assenze-tecnici) |
 | `google/listini-drive.gs` | Script Google dei listini (si incolla su script.google.com) |
+| `google/assenze-calendario.gs` | Script Google delle assenze dei tecnici (account agrimacchricambi) |
 | `GUIDA_LISTINI_FORNITORI.md` | Guida di configurazione Drive + script + Supabase |
+| `GUIDA_ASSENZE_CALENDARIO.md` | Guida di configurazione assenze: calendario + script + Supabase + Telegram |
 | `manifest.json` | Impostazioni per installare l'app sul telefono |
 | `VERSION.md` | Storico versioni |
 | `push-all.sh`, `update-version.sh`, `start-https-server.sh` | Script di aiuto |
@@ -324,12 +382,16 @@ git rm --cached localhost.pem localhost-key.pem
 | Un report sembra vuoto | Allarga il periodo o lascia vuoti i campi Da/A |
 | Un'azione d&agrave; errore sui dati | Premi F12 per aprire la Console e leggi il dettaglio |
 | Telegram non riceve le notifiche | Campanella &rarr; *Prova Telegram* (admin): il messaggio d'errore dice cosa manca (funzione, &quot;Verify JWT&quot; spento, secrets) |
+| "Invia a Telegram" d&agrave; errore | Finestra Tecnici &rarr; *Prova Telegram* (admin): l'errore dice cosa manca (funzione `notifica-interventi`, secrets `TELEGRAM_BOT_TOKEN_INTERVENTI` / `TELEGRAM_CHAT_ID_INTERVENTI`) |
+| Non arrivano gli avvisi delle assenze | Apps Script &rarr; esegui `controllaAdesso` e leggi il log (una riga per evento). Vedi `GUIDA_ASSENZE_CALENDARIO.md` |
+| Email gi&agrave; registrata creando un utente | L'account &egrave; ancora in Supabase &rarr; Authentication &rarr; Users: eliminarlo da l&igrave; |
 | La campanella non si aggiorna da sola | Controlla di aver eseguito `listino-notifiche-setup.sql` (attiva il tempo reale); riaprendo l'app il conteggio si aggiorna comunque |
 
 ---
 
 ## 15. STORICO MODIFICHE PRINCIPALI
 
+- **v6.0.0 (ott 2026)** - Nuova sezione **Tecnici &rarr; Interventi Esterni**: planning settimanale (4 righe mattina + 4 pomeriggio per tecnico), colori con pennello, tecnici per settimana, tempo reale; ruolo utente **Tecnico** (sola lettura, solo questa sezione); riepilogo Telegram con il pulsante "Invia a Telegram"; assenze lette da Google Calendar con conferma su Telegram e colorazione automatica; archivio di fine anno in Excel.
 - **v4.10.0 (ott 2026)** - Listini Fornitori: PDF su Google Drive letti in automatico dall'app (fornitori, marchi, pi&ugrave; recenti e archivio), guida in app, avvisi Telegram dei file nuovi o aggiornati.
 - **v4.9.5 (ott 2026)** - Promemoria ordini: notifiche (app e Telegram) per consumabili sotto soglia o esauriti e ricambi esauriti; filtri che restano dopo carico/scarico; ordinamento per codice articolo; finestre con pulsanti sempre visibili; prezzo "No promo" da mobile; pulsante "Dashboard" accanto a "Torna a Magazzino/Vendite".
 - **v4.9.0 (ott 2026)** - Notifiche delle modifiche al listino: campanella in app con avvisi in tempo reale e messaggi Telegram.

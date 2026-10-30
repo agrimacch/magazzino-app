@@ -20,6 +20,7 @@
     <link rel="stylesheet" href="style.css?v=5.0.0">
     <link rel="stylesheet" href="listino.css?v=5.0.0">
     <link rel="stylesheet" href="fornitori.css?v=5.0.0">
+    <link rel="stylesheet" href="interventi.css?v=5.0.0">
 
     <!-- SheetJS per import Excel -->
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
@@ -162,6 +163,13 @@
                     <span class="card-icon">&#128176;</span>
                     <h3>Vendite</h3>
                     <p>Listino vendite e listini fornitori</p>
+                </div>
+
+                <!-- Card Tecnici (contiene: Interventi Esterni) - per ora solo admin -->
+                <div class="dashboard-card" id="dashboard-tecnici-card" onclick="openSection('tecnici')" style="display: none;">
+                    <span class="card-icon">&#128119;</span>
+                    <h3>Tecnici</h3>
+                    <p>Interventi esterni dei tecnici</p>
                 </div>
 
                 <!-- Card Gestione Utenti (solo admin) -->
@@ -952,6 +960,91 @@
         </div>
 
         <!-- ========================================== -->
+        <!-- CATEGORIA TECNICI (menu: Interventi Esterni) -->
+        <!-- ========================================== -->
+        <div id="section-tecnici" class="section-container hidden">
+            <div class="back-to-dashboard">
+                <button onclick="backToDashboard()" class="btn-back">
+                    &#8592; Torna alla Dashboard
+                </button>
+                <h2 class="section-title">&#128119; Tecnici</h2>
+            </div>
+            <div class="dashboard-container">
+                <div class="dashboard-header">
+                    <p>Seleziona una sezione dei tecnici</p>
+                </div>
+                <div class="dashboard-grid hub-grid">
+                    <!-- Card Interventi Esterni -->
+                    <div class="dashboard-card" onclick="openSection('interventi-esterni')">
+                        <span class="card-icon">&#128656;</span>
+                        <h3>Interventi Esterni</h3>
+                        <p>Planning settimanale degli interventi dei tecnici</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- SEZIONE INTERVENTI ESTERNI (planning settimanale) -->
+        <!-- ========================================== -->
+        <div id="section-interventi-esterni" class="section-container hidden">
+            <div class="back-to-dashboard">
+                <div class="back-buttons">
+                    <button onclick="openSection('tecnici')" class="btn-back">
+                        &#8592; Torna a Tecnici
+                    </button>
+                    <button onclick="backToDashboard()" class="btn-back btn-dashboard">
+                        &#127968; Dashboard
+                    </button>
+                </div>
+                <h2 class="section-title">&#128656; Interventi Esterni</h2>
+            </div>
+            <div class="container">
+                <!-- Elenco settimane -->
+                <div id="int-vista-elenco">
+                    <div class="int-elenco-testa">
+                        <label for="int-anno">&#128197; Anno</label>
+                        <select id="int-anno" onchange="intCambiaAnno(this.value)"></select>
+                        <button type="button" class="int-btn-nav int-btn-invia int-btn-invia-elenco hidden" onclick="intInviaTelegram()">&#128232; Invia a Telegram</button>
+                        <button type="button" id="int-btn-archivia" class="int-btn-nav int-btn-archivia hidden" onclick="intArchiviaAnno()">&#128230; Archivia anno</button>
+                    </div>
+                    <div id="int-elenco-settimane"></div>
+                </div>
+
+                <!-- Settimana aperta -->
+                <div id="int-vista-settimana" class="hidden">
+                    <div class="int-sett-testa">
+                        <h2 id="int-titolo-settimana"></h2>
+                        <div class="int-sett-nav">
+                            <button type="button" class="int-btn-nav" onclick="intMostraElenco()">&#9776; Settimane</button>
+                            <button type="button" class="int-btn-nav" id="int-sett-prec" onclick="intSpostaSettimana(-1)">&#9664; Prec.</button>
+                            <button type="button" class="int-btn-nav" onclick="intVaiOggi()">Oggi</button>
+                            <button type="button" class="int-btn-nav" onclick="intSpostaSettimana(1)">Succ. &#9654;</button>
+                        </div>
+                    </div>
+
+                    <!-- Strumenti (solo admin e operatori) -->
+                    <div id="int-strumenti" class="hidden">
+                        <span class="int-strumenti-etichetta">&#128396;&#65039; Pennello:</span>
+                        <button type="button" class="int-pennello-btn" data-colore="ROSSO" title="Rosso (assente)" onclick="intScegliPennello('ROSSO')"></button>
+                        <button type="button" class="int-pennello-btn" data-colore="GIALLO" title="Giallo" onclick="intScegliPennello('GIALLO')"></button>
+                        <button type="button" class="int-pennello-btn" data-colore="VERDE" title="Verde" onclick="intScegliPennello('VERDE')"></button>
+                        <button type="button" class="int-pennello-btn" data-colore="BLU" title="Blu" onclick="intScegliPennello('BLU')"></button>
+                        <button type="button" class="int-pennello-btn" data-colore="GOMMA" title="Gomma: toglie il colore" onclick="intScegliPennello('GOMMA')">&#10006;</button>
+                        <button type="button" class="int-btn-nav int-btn-tecnici" onclick="intApriTecnici()">&#128119; Tecnici</button>
+                        <button type="button" class="int-btn-nav int-btn-invia hidden" onclick="intInviaTelegram()">&#128232; Invia a Telegram</button>
+                    </div>
+                    <div id="int-pennello-avviso" class="hidden"></div>
+
+                    <!-- PC: una tabella per tecnico -->
+                    <div id="int-griglia" class="int-griglia"></div>
+                    <!-- Telefono: un giorno alla volta -->
+                    <div id="int-mobile" class="int-mobile"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================================== -->
         <!-- SEZIONE GESTIONE UTENTI -->
         <!-- ========================================== -->
         <div id="section-utenti" class="section-container hidden">
@@ -980,6 +1073,7 @@
                         <select id="new-user-role" required>
                             <option value="operatore">Operatore</option>
                             <option value="admin">Amministratore</option>
+                            <option value="tecnico">Tecnico (solo Interventi Esterni, sola lettura)</option>
                         </select>
 
                         <button type="submit" class="btn-primary">Crea Utente</button>
@@ -1170,6 +1264,7 @@
                 <select id="edit-user-role" required>
                     <option value="operatore">Operatore</option>
                     <option value="admin">Amministratore</option>
+                    <option value="tecnico">Tecnico (solo Interventi Esterni, sola lettura)</option>
                 </select>
 
                 <div class="modal-buttons">
@@ -1396,6 +1491,120 @@
     <!-- Avviso a comparsa: arriva una modifica al listino da un altro utente -->
     <div id="notifiche-toast" class="notifiche-toast hidden"></div>
 
+    <!-- ========================================== -->
+    <!-- INTERVENTI ESTERNI: modifica riga -->
+    <!-- ========================================== -->
+    <div id="int-edit-modal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>&#9999;&#65039; Intervento</h3>
+                <button type="button" class="modal-close" onclick="intChiudiModifica()">&times;</button>
+            </div>
+            <div id="int-edit-dove" class="int-dove"></div>
+
+            <label for="int-edit-ora">Ora</label>
+            <input type="text" id="int-edit-ora" placeholder="es. 8.45 oppure 14.45/15" maxlength="20" autocomplete="off"
+                onkeydown="if (event.key === 'Enter') { event.preventDefault(); intSalvaModifica(); }">
+
+            <label>Tipo</label>
+            <div id="int-edit-tipo" class="int-scelte" data-valore="">
+                <button type="button" data-valore="" onclick="intSelezionaScelta('int-edit-tipo', '')">&ndash;</button>
+                <button type="button" data-valore="INT" onclick="intSelezionaScelta('int-edit-tipo', 'INT')">INT</button>
+                <button type="button" data-valore="SOP" onclick="intSelezionaScelta('int-edit-tipo', 'SOP')">SOP</button>
+                <button type="button" data-valore="MONT" onclick="intSelezionaScelta('int-edit-tipo', 'MONT')">MONT</button>
+            </div>
+
+            <label>Esito <small style="font-weight: 400; color: var(--gray);">(NO = intervento annullato)</small></label>
+            <div id="int-edit-esito" class="int-scelte" data-valore="">
+                <button type="button" data-valore="" onclick="intSelezionaScelta('int-edit-esito', '')">&ndash;</button>
+                <button type="button" data-valore="?" onclick="intSelezionaScelta('int-edit-esito', '?')">?</button>
+                <button type="button" data-valore="NR" onclick="intSelezionaScelta('int-edit-esito', 'NR')">NR</button>
+                <button type="button" data-valore="OK" onclick="intSelezionaScelta('int-edit-esito', 'OK')">OK</button>
+                <button type="button" data-valore="NO" onclick="intSelezionaScelta('int-edit-esito', 'NO')">NO</button>
+            </div>
+
+            <label for="int-edit-cliente">Cliente</label>
+            <textarea id="int-edit-cliente" rows="2" placeholder="Cliente, localit&agrave;, telefono"></textarea>
+
+            <label>Colore riga</label>
+            <div id="int-edit-colore" class="int-scelte int-scelte-colore" data-valore="">
+                <button type="button" data-valore="" onclick="intSelezionaScelta('int-edit-colore', '')">Nessuno</button>
+                <button type="button" data-valore="ROSSO" onclick="intSelezionaScelta('int-edit-colore', 'ROSSO')">Rosso</button>
+                <button type="button" data-valore="GIALLO" onclick="intSelezionaScelta('int-edit-colore', 'GIALLO')">Giallo</button>
+                <button type="button" data-valore="VERDE" onclick="intSelezionaScelta('int-edit-colore', 'VERDE')">Verde</button>
+                <button type="button" data-valore="BLU" onclick="intSelezionaScelta('int-edit-colore', 'BLU')">Blu</button>
+            </div>
+
+            <button type="button" id="int-edit-svuota" class="int-btn-svuota hidden" onclick="intSvuotaRiga()">&#128465;&#65039; Svuota riga</button>
+
+            <div class="modal-buttons">
+                <button type="button" id="int-edit-salva" class="btn-primary" onclick="intSalvaModifica()">Salva</button>
+                <button type="button" class="btn-secondary" onclick="intChiudiModifica()">Annulla</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- INTERVENTI ESTERNI: colora mattina / pomeriggio / giornata -->
+    <div id="int-colora-modal" class="modal hidden">
+        <div class="modal-content" style="max-width: 440px;">
+            <div class="modal-header">
+                <h3>&#127912; Colora</h3>
+                <button type="button" class="modal-close" onclick="intChiudiColora()">&times;</button>
+            </div>
+            <div id="int-colora-dove" class="int-dove"></div>
+
+            <label>Cosa colorare</label>
+            <div id="int-colora-parte" class="int-scelte">
+                <button type="button" data-valore="M" onclick="intScegliParte('M')">Mattina</button>
+                <button type="button" data-valore="P" onclick="intScegliParte('P')">Pomeriggio</button>
+                <button type="button" data-valore="G" onclick="intScegliParte('G')">Giornata</button>
+            </div>
+
+            <label>Colore</label>
+            <div class="int-scelte int-scelte-colore">
+                <button type="button" data-valore="ROSSO" onclick="intApplicaColora('ROSSO')">Rosso</button>
+                <button type="button" data-valore="GIALLO" onclick="intApplicaColora('GIALLO')">Giallo</button>
+                <button type="button" data-valore="VERDE" onclick="intApplicaColora('VERDE')">Verde</button>
+                <button type="button" data-valore="BLU" onclick="intApplicaColora('BLU')">Blu</button>
+                <button type="button" data-valore="" onclick="intApplicaColora(null)">Togli colore</button>
+            </div>
+            <p class="int-nota">Il testo degli interventi resta: cambia solo il colore.</p>
+
+            <div class="modal-buttons" style="grid-template-columns: 1fr;">
+                <button type="button" class="btn-secondary" onclick="intChiudiColora()">Annulla</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- INTERVENTI ESTERNI: tecnici -->
+    <div id="int-tecnici-modal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>&#128119; Tecnici</h3>
+                <button type="button" class="modal-close" onclick="intChiudiTecnici()">&times;</button>
+            </div>
+            <p class="int-nota">Settimana: <strong id="int-tecnici-settimana"></strong></p>
+            <p class="int-nota"><strong>Tutte le settimane</strong> = compare sempre. Altrimenti spunta
+            <strong>In questa settimana</strong> per aggiungerlo solo alla settimana aperta.</p>
+
+            <div id="int-tecnici-lista"></div>
+
+            <div class="int-nuovo-tecnico">
+                <label for="int-nuovo-tecnico">&#10133; Aggiungi tecnico</label>
+                <input type="text" id="int-nuovo-tecnico" placeholder="Cognome e nome" maxlength="40" autocomplete="off"
+                    onkeydown="if (event.key === 'Enter') { event.preventDefault(); intAggiungiTecnico(); }">
+                <label class="int-check"><input type="checkbox" id="int-nuovo-fisso"> Tutte le settimane (altrimenti solo questa)</label>
+                <button type="button" class="btn-primary" onclick="intAggiungiTecnico()">Aggiungi</button>
+            </div>
+
+            <button type="button" id="int-btn-prova-telegram" class="int-btn-piccolo int-btn-prova hidden" onclick="intProvaTelegram()">&#129514; Prova Telegram</button>
+
+            <div class="modal-buttons" style="grid-template-columns: 1fr;">
+                <button type="button" class="btn-secondary" onclick="intChiudiTecnici()">Chiudi</button>
+            </div>
+        </div>
+    </div>
+
     <!-- MODAL ALERT PERSONALIZZATO -->
     <div id="custom-alert-modal" class="modal hidden">
         <div class="modal-content" style="max-width: 450px;">
@@ -1417,6 +1626,7 @@
     <script src="ricambi-functions.js?v=5.0.0"></script>
     <script src="listino-functions.js?v=5.0.0"></script>
     <script src="fornitori-functions.js?v=5.0.0"></script>
+    <script src="interventi-functions.js?v=5.0.0"></script>
     <script src="app.js?v=5.0.0"></script>
 </body>
 </html>

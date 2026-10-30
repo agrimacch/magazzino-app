@@ -37,6 +37,25 @@ let currentSection = 'dashboard';
 // (Vendite e' visibile a tutti: admin e operatori hanno gli stessi permessi sul listino)
 const ADMIN_ONLY_SECTIONS = ['utenti'];
 
+// Sezione Tecnici / Interventi Esterni.
+// Il ruolo "tecnico" vede SOLO queste sezioni (in sola lettura).
+// Dalla v6.0.0 la vedono admin, operatori e tecnici (false = solo admin e tecnici).
+const SEZIONI_TECNICI = ['tecnici', 'interventi-esterni'];
+const TECNICI_PER_OPERATORI = true;
+
+function sezioneConsentita(sectionName) {
+    if (currentUserRole === 'tecnico') return SEZIONI_TECNICI.includes(sectionName);
+    if (ADMIN_ONLY_SECTIONS.includes(sectionName)) return currentUserRole === 'admin';
+    if (SEZIONI_TECNICI.includes(sectionName)) return currentUserRole === 'admin' || TECNICI_PER_OPERATORI;
+    return true;
+}
+
+function ruoloEtichetta(role) {
+    if (role === 'admin') return '&#128081; Admin';
+    if (role === 'tecnico') return '&#128119; Tecnico';
+    return '&#128100; Operatore';
+}
+
 // ========================================
 // FUNZIONI PERSISTENZA FILTRI
 // ========================================
@@ -422,12 +441,20 @@ async function loadUserRole() {
 function applyRolePermissions() {
     const roleBadge = document.getElementById('user-role');
     
-    roleBadge.classList.remove('admin', 'operatore');
+    roleBadge.classList.remove('admin', 'operatore', 'tecnico');
     
-    roleBadge.innerHTML = currentUserRole === 'admin' ? '&#128081; Admin' : '&#128100; Operatore';
+    roleBadge.innerHTML = ruoloEtichetta(currentUserRole);
     roleBadge.classList.add(currentUserRole);
     
     const isAdmin = currentUserRole === 'admin';
+    const isTecnico = currentUserRole === 'tecnico';
+    document.body.classList.toggle('ruolo-tecnico', isTecnico);
+
+    // Il tecnico vede solo la card Tecnici
+    const magazzinoCard = document.getElementById('dashboard-magazzino-card');
+    if (magazzinoCard) {
+        magazzinoCard.style.display = isTecnico ? 'none' : 'flex';
+    }
     
     // Gestione visibilit&agrave; card dashboard
     const utentiCard = document.getElementById('dashboard-utenti-card');
@@ -435,10 +462,16 @@ function applyRolePermissions() {
         utentiCard.style.display = isAdmin ? 'flex' : 'none';
     }
     
-    // Card Vendite: visibile a tutti
+    // Card Tecnici (Interventi Esterni): admin e tecnici (operatori quando TECNICI_PER_OPERATORI = true)
+    const tecniciCard = document.getElementById('dashboard-tecnici-card');
+    if (tecniciCard) {
+        tecniciCard.style.display = sezioneConsentita('tecnici') ? 'flex' : 'none';
+    }
+
+    // Card Vendite: visibile a tutti tranne i tecnici
     const venditeCard = document.getElementById('dashboard-vendite-card');
     if (venditeCard) {
-        venditeCard.style.display = 'flex';
+        venditeCard.style.display = isTecnico ? 'none' : 'flex';
     }
 
     // Gestione tab report (solo admin)
@@ -466,11 +499,15 @@ async function showMainScreen() {
     document.getElementById('main-screen').classList.add('active');
     
     // Carica dati PRIMA di ripristinare la sezione
+    // (il tecnico vede solo gli interventi esterni: niente dati di magazzino)
+    const isTecnico = currentUserRole === 'tecnico';
     await loadAllUsers();
-    loadInventory();
-    loadMovements();
-    loadRicambi();
-    loadMovementsRicambi();
+    if (!isTecnico) {
+        loadInventory();
+        loadMovements();
+        loadRicambi();
+        loadMovementsRicambi();
+    }
     
     if (currentUserRole === 'admin') {
         populateReportSelects();
@@ -492,15 +529,22 @@ async function showMainScreen() {
         if (savedTab && (savedSection === 'consumabili' || savedSection === 'ricambi')) {
             switchTab(savedTab, savedSection === 'ricambi' ? 'ricambi' : undefined);
         }
+    } else if (isTecnico) {
+        // Il tecnico entra direttamente negli Interventi Esterni
+        openSection('interventi-esterni');
     } else {
         // Prima volta o era sulla dashboard
         showDashboard();
     }
     
-    checkAndShowWhatsNew();
+    // Pop-up novita': non ai tecnici (riguarda magazzino, vendite...)
+    if (!isTecnico) {
+        checkAndShowWhatsNew();
+    }
 
     // Notifiche listino: campanella + avvisi in tempo reale (una sola volta per sessione)
-    if (typeof avviaNotificheListino === 'function') {
+    // (non per i tecnici: non vedono listino e magazzino)
+    if (!isTecnico && typeof avviaNotificheListino === 'function') {
         avviaNotificheListino();
     }
 }
@@ -526,10 +570,10 @@ function showDashboard() {
 }
 
 function openSection(sectionName) {
-    // Blocco sezioni riservate agli admin (es. Vendite, Gestione Utenti).
-    // Anche se un operatore ci arrivasse (es. sezione salvata in sessione),
-    // viene riportato alla dashboard.
-    if (ADMIN_ONLY_SECTIONS.includes(sectionName) && currentUserRole !== 'admin') {
+    // Blocco sezioni non consentite al ruolo (Gestione Utenti solo admin,
+    // tecnico solo Tecnici/Interventi Esterni...). Anche se ci arrivasse
+    // (es. sezione salvata in sessione), viene riportato alla dashboard.
+    if (!sezioneConsentita(sectionName)) {
         showDashboard();
         return;
     }
@@ -582,6 +626,13 @@ function openSection(sectionName) {
     } else if (sectionName === 'listino-vendite') {
         if (typeof openListinoVendite === 'function') {
             openListinoVendite();
+        }
+    } else if (sectionName === 'tecnici') {
+        // Entrando dal menu Tecnici gli interventi ripartono dall'elenco settimane
+        sessionStorage.removeItem('interventiSettimana');
+    } else if (sectionName === 'interventi-esterni') {
+        if (typeof openInterventiEsterni === 'function') {
+            openInterventiEsterni();
         }
     }
 }
@@ -703,6 +754,7 @@ async function handleLogout() {
     sessionStorage.removeItem('currentSection');
     sessionStorage.removeItem('currentTab');
     sessionStorage.removeItem('listinoTab');
+    sessionStorage.removeItem('interventiSettimana');
 
     await supabaseClient.auth.signOut();
     currentUser = null;
@@ -1978,8 +2030,8 @@ async function renderUsersList() {
     users.forEach(user => {
         const row = document.createElement('tr');
         const isCurrentUser = user.email === loggedInUserEmail;
-        const roleClass = user.role === 'admin' ? 'admin' : 'operatore';
-        const roleText = user.role === 'admin' ? '&#128081; Admin' : '&#128100; Operatore';
+        const roleClass = (user.role === 'admin' || user.role === 'tecnico') ? user.role : 'operatore';
+        const roleText = ruoloEtichetta(user.role);
         
         row.innerHTML = `
             <td>${user.email}</td>

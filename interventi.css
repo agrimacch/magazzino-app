@@ -1,0 +1,798 @@
+/* ============================================ */
+/* TECNICI - INTERVENTI ESTERNI (v5.1.0)        */
+/* Tutte le regole sono limitate alla sezione   */
+/* #section-interventi-esterni e alle finestre  */
+/* int-*: non toccano le altre tabelle dell'app */
+/* ============================================ */
+
+/* Dashboard principale: le card si adattano (Magazzino, Vendite, Tecnici, Utenti) */
+@media (min-width: 769px) {
+    #dashboard-view .dashboard-grid {
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    }
+}
+
+/* Colori delle righe */
+:root {
+    --int-rosso: #ef4444;
+    --int-giallo: #fde047;
+    --int-verde: #86efac;
+    --int-blu: #93c5fd;
+}
+
+#section-interventi-esterni .int-vuoto {
+    text-align: center;
+    color: var(--gray);
+    padding: 30px 15px;
+}
+
+.int-nota {
+    color: var(--gray);
+    font-size: 13px;
+}
+
+.int-link {
+    background: none;
+    border: none;
+    color: var(--primary);
+    font-weight: 700;
+    text-decoration: underline;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: inherit;
+    padding: 0 4px;
+}
+
+/* ---------- Elenco settimane ---------- */
+.int-elenco-testa {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+}
+
+.int-elenco-testa label {
+    margin: 0;
+}
+
+.int-elenco-testa select {
+    width: auto;
+    margin: 0;
+    padding: 8px 12px;
+}
+
+.int-mese {
+    margin-bottom: 18px;
+}
+
+.int-mese-titolo {
+    font-size: 14px;
+    color: var(--primary);
+    margin: 0 0 8px 2px;
+    letter-spacing: 0.5px;
+}
+
+.int-mese-griglia {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+}
+
+@media (min-width: 769px) {
+    .int-mese-griglia {
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    }
+}
+
+.int-settimana-btn {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    width: 100%;
+    background: white;
+    border: 2px solid var(--green-light);
+    border-radius: var(--border-radius-sm);
+    padding: 14px 14px;
+    font-family: 'Roboto Mono', monospace;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--dark);
+    cursor: pointer;
+    text-align: left;
+    transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.int-settimana-btn:hover {
+    border-color: var(--primary);
+}
+
+.int-settimana-btn:active {
+    transform: scale(0.99);
+}
+
+.int-settimana-btn.corrente {
+    border-color: var(--primary);
+    background: var(--green-light);
+}
+
+.int-settimana-btn.passata {
+    color: var(--gray);
+    background: #fafafa;
+}
+
+.int-sett-info {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.int-tag {
+    font-size: 10px;
+    padding: 3px 6px;
+    border-radius: 6px;
+    background: #e5e7eb;
+    color: var(--dark);
+}
+
+.int-tag-ora {
+    background: var(--primary);
+    color: white;
+}
+
+.int-sett-conta {
+    font-size: 11px;
+    color: var(--primary-dark);
+    background: var(--light);
+    border: 1px solid var(--green-light);
+    padding: 2px 6px;
+    border-radius: 6px;
+}
+
+.int-sett-assenza {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--int-rosso);
+    display: inline-block;
+}
+
+/* ---------- Testata settimana ---------- */
+.int-sett-testa {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+}
+
+.int-sett-nav {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.int-btn-nav {
+    background: white;
+    color: var(--primary);
+    border: 2px solid var(--primary);
+    border-radius: var(--border-radius-sm);
+    padding: 8px 12px;
+    font-family: 'Roboto Mono', monospace;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.int-btn-nav:disabled {
+    opacity: 0.35 !important;
+    cursor: default;
+}
+
+.int-btn-nav:not(:disabled):hover {
+    background: var(--primary);
+    color: white;
+}
+
+#int-titolo-settimana {
+    font-size: 17px;
+    color: var(--primary);
+    margin: 0;
+}
+
+/* Strumenti: pennello colori + tecnici */
+#int-strumenti {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+}
+
+.int-strumenti-etichetta {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--gray);
+}
+
+.int-pennello-btn {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    border: 3px solid white;
+    box-shadow: 0 0 0 2px #d1d5db;
+    cursor: pointer;
+    font-size: 15px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.int-pennello-btn.attivo {
+    box-shadow: 0 0 0 3px var(--dark);
+    transform: scale(1.1);
+}
+
+.int-pennello-btn[data-colore="ROSSO"] { background: var(--int-rosso); }
+.int-pennello-btn[data-colore="GIALLO"] { background: var(--int-giallo); }
+.int-pennello-btn[data-colore="VERDE"] { background: var(--int-verde); }
+.int-pennello-btn[data-colore="BLU"] { background: var(--int-blu); }
+.int-pennello-btn[data-colore="GOMMA"] { background: white; }
+
+.int-btn-tecnici {
+    margin-left: auto;
+}
+
+#int-pennello-avviso {
+    background: #fffbeb;
+    border: 2px solid var(--warning);
+    border-radius: var(--border-radius-sm);
+    padding: 8px 12px;
+    font-size: 13px;
+    margin-bottom: 10px;
+    position: sticky;
+    top: 0;
+    z-index: 6;
+}
+
+/* ---------- Tabelle (PC) ---------- */
+.int-griglia {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(460px, 1fr));
+    gap: 16px;
+    align-items: start;
+}
+
+.int-tecnico-blocco {
+    background: white;
+    border-radius: var(--border-radius-sm);
+    box-shadow: 0 2px 12px rgba(22, 163, 74, 0.08);
+    overflow: hidden;
+    border: 2px solid var(--green-light);
+}
+
+.int-tecnico-nome {
+    background: var(--primary-dark);
+    color: white;
+    font-weight: 700;
+    font-size: 14px;
+    padding: 8px 12px;
+    letter-spacing: 0.5px;
+}
+
+#section-interventi-esterni table.int-tabella {
+    width: 100%;
+    min-width: 0;
+    table-layout: fixed;
+    border-collapse: collapse;
+    font-size: 12px;
+    overflow: visible;
+}
+
+#section-interventi-esterni table.int-tabella col.int-col-giorno { width: 54px; }
+#section-interventi-esterni table.int-tabella col.int-col-ora { width: 74px; }
+#section-interventi-esterni table.int-tabella col.int-col-tipo { width: 56px; }
+#section-interventi-esterni table.int-tabella col.int-col-esito { width: 54px; }
+
+#section-interventi-esterni table.int-tabella th {
+    padding: 6px 6px;
+    font-size: 11px;
+    text-align: center;
+}
+
+#section-interventi-esterni table.int-tabella td,
+#section-interventi-esterni table.int-tabella th {
+    min-width: 0;
+    max-width: none;
+    border: 1px solid #e5e7eb;
+}
+
+#section-interventi-esterni table.int-tabella td {
+    padding: 4px 6px;
+    height: 26px;
+    white-space: normal;
+    word-break: break-word;
+    vertical-align: middle;
+    background: transparent;
+    line-height: 1.3;
+}
+
+#section-interventi-esterni table.int-tabella td.int-c-esito,
+#section-interventi-esterni table.int-tabella td.int-c-tipo {
+    text-align: center;
+}
+
+/* Cella del giorno (unisce le 8 righe) */
+#section-interventi-esterni table.int-tabella td.int-c-giorno {
+    background: #8b6f2a;
+    color: white;
+    text-align: center;
+    vertical-align: top;
+    padding: 8px 2px;
+    border-top: 3px solid #4b5563;
+}
+
+#section-interventi-esterni table.int-tabella td.int-c-giorno.oggi {
+    background: var(--primary);
+}
+
+#section-interventi-esterni table.int-tabella tr.cliccabile td.int-c-giorno {
+    cursor: pointer;
+}
+
+.int-giorno-nome {
+    display: block;
+    font-weight: 700;
+    font-size: 12px;
+}
+
+.int-giorno-num {
+    display: block;
+    font-size: 18px;
+    font-weight: 700;
+    margin-top: 2px;
+}
+
+.int-giorno-colora {
+    display: block;
+    margin-top: 8px;
+    font-size: 16px;
+    opacity: 0.85 !important;
+}
+
+/* Prima riga di ogni giorno: bordo forte */
+#section-interventi-esterni table.int-tabella tr:has(td.int-c-giorno) td {
+    border-top: 3px solid #4b5563;
+}
+
+/* Inizio pomeriggio: linea tratteggiata */
+#section-interventi-esterni table.int-tabella tr.inizio-pom td {
+    border-top: 2px dashed #9ca3af;
+}
+
+#section-interventi-esterni table.int-tabella tr.cliccabile {
+    cursor: pointer;
+}
+
+#section-interventi-esterni table.int-tabella tr.cliccabile:hover td:not(.int-c-giorno) {
+    background: rgba(104, 142, 83, 0.12);
+}
+
+/* Righe colorate */
+#section-interventi-esterni tr.col-ROSSO td:not(.int-c-giorno) { background: var(--int-rosso) !important; color: white; }
+#section-interventi-esterni tr.col-GIALLO td:not(.int-c-giorno) { background: var(--int-giallo) !important; }
+#section-interventi-esterni tr.col-VERDE td:not(.int-c-giorno) { background: var(--int-verde) !important; }
+#section-interventi-esterni tr.col-BLU td:not(.int-c-giorno) { background: var(--int-blu) !important; }
+
+/* Esito NO = intervento annullato */
+#section-interventi-esterni tr.annullato td.int-c-ora,
+#section-interventi-esterni tr.annullato td.int-c-tipo,
+#section-interventi-esterni tr.annullato td.int-c-cliente,
+.int-m-riga.annullato .int-m-cliente,
+.int-m-riga.annullato .int-m-ora {
+    text-decoration: line-through;
+    opacity: 0.7 !important;
+}
+
+/* Etichette esito */
+.int-esito {
+    display: inline-block;
+    font-weight: 700;
+    font-size: 11px;
+    padding: 1px 5px;
+    border-radius: 5px;
+    min-width: 22px;
+    text-align: center;
+}
+
+.int-esito:empty {
+    display: none;
+}
+
+.int-esito.esito-ok { background: #dcfce7; color: #166534; }
+.int-esito.esito-nr { background: #ffedd5; color: #9a3412; }
+.int-esito.esito-no { background: #fee2e2; color: #991b1b; }
+.int-esito.esito-dubbio { background: #e5e7eb; color: #374151; }
+
+/* Pennello attivo: si capisce che le righe si dipingono */
+#section-interventi-esterni.int-pennello-on tr.cliccabile,
+#section-interventi-esterni.int-pennello-on .int-m-riga {
+    cursor: crosshair;
+}
+
+/* ---------- Vista telefono ---------- */
+.int-mobile {
+    display: none;
+}
+
+@media (max-width: 768px) {
+    .int-griglia {
+        display: none;
+    }
+
+    .int-mobile {
+        display: block;
+    }
+
+    #int-titolo-settimana {
+        font-size: 15px;
+        width: 100%;
+    }
+
+    .int-btn-nav {
+        padding: 8px 10px;
+        font-size: 12px;
+    }
+
+    .int-btn-tecnici {
+        margin-left: 0;
+    }
+}
+
+.int-giorni-tab {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 4px;
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    background: var(--light);
+    padding: 6px 0;
+}
+
+.int-giorno-tab {
+    background: white;
+    border: 2px solid var(--green-light);
+    border-radius: 8px;
+    padding: 6px 0;
+    font-family: 'Roboto Mono', monospace;
+    font-size: 11px;
+    color: var(--dark);
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    line-height: 1.2;
+}
+
+.int-giorno-tab strong {
+    font-size: 16px;
+}
+
+.int-giorno-tab.oggi {
+    border-color: var(--primary);
+}
+
+.int-giorno-tab.attivo {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: white;
+}
+
+.int-giorno-titolo {
+    font-weight: 700;
+    color: var(--primary);
+    margin: 8px 2px;
+    font-size: 15px;
+}
+
+.int-m-tecnico {
+    background: white;
+    border: 2px solid var(--green-light);
+    border-radius: var(--border-radius-sm);
+    margin-bottom: 12px;
+    overflow: hidden;
+}
+
+.int-m-tecnico-nome {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    background: var(--primary-dark);
+    color: white;
+    font-weight: 700;
+    padding: 8px 10px;
+    font-size: 14px;
+}
+
+.int-m-colora {
+    background: white;
+    color: var(--primary-dark);
+    border: none;
+    border-radius: 6px;
+    padding: 5px 8px;
+    font-family: 'Roboto Mono', monospace;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.int-m-turno {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--gray);
+    text-transform: uppercase;
+    padding: 6px 10px 2px;
+    background: #f9fafb;
+    border-top: 1px solid #e5e7eb;
+}
+
+.int-m-riga {
+    padding: 8px 10px;
+    border-top: 1px solid #f0f0f0;
+    min-height: 38px;
+    cursor: pointer;
+}
+
+.int-m-riga.vuota {
+    padding: 6px 10px;
+    min-height: 30px;
+}
+
+.int-m-riga-alto {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 2px;
+}
+
+.int-m-ora {
+    font-weight: 700;
+}
+
+.int-m-tipo {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 1px 5px;
+    border: 1px solid currentColor;
+    border-radius: 5px;
+}
+
+.int-m-cliente {
+    font-size: 13px;
+    word-break: break-word;
+}
+
+.int-m-libero {
+    color: #9ca3af;
+    font-size: 12px;
+}
+
+.int-m-riga.col-ROSSO { background: var(--int-rosso); color: white; }
+.int-m-riga.col-ROSSO .int-m-libero { color: rgba(255, 255, 255, 0.8); }
+.int-m-riga.col-GIALLO { background: var(--int-giallo); }
+.int-m-riga.col-VERDE { background: var(--int-verde); }
+.int-m-riga.col-BLU { background: var(--int-blu); }
+
+/* ---------- Finestre ---------- */
+.int-dove {
+    background: var(--light);
+    border-radius: var(--border-radius-sm);
+    padding: 8px 10px;
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 14px;
+    line-height: 1.5;
+}
+
+.int-scelte {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 14px;
+}
+
+.int-scelte button {
+    flex: 1 1 0;
+    min-width: 54px;
+    background: white;
+    border: 2px solid var(--green-light);
+    border-radius: 8px;
+    padding: 10px 6px;
+    font-family: 'Roboto Mono', monospace;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    color: var(--dark);
+}
+
+.int-scelte button.attivo {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: white;
+}
+
+/* Scelta colore */
+.int-scelte.int-scelte-colore button[data-valore="ROSSO"] { background: var(--int-rosso); color: white; border-color: var(--int-rosso); }
+.int-scelte.int-scelte-colore button[data-valore="GIALLO"] { background: var(--int-giallo); border-color: var(--int-giallo); }
+.int-scelte.int-scelte-colore button[data-valore="VERDE"] { background: var(--int-verde); border-color: var(--int-verde); }
+.int-scelte.int-scelte-colore button[data-valore="BLU"] { background: var(--int-blu); border-color: var(--int-blu); }
+.int-scelte.int-scelte-colore button.attivo {
+    box-shadow: 0 0 0 3px var(--dark);
+}
+.int-scelte.int-scelte-colore button[data-valore=""].attivo {
+    background: var(--gray);
+    border-color: var(--gray);
+    color: white;
+}
+
+#int-edit-modal textarea {
+    resize: vertical;
+}
+
+.int-btn-svuota {
+    width: 100%;
+    margin-top: 4px;
+    background: white;
+    color: var(--danger);
+    border: 2px solid var(--danger);
+    border-radius: var(--border-radius-sm);
+    padding: 10px;
+    font-family: 'Roboto Mono', monospace;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+/* Finestra tecnici */
+.int-tec-riga {
+    border: 2px solid var(--green-light);
+    border-radius: var(--border-radius-sm);
+    padding: 10px;
+    margin-bottom: 8px;
+}
+
+.int-tec-riga.disattivo {
+    background: #f3f4f6;
+}
+
+.int-tec-nome-riga {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+}
+
+.int-tec-nome-riga input {
+    margin: 0;
+    padding: 8px 10px;
+    font-size: 14px;
+}
+
+.int-tec-opzioni {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 14px;
+    align-items: center;
+    margin-top: 8px;
+}
+
+.int-tec-opzioni label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.int-tec-opzioni input[type="checkbox"],
+.int-nuovo-tecnico input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    margin: 0;
+}
+
+.int-btn-piccolo {
+    background: var(--primary);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-family: 'Roboto Mono', monospace;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.int-btn-piccolo.grigio {
+    background: var(--gray);
+}
+
+.int-nuovo-tecnico {
+    border-top: 2px solid var(--green-light);
+    padding-top: 12px;
+    margin-top: 12px;
+}
+
+.int-nuovo-tecnico label.int-check {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 500;
+    margin-bottom: 10px;
+}
+
+/* Finestre da telefono: partono dall'alto e usano quasi tutto lo schermo */
+@media (max-width: 768px) {
+    #int-edit-modal,
+    #int-colora-modal,
+    #int-tecnici-modal {
+        align-items: flex-start;
+        padding-top: max(10px, env(safe-area-inset-top));
+    }
+
+    #int-edit-modal .modal-content,
+    #int-colora-modal .modal-content,
+    #int-tecnici-modal .modal-content {
+        max-height: 92vh;
+        max-height: 92dvh;
+    }
+}
+
+/* ---------- Ruolo tecnico ---------- */
+.role-badge.tecnico {
+    color: #1d4ed8;
+    border: 2px solid #1d4ed8;
+}
+
+/* Il tecnico non vede la campanella (listino / magazzino) */
+body.ruolo-tecnico #notifiche-btn {
+    display: none !important;
+}
+
+/* ---------- Archivio di fine anno / prova Telegram ---------- */
+.int-btn-invia-elenco {
+    margin-left: auto;
+}
+
+/* ---------- Pulsante "Invia a Telegram" ---------- */
+.int-btn-invia.da-inviare {
+    background: #229ED9;           /* azzurro Telegram: ci sono modifiche da mandare */
+    border-color: #229ED9;
+    color: white;
+}
+
+.int-btn-invia.da-inviare:not(:disabled):hover {
+    background: #1a7fb0;
+    border-color: #1a7fb0;
+}
+
+.int-invia-num {
+    display: inline-block;
+    background: var(--danger);
+    color: white;
+    border-radius: 10px;
+    padding: 0 7px;
+    margin-left: 4px;
+    font-size: 12px;
+}
+
+.int-btn-prova {
+    margin-top: 12px;
+}
