@@ -1,5 +1,8 @@
 # Changelog App Magazzino
 
+## v6.0.1 - 2026-10-30 (PRODUZIONE)
+piccole migliorie
+
 ## v6.0.0 - 2026-10-30 (PRODUZIONE)
 SCHEDA TECNICI
 
