@@ -1,5 +1,8 @@
 # Changelog App Magazzino
 
+## v6.2.1 - 2026-10-31 (PRODUZIONE)
+nascondere a operatore magazzino e ordini
+
 ## v6.2.0 - 2026-10-31 (PRODUZIONE)
 MAGAZZINO MACCHINE CON REPORT
 

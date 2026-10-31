@@ -15,10 +15,12 @@
 // Usa le funzioni di utilita' di listino-functions.js (listinoEsc, ...)
 // ========================================
 
-// Inventario Macchine e Ordini Clienti: admin E operatori (stessi permessi), non i tecnici.
-// Per tornare a "solo admin": metti false qui E su Supabase la funzione
-// puo_gestire_macchine() con role in ('admin') (vedi supabase/macchine-operatori.sql)
-const MACCHINE_PER_OPERATORI = true;
+// Inventario Macchine e Ordini Clienti.
+// false = SOLO ADMIN (per ora, finche' le sezioni sono in prova): agli operatori spariscono le card,
+//         le sezioni, il carrello "bozza ordine" e il conteggio macchine nel listino.
+// true  = admin E operatori (stessi permessi), mai i tecnici.
+// Su Supabase la funzione puo_gestire_macchine() accetta gia' admin e operatori (supabase/macchine-operatori.sql).
+const MACCHINE_PER_OPERATORI = false;
 
 let macPezzi = [];              // tutti i pezzi
 let macComposizione = [];       // righe { set_id, componente_id, quantita }
@@ -26,6 +28,8 @@ let macCaricato = false;
 let macMovimenti = [];
 let macMovimentiCaricati = false;
 let macSearchTimeout = null;
+// Ordini clienti il cui PDF va rifatto (es. e' arrivata la matricola di una macchina ordinata)
+const macOrdiniDaAggiornare = new Set();
 
 // Stati (i colori del quadernone)
 const MAC_STATI = {
@@ -257,6 +261,12 @@ async function macRicarica() {
     }
     macMovimentiCaricati = false;
     macRenderTutto();
+    // PDF degli ordini da rifare (matricola arrivata o cambiata)
+    if (macOrdiniDaAggiornare.size && typeof ordAggiornaPdfOrdini === 'function') {
+        const ids = Array.from(macOrdiniDaAggiornare);
+        macOrdiniDaAggiornare.clear();
+        ordAggiornaPdfOrdini(ids);
+    }
 }
 
 // ========================================
@@ -624,8 +634,9 @@ function macApriQuadernoArticolo(articoloId) {
 // ========================================
 const macPicker = {}; // id input -> { lista, filtro, onSelect }
 
-function macPickerImposta(inputId, listaId, filtro, onSelect) {
-    macPicker[inputId] = { listaId: listaId, filtro: filtro, onSelect: onSelect };
+// opzioni.onPezzo: se c'e', la ricerca trova anche le macchine in casa per MATRICOLA (es. Ordini Clienti)
+function macPickerImposta(inputId, listaId, filtro, onSelect, opzioni) {
+    macPicker[inputId] = { listaId: listaId, filtro: filtro, onSelect: onSelect, onPezzo: opzioni && opzioni.onPezzo };
     const input = document.getElementById(inputId);
     const lista = document.getElementById(listaId);
     if (!input || !lista || input.dataset.macPicker) return;
@@ -633,9 +644,17 @@ function macPickerImposta(inputId, listaId, filtro, onSelect) {
     input.addEventListener('input', () => macPickerMostra(inputId));
     input.addEventListener('focus', () => macPickerMostra(inputId));
     lista.addEventListener('click', (e) => {
+        const cfg = macPicker[inputId];
+        const bp = e.target.closest('[data-pezzo]');
+        if (bp) {
+            const p = macPezzi.find(x => x.id === parseInt(bp.dataset.pezzo, 10));
+            lista.classList.add('hidden');
+            lista.innerHTML = '';
+            if (p && cfg && cfg.onPezzo) cfg.onPezzo(p);
+            return;
+        }
         const btn = e.target.closest('[data-art]');
         if (!btn) return;
-        const cfg = macPicker[inputId];
         const a = macArticolo(parseInt(btn.dataset.art, 10));
         lista.classList.add('hidden');
         lista.innerHTML = '';
@@ -668,7 +687,29 @@ function macPickerMostra(inputId) {
             '<span>' + macNomeHtml(a) + '</span>' + extra + '</button>';
     }).join('');
     if (trovati.length > max) html += '<div class="mac-picker-vuoto">... altri ' + (trovati.length - max) + ': scrivi di pi&ugrave; per restringere</div>';
-    if (trovati.length === 0) html = '<div class="mac-picker-vuoto">Nessun articolo trovato nel listino</div>';
+    // Ricerca per matricola (macchine del quaderno)
+    let htmlPezzi = '';
+    if (cfg.onPezzo) {
+        const norm = v => String(v || '').toUpperCase().replace(/[\s\-\/.]/g, '');
+        const cerca = norm(ricerca);
+        const pezzi = cerca.length >= 2 ? macPezzi.filter(p => p.matricola && norm(p.matricola).indexOf(cerca) !== -1)
+            .sort((x, y) => (norm(x.matricola) === cerca ? 0 : 1) - (norm(y.matricola) === cerca ? 0 : 1)).slice(0, 10) : [];
+        htmlPezzi = pezzi.map(p => {
+            const a = macArticolo(p.articolo_id);
+            const nome = a ? macNomeHtml(a) : 'articolo non trovato';
+            const libera = p.stato === 'IN_CASA' && !p.cliente;
+            if (libera) {
+                return '<button type="button" class="mac-picker-voce mac-picker-matr" data-pezzo="' + p.id + '">' +
+                    '<span class="mac-picker-attrezzo">MATR. ' + macEsc(p.matricola) + '</span><span>' + nome + '</span>' +
+                    '<span class="mac-picker-disp">in casa</span></button>';
+            }
+            const dove = p.stato === 'CONSEGNATA' ? 'consegnata' : (p.stato === 'IN_CASA' ? 'gi&agrave; assegnata' : 'ordinata');
+            return '<div class="mac-picker-vuoto">Matr. ' + macEsc(p.matricola) + ' &middot; ' + nome + ' &middot; ' + dove +
+                (p.cliente ? ' a ' + macEsc(p.cliente) : '') + '</div>';
+        }).join('');
+    }
+    if (trovati.length === 0) html = htmlPezzi ? '' : '<div class="mac-picker-vuoto">Nessun articolo trovato nel listino</div>';
+    html = htmlPezzi + html;
     lista.innerHTML = html;
     lista.classList.remove('hidden');
 }
@@ -934,6 +975,7 @@ async function macSalvaPezzo(e) {
 
             const { error } = await supabaseClient.from('macchine_pezzi').update(agg).eq('id', p.id);
             if (error) throw error;
+            if (p.ordine_id && (p.matricola || '') !== (matricola || '')) macOrdiniDaAggiornare.add(p.ordine_id);
 
             const cambi = [];
             if (p.stato !== stato) cambi.push(macStatoTesto(p.stato) + ' \u2192 ' + macStatoTesto(stato));
@@ -1122,6 +1164,7 @@ async function macCaricaPezzi(opz) {
         const statoPrima = p.stato;
         const agg = { stato: 'IN_CASA', data_carico: adesso, netto_carico: opz.netto, updated_at: adesso, updated_by: utente };
         if (matricole[i]) agg.matricola = matricole[i];
+        if (p.ordine_id && agg.matricola) macOrdiniDaAggiornare.add(p.ordine_id);
         const { error } = await supabaseClient.from('macchine_pezzi').update(agg).eq('id', p.id);
         if (error) throw error;
         Object.assign(p, agg);

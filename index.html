@@ -17,12 +17,12 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Kalam:wght@400;700&family=Roboto+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=6.2.0">
-    <link rel="stylesheet" href="listino.css?v=6.2.0">
-    <link rel="stylesheet" href="fornitori.css?v=6.2.0">
-    <link rel="stylesheet" href="interventi.css?v=6.2.0">
-    <link rel="stylesheet" href="macchine.css?v=6.2.0">
-    <link rel="stylesheet" href="ordini.css?v=6.2.0">
+    <link rel="stylesheet" href="style.css?v=6.2.1">
+    <link rel="stylesheet" href="listino.css?v=6.2.1">
+    <link rel="stylesheet" href="fornitori.css?v=6.2.1">
+    <link rel="stylesheet" href="interventi.css?v=6.2.1">
+    <link rel="stylesheet" href="macchine.css?v=6.2.1">
+    <link rel="stylesheet" href="ordini.css?v=6.2.1">
 
     <!-- SheetJS per import Excel -->
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
@@ -83,7 +83,7 @@
 
 <body class="loading">
     <!-- Version badge -->
-    <div class="version-badge">v6.2.0</div>
+    <div class="version-badge">v6.2.1</div>
 
     <!-- SCHERMATA LOGIN -->
     <div id="login-screen" class="screen">
@@ -340,6 +340,9 @@
                             <button type="button" id="listino-reset-filtri" class="btn-back">&#10006; Azzera filtri</button>
                         </div>
                     </div>
+
+                    <!-- Bozza ordine cliente (carrello sulle macchine) -->
+                    <div id="listino-bozza-bar" class="ord-bozza hidden"></div>
 
                     <div id="listino-container">
                         <!-- Contenuto dinamico -->
@@ -768,6 +771,9 @@
                 <h2 class="section-title">&#128221; Ordini Clienti</h2>
             </div>
 
+            <!-- Bozza ordine arrivata dal listino -->
+            <div class="container"><div id="ord-bozza-banner" class="ord-bozza hidden"></div></div>
+
             <nav class="tabs" id="tabs-ordini">
                 <button class="tab-btn active" data-ord-tab="elenco">&#128203; Ordini</button>
                 <button class="tab-btn" data-ord-tab="nuovo">&#10133; Nuovo ordine</button>
@@ -816,7 +822,7 @@
                                 <datalist id="ord-operatori"></datalist>
                             </div>
                         </div>
-                        <label>Sig. (cliente) *</label>
+                        <label>Sig./Sig.ra (cliente) *</label>
                         <input type="text" id="ord-cliente" autocomplete="off">
                         <label>Indirizzo</label>
                         <input type="text" id="ord-indirizzo" autocomplete="off">
@@ -850,7 +856,7 @@
                         <div id="ord-aggiungi-box" class="ord-aggiungi">
                             <label>Aggiungi articolo dal listino</label>
                             <div class="mac-picker">
-                                <input type="text" id="ord-art-search" placeholder="&#128269; Cerca modello, marchio..." autocomplete="off">
+                                <input type="text" id="ord-art-search" placeholder="&#128269; Cerca modello, marchio o matricola..." autocomplete="off">
                                 <div id="ord-art-results" class="mac-picker-lista hidden"></div>
                             </div>
                             <div class="ord-aggiungi-pulsanti">
@@ -2009,7 +2015,7 @@
     <div id="whats-new-modal" class="modal hidden">
         <div class="modal-content whats-new-content">
             <div class="whats-new-header">
-                <h3>&#127881; AGRIDESK v6.2.0 - Aggiornamento!</h3>
+                <h3>&#127881; AGRIDESK v6.2.1 - Aggiornamento!</h3>
                 <p class="version-date">31 Ottobre 2026</p>
             </div>
 
@@ -2196,13 +2202,13 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- Versione bloccata (la libreria non e' piu' mantenuta: cosi' non cambia mai da sola) -->
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-    <script src="ricambi-functions.js?v=6.2.0"></script>
-    <script src="listino-functions.js?v=6.2.0"></script>
-    <script src="fornitori-functions.js?v=6.2.0"></script>
-    <script src="interventi-functions.js?v=6.2.0"></script>
-    <script src="macchine-functions.js?v=6.2.0"></script>
-    <script src="macchine-report.js?v=6.2.0"></script>
-    <script src="ordini-functions.js?v=6.2.0"></script>
-    <script src="app.js?v=6.2.0"></script>
+    <script src="ricambi-functions.js?v=6.2.1"></script>
+    <script src="listino-functions.js?v=6.2.1"></script>
+    <script src="fornitori-functions.js?v=6.2.1"></script>
+    <script src="interventi-functions.js?v=6.2.1"></script>
+    <script src="macchine-functions.js?v=6.2.1"></script>
+    <script src="macchine-report.js?v=6.2.1"></script>
+    <script src="ordini-functions.js?v=6.2.1"></script>
+    <script src="app.js?v=6.2.1"></script>
 </body>
 </html>

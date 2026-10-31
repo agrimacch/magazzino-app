@@ -679,3 +679,275 @@
     padding: 0;
     z-index: -1;
 }
+
+/* ============================================ */
+/* PDF ORDINE NELLO STILE DEI REPORT (rpt-*)    */
+/* Gli stili rpt-* sono in macchine.css          */
+/* ============================================ */
+.pdf-foglio.pdf-misura {
+    left: -10000px;
+    visibility: hidden;
+}
+
+.ordd {
+    position: relative;
+    font-size: 11px;
+}
+
+.ordd .rpt-logo.ordd-logo {
+    height: 44px;
+}
+
+.ordd .rpt-titolo {
+    font-size: 17px;
+}
+
+.ordd .rpt-sotto {
+    font-size: 9.5px;
+}
+
+.ordd .rpt-sotto strong {
+    color: #1f2937;
+}
+
+.ordd-casella {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border: 1.3px solid #1f2937;
+    font-size: 10px;
+    line-height: 11px;
+    text-align: center;
+    vertical-align: middle;
+    margin-right: 3px;
+    color: #1f2937;
+}
+
+.ordd-dati {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+}
+
+.ordd-dati td {
+    padding: 5px 6px 3px;
+    border-bottom: 1px solid #d1d5db;
+    vertical-align: bottom;
+}
+
+.ordd-etich {
+    width: 13%;
+    font-size: 8.5px;
+    font-weight: 700;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    white-space: nowrap;
+}
+
+.ordd-val {
+    font-size: 12px;
+    color: #111827;
+}
+
+.ordd-nota-sezione {
+    float: right;
+    font-size: 8.5px;
+    font-weight: 400;
+    color: #6b7280;
+    margin-top: 2px;
+}
+
+.ordd-box {
+    border: 1px solid #d1d5db;
+    border-radius: 4px;
+    min-height: 30px;
+    padding: 5px 8px;
+    font-size: 12px;
+}
+
+.pdf-foglio .ordd-righe th {
+    font-size: 9.5px !important;
+}
+
+.pdf-foglio .ordd-righe td {
+    font-size: 11px !important;
+    height: 21px !important;
+    padding: 2px 6px !important;
+    vertical-align: middle;
+}
+
+.pdf-foglio .ordd-righe tbody tr:nth-child(even) td {
+    background: white;
+}
+
+.ordd-matr {
+    font-size: 9px;
+    color: #4b5563;
+    margin-top: 1px;
+}
+
+.ordd-mag {
+    font-size: 9.5px !important;
+    color: #4b5563;
+}
+
+.pdf-foglio .ordd-righe tfoot td {
+    font-size: 11px !important;
+    padding: 6px !important;
+}
+
+.ordd-caselle {
+    font-weight: 400;
+    color: #1f2937;
+    background: white !important;
+}
+
+.ordd-tot-etich {
+    text-align: right;
+}
+
+.pdf-foglio .ordd-righe .ordd-tot {
+    font-size: 13px !important;
+}
+
+.ordd-condizioni {
+    font-size: 7.5px;
+    line-height: 1.35;
+    color: #4b5563;
+    text-align: justify;
+    margin: 8px 0 10px;
+}
+
+.ordd-firme {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+}
+
+.ordd-firme td {
+    vertical-align: bottom;
+    padding: 0;
+}
+
+.ordd-firme-sx {
+    width: 50%;
+}
+
+.ordd-firma {
+    text-align: center;
+}
+
+.ordd-firma img {
+    display: block;
+    height: 58px;
+    max-width: 100%;
+    margin: 0 auto;
+    object-fit: contain;
+}
+
+.ordd-firma-vuota {
+    height: 58px;
+}
+
+.ordd-firma-linea {
+    border-top: 1px solid #6b7280;
+    padding-top: 3px;
+    font-size: 8.5px;
+    font-weight: 700;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+/* ============================================ */
+/* BOZZA ORDINE DAL LISTINO                     */
+/* ============================================ */
+.ord-bozza {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px 12px;
+    background: #ecfdf5;
+    border: 2px solid var(--primary);
+    border-radius: 10px;
+    padding: 10px 14px;
+    margin: 0 0 12px 0;
+    font-size: 13px;
+}
+.ord-bozza.hidden { display: none; }
+#ord-bozza-banner { margin-top: 12px; }
+.ord-bozza-testo { flex: 1 1 260px; min-width: 0; overflow-wrap: anywhere; }
+.ord-bozza-pulsanti { display: flex; gap: 8px; flex-wrap: wrap; }
+.ord-bozza-pulsanti .mac-btn-piccolo { width: auto; }
+
+/* Carrello sulle righe del listino */
+.listino-bozza-btn {
+    background: white;
+    border: 2px solid var(--primary);
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 15px;
+    line-height: 1;
+    padding: 5px 8px;
+    margin-right: 4px;
+}
+.listino-bozza-btn:hover { background: #dcfce7; }
+.listino-table td.listino-col-azioni { white-space: nowrap; }
+
+/* Avviso breve "aggiunta alla bozza": sopra il contenuto, sotto le finestre modali (10000) */
+.ord-bozza-avviso {
+    position: fixed;
+    left: 50%;
+    bottom: 24px;
+    transform: translate(-50%, 20px);
+    background: #14532d;
+    color: white;
+    padding: 10px 18px;
+    border-radius: 10px;
+    font-size: 13px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s, transform 0.2s;
+    z-index: 5000;
+    max-width: calc(100vw - 32px);
+}
+.ord-bozza-avviso.visibile { opacity: 1; transform: translate(-50%, 0); }
+
+/* ============================================ */
+/* SCELTA DELLA MACCHINA / MATRICOLA NELL'ORDINE */
+/* ============================================ */
+.ord-matricole {
+    margin-top: 6px;
+    padding: 8px 10px;
+    border: 2px solid #f59e0b;
+    background: #fffbeb;
+    border-radius: 8px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+}
+.ord-matricole.ord-matricole-ok { border-color: var(--primary); background: #f0fdf4; }
+.ord-matricole-testa { width: 100%; font-size: 12px; font-weight: 700; }
+.ord-matricole-testa small { font-weight: 400; }
+.ord-matricole-vuoto { font-size: 12px; color: #92400e; }
+.ord-matr {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 10px;
+    border: 1px solid #cbd5e1;
+    border-radius: 16px;
+    background: white;
+    cursor: pointer;
+    font-size: 12px;
+    line-height: 1.2;
+}
+.ord-matr input { width: auto; margin: 0; }
+.ord-matr small { color: #64748b; }
+.ord-matr-num { font-weight: 700; }
+.ord-matr.scelta { border-color: var(--primary); background: #dcfce7; }
+.mac-picker-matr .mac-picker-attrezzo { color: #1d4ed8; }

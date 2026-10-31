@@ -254,6 +254,7 @@ async function openListinoVendite() {
     applicaVisibilitaNetti();
     switchListinoTab(sessionStorage.getItem('listinoTab') || 'elenco');
     await loadListino();
+    if (typeof ordBozzaAggiorna === 'function') ordBozzaAggiorna();
 }
 
 function switchListinoTab(tab) {
@@ -467,6 +468,9 @@ function renderListino(articoli) {
         return;
     }
 
+    // Carrello "bozza ordine" (solo per chi puo' fare gli ordini clienti)
+    const puoBozza = typeof macPuoGestire === 'function' && macPuoGestire() && typeof ordBozzaAggiungi === 'function';
+
     // Raggruppa per attrezzo (ordine alfabetico)
     const gruppi = {};
     listinoOrdina(articoli).forEach(a => {
@@ -511,7 +515,8 @@ function renderListino(articoli) {
                 '<td class="listino-col-prezzo">' + listinoFormatVendita(a.vendita_scatola) + '</td>' +
                 '<td class="listino-col-prezzo">' + listinoFormatVendita(a.vendita_no_promo) + '</td>' +
                 '<td class="listino-col-prezzo"><strong>' + listinoFormatEuro(a.listino) + '</strong></td>' +
-                '<td class="listino-col-azioni"><button type="button" class="listino-edit-btn" data-id="' + a.id + '" title="Modifica">&#9997;&#65039;</button></td>' +
+                '<td class="listino-col-azioni">' + (puoBozza ? '<button type="button" class="listino-bozza-btn" data-id="' + a.id + '" title="Aggiungi alla bozza ordine">&#128722;</button>' : '') +
+                    '<button type="button" class="listino-edit-btn" data-id="' + a.id + '" title="Modifica">&#9997;&#65039;</button></td>' +
                 '</tr>';
         });
 
@@ -528,6 +533,7 @@ function renderListino(articoli) {
                             '<strong>' + listinoVal(a.modello || a.note) + '</strong>' + macBadgeMobile +
                         '</div>' +
                         '<div class="listino-card-btns">' +
+                            (puoBozza ? '<button type="button" class="listino-bozza-btn" data-id="' + a.id + '" title="Aggiungi alla bozza ordine">&#128722;</button>' : '') +
                             '<button type="button" class="listino-edit-btn listino-edit-mobile" data-id="' + a.id + '" title="Modifica">&#9997;&#65039;</button>' +
                             '<button type="button" class="listino-info-btn" data-id="' + a.id + '" title="Informazioni">i</button>' +
                         '</div>' +
@@ -2410,6 +2416,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const info = e.target.closest('.listino-info-btn');
             if (info) {
                 openListinoInfo(parseInt(info.dataset.id, 10));
+                return;
+            }
+            const bozza = e.target.closest('.listino-bozza-btn');
+            if (bozza) {
+                ordBozzaAggiungi(parseInt(bozza.dataset.id, 10));
                 return;
             }
             const edit = e.target.closest('.listino-edit-btn');

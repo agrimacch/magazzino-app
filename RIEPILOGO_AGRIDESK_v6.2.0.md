@@ -17,6 +17,9 @@ Prima di modificare un file va riletto dalla cartella (io cambio versione con up
 NON modificare funzioni Supabase che gia' funzionano per aggiungere cose nuove: le funzioni nuove vanno in una
 Edge Function separata (con bot/gruppo/secrets propri), cosi' se si rompe qualcosa il resto continua a funzionare.
 Testo per i messaggi: niente emoji dirette nei file; nei .ts e .gs le emoji si scrivono come \uXXXX.
+STILE DOCUMENTI: da ora in poi TUTTI i documenti generati dalla web app (PDF, stampe, report) devono avere lo stesso stile dei report
+(classi rpt-* in macchine.css, rptHtml/rptCreaPdfBlob in macchine-report.js, motore pdfCreaDaHtml). Ordine cliente gia' convertito;
+ancora nel vecchio stile (window.print): stampa storico netti del listino, report consumabili e ricambi.
 
 
 NOME E INDIRIZZO
@@ -336,7 +339,8 @@ Storico netti:
 INVENTARIO MACCHINE (Magazzino) - COME FUNZIONA (v6.2.0)
 
 Collegato al Listino Vendite: ogni macchina fisica e' una riga di macchine_pezzi legata a un articolo di listino_articoli.
-Admin e operatori (stessi permessi), non i tecnici. Costante MACCHINE_PER_OPERATORI in macchine-functions.js (true) +
+PER ORA SOLO ADMIN (31/10, sezioni in prova): MACCHINE_PER_OPERATORI = false in macchine-functions.js. Con true: admin e operatori
+(stessi permessi), mai i tecnici. Costante MACCHINE_PER_OPERATORI in macchine-functions.js +
 funzione SQL puo_gestire_macchine() con role in ('admin','operatore') (supabase/macchine-operatori.sql).
 Stati (i colori del quadernone cartaceo):
 - DA_ORDINARE = quadrato bianco + nome cliente | ORDINATA = blu + nome | IN_CASA = verde (con nome assegnata, senza nome disponibile)
@@ -373,20 +377,33 @@ Pulsanti in alto: "Carico macchine" e "Nuova voce". Schede: Inventario | Quadern
 ORDINI CLIENTI (Vendite) - COME FUNZIONA (v6.2.0)
 
 Sostituiscono il blocchetto delle commissioni (solo ordini, niente preventivi). Admin e operatori.
-- Modulo come la commissione: data, OPERATORE (proposto chi e' collegato, si sceglie dagli utenti o si scrive), Sig. (obbligatorio),
+- Modulo come la commissione: data, OPERATORE (proposto chi e' collegato, si sceglie dagli utenti o si scrive), Sig./Sig.ra (obbligatorio),
   indirizzo, tel/cell, e-mail, C.F., P.IVA, note, pagamento (testo libero). Numero progressivo che riparte ogni anno (es. 12/2026),
   assegnato al salvataggio (unique anno+numero, riprova se due salvano insieme).
-- Righe: articolo del listino (Disponibile = prende una macchina in casa FIFO e la intesta al cliente; Da ordinare = crea la riga bianca
+- Righe: articolo del listino (Disponibile = la macchina scelta dall'operatore viene intestata al cliente; Da ordinare = crea la riga bianca
   nel quaderno; set = componenti) oppure riga libera (olio, accessori: non tocca il magazzino). Prezzo proposto: promo valida >
-  no promo > listino, sempre modificabile (e' il prezzo TOTALE della riga). Blocca se le disponibili non bastano.
+  no promo > listino ("in scatola" mai), sempre modificabile (e' il prezzo TOTALE della riga). Blocca se le disponibili non bastano.
+- Scelta macchina OBBLIGATORIA (scelta di Donny: l'app non sceglie mai da sola, niente FIFO): sulle righe Disponibile compaiono sempre
+  le macchine libere in casa come caselline (matricola o "senza matricola" + data carico); per i set una casella per componente
+  (ordSceltiDi / ordSistemaScelte; nel set la nuova spunta sostituisce la piu' vecchia). Non salva finche' le spuntate != fabbisogno.
+  Ricerca per matricola nel campo articoli (macPickerImposta 5o parametro { onPezzo }): voce "MATR. ..." -> ordAggiungiPezzo
+  (riga gia' scelta, o aggiunta alla riga Disponibile dello stesso articolo); matricole non libere mostrate come info (a chi).
+  La matricola va nel PDF sotto l'articolo ("Matr. ..."). Se la matricola arriva dopo (carico che assegna a un ordine, o modifica
+  nel quaderno) macchine-functions.js segna l'ordine in macOrdiniDaAggiornare e a fine macRicarica chiama ordAggiornaPdfOrdini(ids):
+  il PDF su Drive viene rifatto da solo (solo ordini gia' su Drive e non annullati).
+- Bozza dal listino: carrello &#128722; su ogni articolo del listino (PC e telefono, solo se macPuoGestire). Bozza = [{articolo_id,
+  quantita}] in user_metadata.ordineBozza (+ copia localStorage), riletta con getUser() quando si apre listino/ordini (multi-dispositivo).
+  Barra verde in cima al listino e in cima agli Ordini Clienti: "Crea l'ordine" (dal listino apre Ordini > Nuovo e mette le righe,
+  ricontrolla Disponibile/Da ordinare con la quantita'), "Svuota". Usata la bozza si svuota. Stesso articolo = quantita' +1.
 - Firma del cliente sullo schermo (canvas, salvata come PNG nel campo firma).
 - Stato calcolato dalle macchine collegate: Da ordinare -> Ordinato -> In casa -> Consegnato (oppure Annullato).
 - Dettaglio: PDF/Stampa, "Ordinato al fornitore" (bianco->blu), quando arriva il carico la assegna da solo, "Consegnato al cliente"
   (croce), Modifica dati cliente/firma (righe bloccate; cambio nome aggiornato anche nel quaderno), Annulla (in casa tornano
   disponibili, da ordinare tolte, ordinate restano senza cliente; numero resta), Elimina (come annulla + cancella ordine + PDF nel
   cestino Drive; se era l'ultimo dell'anno il numero viene riusato, altrimenti resta un buco).
-- PDF: stesso aspetto del modulo Agrimacch (logo grande, ORDINE N. + OPERATORE + DATA sulla stessa riga, tabella che riempie il foglio
-  con righe strette, condizioni di vendita, firma in fondo). Dati aziendali e condizioni in cima a ordini-functions.js (ORD_AZIENDA,
+- PDF: nello STILE DEI REPORT (rpt-* + classi ordd-* in ordini.css; ordHtmlStampa): logo, "Ordine N. x/aaaa", Data + Operatore,
+  dati azienda; sezioni Cliente / Pagamento / Articoli (colonne Articolo+matricola, Codice, Q.ta', Magazzino, P. totale), righe vuote
+  fino a riempire il foglio (misurate in .pdf-foglio.pdf-misura), caselle Disponibile/Da ordinare + TOTALE, condizioni, firma. Dati aziendali e condizioni in cima a ordini-functions.js (ORD_AZIENDA,
   ORD_CONDIZIONI). Il numero di fax del modulo NON e' stampato.
 - PDF su Google Drive in automatico (nuovo ordine, modifica, annullo): ORDINI CLIENTI / ORDINI CLIENTI <anno> (cartelle create da sole),
   file "ORDINE 0001-2026 CLIENTE.pdf". Script Google SEPARATO google/ordini-drive.gs (progetto "AGRIDESK Ordini", account aziendale,

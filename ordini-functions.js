@@ -48,7 +48,7 @@ const ORD_STATI = {
     CONSEGNATO:  { etichetta: 'Consegnato',  classe: 'st-consegnata' },
     ANNULLATO:   { etichetta: 'Annullato',   classe: 'st-annullato' }
 };
-const ORD_MIN_RIGHE_STAMPA = 12;      // righe minime della tabella articoli (poi si riempie il foglio)
+const ORD_MIN_RIGHE_STAMPA = 10;      // righe minime della tabella articoli (poi si riempie il foglio)
 const ORD_ALTEZZA_A4_PX = 1040;       // altezza utile di un A4 con margini 10 mm (larghezza 718 px)
 
 let ordOrdini = [];
@@ -172,6 +172,12 @@ async function openOrdiniClienti() {
     ordRenderElenco();
     ordRenderFormRighe();
     ordFirmaAdatta();
+    // Bozza dal listino
+    await ordBozzaAggiorna();
+    if (sessionStorage.getItem('ordBozzaDaUsare')) {
+        sessionStorage.removeItem('ordBozzaDaUsare');
+        await ordBozzaUsa();
+    }
 }
 
 function ordSwitchTab(tab, senzaRender) {
@@ -347,6 +353,93 @@ function ordRichiesteDisponibili() {
     return tot;
 }
 
+// ---------- Scelta delle macchine / matricole (righe "Disponibile") ----------
+// La macchina da consegnare la sceglie SEMPRE l'operatore (niente scelta automatica).
+// Per i set si sceglie ogni componente. r.pezziScelti = id delle macchine scelte.
+
+// Macchine gia' scelte da UN'ALTRA riga del modulo
+function ordPezziSceltiAltrove(i) {
+    const scelti = {};
+    ordFormRighe.forEach((r, j) => {
+        if (j !== i && r.disponibilita === 'DISPONIBILE') (r.pezziScelti || []).forEach(id => { scelti[id] = true; });
+    });
+    return scelti;
+}
+
+// Macchine scelte della riga che sono di un certo articolo (componente)
+function ordSceltiDi(r, articoloId) {
+    return (r.pezziScelti || []).filter(id => {
+        const p = macPezzi.find(x => x.id === id);
+        return p && p.articolo_id === articoloId;
+    });
+}
+
+// Toglie le scelte in piu' (quantita' scesa) o non piu' valide
+function ordSistemaScelte(r) {
+    if (r.disponibilita !== 'DISPONIBILE' || !r.articolo_id) { r.pezziScelti = []; return; }
+    const tenuti = [];
+    ordFabbisogno(r).forEach(f => {
+        ordSceltiDi(r, f.art.id).slice(0, f.n).forEach(id => tenuti.push(id));
+    });
+    r.pezziScelti = tenuti;
+}
+
+function ordHtmlSceltaMatricole(r, i) {
+    const altrove = ordPezziSceltiAltrove(i);
+    const isSet = macIsSet(r.articolo_id);
+    const scelti = r.pezziScelti || [];
+    return ordFabbisogno(r).map(f => {
+        const pezzi = ordDisponibiliArticolo(f.art.id).filter(p => !altrove[p.id]);
+        const conta = ordSceltiDi(r, f.art.id).length;
+        const stato = conta === f.n
+            ? '&#9989; ' + (f.n === 1 ? 'scelta' : 'scelte ' + conta)
+            : '&#9888;&#65039; scegli ' + (f.n === 1 ? 'quale consegni' : (f.n - conta) + ' di ' + f.n);
+        const titolo = isSet ? macEsc(macNome(f.art)) : 'Quale macchina consegni?';
+        return '<div class="ord-matricole' + (conta === f.n ? ' ord-matricole-ok' : '') + '">' +
+            '<div class="ord-matricole-testa">' + titolo + ' <small>(' + stato + ')</small></div>' +
+            (pezzi.length === 0 ? '<div class="ord-matricole-vuoto">Nessuna macchina libera in casa</div>' :
+            pezzi.map(p => {
+                const on = scelti.indexOf(p.id) !== -1;
+                return '<label class="ord-matr' + (on ? ' scelta' : '') + '">' +
+                    '<input type="checkbox" data-scegli="' + i + '" value="' + p.id + '"' + (on ? ' checked' : '') + '>' +
+                    '<span class="ord-matr-num">' + (p.matricola ? macEsc(p.matricola) : '<em>senza matricola</em>') + '</span>' +
+                    (p.data_carico ? '<small>caricata ' + macData(p.data_carico) + '</small>' : '') +
+                '</label>';
+            }).join('')) +
+        '</div>';
+    }).join('');
+}
+
+// Dalla ricerca per matricola: mette nell'ordine proprio quella macchina
+async function ordAggiungiPezzo(p) {
+    document.getElementById('ord-art-search').value = '';
+    const a = macArticolo(p.articolo_id);
+    if (!a) return;
+    if (ordFormRighe.some(r => (r.pezziScelti || []).indexOf(p.id) !== -1)) {
+        await showCustomAlert('La macchina con matricola <strong>' + macEsc(p.matricola || '') + '</strong> &egrave; gi&agrave; in questo ordine.', 'Matricola', '&#8505;&#65039;');
+        return;
+    }
+    let r = ordFormRighe.find(x => x.articolo_id === a.id && x.disponibilita === 'DISPONIBILE' && !macIsSet(a.id));
+    if (r) {
+        r.pezziScelti = (r.pezziScelti || []).concat([p.id]);
+        if (r.pezziScelti.length > r.quantita) {
+            r.quantita = r.pezziScelti.length;
+            if (!r.prezzoManuale) {
+                const unit = ordPrezzoUnitario(a);
+                r.prezzo_totale = unit !== null ? Math.round(unit * r.quantita * 100) / 100 : null;
+            }
+        }
+    } else {
+        r = {
+            articolo_id: a.id, descrizione: ordDescrizioneArticolo(a), codice: a.modello || '',
+            quantita: 1, prezzo_totale: ordPrezzoUnitario(a), disponibilita: 'DISPONIBILE',
+            prezzoManuale: false, pezziScelti: [p.id]
+        };
+        ordFormRighe.push(r);
+    }
+    ordRenderFormRighe();
+}
+
 function ordRenderFormRighe() {
     const box = document.getElementById('ord-righe');
     if (!box) return;
@@ -372,6 +465,7 @@ function ordRenderFormRighe() {
                 (pochi ? ' &mdash; &#9888;&#65039; non bastano: metti &quot;Da ordinare&quot; o dividi la riga' : '') +
                 (unit !== null ? ' &middot; prezzo proposto ' + macEuro(unit) + ' cad.' : '') +
                 '</div>';
+            if (r.disponibilita === 'DISPONIBILE') info += ordHtmlSceltaMatricole(r, i);
         }
         const sceltaDisp = a
             ? '<select data-campo="disponibilita" data-i="' + i + '"' + (bloccate ? ' disabled' : '') + '>' +
@@ -419,6 +513,36 @@ function ordRidisegnaRighe() {
 // Modifiche ai campi delle righe
 function ordCampoRigaCambiato(e) {
     const el = e.target;
+    // Casellina di una matricola
+    if (el.dataset && el.dataset.scegli !== undefined) {
+        if (e.type !== 'change') return;
+        const r = ordFormRighe[parseInt(el.dataset.scegli, 10)];
+        if (!r) return;
+        const id = parseInt(el.value, 10);
+        r.pezziScelti = (r.pezziScelti || []).filter(x => x !== id);
+        if (el.checked && macIsSet(r.articolo_id)) {
+            // set: per ogni componente al massimo quelle che servono (la nuova sostituisce la piu' vecchia)
+            const p = macPezzi.find(x => x.id === id);
+            const f = p ? ordFabbisogno(r).find(x => x.art.id === p.articolo_id) : null;
+            if (f) {
+                const gia = ordSceltiDi(r, f.art.id);
+                if (gia.length >= f.n) r.pezziScelti = r.pezziScelti.filter(x => x !== gia[0]);
+                r.pezziScelti.push(id);
+            }
+        } else if (el.checked) {
+            r.pezziScelti.push(id);
+            // se ne ha scelte piu' della quantita', la quantita' sale
+            if (r.pezziScelti.length > r.quantita) {
+                r.quantita = r.pezziScelti.length;
+                if (!r.prezzoManuale && r.articolo_id) {
+                    const unit = ordPrezzoUnitario(macArticolo(r.articolo_id));
+                    r.prezzo_totale = unit !== null ? Math.round(unit * r.quantita * 100) / 100 : null;
+                }
+            }
+        }
+        ordRidisegnaRighe();
+        return;
+    }
     const campo = el.dataset.campo;
     const i = parseInt(el.dataset.i, 10);
     const r = ordFormRighe[i];
@@ -428,6 +552,7 @@ function ordCampoRigaCambiato(e) {
     if (campo === 'quantita') {
         const q = parseInt(el.value, 10);
         r.quantita = (q >= 1 && q <= 999) ? q : 1;
+        ordSistemaScelte(r);
         if (!r.prezzoManuale && r.articolo_id) {
             const unit = ordPrezzoUnitario(macArticolo(r.articolo_id));
             r.prezzo_totale = unit !== null ? Math.round(unit * r.quantita * 100) / 100 : null;
@@ -441,6 +566,7 @@ function ordCampoRigaCambiato(e) {
         ordAggiornaTotale();
     } else if (campo === 'disponibilita') {
         r.disponibilita = el.value;
+        ordSistemaScelte(r);
         ordRidisegnaRighe();
     } else {
         r[campo] = el.value;
@@ -558,12 +684,24 @@ async function ordSalva() {
     if (ordInModifica) return ordSalvaModifica();
     const testa = ordLeggiTesta();
     const errori = [];
-    if (!testa.cliente) errori.push('Scrivi il nome del cliente (Sig.)');
+    if (!testa.cliente) errori.push('Scrivi il nome del cliente (Sig./Sig.ra)');
     if (ordFormRighe.length === 0) errori.push('Aggiungi almeno un articolo');
     ordFormRighe.forEach((r, i) => {
         r.descrizione = listinoPulisciTesto(r.descrizione);
         r.codice = listinoPulisciTesto(r.codice);
         if (!r.descrizione) errori.push('Riga ' + (i + 1) + ': manca la descrizione');
+    });
+    // Macchine da consegnare: le sceglie sempre l'operatore, tante quante servono
+    ordFormRighe.forEach((r, i) => {
+        if (r.disponibilita !== 'DISPONIBILE' || !r.articolo_id) return;
+        const isSet = macIsSet(r.articolo_id);
+        ordFabbisogno(r).forEach(f => {
+            const n = ordSceltiDi(r, f.art.id).length;
+            if (n !== f.n) {
+                errori.push('Riga ' + (i + 1) + (isSet ? ' (' + macEsc(macNome(f.art)) + ')' : '') + ': scegli quale macchina consegni' +
+                    ' (matricola): ' + (f.n === 1 ? 'nessuna scelta' : 'scelte ' + n + ' su ' + f.n));
+            }
+        });
     });
     // Abbastanza macchine in casa per le righe "Disponibile"?
     const richieste = ordRichiesteDisponibili();
@@ -623,7 +761,10 @@ async function ordSalva() {
             const setArt = macIsSet(a.id) ? a : null;
             for (const f of ordFabbisogno(r)) {
                 if (r.disponibilita === 'DISPONIBILE') {
-                    const scelti = ordDisponibiliArticolo(f.art.id).slice(0, f.n);
+                    // Solo le macchine scelte dall'operatore (ancora libere in casa)
+                    const scelti = ordSceltiDi(r, f.art.id).map(id => macPezzi.find(p => p.id === id))
+                        .filter(p => p && p.stato === 'IN_CASA' && !p.cliente);
+                    if (scelti.length < f.n) throw new Error('Una macchina scelta per ' + macNome(f.art) + ' non &egrave; pi&ugrave; disponibile (qualcuno l&#39;ha appena presa?): riapri l&#39;ordine e scegline un&#39;altra');
                     for (const p of scelti) {
                         const agg = {
                             cliente: testa.cliente, ordine_id: ordine.id, ordine_riga_id: rigaDb ? rigaDb.id : null,
@@ -706,7 +847,7 @@ async function ordSalvaModifica() {
     const o = ordInModifica;
     const testa = ordLeggiTesta();
     if (!testa.cliente) {
-        await showCustomAlert('Scrivi il nome del cliente (Sig.)', 'Controlla l\'ordine', '&#9888;&#65039;');
+        await showCustomAlert('Scrivi il nome del cliente (Sig./Sig.ra)', 'Controlla l\'ordine', '&#9888;&#65039;');
         return;
     }
     const btn = document.getElementById('ord-salva');
@@ -970,51 +1111,63 @@ async function ordElimina(o) {
 // STAMPA (come il modulo cartaceo) - dal browser si puo' "Salva come PDF"
 // ========================================
 function ordHtmlStampa(o, righeTotali) {
+    // Stesso stile dei report (rpt-*): intestazione logo + titolo, sezioni con titolo verde, tabelle leggere
     const righe = ordRigheOrdine(o);
+    const pezzi = ordPezziOrdine(o);
     const daOrdinare = righe.some(r => r.disponibilita === 'DA_ORDINARE');
     const disponibile = righe.some(r => r.disponibilita !== 'DA_ORDINARE');
-    const casella = (spuntata) => '<span class="ost-casella">' + (spuntata ? '&#10005;' : '') + '</span>';
-    const linea = (etichetta, valore) => '<div class="ost-linea"><span class="ost-etich">' + etichetta + '</span><span class="ost-val">' + macEsc(valore || '') + '</span></div>';
+    const casella = (spuntata) => '<span class="ordd-casella">' + (spuntata ? '&#10005;' : '') + '</span>';
+    const campo = (etichetta, valore, colspan) => '<td class="ordd-etich">' + etichetta + '</td><td class="ordd-val"' + (colspan ? ' colspan="' + colspan + '"' : '') + '>' + macEsc(valore || '') + '</td>';
 
-    let tabella = righe.map(r =>
-        '<tr><td>' + macEsc(r.descrizione) + (r.disponibilita === 'DA_ORDINARE' ? ' <em>(da ordinare)</em>' : '') + '</td>' +
-        '<td>' + macEsc(r.codice || '') + '</td>' +
-        '<td class="ost-c">' + r.quantita + '</td>' +
-        '<td class="ost-r">' + (r.prezzo_totale !== null && r.prezzo_totale !== undefined ? macEuro(r.prezzo_totale) : '') + '</td></tr>'
-    ).join('');
+    let tabella = righe.map(r => {
+        const matricole = pezzi.filter(p => p.ordine_riga_id === r.id && p.matricola).map(p => p.matricola);
+        const magazzino = r.disponibilita === 'DA_ORDINARE' ? 'Da ordinare' : (r.disponibilita === 'DISPONIBILE' ? 'Disponibile' : '');
+        return '<tr><td>' + macEsc(r.descrizione) +
+                (matricole.length ? '<div class="ordd-matr">Matr. ' + matricole.map(macEsc).join(', ') + '</div>' : '') + '</td>' +
+            '<td>' + macEsc(r.codice || '') + '</td>' +
+            '<td class="rpt-n">' + r.quantita + '</td>' +
+            '<td class="ordd-mag">' + magazzino + '</td>' +
+            '<td class="rpt-n">' + (r.prezzo_totale !== null && r.prezzo_totale !== undefined ? repEuroPdf(r.prezzo_totale) : '') + '</td></tr>';
+    }).join('');
     const totaleRighe = Math.max(righeTotali || ORD_MIN_RIGHE_STAMPA, righe.length);
-    for (let i = righe.length; i < totaleRighe; i++) tabella += '<tr class="ost-vuota"><td></td><td></td><td></td><td></td></tr>';
+    for (let i = righe.length; i < totaleRighe; i++) tabella += '<tr class="ordd-vuota"><td></td><td></td><td></td><td></td><td></td></tr>';
 
-    return '<div class="ost-pagina">' +
-        '<div class="ost-testa">' +
-            '<img src="logo.png" alt="Agrimacch" class="ost-logo">' +
-            '<div class="ost-azienda"><strong>' + ORD_AZIENDA.nome + '</strong><br>' + ORD_AZIENDA.indirizzo + '<br>' + ORD_AZIENDA.contatti + '<br>' + ORD_AZIENDA.web + '</div>' +
-        '</div>' +
-        '<div class="ost-riga-tipo">' +
-            '<span>' + casella(true) + ' ORDINE N. <strong>' + ordNumero(o) + '</strong>' +
-                (o.operatore ? '<span class="ost-operatore">OPERATORE <strong>' + macEsc(o.operatore) + '</strong></span>' : '') + '</span>' +
-            '<span class="ost-data">DATA <strong>' + ordDataIt(o.data) + '</strong></span>' +
-        '</div>' +
-        linea('SIG.', o.cliente) +
-        linea('INDIRIZZO', o.indirizzo) +
-        '<div class="ost-doppia">' + linea('TEL / CELL', o.telefono) + linea('E-MAIL', o.email) + '</div>' +
-        '<div class="ost-doppia">' + linea('C.F.', o.codice_fiscale) + linea('P.IVA', o.partita_iva) + '</div>' +
-        linea('NOTE', o.note) +
-        '<div class="ost-box">' +
-            '<div class="ost-box-testa"><span>PAGAMENTO</span><span class="ost-piccolo">LA FATTURA POTR&Agrave; ESSERE RICHIESTA SOLO ALL\'ORDINE</span></div>' +
-            '<div class="ost-box-corpo">' + macEsc(o.pagamento || '') + '</div>' +
-        '</div>' +
-        '<table class="ost-tabella"><thead><tr><th>ARTICOLO</th><th>CODICE</th><th class="ost-c">Q.T&Agrave;</th><th class="ost-r">P. TOTALE</th></tr></thead>' +
-            '<tbody>' + tabella + '</tbody></table>' +
-        '<div class="ost-piede">' +
-            '<div class="ost-caselle"><span>' + casella(disponibile) + ' DISPONIBILE</span><span>' + casella(daOrdinare) + ' DA ORDINARE</span></div>' +
-            '<div class="ost-totale"><span>TOTALE</span><strong>' + (o.totale !== null && o.totale !== undefined ? macEuro(o.totale) : '') + '</strong></div>' +
-        '</div>' +
-        '<p class="ost-condizioni">' + ORD_CONDIZIONI + '</p>' +
-        '<div class="ost-firma">' +
-            (o.firma ? '<img src="' + o.firma + '" alt="Firma">' : '<div class="ost-firma-vuota"></div>') +
-            '<span>FIRMA PER ACCETTAZIONE</span>' +
-        '</div>' +
+    return '<div class="rpt-pagina ordd">' +
+        '<table class="rpt-testa"><tr>' +
+            '<td class="rpt-testa-logo"><img src="logo.png" alt="" class="rpt-logo ordd-logo"></td>' +
+            '<td class="rpt-titoli">' +
+                '<div class="rpt-titolo">' + casella(true) + ' Ordine N. ' + ordNumero(o) + '</div>' +
+                '<div class="rpt-sotto">Data <strong>' + ordDataIt(o.data) + '</strong>' +
+                    (o.operatore ? ' &middot; Operatore <strong>' + macEsc(o.operatore) + '</strong>' : '') + '</div>' +
+                '<div class="rpt-sotto">' + ORD_AZIENDA.nome + ' &middot; ' + ORD_AZIENDA.indirizzo + '<br>' + ORD_AZIENDA.contatti + ' &middot; ' + ORD_AZIENDA.web + '</div>' +
+            '</td>' +
+        '</tr></table>' +
+        '<div class="rpt-sezione">Cliente</div>' +
+        '<table class="ordd-dati">' +
+            '<tr>' + campo('Sig./Sig.ra', o.cliente, 3) + '</tr>' +
+            '<tr>' + campo('Indirizzo', o.indirizzo, 3) + '</tr>' +
+            '<tr>' + campo('Tel / Cell', o.telefono) + campo('E-mail', o.email) + '</tr>' +
+            '<tr>' + campo('C.F.', o.codice_fiscale) + campo('P.IVA', o.partita_iva) + '</tr>' +
+            '<tr>' + campo('Note', o.note, 3) + '</tr>' +
+        '</table>' +
+        '<div class="rpt-sezione">Pagamento <span class="ordd-nota-sezione">La fattura potr&agrave; essere richiesta solo all&#39;ordine</span></div>' +
+        '<div class="ordd-box">' + macEsc(o.pagamento || '') + '</div>' +
+        '<div class="rpt-sezione">Articoli</div>' +
+        '<table class="rpt-tab ordd-righe"><thead><tr>' +
+            '<th style="width:47%">Articolo</th><th style="width:17%">Codice</th><th class="rpt-n" style="width:7%">Q.t&agrave;</th>' +
+            '<th style="width:13%">Magazzino</th><th class="rpt-n" style="width:16%">P. totale</th>' +
+        '</tr></thead><tbody>' + tabella + '</tbody>' +
+        '<tfoot><tr>' +
+            '<td colspan="3" class="ordd-caselle">' + casella(disponibile) + ' Disponibile &nbsp;&nbsp;&nbsp; ' + casella(daOrdinare) + ' Da ordinare</td>' +
+            '<td class="ordd-tot-etich">TOTALE</td>' +
+            '<td class="rpt-n ordd-tot">' + (o.totale !== null && o.totale !== undefined ? repEuroPdf(o.totale) : '') + '</td>' +
+        '</tr></tfoot></table>' +
+        '<p class="ordd-condizioni">' + ORD_CONDIZIONI + '</p>' +
+        '<table class="ordd-firme"><tr>' +
+            '<td class="ordd-firme-sx"></td>' +
+            '<td class="ordd-firma">' + (o.firma ? '<img src="' + o.firma + '" alt="Firma">' : '<div class="ordd-firma-vuota"></div>') +
+                '<div class="ordd-firma-linea">Firma per accettazione</div></td>' +
+        '</tr></table>' +
         (o.annullato_at ? '<div class="ost-annullato">ANNULLATO</div>' : '') +
     '</div>';
 }
@@ -1022,16 +1175,16 @@ function ordHtmlStampa(o, righeTotali) {
 // Quante righe deve avere la tabella articoli per riempire il foglio A4:
 // prova il modulo fuori dallo schermo e aggiunge righe vuote finche' c'e' spazio
 function ordRigheCheRiempiono(o) {
+    // Il modulo si prova fuori dallo schermo con la stessa larghezza del PDF (718 px)
     const prova = document.createElement('div');
-    prova.className = 'ord-pdf-temp';
+    prova.className = 'pdf-foglio pdf-misura';
     document.body.appendChild(prova);
     try {
         let n = Math.max(ORD_MIN_RIGHE_STAMPA, ordRigheOrdine(o).length);
         prova.innerHTML = ordHtmlStampa(o, n);
-        prova.firstElementChild.classList.add('ost-a4-pdf');
         const altezza = prova.firstElementChild.offsetHeight;
-        const riga = prova.querySelector('.ost-tabella tbody tr:last-child');
-        const altezzaRiga = riga ? riga.offsetHeight : 26;
+        const riga = prova.querySelector('.ordd-righe tbody tr:last-child');
+        const altezzaRiga = riga ? riga.offsetHeight : 22;
         if (altezza && altezzaRiga) {
             const spazio = ORD_ALTEZZA_A4_PX - altezza;
             if (spazio > 0) n += Math.floor(spazio / altezzaRiga);
@@ -1210,8 +1363,7 @@ async function ordCreaPdfBase64(o) {
 async function ordCreaPdf(o, formato) {
     const pdf = await pdfCreaDaHtml(ordHtmlStampa(o, ordRigheCheRiempiono(o)), {
         margini: { alto: 10, sx: 10, basso: 10, dx: 10 },
-        unaPagina: true,
-        prepara: el => el.classList.add('ost-a4-pdf')
+        unaPagina: true
     });
     if (formato === 'blob') return pdf.output('blob');
     return String(pdf.output('datauristring')).split(',')[1];
@@ -1233,6 +1385,9 @@ async function ordDriveChiama(corpo) {
     if (!data || !data.ok) throw new Error((data && data.errore) || 'Risposta non valida dalla funzione ordini-drive');
     return data;
 }
+
+const ordDriveInCorso = {};   // id ordine -> true mentre salva
+const ordDriveErrore = {};    // id ordine -> ultimo errore
 
 async function ordSalvaSuDrive(id) {
     const o = ordOrdini.find(x => x.id === id);
@@ -1279,6 +1434,15 @@ function ordAggiornaStatoDrive(id) {
     if (el && o) el.innerHTML = ordStatoDriveHtml(o);
 }
 
+// Rifa' il PDF su Drive degli ordini indicati (solo quelli gia' salvati su Drive)
+async function ordAggiornaPdfOrdini(ids) {
+    try { await ordCaricaDati(); } catch (e) { return; }
+    for (const id of ids) {
+        const o = ordOrdini.find(x => x.id === id);
+        if (o && o.drive_file_id && !o.annullato_at) await ordSalvaSuDrive(id);
+    }
+}
+
 async function ordProvaDrive() {
     const btn = document.getElementById('ord-prova-drive');
     btn.disabled = true;
@@ -1292,6 +1456,152 @@ async function ordProvaDrive() {
             '<br><br>Segui GUIDA_ORDINI_DRIVE.md (cartella magazzino-app).', 'Drive', '&#10060;');
     }
     btn.disabled = false;
+}
+
+// ========================================
+// BOZZA ORDINE DAL LISTINO VENDITE
+// ----------------------------------------
+// Nel listino il carrello su una macchina la mette nella "bozza ordine".
+// La bozza e' salvata sull'utente (user_metadata.ordineBozza, quindi si ritrova anche
+// da un altro dispositivo) e si usa in Ordini Clienti con "Crea l'ordine".
+// Elementi: [{ articolo_id, quantita }]
+// ========================================
+const ORD_BOZZA_CHIAVE = 'ordineBozza';
+
+function ordBozzaLeggi() {
+    try {
+        const meta = (typeof currentUser !== 'undefined' && currentUser) ? currentUser.user_metadata : null;
+        if (meta && Array.isArray(meta[ORD_BOZZA_CHIAVE])) return meta[ORD_BOZZA_CHIAVE].slice();
+    } catch (e) { /* niente */ }
+    try {
+        const v = localStorage.getItem(ORD_BOZZA_CHIAVE + '_' + macUtente());
+        if (v) return JSON.parse(v);
+    } catch (e) { /* niente */ }
+    return [];
+}
+
+function ordBozzaSalva(lista) {
+    try { localStorage.setItem(ORD_BOZZA_CHIAVE + '_' + macUtente(), JSON.stringify(lista)); } catch (e) { /* niente */ }
+    if (typeof currentUser !== 'undefined' && currentUser) {
+        const dati = {};
+        dati[ORD_BOZZA_CHIAVE] = lista;
+        currentUser.user_metadata = Object.assign({}, currentUser.user_metadata, dati);
+        try {
+            supabaseClient.auth.updateUser({ data: dati })
+                .then(({ error }) => { if (error) console.log('Bozza ordine non salvata sul server:', error.message); })
+                .catch(err => console.log('Bozza ordine non salvata sul server:', err));
+        } catch (e) { /* niente */ }
+    }
+    ordBozzaRender();
+}
+
+// Rilegge la bozza dal server (se e' stata cambiata da un altro dispositivo)
+async function ordBozzaAggiorna() {
+    try {
+        const { data } = await supabaseClient.auth.getUser();
+        if (data && data.user && typeof currentUser !== 'undefined' && currentUser) {
+            currentUser.user_metadata = Object.assign({}, currentUser.user_metadata, data.user.user_metadata || {});
+        }
+    } catch (e) { /* niente: si usa quella che c'e' */ }
+    ordBozzaRender();
+}
+
+function ordBozzaAggiungi(articoloId) {
+    const a = macArticolo(articoloId);
+    if (!a) return;
+    const lista = ordBozzaLeggi();
+    const c = lista.find(x => x.articolo_id === articoloId);
+    if (c) c.quantita = (c.quantita || 1) + 1;
+    else lista.push({ articolo_id: articoloId, quantita: 1 });
+    ordBozzaSalva(lista);
+    ordBozzaAvviso('&#128722; ' + macEsc(macNome(a)) + ' aggiunta alla bozza ordine' + (c ? ' (' + c.quantita + ')' : ''));
+}
+
+function ordBozzaTogli(articoloId) {
+    ordBozzaSalva(ordBozzaLeggi().filter(x => x.articolo_id !== articoloId));
+}
+
+function ordBozzaSvuota(chiedi) {
+    if (chiedi && !window.confirm('Svuotare la bozza ordine?')) return;
+    ordBozzaSalva([]);
+}
+
+function ordBozzaTesto(lista) {
+    return lista.map(x => {
+        const a = macArticolo(x.articolo_id);
+        return (x.quantita > 1 ? x.quantita + ' x ' : '') + (a ? macNome(a) : 'articolo non trovato');
+    }).join(', ');
+}
+
+// Barra nel listino + riquadro negli ordini
+function ordBozzaRender() {
+    const puo = typeof macPuoGestire === 'function' && macPuoGestire();
+    const lista = puo ? ordBozzaLeggi() : [];
+    const n = lista.reduce((s, x) => s + (x.quantita || 1), 0);
+    const html = n === 0 ? '' :
+        '<div class="ord-bozza-testo">&#128722; <strong>Bozza ordine</strong> (' + n + (n === 1 ? ' macchina' : ' macchine') + '): ' + macEsc(ordBozzaTesto(lista)) + '</div>' +
+        '<div class="ord-bozza-pulsanti">' +
+            '<button type="button" class="btn-primary mac-btn-piccolo" data-bozza="usa">&#128221; Crea l&#39;ordine</button>' +
+            '<button type="button" class="btn-back mac-btn-piccolo" data-bozza="svuota">&#10006; Svuota</button>' +
+        '</div>';
+    ['listino-bozza-bar', 'ord-bozza-banner'].forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.innerHTML = html;
+        el.classList.toggle('hidden', n === 0);
+    });
+}
+
+function ordBozzaAvviso(testo) {
+    let t = document.getElementById('ord-bozza-avviso');
+    if (!t) {
+        t = document.createElement('div');
+        t.id = 'ord-bozza-avviso';
+        t.className = 'ord-bozza-avviso';
+        document.body.appendChild(t);
+    }
+    t.innerHTML = testo;
+    t.classList.add('visibile');
+    clearTimeout(ordBozzaAvviso.timer);
+    ordBozzaAvviso.timer = setTimeout(() => t.classList.remove('visibile'), 2500);
+}
+
+// Dal listino: apre Ordini Clienti e mette la bozza nel nuovo ordine
+function ordBozzaApriOrdine() {
+    sessionStorage.setItem('ordiniTab', 'nuovo');
+    sessionStorage.setItem('ordBozzaDaUsare', '1');
+    openSection('ordini-clienti');
+}
+
+// Mette le macchine della bozza nel modulo del nuovo ordine e svuota la bozza
+async function ordBozzaUsa() {
+    const lista = ordBozzaLeggi();
+    if (!lista.length) return;
+    if (ordInModifica) {
+        await showCustomAlert('Stai modificando un ordine gi&agrave; salvato: chiudi la modifica prima di usare la bozza.', 'Bozza ordine', '&#9888;&#65039;');
+        return;
+    }
+    const nonTrovati = [];
+    lista.forEach(x => {
+        const a = macArticolo(x.articolo_id);
+        if (!a || !a.attivo) { nonTrovati.push(x.articolo_id); return; }
+        ordAggiungiArticolo(a);
+        const r = ordFormRighe[ordFormRighe.length - 1];
+        r.quantita = x.quantita || 1;
+        const unit = ordPrezzoUnitario(a);
+        r.prezzo_totale = unit !== null ? Math.round(unit * r.quantita * 100) / 100 : null;
+        // con la quantita' giusta ricontrolla se ce ne sono abbastanza in casa
+        const mancano = ordFabbisogno(r).some(f => ordDisponibiliArticolo(f.art.id).length < f.n);
+        r.disponibilita = mancano ? 'DA_ORDINARE' : 'DISPONIBILE';
+    });
+    ordBozzaSalva([]);
+    ordSwitchTab('nuovo');
+    ordRenderFormRighe();
+    if (nonTrovati.length) {
+        await showCustomAlert(nonTrovati.length + ' articoli della bozza non sono pi&ugrave; nel listino e sono stati saltati.', 'Bozza ordine', '&#9888;&#65039;');
+    }
+    const cliente = document.getElementById('ord-cliente');
+    if (cliente && !cliente.value) setTimeout(() => cliente.focus(), 100);
 }
 
 // ========================================
@@ -1318,7 +1628,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // Modulo
-    macPickerImposta('ord-art-search', 'ord-art-results', null, ordAggiungiArticolo);
+    macPickerImposta('ord-art-search', 'ord-art-results', null, ordAggiungiArticolo, { onPezzo: ordAggiungiPezzo });
     document.getElementById('ord-btn-libera').addEventListener('click', ordAggiungiLibera);
     const righe = document.getElementById('ord-righe');
     righe.addEventListener('input', ordCampoRigaCambiato);
@@ -1350,6 +1660,15 @@ document.addEventListener('DOMContentLoaded', () => {
     // Prova collegamento Drive
     document.getElementById('ord-prova-drive').addEventListener('click', ordProvaDrive);
 
+    // Bozza ordine (barra nel listino e riquadro negli ordini)
+    document.addEventListener('click', (e) => {
+        const b = e.target.closest('[data-bozza]');
+        if (!b) return;
+        const inListino = !!b.closest('#listino-bozza-bar');
+        if (b.dataset.bozza === 'svuota') ordBozzaSvuota(true);
+        else if (b.dataset.bozza === 'usa') { if (inListino) ordBozzaApriOrdine(); else ordBozzaUsa(); }
+    });
+
     // Dettaglio
     document.getElementById('ord-dettaglio-close').addEventListener('click', ordChiudiDettaglio);
     document.getElementById('ord-dettaglio-chiudi').addEventListener('click', ordChiudiDettaglio);
@@ -1362,4 +1681,8 @@ document.addEventListener('DOMContentLoaded', () => {
 window.openOrdiniClienti = openOrdiniClienti;
 window.pdfApriInScheda = pdfApriInScheda;
 window.pdfCreaDaHtml = pdfCreaDaHtml;
+window.ordAggiornaPdfOrdini = ordAggiornaPdfOrdini;
+window.ordBozzaAggiungi = ordBozzaAggiungi;
+window.ordBozzaAggiorna = ordBozzaAggiorna;
+window.ordBozzaRender = ordBozzaRender;
 window.ordNumeroDiPezzo = ordNumeroDiPezzo;

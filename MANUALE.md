@@ -227,7 +227,7 @@ Configurazione notifiche: tabella `listino_notifiche` (script `supabase/listino-
 
 ---
 
-### 8.4 Inventario Macchine (admin e operatori)
+### 8.4 Inventario Macchine (per ora solo admin)
 Si apre da **Magazzino &rarr; Inventario Macchine** (la sezione sta in Magazzino; gli Ordini Clienti in Vendite). &Egrave; collegato al Listino Vendite: ogni macchina fisica &egrave; una riga legata a un articolo del listino (stessa suddivisione: attrezzo, marchio, alimentazione, tipologia, modello, note), senza prezzi.
 
 **Stati (i colori del quadernone)**
@@ -254,21 +254,24 @@ Si apre da **Magazzino &rarr; Inventario Macchine** (la sezione sta in Magazzino
 
 **Nel Listino Vendite** (admin e operatori) accanto al modello compare in piccolo &#127968; N (disponibili in casa, pi&ugrave; quelle gi&agrave; assegnate) oppure &#129513; N set componibili.
 
-**Configurazione**: eseguire una volta `supabase/inventario-macchine-setup.sql` (Supabase &rarr; SQL Editor). Dalla versione con gli ordini la sezione &egrave; aperta anche agli **operatori** (stessi permessi dell'admin; i tecnici no): `MACCHINE_PER_OPERATORI = true` in `macchine-functions.js` e su Supabase `supabase/macchine-operatori.sql` (funzione `puo_gestire_macchine()` con `role in ('admin', 'operatore')`).
+**Configurazione**: eseguire una volta `supabase/inventario-macchine-setup.sql` (Supabase &rarr; SQL Editor). **Per ora le sezioni Inventario Macchine e Ordini Clienti sono visibili solo all'admin** (sono in prova): `MACCHINE_PER_OPERATORI = false` in `macchine-functions.js`. Per aprirle anche agli **operatori** (stessi permessi dell'admin; i tecnici no) basta mettere `MACCHINE_PER_OPERATORI = true` e su Supabase `supabase/macchine-operatori.sql` (funzione `puo_gestire_macchine()` con `role in ('admin', 'operatore')`).
 
-### 8.5 Ordini Clienti (admin e operatori)
+### 8.5 Ordini Clienti (per ora solo admin)
 Si apre da **Vendite &rarr; Ordini Clienti**. Sostituisce il blocchetto delle commissioni (niente preventivi: solo ordini).
 
-**Nuovo ordine** (come il modulo cartaceo): data, **operatore** che fa il contratto (proposto chi &egrave; collegato, si pu&ograve; cambiare; compare sulla stampa), Sig. (cliente, obbligatorio), indirizzo, tel/cell, e-mail, C.F., P.IVA, note, pagamento (testo libero). Il numero viene assegnato al salvataggio: progressivo, riparte da 1 ogni anno (es. 12/2026).
+**Nuovo ordine** (come il modulo cartaceo): data, **operatore** che fa il contratto (proposto chi &egrave; collegato, si pu&ograve; cambiare; compare sulla stampa), Sig./Sig.ra (cliente, obbligatorio), indirizzo, tel/cell, e-mail, C.F., P.IVA, note, pagamento (testo libero). Il numero viene assegnato al salvataggio: progressivo, riparte da 1 ogni anno (es. 12/2026).
 - **Articoli dal listino**: per ogni riga scegli **Disponibile** (l'app prende una macchina in casa e la assegna al cliente: nel quaderno diventa verde con il nome) oppure **Da ordinare** (nel quaderno compare il quadratino bianco con il nome). Se in casa non ce ne sono abbastanza l'app lo dice e propone &quot;Da ordinare&quot;. I set assegnano/creano i singoli componenti.
-- **Prezzo proposto**: vendita promo (se non scaduta), altrimenti no promo, altrimenti listino; si pu&ograve; sempre cambiare (&egrave; il prezzo totale della riga).
+- **Scelta della macchina (matricola)**: sulle righe Disponibile compaiono tutte le macchine libere in casa (matricola, oppure &quot;senza matricola&quot;, e data di carico): spunta quelle che consegni. &Egrave; **obbligatorio**: l'app non sceglie mai da sola, e non salva finch&eacute; le macchine spuntate non sono tante quante la quantit&agrave; (spuntandone di pi&ugrave; la quantit&agrave; sale da sola). Per i set si sceglie ogni componente.
+- **Cerca per matricola**: nel campo di ricerca degli articoli si pu&ograve; scrivere anche la matricola (bastano alcune cifre, spazi e trattini non contano): la macchina in casa compare come &quot;MATR. ...&quot; e toccandola entra nell'ordine gi&agrave; scelta. Se la matricola &egrave; gi&agrave; assegnata, ordinata o consegnata l'app lo dice (e a chi). La matricola compare sul PDF sotto l'articolo; se arriva dopo (carico di una macchina ordinata, o modifica nel quaderno) il PDF su Drive viene rifatto da solo.
+- **Prezzo proposto**: vendita promo (se c'&egrave; e non &egrave; scaduta), altrimenti vendita no promo, altrimenti prezzo di listino; il prezzo &quot;in scatola&quot; non viene mai usato. Si pu&ograve; sempre cambiare (&egrave; il prezzo totale della riga: quantit&agrave; x prezzo).
+- **Bozza dal listino**: nel Listino Vendite il carrello &#128722; su ogni articolo lo mette nella **bozza ordine** (toccandolo di nuovo la quantit&agrave; sale). La barra verde in cima al listino mostra la bozza: **Crea l'ordine** apre Ordini Clienti con le macchine gi&agrave; nel nuovo ordine (poi si scrivono i dati del cliente, la firma ecc.), **Svuota** la cancella. La bozza &egrave; legata all'utente: si ritrova anche da un altro dispositivo, e si vede anche in cima agli Ordini Clienti.
 - **Riga libera**: accessori, olio, servizi... non tocca il magazzino.
 - **Firma per accettazione**: il cliente firma sullo schermo con il dito o la penna.
 
 **Elenco ordini**: filtri per anno e stato, ricerca per cliente, numero, modello o matricola. Stato calcolato dalle macchine collegate: Da ordinare &rarr; Ordinato &rarr; In casa &rarr; Consegnato (oppure Annullato).
 
 **Dettaglio ordine** (tocca un ordine):
-- **Stampa / PDF**: apre in una nuova scheda il PDF dell'ordine (stesso aspetto del modulo Agrimacch, con condizioni di vendita e firma): da l&igrave; si stampa o si salva, senza le scritte del browser.
+- **Stampa / PDF**: apre in una nuova scheda il PDF dell'ordine, nello stesso stile dei report (logo, intestazione, tabelle verdi; stessi campi del modulo Agrimacch, con condizioni di vendita e firma): da l&igrave; si stampa o si salva, senza le scritte del browser. Tutti i nuovi documenti generati dall'app usano questo stile.
 - **Ordinato al fornitore**: le macchine da ordinare diventano blu nel quaderno.
 - Quando arrivano, il **Carico macchine** (o il Carico Excel) le assegna da solo al cliente dell'ordine.
 - **Consegnato al cliente**: le macchine in casa diventano consegnate (croce nel quaderno).
@@ -281,7 +284,7 @@ Si apre da **Vendite &rarr; Ordini Clienti**. Sostituisce il blocchetto delle co
 
 **Pulizia delle prove**: `supabase/pulizia-prove-macchine.sql` svuota quaderno, movimenti e ordini e fa ripartire i numeri (non tocca listino, consumabili, ricambi, utenti). I PDF di prova su Drive si cancellano a mano.
 
-**Prossime fasi**: Telegram, apertura agli operatori.
+**Prossime fasi**: Telegram (da decidere).
 
 ## 8bis. TECNICI &rarr; INTERVENTI ESTERNI (v6.0.0)
 
