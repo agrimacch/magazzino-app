@@ -144,6 +144,9 @@ async function ordCaricaDati() {
 
 async function openOrdiniClienti() {
     if (!macPuoGestire()) return;
+    // Pulsanti di prova (Drive) solo per l'admin
+    const provaDrive = document.getElementById('ord-prova-drive');
+    if (provaDrive) provaDrive.classList.toggle('hidden', currentUserRole !== 'admin');
     ordSwitchTab(sessionStorage.getItem('ordiniTab') || 'elenco', true);
     const container = document.getElementById('ord-container');
     if (container && !ordCaricati) {

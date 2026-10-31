@@ -275,7 +275,7 @@ Si apre da **Vendite &rarr; Ordini Clienti**. Sostituisce il blocchetto delle co
 - **Modifica dati cliente / firma**: le righe restano bloccate; cambiando il nome si aggiorna anche nel quaderno.
 - **Annulla ordine**: le macchine in casa tornano disponibili, le righe da ordinare spariscono, quelle gi&agrave; ordinate al fornitore restano ordinate senza cliente. Il numero resta usato (l'ordine si vede barrato, il PDF viene rifatto con la scritta ANNULLATO).
 - **Elimina ordine**: come l'annullo, ma l'ordine sparisce del tutto e il PDF va nel cestino di Drive. Se era l'ultimo dell'anno il numero viene riusato, altrimenti resta un buco nella numerazione (l'app avvisa prima).
-- **PDF su Google Drive**: salvato da solo a ogni nuovo ordine (e rifatto dopo modifica o annullo) in `ORDINI CLIENTI / ORDINI CLIENTI <anno>`; le cartelle si creano da sole. Nel dettaglio: Apri / Salva di nuovo / Riprova. Pulsante **Prova Drive** sopra l'elenco. Configurazione: `GUIDA_ORDINI_DRIVE.md`.
+- **PDF su Google Drive**: salvato da solo a ogni nuovo ordine (e rifatto dopo modifica o annullo) in `ORDINI CLIENTI / ORDINI CLIENTI <anno>`; le cartelle si creano da sole. Nel dettaglio: Apri / Salva di nuovo / Riprova. Pulsante **Prova Drive** sopra l'elenco (solo admin, come tutti i pulsanti di prova). Configurazione: `GUIDA_ORDINI_DRIVE.md`.
 
 **Configurazione**: eseguire una volta `supabase/ordini-clienti-setup.sql` (dopo quello dell'inventario macchine). I dati aziendali e le condizioni stampate sono in cima a `ordini-functions.js` (ORD_AZIENDA, ORD_CONDIZIONI).
 
@@ -448,7 +448,7 @@ git rm --cached localhost.pem localhost-key.pem
 | Email gi&agrave; registrata creando un utente | L'account &egrave; ancora in Supabase &rarr; Authentication &rarr; Users: eliminarlo da l&igrave; |
 | Inventario Macchine: &quot;Errore caricamento&quot; | Eseguire `supabase/inventario-macchine-setup.sql` su Supabase |
 | Ordini Clienti: &quot;Errore caricamento ordini&quot; | Eseguire `supabase/ordini-clienti-setup.sql` su Supabase |
-| PDF ordine non salvato su Drive | Pulsante *Prova Drive*: il messaggio dice cosa manca. Vedi `GUIDA_ORDINI_DRIVE.md` |
+| PDF ordine non salvato su Drive | Pulsante *Prova Drive* (admin): il messaggio dice cosa manca. Vedi `GUIDA_ORDINI_DRIVE.md` |
 | La campanella non si aggiorna da sola | Controlla di aver eseguito `listino-notifiche-setup.sql` (attiva il tempo reale); riaprendo l'app il conteggio si aggiorna comunque |
 
 ---

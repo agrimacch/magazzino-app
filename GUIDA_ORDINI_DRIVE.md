@@ -62,7 +62,7 @@ Su Supabase > **SQL Editor** esegui (anche di nuovo, non fa danni) `supabase/ord
 
 ## PARTE 3 - Prova dall'app (prova 2)
 
-1. Apri **Vendite > Ordini Clienti**, scheda **Ordini**, e premi **Prova Drive** (in alto a destra dell'elenco).
+1. Con un utente **admin** apri **Vendite > Ordini Clienti**, scheda **Ordini**, e premi **Prova Drive** (in alto a destra dell'elenco; gli operatori non lo vedono).
 2. Deve comparire *"Collegamento con Google Drive funzionante"* con il link della cartella.
 3. Se compare un errore, il messaggio dice cosa manca:
    - *funzione "ordini-drive" non risponde* = Parte 2, punti 1-3
