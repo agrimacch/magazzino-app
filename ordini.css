@@ -1029,3 +1029,22 @@
 @media (max-width: 768px) {
     .ord-installazione-testo { text-align: left; }
 }
+
+/* Data + Operatore: su iPad/iPhone (Safari) il campo data e' piu' largo della sua colonna e copriva l'operatore.
+   Colonne che possono stringersi + campo data senza la grafica di sistema; operatore piu' stretto. */
+@media (min-width: 769px) {
+    .ord-due { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+    .ord-riga-data { grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); }
+}
+.ord-due .form-col { min-width: 0; }
+.ord-modulo input[type="date"] {
+    -webkit-appearance: none;
+    appearance: none;
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    text-align: left;
+}
+.ord-modulo input[type="date"]::-webkit-date-and-time-value { text-align: left; }
