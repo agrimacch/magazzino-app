@@ -41,6 +41,13 @@ const ORD_CONDIZIONI =
     'di ogni autorizzazione, concessione e/o invio di comunicazioni (ivi compresa denuncia di inizio attivit&agrave;) necessarie per ' +
     'l\'installazione dei prodotti acquistati in base alla vigente legislazione.';
 
+// Dichiarazione per gli ordini SENZA servizio di installazione (robot e prodotti che monta il cliente).
+// Ha una firma propria e nel PDF sta dentro il riquadro dell'ordine.
+const ORD_CONDIZIONI_NO_INSTALLAZIONE =
+    'Con la sottoscrizione del presente atto, l\'acquirente dichiara di acquistare il suddetto bene e di non avvalersi del servizio ' +
+    'd\'installazione. In tale caso, le parti concordano che il Venditore resta espressamente esonerato da ogni responsabilit&agrave; per danni, ' +
+    'malfunzionamenti o prestazioni non conformi del prodotto imputabili, anche indirettamente, ad un\'errata ed impropria installazione.';
+
 const ORD_STATI = {
     DA_ORDINARE: { etichetta: 'Da ordinare', classe: 'st-daordinare' },
     ORDINATO:    { etichetta: 'Ordinato',    classe: 'st-ordinata' },
@@ -273,7 +280,8 @@ function ordRenderElenco() {
             '<tr class="ord-riga-click' + (st === 'ANNULLATO' ? ' ord-annullato' : '') + '" data-ordine="' + o.id + '">' +
                 '<td><strong>' + ordNumero(o) + '</strong></td>' +
                 '<td>' + ordDataIt(o.data) + '</td>' +
-                '<td><strong>' + macEsc(o.cliente) + '</strong>' + (o.operatore ? '<br><small class="ord-operatore">' + macEsc(o.operatore) + '</small>' : '') + '</td>' +
+                '<td><strong>' + macEsc(o.cliente) + '</strong>' + (o.operatore ? '<br><small class="ord-operatore">' + macEsc(o.operatore) + '</small>' : '') +
+                    (o.senza_installazione ? ' <span class="ord-badge-noinst" title="Senza servizio di installazione">NO INST.</span>' : '') + '</td>' +
                 '<td class="ord-col-articoli">' + macEsc(articoli) + '</td>' +
                 '<td class="ord-col-totale">' + macEuro(o.totale) + '</td>' +
                 '<td>' + ordBadgeStato(st) + '</td>' +
@@ -281,7 +289,7 @@ function ordRenderElenco() {
         schede +=
             '<div class="ord-card' + (st === 'ANNULLATO' ? ' ord-annullato' : '') + '" data-ordine="' + o.id + '">' +
                 '<div class="ord-card-top"><strong>N. ' + ordNumero(o) + '</strong><span>' + ordDataIt(o.data) + (o.operatore ? ' &middot; ' + macEsc(o.operatore) : '') + '</span></div>' +
-                '<div class="ord-card-cliente">' + macEsc(o.cliente) + '</div>' +
+                '<div class="ord-card-cliente">' + macEsc(o.cliente) + (o.senza_installazione ? ' <span class="ord-badge-noinst">NO INST.</span>' : '') + '</div>' +
                 '<div class="ord-card-articoli">' + macEsc(articoli) + '</div>' +
                 '<div class="ord-card-bottom">' + ordBadgeStato(st) + '<strong>' + macEuro(o.totale) + '</strong></div>' +
             '</div>';
@@ -314,6 +322,8 @@ function ordNuovoModulo() {
     document.getElementById('ord-annulla-form').innerHTML = 'Svuota';
     document.getElementById('ord-aggiungi-box').classList.remove('hidden');
     ordFirmaPulisci();
+    document.getElementById('ord-senza-installazione').checked = false;
+    ordAggiornaSenzaInstallazione();
     ordRenderFormRighe();
 }
 
@@ -579,21 +589,20 @@ function ordAggiornaPrezzoVisibile(i) {
 }
 
 // ========================================
-// FIRMA SULLO SCHERMO
+// FIRMA SULLO SCHERMO (due riquadri: condizioni di vendita e "senza installazione")
 // ========================================
-let ordFirmaVuota = true;
-let ordFirmaDisegna = false;
-let ordFirmaUltimo = null;
-let ordFirmaImmagine = null;   // firma gia' salvata (in modifica)
-
-function ordFirmaCanvas() {
-    return document.getElementById('ord-firma');
+function ordCreaFirma(canvasId, boxId) {
+    return { canvasId: canvasId, boxId: boxId, vuota: true, disegna: false, ultimo: null, immagine: null };
 }
+const ordFirme = {
+    vendita: ordCreaFirma('ord-firma', 'ord-firma-box'),
+    installazione: ordCreaFirma('ord-firma2', 'ord-firma2-box')
+};
 
-function ordFirmaAdatta() {
-    const c = ordFirmaCanvas();
+function ordFirmaAdattaUna(f) {
+    const c = document.getElementById(f.canvasId);
     if (!c || !c.offsetWidth) return;
-    const salvata = !ordFirmaVuota ? c.toDataURL('image/png') : ordFirmaImmagine;
+    const salvata = !f.vuota ? c.toDataURL('image/png') : f.immagine;
     const rapporto = window.devicePixelRatio || 1;
     c.width = c.offsetWidth * rapporto;
     c.height = c.offsetHeight * rapporto;
@@ -610,48 +619,89 @@ function ordFirmaAdatta() {
     }
 }
 
-function ordFirmaPos(e) {
-    const r = ordFirmaCanvas().getBoundingClientRect();
-    return { x: e.clientX - r.left, y: e.clientY - r.top };
+function ordFirmaAdatta() {
+    ordFirmaAdattaUna(ordFirme.vendita);
+    ordFirmaAdattaUna(ordFirme.installazione);
 }
 
-function ordFirmaInizio(e) {
-    e.preventDefault();
-    ordFirmaDisegna = true;
-    ordFirmaUltimo = ordFirmaPos(e);
-    try { ordFirmaCanvas().setPointerCapture(e.pointerId); } catch (err) { /* niente */ }
+function ordFirmaCollega(f) {
+    const c = document.getElementById(f.canvasId);
+    if (!c) return;
+    const pos = (e) => { const r = c.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; };
+    const fine = () => { f.disegna = false; };
+    c.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        f.disegna = true;
+        f.ultimo = pos(e);
+        try { c.setPointerCapture(e.pointerId); } catch (err) { /* niente */ }
+    });
+    c.addEventListener('pointermove', (e) => {
+        if (!f.disegna) return;
+        e.preventDefault();
+        const p = pos(e);
+        const ctx = c.getContext('2d');
+        ctx.beginPath();
+        ctx.moveTo(f.ultimo.x, f.ultimo.y);
+        ctx.lineTo(p.x, p.y);
+        ctx.stroke();
+        f.ultimo = p;
+        f.vuota = false;
+        document.getElementById(f.boxId).classList.add('firmata');
+    });
+    c.addEventListener('pointerup', fine);
+    c.addEventListener('pointercancel', fine);
+    c.addEventListener('pointerleave', fine);
 }
 
-function ordFirmaMuovi(e) {
-    if (!ordFirmaDisegna) return;
-    e.preventDefault();
-    const p = ordFirmaPos(e);
-    const ctx = ordFirmaCanvas().getContext('2d');
-    ctx.beginPath();
-    ctx.moveTo(ordFirmaUltimo.x, ordFirmaUltimo.y);
-    ctx.lineTo(p.x, p.y);
-    ctx.stroke();
-    ordFirmaUltimo = p;
-    ordFirmaVuota = false;
-    document.getElementById('ord-firma-box').classList.add('firmata');
-}
-
-function ordFirmaFine() {
-    ordFirmaDisegna = false;
-}
-
-function ordFirmaPulisci() {
-    ordFirmaVuota = true;
-    ordFirmaImmagine = null;
-    const c = ordFirmaCanvas();
+function ordFirmaPulisciUna(f) {
+    f.vuota = true;
+    f.immagine = null;
+    const c = document.getElementById(f.canvasId);
     if (c) c.getContext('2d').clearRect(0, 0, c.width, c.height);
-    const box = document.getElementById('ord-firma-box');
+    const box = document.getElementById(f.boxId);
     if (box) box.classList.remove('firmata');
 }
 
+function ordFirmaPulisci() {
+    ordFirmaPulisciUna(ordFirme.vendita);
+    ordFirmaPulisciUna(ordFirme.installazione);
+}
+
+// Firma gia' salvata (in modifica)
+function ordFirmaImposta(f, immagine) {
+    ordFirmaPulisciUna(f);
+    f.immagine = immagine || null;
+    if (f.immagine) document.getElementById(f.boxId).classList.add('firmata');
+}
+
+function ordFirmaDatiUna(f) {
+    if (!f.vuota) return document.getElementById(f.canvasId).toDataURL('image/png');
+    return f.immagine;
+}
+
 function ordFirmaDati() {
-    if (!ordFirmaVuota) return ordFirmaCanvas().toDataURL('image/png');
-    return ordFirmaImmagine;
+    return ordFirmaDatiUna(ordFirme.vendita);
+}
+
+// Casellina "senza servizio di installazione": mostra la dichiarazione e la sua firma
+function ordSenzaInstallazione() {
+    const el = document.getElementById('ord-senza-installazione');
+    return !!(el && el.checked);
+}
+
+function ordAggiornaSenzaInstallazione() {
+    const box = document.getElementById('ord-installazione-box');
+    if (!box) return;
+    box.classList.toggle('hidden', !ordSenzaInstallazione());
+    if (ordSenzaInstallazione()) setTimeout(() => ordFirmaAdattaUna(ordFirme.installazione), 30);
+}
+
+// Campi "senza installazione" da salvare. Se l'ordine non li usa non vengono mandati
+// (cosi' l'app funziona anche prima di aver aggiunto le colonne su Supabase).
+function ordCampiInstallazione(prima) {
+    const si = ordSenzaInstallazione();
+    if (!si && !(prima && prima.senza_installazione)) return {};
+    return { senza_installazione: si, firma_installazione: si ? ordFirmaDatiUna(ordFirme.installazione) : null };
 }
 
 // ========================================
@@ -728,7 +778,7 @@ async function ordSalva() {
         for (let tentativo = 0; tentativo < 3 && !ordine; tentativo++) {
             const numero = await ordProssimoNumero(anno);
             const riga = Object.assign({}, testa, {
-                anno: anno, numero: numero, totale: ordAggiornaTotale(), firma: ordFirmaDati(),
+                anno: anno, numero: numero, totale: ordAggiornaTotale(), firma: ordFirmaDati(), ...ordCampiInstallazione(null),
                 created_by: utente, updated_by: utente, updated_at: adesso
             });
             const { data, error } = await supabaseClient.from('macchine_ordini').insert([riga]).select('*').single();
@@ -837,9 +887,10 @@ function ordApriModifica(id) {
     document.getElementById('ord-salva').innerHTML = '&#128190; Salva modifiche';
     document.getElementById('ord-annulla-form').innerHTML = 'Annulla modifica';
     document.getElementById('ord-aggiungi-box').classList.add('hidden');
-    ordFirmaPulisci();
-    ordFirmaImmagine = o.firma || null;
-    if (ordFirmaImmagine) document.getElementById('ord-firma-box').classList.add('firmata');
+    ordFirmaImposta(ordFirme.vendita, o.firma);
+    ordFirmaImposta(ordFirme.installazione, o.firma_installazione);
+    document.getElementById('ord-senza-installazione').checked = !!o.senza_installazione;
+    ordAggiornaSenzaInstallazione();
     ordSwitchTab('nuovo');
 }
 
@@ -854,7 +905,7 @@ async function ordSalvaModifica() {
     btn.disabled = true;
     const adesso = new Date().toISOString();
     try {
-        const agg = Object.assign({}, testa, { firma: ordFirmaDati(), updated_at: adesso, updated_by: macUtente() });
+        const agg = Object.assign({}, testa, { firma: ordFirmaDati(), updated_at: adesso, updated_by: macUtente() }, ordCampiInstallazione(o));
         const { error } = await supabaseClient.from('macchine_ordini').update(agg).eq('id', o.id);
         if (error) throw error;
         // Cliente cambiato: aggiorna anche il nome nel quaderno
@@ -935,6 +986,9 @@ function ordApriDettaglio(id) {
         }).join('') + '</div>' +
         '<div class="ord-det-totale"><span>TOTALE</span><strong>' + macEuro(o.totale) + '</strong></div>' +
         (o.firma ? '<div class="ord-det-firma"><span>Firma per accettazione</span><img src="' + o.firma + '" alt="Firma"></div>' : '<p class="mac-aiuto">Ordine non firmato.</p>') +
+        (o.senza_installazione ? '<div class="ord-det-noinst"><strong>&#9888;&#65039; Senza servizio di installazione</strong>' +
+            (o.firma_installazione ? '<div class="ord-det-firma"><span>Firma della dichiarazione</span><img src="' + o.firma_installazione + '" alt="Firma"></div>'
+                : '<p class="mac-aiuto">Dichiarazione non firmata.</p>') + '</div>' : '') +
         '<div id="ord-drive-stato" class="ord-drive">' + ordStatoDriveHtml(o) + '</div>';
 
     document.getElementById('ord-dettaglio-titolo').innerHTML = '&#128221; Ordine N. ' + ordNumero(o);
@@ -1157,11 +1211,21 @@ function ordHtmlStampa(o, righeTotali) {
             '<th style="width:47%">Articolo</th><th style="width:17%">Codice</th><th class="rpt-n" style="width:7%">Q.t&agrave;</th>' +
             '<th style="width:13%">Magazzino</th><th class="rpt-n" style="width:16%">P. totale</th>' +
         '</tr></thead><tbody>' + tabella + '</tbody>' +
+        // Senza installazione: dentro il riquadro dell'ordine, sopra Disponibile / Totale (come la commissione robot)
+        (o.senza_installazione ?
+            '<tbody class="ordd-noinst-corpo"><tr class="ordd-noinst"><td colspan="5"><table class="ordd-noinst-tab"><tr>' +
+                '<td class="ordd-noinst-casella">' + casella(true) + '</td>' +
+                '<td class="ordd-noinst-testo"><strong>Senza servizio di installazione</strong><br>' + ORD_CONDIZIONI_NO_INSTALLAZIONE + '</td>' +
+                '<td class="ordd-firma ordd-noinst-firma">' +
+                    (o.firma_installazione ? '<img src="' + o.firma_installazione + '" alt="Firma">' : '<div class="ordd-firma-vuota"></div>') +
+                    '<div class="ordd-firma-linea">Firma per accettazione</div></td>' +
+            '</tr></table></td></tr></tbody>' : '') +
         '<tfoot><tr>' +
             '<td colspan="3" class="ordd-caselle">' + casella(disponibile) + ' Disponibile &nbsp;&nbsp;&nbsp; ' + casella(daOrdinare) + ' Da ordinare</td>' +
             '<td class="ordd-tot-etich">TOTALE</td>' +
             '<td class="rpt-n ordd-tot">' + (o.totale !== null && o.totale !== undefined ? repEuroPdf(o.totale) : '') + '</td>' +
-        '</tr></tfoot></table>' +
+        '</tr>' +
+        '</tfoot></table>' +
         '<p class="ordd-condizioni">' + ORD_CONDIZIONI + '</p>' +
         '<table class="ordd-firme"><tr>' +
             '<td class="ordd-firme-sx"></td>' +
@@ -1183,7 +1247,7 @@ function ordRigheCheRiempiono(o) {
         let n = Math.max(ORD_MIN_RIGHE_STAMPA, ordRigheOrdine(o).length);
         prova.innerHTML = ordHtmlStampa(o, n);
         const altezza = prova.firstElementChild.offsetHeight;
-        const riga = prova.querySelector('.ordd-righe tbody tr:last-child');
+        const riga = prova.querySelector('.ordd-righe tbody:first-of-type tr:last-child');
         const altezzaRiga = riga ? riga.offsetHeight : 22;
         if (altezza && altezzaRiga) {
             const spazio = ORD_ALTEZZA_A4_PX - altezza;
@@ -1646,13 +1710,11 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // Firma
-    const c = document.getElementById('ord-firma');
-    c.addEventListener('pointerdown', ordFirmaInizio);
-    c.addEventListener('pointermove', ordFirmaMuovi);
-    c.addEventListener('pointerup', ordFirmaFine);
-    c.addEventListener('pointercancel', ordFirmaFine);
-    c.addEventListener('pointerleave', ordFirmaFine);
-    document.getElementById('ord-firma-cancella').addEventListener('click', ordFirmaPulisci);
+    ordFirmaCollega(ordFirme.vendita);
+    ordFirmaCollega(ordFirme.installazione);
+    document.getElementById('ord-firma-cancella').addEventListener('click', () => ordFirmaPulisciUna(ordFirme.vendita));
+    document.getElementById('ord-firma2-cancella').addEventListener('click', () => ordFirmaPulisciUna(ordFirme.installazione));
+    document.getElementById('ord-senza-installazione').addEventListener('change', ordAggiornaSenzaInstallazione);
     window.addEventListener('resize', () => {
         if (!document.getElementById('section-ordini-clienti').classList.contains('hidden')) ordFirmaAdatta();
     });

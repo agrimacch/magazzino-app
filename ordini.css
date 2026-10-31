@@ -951,3 +951,76 @@
 .ord-matr-num { font-weight: 700; }
 .ord-matr.scelta { border-color: var(--primary); background: #dcfce7; }
 .mac-picker-matr .mac-picker-attrezzo { color: #1d4ed8; }
+
+/* ============================================ */
+/* ORDINE SENZA SERVIZIO DI INSTALLAZIONE       */
+/* ============================================ */
+.ord-check-noinst {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin: 14px 0 6px;
+    padding: 10px 12px;
+    border: 2px dashed #f59e0b;
+    border-radius: 10px;
+    background: #fffbeb;
+    cursor: pointer;
+    font-weight: 400;
+}
+.ord-check-noinst input { width: auto; margin-top: 3px; }
+.ord-installazione {
+    border: 2px solid #f59e0b;
+    border-radius: 10px;
+    padding: 10px 12px;
+    margin-bottom: 14px;
+    background: #fffdf5;
+}
+.ord-installazione.hidden { display: none; }
+.ord-installazione-testo { font-size: 12px; line-height: 1.45; margin: 0 0 10px; text-align: justify; }
+.ord-badge-noinst {
+    display: inline-block;
+    background: #fef3c7;
+    color: #92400e;
+    border: 1px solid #f59e0b;
+    border-radius: 6px;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 1px 5px;
+    vertical-align: middle;
+}
+.ord-det-noinst {
+    margin-top: 10px;
+    padding: 10px;
+    border: 2px solid #f59e0b;
+    border-radius: 10px;
+    background: #fffbeb;
+}
+
+/* PDF: dichiarazione dentro il riquadro dell'ordine, sopra Disponibile / Totale (riquadro verde come la commissione robot) */
+.pdf-foglio .ordd-righe tr.ordd-noinst > td,
+.ordd-righe tr.ordd-noinst > td {
+    height: auto !important;
+    padding: 0 !important;
+    white-space: normal !important;
+    background: #fff;
+    border: 2px solid #5a7d3a !important;
+}
+.ordd-noinst-tab { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.pdf-foglio .ordd-righe .ordd-noinst-tab td,
+.ordd-noinst-tab td { border: none !important; vertical-align: middle; }
+.pdf-foglio .ordd-righe .ordd-noinst-casella,
+.ordd-noinst-casella { width: 26px; padding: 8px 0 8px 8px !important; vertical-align: top !important; }
+.pdf-foglio .ordd-righe .ordd-noinst-testo,
+.ordd-noinst-testo {
+    width: 60%;
+    font-size: 8.5px !important;
+    line-height: 1.4 !important;
+    color: #1f2937;
+    text-align: justify;
+    padding: 8px 12px 8px 6px !important;
+    vertical-align: top !important;
+    font-weight: 400 !important;
+}
+.ordd-noinst-testo strong { font-weight: 700; color: #3f5a2c; text-transform: uppercase; letter-spacing: 0.3px; }
+.pdf-foglio .ordd-righe .ordd-noinst-firma,
+.ordd-noinst-firma { padding: 6px 8px 4px !important; vertical-align: bottom !important; }

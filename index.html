@@ -865,9 +865,25 @@
                             </div>
                         </div>
 
+                        <!-- Ordine senza servizio di installazione: seconda dichiarazione con firma propria (sopra il totale, come sulla commissione robot) -->
+                        <label class="ord-check-noinst">
+                            <input type="checkbox" id="ord-senza-installazione">
+                            <span><strong>Senza servizio di installazione</strong> <small>(robot e prodotti che il cliente monta da s&eacute;, assumendosene la responsabilit&agrave;)</small></span>
+                        </label>
+                        <div id="ord-installazione-box" class="ord-installazione hidden">
+                            <p class="ord-installazione-testo">Con la sottoscrizione del presente atto, l'acquirente dichiara di acquistare il suddetto bene e di non avvalersi del servizio d'installazione. In tale caso, le parti concordano che il Venditore resta espressamente esonerato da ogni responsabilit&agrave; per danni, malfunzionamenti o prestazioni non conformi del prodotto imputabili, anche indirettamente, ad un'errata ed impropria installazione.</p>
+                            <label>Firma per accettazione della dichiarazione <small>(seconda firma del cliente)</small></label>
+                            <div id="ord-firma2-box" class="ord-firma-box">
+                                <canvas id="ord-firma2"></canvas>
+                                <span class="ord-firma-segno">&#10005;</span>
+                                <button type="button" id="ord-firma2-cancella" class="btn-back mac-btn-piccolo">Cancella firma</button>
+                            </div>
+                        </div>
+
                         <div class="ord-totale-box"><span>TOTALE</span><strong id="ord-totale">-</strong></div>
 
-                        <label>Firma per accettazione <small>(il cliente firma qui con il dito o la penna)</small></label>
+
+                        <label>Firma per accettazione delle condizioni di vendita <small>(il cliente firma qui con il dito o la penna)</small></label>
                         <div id="ord-firma-box" class="ord-firma-box">
                             <canvas id="ord-firma"></canvas>
                             <span class="ord-firma-segno">&#10005;</span>

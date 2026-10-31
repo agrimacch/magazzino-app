@@ -62,6 +62,9 @@ alter table public.macchine_ordini add column if not exists operatore text;     
 alter table public.macchine_ordini add column if not exists drive_url text;          -- PDF salvato su Google Drive
 alter table public.macchine_ordini add column if not exists drive_file_id text;
 alter table public.macchine_ordini add column if not exists drive_salvato_at timestamptz;
+-- Ordine "senza servizio di installazione" (robot e prodotti montati dal cliente): seconda dichiarazione con firma propria
+alter table public.macchine_ordini add column if not exists senza_installazione boolean not null default false;
+alter table public.macchine_ordini add column if not exists firma_installazione text;   -- PNG base64
 
 -- Collegamento macchina del quaderno -> riga dell'ordine
 alter table public.macchine_pezzi add column if not exists ordine_riga_id bigint

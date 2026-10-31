@@ -90,7 +90,8 @@ FILE PRINCIPALI
 - macchine-report.js - Inventario Macchine > Report vendite e Valore magazzino, Excel e PDF (v6.2.0)
 - ordini-functions.js + ordini.css - Vendite > Ordini Clienti: modulo, firma, stati, PDF, Drive; contiene anche la creazione PDF comune (v6.2.0)
 - supabase/inventario-macchine-setup.sql - tabelle macchine (eseguito)
-- supabase/ordini-clienti-setup.sql - tabelle ordini + colonne operatore/Drive (rieseguibile)
+- supabase/ordini-clienti-setup.sql - tabelle ordini + colonne operatore/Drive/senza installazione (rieseguibile)
+- supabase/ordini-senza-installazione.sql - colonne senza_installazione + firma_installazione (DA ESEGUIRE, 31/10)
 - supabase/macchine-operatori.sql - apre macchine e ordini agli operatori (DA ESEGUIRE prima di mettere online)
 - supabase/pulizia-prove-macchine.sql - svuota quaderno, movimenti e ordini dopo le prove (DA ESEGUIRE una volta, a prove finite)
 - supabase/ordini-drive.ts + google/ordini-drive.gs - PDF ordini su Google Drive. Guida: GUIDA_ORDINI_DRIVE.md
@@ -395,7 +396,16 @@ Sostituiscono il blocchetto delle commissioni (solo ordini, niente preventivi). 
   quantita}] in user_metadata.ordineBozza (+ copia localStorage), riletta con getUser() quando si apre listino/ordini (multi-dispositivo).
   Barra verde in cima al listino e in cima agli Ordini Clienti: "Crea l'ordine" (dal listino apre Ordini > Nuovo e mette le righe,
   ricontrolla Disponibile/Da ordinare con la quantita'), "Svuota". Usata la bozza si svuota. Stesso articolo = quantita' +1.
-- Firma del cliente sullo schermo (canvas, salvata come PNG nel campo firma).
+- Firma del cliente sullo schermo (canvas, salvata come PNG nel campo firma). Due riquadri firma gestiti da ordFirme.vendita /
+  ordFirme.installazione (ordFirmaCollega, ordFirmaPulisciUna, ordFirmaImposta, ordFirmaDatiUna).
+- SENZA SERVIZIO DI INSTALLAZIONE (31/10): casellina #ord-senza-installazione (spenta di default) nel modulo; mostra il testo
+  ORD_CONDIZIONI_NO_INSTALLAZIONE e la seconda firma. Colonne macchine_ordini.senza_installazione (boolean) e firma_installazione
+  (PNG) -> supabase/ordini-senza-installazione.sql (anche in ordini-clienti-setup.sql). I campi si mandano solo se usati
+  (ordCampiInstallazione), cosi' gli ordini normali funzionano anche senza le colonne. PDF: dichiarazione + firma DENTRO il
+  riquadro dell'ordine (tbody .ordd-noinst-corpo tra le righe articoli e la riga Disponibile/Totale, bordo verde, come la
+  commissione COMM. ROBOT di Donny); condizioni di vendita + firma FUORI, sotto.
+  Badge NO INST. in elenco e nel dettaglio. Testo della dichiarazione = quello scritto da Donny (NON quello corto della bozza PDF).
+  Nel modulo dell'app la casellina e la dichiarazione stanno sopra il TOTALE.
 - Stato calcolato dalle macchine collegate: Da ordinare -> Ordinato -> In casa -> Consegnato (oppure Annullato).
 - Dettaglio: PDF/Stampa, "Ordinato al fornitore" (bianco->blu), quando arriva il carico la assegna da solo, "Consegnato al cliente"
   (croce), Modifica dati cliente/firma (righe bloccate; cambio nome aggiornato anche nel quaderno), Annulla (in casa tornano
