@@ -234,7 +234,8 @@
     border-color: var(--primary);
 }
 
-#ord-firma {
+#ord-firma,
+#ord-firma2 {
     position: absolute;
     inset: 0;
     width: 100%;
@@ -255,7 +256,8 @@
     pointer-events: none;
 }
 
-#ord-firma-cancella {
+#ord-firma-cancella,
+#ord-firma2-cancella {
     position: absolute;
     right: 8px;
     bottom: 6px;
@@ -1024,3 +1026,6 @@
 .ordd-noinst-testo strong { font-weight: 700; color: #3f5a2c; text-transform: uppercase; letter-spacing: 0.3px; }
 .pdf-foglio .ordd-righe .ordd-noinst-firma,
 .ordd-noinst-firma { padding: 6px 8px 4px !important; vertical-align: bottom !important; }
+@media (max-width: 768px) {
+    .ord-installazione-testo { text-align: left; }
+}
