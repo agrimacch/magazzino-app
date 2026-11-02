@@ -1,5 +1,8 @@
 # Changelog App Magazzino
 
+## v6.3.0 - 2026-11-02 (PRODUZIONE)
+RICHIESTE INTERVENTI ROBOT
+
 ## v6.2.1 - 2026-10-31 (PRODUZIONE)
 nascondere a operatore magazzino e ordini
 

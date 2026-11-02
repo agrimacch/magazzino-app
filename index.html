@@ -17,12 +17,14 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Kalam:wght@400;700&family=Roboto+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=6.2.1">
-    <link rel="stylesheet" href="listino.css?v=6.2.1">
-    <link rel="stylesheet" href="fornitori.css?v=6.2.1">
-    <link rel="stylesheet" href="interventi.css?v=6.2.1">
-    <link rel="stylesheet" href="macchine.css?v=6.2.1">
-    <link rel="stylesheet" href="ordini.css?v=6.2.1">
+    <link rel="stylesheet" href="style.css?v=6.3.0">
+    <link rel="stylesheet" href="listino.css?v=6.3.0">
+    <link rel="stylesheet" href="fornitori.css?v=6.3.0">
+    <link rel="stylesheet" href="interventi.css?v=6.3.0">
+    <link rel="stylesheet" href="macchine.css?v=6.3.0">
+    <link rel="stylesheet" href="ordini.css?v=6.3.0">
+    <link rel="stylesheet" href="azienda.css?v=6.3.0">
+    <link rel="stylesheet" href="richieste.css?v=6.3.0">
 
     <!-- SheetJS per import Excel -->
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
@@ -83,7 +85,7 @@
 
 <body class="loading">
     <!-- Version badge -->
-    <div class="version-badge">v6.2.1</div>
+    <div class="version-badge">v6.3.0</div>
 
     <!-- SCHERMATA LOGIN -->
     <div id="login-screen" class="screen">
@@ -139,6 +141,9 @@
             <div class="user-info">
                 <!-- Campanella notifiche listino (numerino = modifiche di altri non ancora viste) -->
                 <button type="button" id="notifiche-btn" class="notifiche-btn" title="Notifiche" aria-label="Notifiche">&#128276;<span id="notifiche-badge" class="notifiche-badge hidden"></span></button>
+                <!-- Organizzazione interventi robot (mappa): solo admin, sempre visibile in alto -->
+                <button type="button" id="org-btn" class="notifiche-btn" title="Organizzazione interventi robot (mappa)" aria-label="Organizzazione interventi robot"
+                    onclick="openSection('organizzazione-robot')" style="display: none;">&#127758;<span id="ass-badge-organizzazione" class="notifiche-badge hidden"></span></button>
                 <span id="user-role" class="role-badge"></span>
                 <button id="logout-btn" class="btn-secondary">Logout</button>
             </div>
@@ -167,11 +172,20 @@
                     <p>Listino vendite e listini fornitori</p>
                 </div>
 
-                <!-- Card Tecnici (contiene: Interventi Esterni) - per ora solo admin -->
-                <div class="dashboard-card" id="dashboard-tecnici-card" onclick="openSection('tecnici')" style="display: none;">
-                    <span class="card-icon">&#128119;</span>
-                    <h3>Tecnici</h3>
-                    <p>Interventi esterni dei tecnici</p>
+                <!-- Card ASSISTENZA (ex Tecnici: Interventi Esterni, Richieste e Organizzazione interventi robot,
+                     Richieste interventi, Richieste tagliandi) - visibile a tutti; le card interne dipendono dal ruolo -->
+                <div class="dashboard-card" id="dashboard-tecnici-card" onclick="openSection('assistenza')" style="display: none;">
+                    <span id="ass-badge-dashboard" class="ass-badge hidden"></span>
+                    <span class="card-icon">&#128736;&#65039;</span>
+                    <h3>Assistenza</h3>
+                    <p>Interventi esterni, richieste e organizzazione</p>
+                </div>
+
+                <!-- Card Dati aziendali (solo admin) -->
+                <div class="dashboard-card" id="dashboard-azienda-card" onclick="openSection('azienda')" style="display: none;">
+                    <span class="card-icon">&#127970;</span>
+                    <h3>Dati aziendali</h3>
+                    <p>Intestazione di ordini e report</p>
                 </div>
 
                 <!-- Card Gestione Utenti (solo admin) -->
@@ -1392,26 +1406,167 @@
         </div>
 
         <!-- ========================================== -->
-        <!-- CATEGORIA TECNICI (menu: Interventi Esterni) -->
+        <!-- CATEGORIA ASSISTENZA (ex Tecnici)            -->
+        <!-- Card visibili secondo il ruolo: vedi          -->
+        <!-- SEZIONI_ASSISTENZA_RUOLI in app.js            -->
         <!-- ========================================== -->
-        <div id="section-tecnici" class="section-container hidden">
+        <div id="section-assistenza" class="section-container hidden">
             <div class="back-to-dashboard">
                 <button onclick="backToDashboard()" class="btn-back">
                     &#8592; Torna alla Dashboard
                 </button>
-                <h2 class="section-title">&#128119; Tecnici</h2>
+                <h2 class="section-title">&#128736;&#65039; Assistenza</h2>
             </div>
             <div class="dashboard-container">
                 <div class="dashboard-header">
-                    <p>Seleziona una sezione dei tecnici</p>
+                    <p>Seleziona una sezione dell'assistenza</p>
                 </div>
                 <div class="dashboard-grid hub-grid">
-                    <!-- Card Interventi Esterni -->
+                    <!-- Card Interventi Esterni (tutti; i tecnici in sola lettura) -->
                     <div class="dashboard-card" onclick="openSection('interventi-esterni')">
                         <span class="card-icon">&#128656;</span>
                         <h3>Interventi Esterni</h3>
                         <p>Planning settimanale degli interventi dei tecnici</p>
                     </div>
+
+                    <!-- Card Richieste interventi robot -->
+                    <div class="dashboard-card" id="ass-card-richieste-robot" onclick="openSection('richieste-robot')" style="display: none;">
+                        <span id="ass-badge-richieste" class="ass-badge hidden"></span>
+                        <span class="card-icon">&#129302;</span>
+                        <h3>Richieste interventi robot</h3>
+                        <p>Chiamate dei clienti: assistenza, sopralluoghi e montaggi</p>
+                    </div>
+
+                    <!-- Organizzazione interventi robot: niente card, si apre col pulsante mappamondo in alto (solo admin) -->
+
+                    <!-- Card Richieste interventi (trattori, trattorini, ecc.) - in costruzione -->
+                    <div class="dashboard-card ass-card-costruzione" id="ass-card-richieste-interventi" onclick="openSection('richieste-interventi')" style="display: none;">
+                        <span class="card-icon">&#128668;</span>
+                        <h3>Richieste interventi</h3>
+                        <p>Trattori, trattorini rasaerba, ecc. (in costruzione)</p>
+                    </div>
+
+                    <!-- Card Richieste tagliandi - in costruzione -->
+                    <div class="dashboard-card ass-card-costruzione" id="ass-card-richieste-tagliandi" onclick="openSection('richieste-tagliandi')" style="display: none;">
+                        <span class="card-icon">&#128295;</span>
+                        <h3>Richieste tagliandi</h3>
+                        <p>In costruzione</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- RICHIESTE INTERVENTI ROBOT                   -->
+        <!-- ========================================== -->
+        <div id="section-richieste-robot" class="section-container hidden">
+            <div class="back-to-dashboard">
+                <div class="back-buttons">
+                    <button onclick="openSection('assistenza')" class="btn-back">
+                        &#8592; Torna ad Assistenza
+                    </button>
+                    <button onclick="backToDashboard()" class="btn-back btn-dashboard">
+                        &#127968; Dashboard
+                    </button>
+                </div>
+                <h2 class="section-title">&#129302; Richieste interventi robot</h2>
+            </div>
+            <div class="container">
+                <div id="rr-avvisi" class="rr-avvisi hidden"></div>
+
+                <div class="rr-strumenti">
+                    <button type="button" id="rr-btn-nuova" class="btn-primary hidden" onclick="rrApriNuova()">&#10133; Nuova richiesta</button>
+                    <input type="search" id="rr-cerca" class="rr-cerca" placeholder="Cerca cliente, paese, telefono, note..." autocomplete="off"
+                        oninput="rrCambiaCerca(this.value)">
+                    <select id="rr-filtro" onchange="rrImpostaFiltro(this.value)">
+                        <option value="TUTTE">Tutte</option>
+                        <option value="APERTE">Aperte (non OK / NO)</option>
+                        <option value="VUOTO">Da organizzare</option>
+                        <option value="-">Organizzate (-)</option>
+                        <option value="NR">Non risponde (NR)</option>
+                        <option value="OK">Confermate (OK)</option>
+                        <option value="NO">Annullate (NO)</option>
+                        <option value="SCADENZE">Scadute / in scadenza</option>
+                    </select>
+                    <button type="button" class="btn-back rr-solo-admin hidden" onclick="rrPdfAnno()">&#128196; PDF anno</button>
+                    <button type="button" class="btn-back rr-solo-admin hidden" onclick="rrPuliziaAnno()">&#128230; Pulizia fine anno</button>
+                </div>
+                <p id="rr-conta" class="rr-conta"></p>
+                <div id="rr-tabella-box" class="rr-tabella-box"></div>
+            </div>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- ORGANIZZAZIONE INTERVENTI ROBOT (mappa)       -->
+        <!-- ========================================== -->
+        <div id="section-organizzazione-robot" class="section-container hidden">
+            <div class="back-to-dashboard">
+                <div class="back-buttons">
+                    <button onclick="openSection('richieste-robot')" class="btn-back">
+                        &#8592; Torna alle Richieste robot
+                    </button>
+                    <button onclick="backToDashboard()" class="btn-back btn-dashboard">
+                        &#127968; Dashboard
+                    </button>
+                </div>
+                <h2 class="section-title">&#127758; Organizzazione interventi robot</h2>
+            </div>
+            <div class="container">
+                <div id="org-avvisi" class="rr-avvisi hidden"></div>
+                <div class="org-mappa-box">
+                    <div id="org-mappa"></div>
+                    <button type="button" class="org-mappa-btn" onclick="rrCentraSede()" title="Torna alla sede">&#127968; Sede</button>
+                </div>
+                <div id="org-legenda" class="org-legenda"></div>
+                <p id="org-conta" class="org-conta"></p>
+                <div id="org-contenitori" class="org-contenitori"></div>
+            </div>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- RICHIESTE INTERVENTI (in costruzione)        -->
+        <!-- ========================================== -->
+        <div id="section-richieste-interventi" class="section-container hidden">
+            <div class="back-to-dashboard">
+                <div class="back-buttons">
+                    <button onclick="openSection('assistenza')" class="btn-back">
+                        &#8592; Torna ad Assistenza
+                    </button>
+                    <button onclick="backToDashboard()" class="btn-back btn-dashboard">
+                        &#127968; Dashboard
+                    </button>
+                </div>
+                <h2 class="section-title">&#128668; Richieste interventi</h2>
+            </div>
+            <div class="container">
+                <div class="card placeholder-card">
+                    <span class="placeholder-icon">&#128679;</span>
+                    <h2>Sezione in costruzione</h2>
+                    <p>Richieste di intervento per trattori, trattorini rasaerba, ecc.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- RICHIESTE TAGLIANDI (in costruzione)         -->
+        <!-- ========================================== -->
+        <div id="section-richieste-tagliandi" class="section-container hidden">
+            <div class="back-to-dashboard">
+                <div class="back-buttons">
+                    <button onclick="openSection('assistenza')" class="btn-back">
+                        &#8592; Torna ad Assistenza
+                    </button>
+                    <button onclick="backToDashboard()" class="btn-back btn-dashboard">
+                        &#127968; Dashboard
+                    </button>
+                </div>
+                <h2 class="section-title">&#128295; Richieste tagliandi</h2>
+            </div>
+            <div class="container">
+                <div class="card placeholder-card">
+                    <span class="placeholder-icon">&#128679;</span>
+                    <h2>Sezione in costruzione</h2>
+                    <p>Richieste di tagliando.</p>
                 </div>
             </div>
         </div>
@@ -1422,8 +1577,8 @@
         <div id="section-interventi-esterni" class="section-container hidden">
             <div class="back-to-dashboard">
                 <div class="back-buttons">
-                    <button onclick="openSection('tecnici')" class="btn-back">
-                        &#8592; Torna a Tecnici
+                    <button onclick="openSection('assistenza')" class="btn-back">
+                        &#8592; Torna ad Assistenza
                     </button>
                     <button onclick="backToDashboard()" class="btn-back btn-dashboard">
                         &#127968; Dashboard
@@ -1489,6 +1644,79 @@
         <!-- ========================================== -->
         <!-- SEZIONE GESTIONE UTENTI -->
         <!-- ========================================== -->
+        <!-- ========================================== -->
+        <!-- DATI AZIENDALI (solo admin) -->
+        <!-- ========================================== -->
+        <div id="section-azienda" class="section-container hidden">
+            <div class="back-to-dashboard">
+                <button onclick="backToDashboard()" class="btn-back">
+                    &#8592; Torna alla Dashboard
+                </button>
+                <h2 class="section-title">&#127970; Dati aziendali</h2>
+            </div>
+
+            <div class="container">
+                <div class="card az-card">
+                    <h2>&#127970; Dati aziendali</h2>
+                    <p class="mac-aiuto">Questi dati (e il logo) compaiono nell'intestazione di ordini clienti e report. Li vede e li modifica solo l'admin; valgono per tutti gli utenti.</p>
+                    <div id="az-avviso" class="az-avviso hidden">&#9888;&#65039; Dati non ancora salvati sul server: per usare il pannello esegui una volta su Supabase lo script <strong>supabase/dati-azienda-setup.sql</strong>.</div>
+                    <form id="az-form" autocomplete="off">
+                        <label for="az-ragione_sociale">Ragione sociale *</label>
+                        <input type="text" id="az-ragione_sociale">
+                        <label for="az-indirizzo">Indirizzo</label>
+                        <input type="text" id="az-indirizzo" placeholder="Via, numero - CAP Citt&agrave; (Provincia)">
+                        <div class="form-row az-due">
+                            <div class="form-col">
+                                <label for="az-telefono">Telefono</label>
+                                <input type="tel" id="az-telefono">
+                            </div>
+                            <div class="form-col">
+                                <label for="az-telefono_whatsapp">Telefono / WhatsApp</label>
+                                <input type="tel" id="az-telefono_whatsapp">
+                            </div>
+                        </div>
+                        <div class="form-row az-due">
+                            <div class="form-col">
+                                <label for="az-email">E-mail</label>
+                                <input type="email" id="az-email">
+                            </div>
+                            <div class="form-col">
+                                <label for="az-sito_web">Sito web</label>
+                                <input type="text" id="az-sito_web" class="az-minuscolo" placeholder="www.esempio.it">
+                            </div>
+                        </div>
+                        <div class="form-row az-due">
+                            <div class="form-col">
+                                <label for="az-partita_iva">Partita IVA</label>
+                                <input type="text" id="az-partita_iva">
+                            </div>
+                            <div class="form-col">
+                                <label for="az-codice_fiscale">Codice fiscale</label>
+                                <input type="text" id="az-codice_fiscale">
+                            </div>
+                        </div>
+                        <label for="az-codice_univoco">Codice univoco (SDI)</label>
+                        <input type="text" id="az-codice_univoco">
+
+                        <label>Logo <small>(PNG consigliato, meglio con sfondo trasparente)</small></label>
+                        <div class="az-logo">
+                            <img id="az-logo-img" src="logo.png" alt="Logo">
+                            <div class="az-logo-comandi">
+                                <span id="az-logo-nota" class="mac-aiuto"></span>
+                                <input type="file" id="az-logo-file" accept="image/png,image/jpeg,image/webp">
+                                <button type="button" id="az-logo-togli" class="btn-back mac-btn-piccolo hidden">Togli il logo</button>
+                            </div>
+                        </div>
+
+                        <label>Anteprima dell'intestazione</label>
+                        <div id="az-anteprima" class="az-anteprima"></div>
+
+                        <button type="submit" id="az-salva" class="btn-primary">&#128190; Salva dati aziendali</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
         <div id="section-utenti" class="section-container hidden">
             <!-- Pulsante Torna alla Dashboard -->
             <div class="back-to-dashboard">
@@ -2038,20 +2266,12 @@
     <div id="whats-new-modal" class="modal hidden">
         <div class="modal-content whats-new-content">
             <div class="whats-new-header">
-                <h3>&#127881; AGRIDESK v6.2.1 - Aggiornamento!</h3>
-                <p class="version-date">31 Ottobre 2026</p>
+                <h3>&#127881; AGRIDESK v6.3.0 - Aggiornamento!</h3>
+                <p class="version-date">02 Novembre 2026</p>
             </div>
 
             <!-- INIZIO_FEATURES -->
             <div class="whats-new-body">
-
-                <div class="new-feature">
-                    <span class="feature-icon">&#11088;</span>
-                    <div class="feature-content">
-                        <h4>MAGAZZINO MACCHINE CON REPORT</h4>
-                        <p></p>
-                    </div>
-                </div>
 
             </div>
             <!-- FINE_FEATURES -->
@@ -2087,6 +2307,92 @@
     <!-- ========================================== -->
     <!-- INTERVENTI ESTERNI: modifica riga -->
     <!-- ========================================== -->
+    <!-- RICHIESTE INTERVENTI ROBOT: nuova / modifica -->
+    <div id="rr-modal" class="modal hidden">
+        <div class="modal-content rr-modal-content">
+            <div class="modal-header">
+                <h3 id="rr-modal-titolo">&#10133; Nuova richiesta</h3>
+                <button type="button" class="modal-close" onclick="rrChiudiFinestra()">&times;</button>
+            </div>
+            <div id="rr-f-info" class="rr-f-info hidden"></div>
+
+            <div class="rr-f-due">
+                <div class="form-col">
+                    <label for="rr-f-operatore">Operatore (OP)</label>
+                    <input type="text" id="rr-f-operatore" maxlength="6" autocomplete="off">
+                </div>
+                <div class="form-col">
+                    <label for="rr-f-data">Data chiamata</label>
+                    <input type="date" id="rr-f-data" onchange="rrAggiornaScadenzaForm()">
+                </div>
+            </div>
+
+            <label for="rr-f-cliente">Cognome e nome *</label>
+            <input type="text" id="rr-f-cliente" maxlength="80" autocomplete="off" placeholder="es. ROSSI MARIO">
+
+            <label for="rr-f-indirizzo">Indirizzo *</label>
+            <div class="rr-f-indirizzo-box">
+                <input type="text" id="rr-f-indirizzo" maxlength="150" autocomplete="off" placeholder="Via, numero e paese (es. VIA ROMA 5 MIRANO): compaiono i suggerimenti"
+                    oninput="rrIndirizzoCambiato()" onkeydown="rrIndirizzoTasto(event)" onblur="setTimeout(rrNascondiSuggerimenti, 200)">
+                <div id="rr-f-sugg" class="rr-sugg hidden"></div>
+            </div>
+
+            <div class="rr-f-due">
+                <div class="form-col">
+                    <label for="rr-f-paese">Paese <small style="font-weight: 400; color: var(--gray);">(per planning e meteo)</small></label>
+                    <input type="text" id="rr-f-paese" maxlength="60" autocomplete="off" placeholder="si compila dal suggerimento">
+                </div>
+                <div class="form-col">
+                    <label for="rr-f-telefono">Telefono *</label>
+                    <input type="tel" id="rr-f-telefono" maxlength="40" autocomplete="off">
+                </div>
+            </div>
+
+            <label for="rr-f-note">Note (richiesta del cliente)</label>
+            <textarea id="rr-f-note" rows="3" oninput="rrNoteCambiate()"
+                placeholder="Problema / modello del robot. Inizia con SOPRALLUOGO o MONTAGGIO per quei tipi."></textarea>
+
+            <label>Tipo <small style="font-weight: 400; color: var(--gray);">(dedotto dalle note, si pu&ograve; cambiare)</small></label>
+            <div id="rr-f-tipo" class="int-scelte" data-valore="INT">
+                <button type="button" data-valore="INT" onclick="rrScegliTipo('INT')">&#128308; Assistenza</button>
+                <button type="button" data-valore="SOP" onclick="rrScegliTipo('SOP')">&#128993; Sopralluogo</button>
+                <button type="button" data-valore="MONT" onclick="rrScegliTipo('MONT')">&#128309; Montaggio</button>
+            </div>
+
+            <label for="rr-f-urgenza">Urgenza <small style="font-weight: 400; color: var(--gray);">(U1 = in giornata, Un = entro n giorni lavorativi)</small></label>
+            <div class="rr-urgenza-riga">
+                <div class="rr-urgenza-campo">
+                    <span>U</span>
+                    <input type="text" id="rr-f-urgenza" inputmode="numeric" maxlength="2" autocomplete="off" oninput="rrAggiornaScadenzaForm()">
+                </div>
+                <div id="rr-f-urg-rapide" class="int-scelte">
+                    <button type="button" data-valore="1" onclick="rrScegliUrgenza(1)">U1</button>
+                    <button type="button" data-valore="2" onclick="rrScegliUrgenza(2)">U2</button>
+                    <button type="button" data-valore="3" onclick="rrScegliUrgenza(3)">U3</button>
+                    <button type="button" data-valore="5" onclick="rrScegliUrgenza(5)">U5</button>
+                    <button type="button" data-valore="" onclick="rrScegliUrgenza(null)">&ndash;</button>
+                </div>
+            </div>
+            <div id="rr-f-scadenza" class="rr-f-scadenza"></div>
+
+            <label>Esito <small style="font-weight: 400; color: var(--gray);">(si aggiorna da solo dal planning)</small></label>
+            <div id="rr-f-esito" class="int-scelte" data-valore="">
+                <button type="button" data-valore="" onclick="intSelezionaScelta('rr-f-esito', '')" title="Da organizzare">vuoto</button>
+                <button type="button" data-valore="-" onclick="intSelezionaScelta('rr-f-esito', '-')" title="Organizzato, in attesa di conferma">-</button>
+                <button type="button" data-valore="OK" onclick="intSelezionaScelta('rr-f-esito', 'OK')" title="Confermato">OK</button>
+                <button type="button" data-valore="NR" onclick="intSelezionaScelta('rr-f-esito', 'NR')" title="Non risponde">NR</button>
+                <button type="button" data-valore="NO" onclick="intSelezionaScelta('rr-f-esito', 'NO')" title="Annullato: sparisce dalla mappa">NO</button>
+            </div>
+
+            <button type="button" id="rr-f-elimina" class="rr-btn-elimina hidden" onclick="rrElimina()">&#128465;&#65039; Elimina richiesta</button>
+
+            <div class="modal-buttons">
+                <button type="button" id="rr-f-salva" class="btn-primary" onclick="rrSalva()">Salva</button>
+                <button type="button" class="btn-secondary" onclick="rrChiudiFinestra()">Annulla</button>
+            </div>
+        </div>
+    </div>
+
     <div id="int-edit-modal" class="modal hidden">
         <div class="modal-content">
             <div class="modal-header">
@@ -2117,8 +2423,14 @@
             </div>
 
             <label for="int-edit-cliente">Cliente</label>
-            <textarea id="int-edit-cliente" rows="2" placeholder="Nome Cognome - Paese - Telefono   (es. MARIO ROSSI - MIRA - 3471234567)"></textarea>
-            <small class="int-nota">Il <strong>paese</strong> serve per il meteo, il <strong>cellulare</strong> per il promemoria WhatsApp.</small>
+            <div class="int-sugg-box">
+                <textarea id="int-edit-cliente" rows="2" placeholder="Nome Cognome - Paese - Telefono   (es. MARIO ROSSI - MIRA - 3471234567)"
+                    oninput="intSuggerisciRichieste()" onfocus="intSuggerisciRichieste()" onblur="setTimeout(intNascondiSuggRichieste, 200)"></textarea>
+                <div id="int-edit-sugg" class="int-sugg hidden"></div>
+            </div>
+            <div id="int-edit-collegata" class="int-collegata hidden"></div>
+            <small class="int-nota">Il <strong>paese</strong> serve per il meteo, il <strong>cellulare</strong> per il promemoria WhatsApp.
+                Scrivendo il nome compaiono le <strong>richieste interventi robot</strong> aperte: sceglierne una aggancia la riga alla richiesta.</small>
 
             <label>Colore riga</label>
             <div id="int-edit-colore" class="int-scelte int-scelte-colore" data-valore="">
@@ -2225,13 +2537,15 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- Versione bloccata (la libreria non e' piu' mantenuta: cosi' non cambia mai da sola) -->
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-    <script src="ricambi-functions.js?v=6.2.1"></script>
-    <script src="listino-functions.js?v=6.2.1"></script>
-    <script src="fornitori-functions.js?v=6.2.1"></script>
-    <script src="interventi-functions.js?v=6.2.1"></script>
-    <script src="macchine-functions.js?v=6.2.1"></script>
-    <script src="macchine-report.js?v=6.2.1"></script>
-    <script src="ordini-functions.js?v=6.2.1"></script>
-    <script src="app.js?v=6.2.1"></script>
+    <script src="ricambi-functions.js?v=6.3.0"></script>
+    <script src="listino-functions.js?v=6.3.0"></script>
+    <script src="fornitori-functions.js?v=6.3.0"></script>
+    <script src="interventi-functions.js?v=6.3.0"></script>
+    <script src="macchine-functions.js?v=6.3.0"></script>
+    <script src="macchine-report.js?v=6.3.0"></script>
+    <script src="ordini-functions.js?v=6.3.0"></script>
+    <script src="azienda-functions.js?v=6.3.0"></script>
+    <script src="richieste-robot-functions.js?v=6.3.0"></script>
+    <script src="app.js?v=6.3.0"></script>
 </body>
 </html>

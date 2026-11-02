@@ -20,7 +20,7 @@
 //         le sezioni, il carrello "bozza ordine" e il conteggio macchine nel listino.
 // true  = admin E operatori (stessi permessi), mai i tecnici.
 // Su Supabase la funzione puo_gestire_macchine() accetta gia' admin e operatori (supabase/macchine-operatori.sql).
-const MACCHINE_PER_OPERATORI = false;
+const MACCHINE_PER_OPERATORI = true;   // dal 2/11/2026 (con supabase/macchine-operatori.sql eseguito)
 
 let macPezzi = [];              // tutti i pezzi
 let macComposizione = [];       // righe { set_id, componente_id, quantita }

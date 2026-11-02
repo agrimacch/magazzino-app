@@ -15,6 +15,10 @@
 // parte UN riepilogo (stato finale delle righe, da oggi in avanti) nel gruppo "Interventi esterni"
 // (Edge Function notifica-interventi, bot @interventiesterni_bot).
 // Fine anno: "Archivia anno" (solo admin) scarica l'Excel dell'anno e svuota il server.
+// Collegamento con le RICHIESTE INTERVENTI ROBOT (v6.3.0): scrivendo il cliente compaiono le
+// richieste aperte; scegliendone una la casella si aggancia (colonna richiesta_id) e l'esito
+// passa da solo alla richiesta (trigger su Supabase). Telefono e paese del cliente sono link
+// (chiamata / Google Maps) per tutti, tecnici compresi.
 // ========================================
 
 const INT_INIZIO = '2026-11-02';    // prima settimana gestita dall'app
@@ -45,6 +49,13 @@ let intColoraParte = 'G';        // M / P / G (giornata)
 let intCanale = null;
 let intRicaricaTimer = null;
 let intPrimaApertura = true;
+
+// Collegamento con le Richieste interventi robot (v6.3.0)
+let intRichiesteAttive = null;   // null = non ancora controllato; false = script SQL non eseguito
+let intRichiesteMappa = {};      // id -> richiesta agganciata a una riga della settimana
+let intCandidati = [];           // richieste aperte per i suggerimenti
+let intCandidatiAt = 0;
+let intRichiestaScelta = null;   // richiesta agganciata nella finestra di modifica
 
 // ---------- Utilita' ----------
 function intEsc(valore) {
@@ -339,6 +350,8 @@ async function intCaricaSettimana() {
     (resInt.data || []).forEach(r => {
         intDati[intChiave(r.tecnico_id, r.data, r.turno, r.posizione)] = r;
     });
+    await intCaricaRichiesteAgganciate(resInt.data || []);
+    if (intSettimana !== lun) return;
     intRender();
     intAggiornaDaInviare();
     intCaricaMeteo();
@@ -408,7 +421,7 @@ function intCelleRiga(r) {
     return '<td class="int-c-ora">' + intEsc(r && r.ora) + '</td>' +
         '<td class="int-c-tipo">' + intEsc(r && r.tipo) + '</td>' +
         '<td class="int-c-esito"><span class="int-esito ' + intClasseEsito(esito) + '">' + intEsc(esito) + '</span></td>' +
-        '<td class="int-c-cliente">' + intEsc(r && r.cliente) + (r ? ' ' + intMeteoBadge(r) : '') + '</td>';
+        '<td class="int-c-cliente">' + intClienteHtml(r) + (r ? ' ' + intMeteoBadge(r) : '') + '</td>';
 }
 
 function intClasseEsito(esito) {
@@ -419,9 +432,16 @@ function intClasseEsito(esito) {
     return '';
 }
 
-function intClassiRiga(r, turno, pos) {
+// Giorno di chiusura (festivo o santo patrono, elenco in richieste-robot-functions.js): righe rosse di default.
+// Solo aspetto: non viene salvato nulla; una riga colorata a mano tiene il suo colore.
+function intFesta(data) {
+    return typeof rrNomeFestivo === 'function' ? rrNomeFestivo(data) : null;
+}
+
+function intClassiRiga(r, turno, pos, data) {
     const classi = ['int-riga'];
     if (r && r.colore) classi.push('col-' + r.colore);
+    else if (data && intFesta(data)) classi.push('col-ROSSO', 'festa');
     if (turno === 'P' && pos === 1) classi.push('inizio-pom');
     if (r && r.esito === 'NO') classi.push('annullato');
     if (intPuoModificare()) classi.push('cliccabile');
@@ -438,13 +458,14 @@ function intRenderTabellaTecnico(t) {
         ['M', 'P'].forEach(turno => {
             for (let pos = 1; pos <= 4; pos++) {
                 const r = intDati[intChiave(t.id, data, turno, pos)];
-                righe += '<tr class="' + intClassiRiga(r, turno, pos) + (intEMio(r, mioId) ? ' mia' : '') + '"' +
+                righe += '<tr class="' + intClassiRiga(r, turno, pos, data) + (intEMio(r, mioId) ? ' mia' : '') + '"' +
                     (modificabile ? ' onclick="intClickRiga(' + t.id + ',\'' + data + '\',\'' + turno + '\',' + pos + ')"' : '') + '>';
                 if (turno === 'M' && pos === 1) {
                     righe += '<td rowspan="8" class="int-c-giorno' + (data === oggi ? ' oggi' : '') + '"' +
                         (modificabile ? ' onclick="event.stopPropagation(); intApriColora(' + t.id + ',\'' + data + '\')" title="Colora mattina / pomeriggio / giornata"' : '') + '>' +
                         '<span class="int-giorno-nome">' + INT_GIORNI[gi] + '</span>' +
                         '<span class="int-giorno-num">' + intDaIso(data).getDate() + '</span>' +
+                        (intFesta(data) ? '<span class="int-giorno-festa" title="' + intEsc(intFesta(data)) + '">FESTA</span>' : '') +
                         (eMio && intMieiNelGiorno(data, mioId) ? '<span class="int-mio-pallino">' + intMieiNelGiorno(data, mioId) + '</span>' : '') +
                         (intPioggiaNelGiorno(data, t.id) ? '<span class="int-giorno-pioggia" title="Pioggia prevista">&#127783;&#65039;</span>' : '') +
                         (modificabile ? '<span class="int-giorno-colora">&#127912;</span>' : '') +
@@ -477,6 +498,7 @@ function intRenderMobile(tecnici) {
             (miei ? ' con-miei' : '') + '" onclick="intScegliGiorno(' + gi + ')">' +
             (intPioggiaNelGiorno(data) ? '<span class="int-tab-pioggia" title="Pioggia prevista su qualche intervento">&#127783;&#65039;</span>' : '') +
             '<span>' + INT_GIORNI[gi] + '</span><strong>' + intDaIso(data).getDate() + '</strong>' +
+            (intFesta(data) ? '<span class="int-tab-festa" title="' + intEsc(intFesta(data)) + '"></span>' : '') +
             (miei ? '<span class="int-mio-pallino" title="I tuoi interventi">' + miei + '</span>' : '') + '</button>';
     });
     html += '</div>';
@@ -489,7 +511,8 @@ function intRenderMobile(tecnici) {
 
     const data = date[intGiornoMobile];
     const d = intDaIso(data);
-    html += '<div class="int-giorno-titolo">' + INT_GIORNI_LUNGHI[intGiornoMobile] + ' ' + d.getDate() + ' ' + INT_MESI[d.getMonth()] + '</div>';
+    html += '<div class="int-giorno-titolo">' + INT_GIORNI_LUNGHI[intGiornoMobile] + ' ' + d.getDate() + ' ' + INT_MESI[d.getMonth()] +
+        (intFesta(data) ? ' <span class="int-festa-tag">&#127881; ' + intEsc(intFesta(data)) + '</span>' : '') + '</div>';
 
     tecnici.forEach(t => {
         const eMio = mioId === t.id;
@@ -503,6 +526,7 @@ function intRenderMobile(tecnici) {
                 const r = intDati[intChiave(t.id, data, turno, pos)];
                 const classi = ['int-m-riga'];
                 if (r && r.colore) classi.push('col-' + r.colore);
+                else if (intFesta(data)) classi.push('col-ROSSO', 'festa');
                 if (r && r.esito === 'NO') classi.push('annullato');
                 if (!intHaContenuto(r)) classi.push('vuota');
                 if (intEMio(r, mioId)) classi.push('mia');
@@ -515,7 +539,7 @@ function intRenderMobile(tecnici) {
                         (r.esito ? '<span class="int-esito ' + intClasseEsito(r.esito) + '">' + intEsc(r.esito) + '</span>' : '') +
                         intMeteoBadge(r) +
                         '</div>' +
-                        '<div class="int-m-cliente">' + intEsc(r.cliente || '') + '</div>';
+                        '<div class="int-m-cliente">' + intClienteHtml(r) + '</div>';
                 } else {
                     html += '<span class="int-m-libero">' + (modificabile ? '+ libero' : '&ndash;') + '</span>';
                 }
@@ -662,6 +686,10 @@ function intApriModifica(tid, data, turno, pos) {
     intSelezionaScelta('int-edit-colore', r && r.colore ? r.colore : '');
     document.getElementById('int-edit-svuota').classList.toggle('hidden', !r);
     intRenderPromemoriaFinestra(r);
+    intRichiestaScelta = r && r.richiesta_id ? (intRichiesteMappa[r.richiesta_id] || { id: r.richiesta_id, cliente: '' }) : null;
+    intNascondiSuggRichieste();
+    intRenderCollegata();
+    intCaricaCandidati(true);
 
     document.getElementById('int-edit-modal').classList.remove('hidden');
     if (!isMobile()) setTimeout(() => document.getElementById('int-edit-ora').focus(), 50);
@@ -670,6 +698,8 @@ function intApriModifica(tid, data, turno, pos) {
 function intChiudiModifica() {
     document.getElementById('int-edit-modal').classList.add('hidden');
     intModifica = null;
+    intRichiestaScelta = null;
+    intNascondiSuggRichieste();
 }
 
 // Pulsanti a scelta singola (tipo, esito, colore)
@@ -696,6 +726,8 @@ async function intSalvaModifica() {
         colore: intValoreScelta('int-edit-colore') || null
     };
     const vuota = !valori.ora && !valori.tipo && !valori.esito && !valori.cliente && !valori.colore;
+    // Aggancio alla richiesta interventi robot (solo se lo script SQL e' stato eseguito)
+    if (intRichiesteAttive) valori.richiesta_id = (!vuota && intRichiestaScelta) ? intRichiestaScelta.id : null;
     // Ora cambiata: il promemoria gia' mandato non e' piu' giusto -> tolgo il segno "inviato"
     if (c.riga && c.riga.promemoria_at && (c.riga.ora || '') !== (valori.ora || '')) {
         valori.promemoria_at = null;
@@ -748,6 +780,149 @@ async function intDimenticaSeInAttesa(c, dopo) {
     } catch (err) {
         console.log('Pulizia avvisi inviati non riuscita:', err);
     }
+}
+
+// ========================================
+// COLLEGAMENTO CON LE RICHIESTE INTERVENTI ROBOT (v6.3.0)
+// ========================================
+async function intControllaRichieste() {
+    // Se e' gia' attivo non ricontrollo; se non lo era riprovo (es. script SQL eseguito dopo l'apertura dell'app)
+    if (intRichiesteAttive === true) return true;
+    if (typeof rrCandidatiPlanning !== 'function') { intRichiesteAttive = false; return false; }
+    try {
+        const { error } = await supabaseClient.from('interventi').select('richiesta_id').limit(1);
+        intRichiesteAttive = !error;
+    } catch (e) {
+        intRichiesteAttive = false;
+    }
+    return intRichiesteAttive;
+}
+
+// Richieste agganciate alle righe della settimana (per i link di telefono / Google Maps)
+async function intCaricaRichiesteAgganciate(righe) {
+    intRichiesteMappa = {};
+    if (!(await intControllaRichieste())) return;
+    const ids = Array.from(new Set(righe.map(r => r.richiesta_id).filter(Boolean)));
+    if (!ids.length) return;
+    try {
+        const { data, error } = await supabaseClient.from('richieste_robot')
+            .select('id, cliente, indirizzo, paese, telefono, tipo, urgenza, esito, lat, lon, data').in('id', ids);
+        if (error) throw error;
+        (data || []).forEach(x => { intRichiesteMappa[x.id] = x; });
+    } catch (e) {
+        console.log('Richieste agganciate non lette:', e);
+    }
+}
+
+// Campo cliente con i link: telefono = chiamata, paese = Google Maps (indirizzo della richiesta se agganciata)
+function intClienteHtml(r) {
+    if (!r || !r.cliente) return '';
+    const ric = r.richiesta_id ? intRichiesteMappa[r.richiesta_id] : null;
+    const stop = ' onclick="event.stopPropagation()"';
+    // Pezzi separati dal trattino (con uno spazio almeno da una parte: "ROSSI MARIO - MIRA - 347...", "ROSSI MARIO -MIRA")
+    const parti = String(r.cliente).split(/\s+-\s*|\s*-\s+/);
+    let conMappa = false;
+    const html = parti.map((p, i) => {
+        const cifre = p.replace(/\D/g, '');
+        if (/^[\d\s.+\/()-]+$/.test(p) && cifre.length >= 6) {
+            const href = typeof rrTelHref === 'function' ? rrTelHref(p) : 'tel:' + cifre;
+            return '<a class="int-link-tel" href="' + intEsc(href) + '"' + stop + '>' + intEsc(p) + '</a>';
+        }
+        if (i === 1 && p.trim()) {
+            conMappa = true;
+            const url = (ric && typeof rrMapsUrl === 'function') ? rrMapsUrl(ric)
+                : 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(p.trim() + ', Italia');
+            return '<a class="int-link-paese" href="' + intEsc(url) + '" target="_blank" rel="noopener"' + stop +
+                ' title="Apri in Google Maps">' + intEsc(p) + '</a>';
+        }
+        return intEsc(p);
+    }).join(' - ');
+    // Senza paese scritto ma agganciata a una richiesta: segnaposto con la posizione
+    const pin = (!conMappa && ric && typeof rrMapsUrl === 'function')
+        ? ' <a class="int-link-paese" href="' + intEsc(rrMapsUrl(ric)) + '" target="_blank" rel="noopener"' + stop + ' title="Apri in Google Maps">&#128205;</a>' : '';
+    return html + pin + (r.richiesta_id ? ' <span class="int-link-agganciata" title="Agganciato a una richiesta interventi robot">&#128279;</span>' : '');
+}
+
+async function intCaricaCandidati(forza) {
+    if (!(await intControllaRichieste())) return;
+    if (!forza && Date.now() - intCandidatiAt < 30000) return;
+    try {
+        intCandidati = await rrCandidatiPlanning();
+        intCandidatiAt = Date.now();
+    } catch (e) {
+        intCandidati = [];
+        intCandidatiAt = 0;
+        console.log('Richieste aperte non lette:', e);
+    }
+}
+
+let intSuggTimer = null;
+function intSuggerisciRichieste() {
+    clearTimeout(intSuggTimer);
+    intSuggTimer = setTimeout(intSuggerisciOra, 150);
+}
+
+async function intSuggerisciOra() {
+    const box = document.getElementById('int-edit-sugg');
+    if (!box || intRichiestaScelta || !intModifica) { intNascondiSuggRichieste(); return; }
+    const testo = document.getElementById('int-edit-cliente').value;
+    const nome = rrNorm(String(testo).split(' - ')[0]);
+    if (nome.replace(/\s/g, '').length < 2) { intNascondiSuggRichieste(); return; }
+    // Elenco ancora da caricare (o vuoto): lo carico adesso
+    if (!intCandidatiAt || (!intCandidati.length && Date.now() - intCandidatiAt > 5000)) await intCaricaCandidati(true);
+    if (!intRichiesteAttive) { intNascondiSuggRichieste(); return; }
+    if (document.getElementById('int-edit-cliente').value !== testo) return;   // nel frattempo si e' scritto altro
+    const trovate = intCandidati.filter(x => rrCorrisponde(x, testo)).slice(0, 8);
+    if (!trovate.length) {
+        box.innerHTML = '<div class="int-sugg-titolo">Nessuna richiesta interventi robot aperta con questo nome' +
+            (intCandidati.length ? '' : ' (non ci sono richieste aperte)') + '</div>';
+        box.classList.remove('hidden');
+        return;
+    }
+    box.innerHTML = '<div class="int-sugg-titolo">Richieste interventi robot aperte</div>' + trovate.map(x =>
+        '<button type="button" onmousedown="event.preventDefault()" onclick="intScegliRichiesta(' + x.id + ')">' +
+            rrPallinoHtml(x) +
+            '<span><strong>' + intEsc(x.cliente) + '</strong>' +
+            '<span class="int-sugg-riga2">' + intEsc([rrPaese(x), x.telefono].filter(Boolean).join(' - ')) +
+                ' &middot; ' + intEsc(x.tipo) + (x.urgenza ? ' &middot; U' + x.urgenza : '') +
+                (x.esito ? ' &middot; esito ' + intEsc(x.esito) : '') + '</span>' +
+            (x.note ? '<span class="int-sugg-riga2">' + intEsc(String(x.note).slice(0, 90)) + '</span>' : '') +
+            '</span></button>').join('');
+    box.classList.remove('hidden');
+}
+
+function intNascondiSuggRichieste() {
+    const box = document.getElementById('int-edit-sugg');
+    if (box) { box.classList.add('hidden'); box.innerHTML = ''; }
+}
+
+function intScegliRichiesta(id) {
+    const x = intCandidati.find(c => c.id === id);
+    if (!x) return;
+    intRichiestaScelta = x;
+    intRichiesteMappa[x.id] = x;
+    document.getElementById('int-edit-cliente').value = rrTestoPlanning(x);
+    intSelezionaScelta('int-edit-tipo', x.tipo || 'INT');
+    if (!intValoreScelta('int-edit-esito')) intSelezionaScelta('int-edit-esito', '?');
+    intNascondiSuggRichieste();
+    intRenderCollegata();
+}
+
+function intScollegaRichiesta() {
+    intRichiestaScelta = null;
+    intRenderCollegata();
+    intSuggerisciRichieste();
+}
+
+function intRenderCollegata() {
+    const box = document.getElementById('int-edit-collegata');
+    if (!box) return;
+    const x = intRichiestaScelta;
+    if (!x) { box.classList.add('hidden'); box.innerHTML = ''; return; }
+    box.innerHTML = '<span>&#128279; Agganciata alla richiesta di <strong>' + intEsc(x.cliente || ('n. ' + x.id)) + '</strong>' +
+        (x.indirizzo ? ' &middot; ' + intEsc(x.indirizzo) : '') + (x.urgenza ? ' &middot; U' + x.urgenza : '') + '</span>' +
+        '<button type="button" onclick="intScollegaRichiesta()">Scollega</button>';
+    box.classList.remove('hidden');
 }
 
 // ========================================
@@ -1139,11 +1314,20 @@ function intRenderPromemoria() {
     if (!righe.length) { box.classList.add('hidden'); return; }
 
     const daInviare = righe.filter(r => r.esito !== '?' && !r.promemoria_at && intCellulare(r.cliente)).length;
+    const inviati = righe.filter(r => r.esito !== '?' && r.promemoria_at).length;
+    const daConfermare = righe.filter(r => r.esito === '?').length;
+    const senzaCell = righe.filter(r => r.esito !== '?' && !r.promemoria_at && !intCellulare(r.cliente)).length;
+    // Etichetta: "tutti inviati" SOLO se davvero tutti sono stati inviati
+    let stato;
+    if (inviati === righe.length) stato = 'tutti inviati';
+    else stato = [daInviare ? daInviare + ' da inviare' : '', daConfermare ? daConfermare + ' da confermare (?)' : '',
+        senzaCell ? senzaCell + ' senza cellulare' : '', inviati ? inviati + ' inviat' + (inviati === 1 ? 'o' : 'i') : '']
+        .filter(Boolean).join(' &middot; ');
     const d = intDaIso(giorno);
     const giornoTxt = INT_GIORNI_LUNGHI[(d.getDay() + 6) % 7] + ' ' + d.getDate() + ' ' + INT_MESI[d.getMonth()];
     document.getElementById('int-promemoria-titolo').innerHTML =
         '&#128242; Promemoria clienti &middot; ' + giornoTxt +
-        ' <span class="int-tag ' + (daInviare ? 'int-tag-pm' : '') + '">' + (daInviare ? daInviare + ' da inviare' : 'tutti inviati') + '</span>';
+        ' <span class="int-tag ' + (daInviare ? 'int-tag-pm' : '') + '">' + stato + '</span>';
 
     document.getElementById('int-promemoria-lista').innerHTML = righe.map(r => {
         let azione;
@@ -1158,7 +1342,7 @@ function intRenderPromemoria() {
         return '<div class="int-pm-riga ' + classe + '">' +
             '<div class="int-pm-info"><strong>' + intEsc(r.ora || (r.turno === 'P' ? 'POM.' : 'MAT.')) + '</strong> &middot; ' +
             intEsc(intNomeTecnico(r.tecnico_id)) + (r.tipo ? ' &middot; ' + intEsc(r.tipo) : '') +
-            '<br>' + intEsc(r.cliente || '') + ' ' + intMeteoBadge(r) + '</div>' +
+            '<br>' + intClienteHtml(r) + ' ' + intMeteoBadge(r) + '</div>' +
             '<div class="int-pm-azione">' + azione + '</div></div>';
     }).join('');
 
@@ -1598,6 +1782,10 @@ window.intClickRiga = intClickRiga;
 window.intScegliPennello = intScegliPennello;
 window.intApriModifica = intApriModifica;
 window.intChiudiModifica = intChiudiModifica;
+window.intSuggerisciRichieste = intSuggerisciRichieste;
+window.intNascondiSuggRichieste = intNascondiSuggRichieste;
+window.intScegliRichiesta = intScegliRichiesta;
+window.intScollegaRichiesta = intScollegaRichiesta;
 window.intSelezionaScelta = intSelezionaScelta;
 window.intSalvaModifica = intSalvaModifica;
 window.intSvuotaRiga = intSvuotaRiga;

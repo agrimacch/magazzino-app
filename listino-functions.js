@@ -1644,45 +1644,36 @@ function downloadStoricoTxt() {
     setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
 
-// Stampa lo storico (dalla finestra di stampa si puo' scegliere "Salva come PDF")
+// Stampa / PDF dello storico: documento nello stile dei report (si apre in una nuova scheda)
 function stampaStorico() {
     const gruppi = listinoStoricoGruppi();
     if (gruppi.length === 0) {
         showCustomAlert('Non c\'&#232; nessun netto da stampare.', 'Attenzione', '&#9888;&#65039;');
         return;
     }
-
-    let html =
-        '<h2>AGRIDESK - Storico netti listino vendite</h2>' +
-        '<p class="stampa-sottotitolo">Generato il ' + listinoEsc(new Date().toLocaleString('it-IT')) +
-        ' &middot; ' + gruppi.length + (gruppi.length === 1 ? ' macchina' : ' macchine') + '</p>';
-
-    gruppi.forEach(g => {
-        let righe = '';
-        g.voci.forEach(v => {
-            righe +=
-                '<tr><td>' + listinoDataBreve(v.data_registrazione) + '</td>' +
-                '<td class="stampa-num">' + listinoFormatEuro(v.netto) + '</td>' +
-                '<td>' + listinoVal(v.note) + '</td>' +
-                '<td>' + listinoEsc(listinoOrigineTesto(v.origine)) + '</td></tr>';
-        });
-        html +=
-            '<div class="stampa-gruppo">' +
-                '<h3>' + listinoEsc(listinoTitoloArticolo(g.articolo)) +
-                    (g.articolo.attivo === false ? ' (CANCELLATO)' : '') + '</h3>' +
-                '<table><thead><tr><th>Data</th><th>Netto</th><th>Note</th><th>Origine</th></tr></thead>' +
-                '<tbody>' + righe + '</tbody></table>' +
-            '</div>';
-    });
-
-    const area = document.getElementById('listino-storico-print');
-    area.innerHTML = html;
-    document.body.classList.add('stampa-storico');
-    window.addEventListener('afterprint', () => {
-        document.body.classList.remove('stampa-storico');
-        area.innerHTML = '';
-    }, { once: true });
-    setTimeout(() => window.print(), 50);
+    const voci = gruppi.reduce((n, g) => n + g.voci.length, 0);
+    const doc = {
+        titolo: 'Storico netti listino vendite',
+        sottotitolo: 'AGRIDESK &middot; creato il ' + rptOggiTesto(),
+        kpi: [
+            { e: 'Macchine', v: gruppi.length },
+            { e: 'Netti registrati', v: voci }
+        ],
+        sezioni: gruppi.map(g => ({
+            titolo: listinoEsc(listinoTitoloArticolo(g.articolo)) + (g.articolo.attivo === false ? ' (CANCELLATO)' : ''),
+            piccola: true,
+            colonne: [{ t: 'Data', w: '16%' }, { t: 'Netto', num: true, w: '16%' }, { t: 'Note' }, { t: 'Origine', w: '26%' }],
+            righe: g.voci.map(v => [
+                listinoDataBreve(v.data_registrazione),
+                listinoFormatEuro(v.netto),
+                listinoVal(v.note),
+                listinoEsc(listinoOrigineTesto(v.origine))
+            ])
+        }))
+    };
+    const oggi = new Date();
+    const data = oggi.getFullYear() + '-' + String(oggi.getMonth() + 1).padStart(2, '0') + '-' + String(oggi.getDate()).padStart(2, '0');
+    pdfApriInScheda(() => rptCreaPdfBlob(doc), 'STORICO NETTI ' + data + '.pdf');
 }
 
 // ========================================

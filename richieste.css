@@ -1,0 +1,791 @@
+/* ============================================ */
+/* ASSISTENZA - RICHIESTE INTERVENTI ROBOT      */
+/* + ORGANIZZAZIONE INTERVENTI ROBOT (v6.3.0)   */
+/* Regole limitate alle classi rr-* / org-* /   */
+/* ass-*: non toccano il resto dell'app.        */
+/* z-index: la mappa (Leaflet usa z-index fino  */
+/* a 1000 al suo interno) e' chiusa in un suo   */
+/* "contesto" (z-index 0) cosi' resta SOTTO a   */
+/* finestre (10000), avvisi e intestazioni.     */
+/* ============================================ */
+
+/* ---------- Badge rosso sulle card ---------- */
+.dashboard-card { position: relative; }
+
+.ass-badge {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    min-width: 26px;
+    height: 26px;
+    padding: 0 7px;
+    border-radius: 13px;
+    background: #dc2626;
+    color: white;
+    font-weight: 700;
+    font-size: 13px;
+    line-height: 26px;
+    text-align: center;
+    box-shadow: 0 2px 6px rgba(220, 38, 38, 0.35);
+    z-index: 1;
+}
+
+.ass-badge.hidden { display: none; }
+
+.ass-card-costruzione { opacity: 0.75; }
+
+/* ---------- Barra delle scadenze ---------- */
+.rr-avvisi {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px 12px;
+    background: #fff7ed;
+    border: 2px solid #f59e0b;
+    color: #7c2d12;
+    border-radius: var(--border-radius-sm);
+    padding: 10px 14px;
+    margin-bottom: 12px;
+    font-size: 14px;
+}
+
+.rr-avvisi.grave {
+    background: #fef2f2;
+    border-color: #dc2626;
+    color: #7f1d1d;
+}
+
+.rr-avvisi.hidden { display: none; }
+
+.rr-avvisi-icona { font-size: 20px; line-height: 1; }
+
+.rr-avvisi-btn {
+    margin-left: auto;
+    background: white;
+    border: 2px solid currentColor;
+    color: inherit;
+    border-radius: 8px;
+    padding: 6px 12px;
+    font-family: 'Roboto Mono', monospace;
+    font-weight: 700;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+/* ---------- Barra strumenti ---------- */
+.rr-strumenti {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.rr-strumenti input,
+.rr-strumenti select {
+    margin: 0;
+    width: auto;
+    padding: 9px 10px;
+    font-size: 14px;
+}
+
+.rr-strumenti .rr-cerca { flex: 1 1 220px; min-width: 160px; }
+
+.rr-strumenti .btn-primary,
+.rr-strumenti .btn-back {
+    width: auto;
+    display: inline-block;
+    padding: 9px 14px;
+}
+
+.rr-conta {
+    color: var(--gray);
+    font-size: 13px;
+    margin: 0 0 8px 2px;
+}
+
+.rr-vuoto {
+    text-align: center;
+    color: var(--gray);
+    padding: 30px 15px;
+}
+
+/* ---------- Tabella richieste (intestazioni bloccate) ---------- */
+.rr-tabella-box {
+    background: white;
+    border: 2px solid var(--green-light);
+    border-radius: var(--border-radius-sm);
+    overflow: auto;
+    max-height: calc(100vh - 250px);
+    max-height: calc(100dvh - 250px);
+    min-height: 260px;
+    -webkit-overflow-scrolling: touch;
+}
+
+.rr-tabella {
+    width: 100%;
+    min-width: 1050px;
+    table-layout: fixed;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 13px;
+}
+
+.rr-tabella thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: #facc15;
+    color: #1f2937;
+    font-weight: 700;
+    font-style: italic;
+    text-align: center;
+    padding: 10px 8px;
+    border-bottom: 2px solid #a16207;
+    border-right: 1px solid #eab308;
+    white-space: nowrap;
+}
+
+.rr-tabella td {
+    padding: 8px;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    border-bottom: 1px solid #e5e7eb;
+    border-right: 1px solid #f3f4f6;
+    vertical-align: middle;
+    text-align: center;
+}
+
+.rr-tabella tr.cliccabile { cursor: pointer; }
+.rr-tabella tr.cliccabile:hover td { background: #f0fdf4; }
+
+.rr-c-op { width: 48px; font-weight: 700; }
+.rr-c-data { width: 96px; white-space: nowrap; }
+.rr-c-cliente { width: 170px; }
+.rr-c-ind { width: 190px; }
+.rr-tabella td.rr-c-tel { white-space: nowrap; overflow-wrap: normal; }
+.rr-tabella td.rr-c-note { text-align: left; min-width: 260px; }
+.rr-c-tipo { width: 58px; }
+.rr-c-urg { width: 88px; }
+.rr-c-esito { width: 62px; }
+
+.rr-tabella a {
+    color: #1d4ed8;
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.rr-tabella a:hover { text-decoration: underline; }
+
+.rr-paese {
+    display: block;
+    font-size: 11px;
+    color: var(--gray);
+}
+
+.rr-geo-ko {
+    display: inline-block;
+    margin-left: 4px;
+    font-size: 11px;
+    color: #b45309;
+}
+
+.rr-tag-ordine {
+    display: inline-block;
+    margin-left: 6px;
+    font-size: 10px;
+    font-weight: 700;
+    color: #1e40af;
+    background: #dbeafe;
+    border-radius: 6px;
+    padding: 1px 5px;
+    vertical-align: middle;
+}
+
+/* Colonna urgenza: scadenza sotto il codice */
+.rr-c-urg strong { display: block; font-size: 14px; }
+
+.rr-scad {
+    display: inline-block;
+    font-size: 11px;
+    color: var(--gray);
+    white-space: nowrap;
+}
+
+.rr-scad.scaduta,
+.rr-scad.oggi {
+    color: white;
+    background: #dc2626;
+    border-radius: 6px;
+    padding: 1px 5px;
+    font-weight: 700;
+}
+
+.rr-scad.oggi { background: #ea580c; }
+.rr-scad.domani { color: #b45309; font-weight: 700; }
+
+/* Righe in scadenza: bordo a sinistra */
+.rr-tabella tr.scad-scaduta td:first-child { box-shadow: inset 5px 0 0 #dc2626; }
+.rr-tabella tr.scad-oggi td:first-child { box-shadow: inset 5px 0 0 #ea580c; }
+.rr-tabella tr.scad-domani td:first-child { box-shadow: inset 5px 0 0 #f59e0b; }
+.rr-tabella tr.scad-scaduta td { background: #fef2f2; }
+
+/* Colonna esito come nel foglio Excel */
+.rr-tabella tr.esito-ok td.rr-c-esito { background: #bbf7d0; }
+.rr-tabella tr.esito-nr td.rr-c-esito { background: #fbcfe8; }
+.rr-tabella tr.esito-org td.rr-c-esito { background: #fef9c3; }
+.rr-tabella tr.esito-no td { color: #9ca3af; text-decoration: line-through; }
+.rr-tabella tr.esito-no td.rr-c-esito { text-decoration: none; background: #fee2e2; }
+
+.rr-esito {
+    display: inline-block;
+    min-width: 30px;
+    font-weight: 800;
+    font-size: 15px;
+}
+
+.rr-esito.rr-es-ok { color: #166534; }
+.rr-esito.rr-es-nr { color: #9d174d; }
+.rr-esito.rr-es-no { color: #991b1b; }
+
+/* Tipo */
+.rr-tipo {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 700;
+    border-radius: 6px;
+    padding: 1px 6px;
+    background: #fee2e2;
+    color: #991b1b;
+    text-decoration: none;
+}
+
+.rr-tipo-MONT { background: #dbeafe; color: #1e3a8a; }
+.rr-tipo-SOP { background: #fef9c3; color: #854d0e; }
+
+/* ---------- Finestra richiesta ---------- */
+.rr-modal-content { max-width: 600px; }
+
+.rr-f-due {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0 12px;
+}
+
+.rr-f-indirizzo-box { position: relative; }
+
+.rr-sugg {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: calc(100% - 10px);
+    background: white;
+    border: 2px solid var(--primary);
+    border-radius: var(--border-radius-sm);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+    z-index: 5;
+    max-height: 260px;
+    overflow-y: auto;
+}
+
+.rr-sugg.hidden { display: none; }
+
+.rr-sugg button {
+    display: block;
+    width: 100%;
+    text-align: left;
+    background: white;
+    border: none;
+    border-bottom: 1px solid #f3f4f6;
+    padding: 9px 12px;
+    font-family: 'Roboto Mono', monospace;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.rr-sugg button:hover { background: var(--light); }
+
+.rr-sugg button span {
+    display: block;
+    font-size: 11px;
+    color: var(--gray);
+}
+
+.rr-sugg-msg {
+    padding: 10px 12px;
+    font-size: 13px;
+    color: var(--gray);
+}
+
+.rr-sugg-fonte {
+    font-size: 10px;
+    color: var(--gray);
+    text-align: right;
+    padding: 3px 8px;
+}
+
+.rr-urgenza-riga {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-bottom: 6px;
+}
+
+.rr-urgenza-campo {
+    display: flex;
+    align-items: center;
+    border: 2px solid var(--green-light);
+    border-radius: var(--border-radius-sm);
+    background: white;
+    padding-left: 10px;
+    width: 110px;
+}
+
+.rr-urgenza-campo span { font-weight: 800; }
+
+.rr-urgenza-campo input {
+    border: none;
+    margin: 0;
+    padding: 10px 8px;
+    box-shadow: none !important;
+}
+
+.rr-urgenza-riga .int-scelte {
+    margin: 0;
+    flex: 1 1 200px;
+}
+
+.rr-f-scadenza {
+    font-size: 13px;
+    color: var(--gray);
+    margin-bottom: 14px;
+}
+
+.rr-f-info {
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-size: 13px;
+    margin-bottom: 12px;
+}
+
+.rr-f-info div + div { margin-top: 4px; }
+.rr-f-info.hidden { display: none; }
+
+.rr-btn-elimina {
+    background: none;
+    border: 2px solid #fecaca;
+    color: #b91c1c;
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-family: 'Roboto Mono', monospace;
+    font-weight: 700;
+    cursor: pointer;
+    margin-bottom: 12px;
+}
+
+.rr-btn-elimina.hidden { display: none; }
+
+/* Esito: colori dei pulsanti come nella tabella */
+#rr-f-esito button[data-valore="OK"].attivo { background: #16a34a; border-color: #16a34a; }
+#rr-f-esito button[data-valore="NR"].attivo { background: #db2777; border-color: #db2777; }
+#rr-f-esito button[data-valore="NO"].attivo { background: #b91c1c; border-color: #b91c1c; }
+#rr-f-esito button[data-valore="-"].attivo { background: #ca8a04; border-color: #ca8a04; }
+
+/* ---------- Pallini ---------- */
+.rr-pallino {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    border: 1.5px solid #1f2937;
+    flex-shrink: 0;
+    vertical-align: middle;
+}
+
+.rr-pallino.bianco { background: #ffffff; border-color: #4b5563; }
+.rr-pallino.scaduto { border: 3px solid #000000; }
+.rr-pallino.grande { width: 18px; height: 18px; }
+
+/* ---------- Mappa ---------- */
+.org-mappa-box {
+    position: relative;
+    z-index: 0;          /* contiene gli z-index interni di Leaflet */
+    isolation: isolate;
+    border: 2px solid var(--green-light);
+    border-radius: var(--border-radius-sm);
+    overflow: hidden;
+    background: white;
+    margin-bottom: 10px;
+}
+
+#org-mappa {
+    height: 58vh;
+    min-height: 340px;
+    width: 100%;
+}
+
+.org-mappa-btn {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 1001;       /* sopra ai pannelli di Leaflet, dentro al contesto della mappa */
+    background: white;
+    border: 2px solid rgba(0, 0, 0, 0.25);
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-family: 'Roboto Mono', monospace;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.rr-sede-icona {
+    font-size: 24px;
+    line-height: 28px;
+    text-align: center;
+    background: white;
+    border: 2px solid var(--primary);
+    border-radius: 50%;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+}
+
+.rr-popup { font-family: 'Roboto Mono', monospace; font-size: 12px; line-height: 1.5; }
+.rr-popup div { margin-bottom: 3px; }
+.rr-popup-nome { font-size: 13px; }
+.rr-popup-note { background: #f9fafb; border-radius: 6px; padding: 4px 6px; }
+.rr-popup-stato { font-weight: 700; }
+.rr-popup-piede { color: var(--gray); font-size: 11px; }
+.rr-popup a { color: #1d4ed8; }
+
+.rr-popup-btn {
+    margin-top: 4px;
+    background: var(--primary);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 5px 10px;
+    font-family: 'Roboto Mono', monospace;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+/* ---------- Legenda ---------- */
+.org-legenda {
+    background: white;
+    border: 2px solid var(--green-light);
+    border-radius: var(--border-radius-sm);
+    padding: 10px 12px;
+    margin-bottom: 14px;
+    font-size: 12px;
+}
+
+.rr-leg-riga {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 14px;
+    padding: 4px 0;
+}
+
+.rr-leg-riga + .rr-leg-riga { border-top: 1px solid #f3f4f6; }
+
+.rr-leg-filtro {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 140px;
+    margin: 0;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.rr-leg-filtro input {
+    width: 18px;
+    height: 18px;
+    margin: 0;
+    padding: 0;
+}
+
+.rr-leg-scala { display: flex; flex-wrap: wrap; gap: 4px 12px; }
+
+.rr-leg-voce {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    white-space: nowrap;
+}
+
+.org-conta {
+    font-size: 13px;
+    color: var(--gray);
+    margin: 0 0 10px 2px;
+}
+
+/* ---------- Contenitori per distanza ---------- */
+.org-contenitori {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 12px;
+    align-items: start;
+}
+
+.org-box {
+    background: white;
+    border: 2px solid var(--green-light);
+    border-radius: var(--border-radius-sm);
+    overflow: hidden;
+}
+
+.org-box.senza-pos { border-color: #fcd34d; }
+
+.org-box-titolo {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--primary);
+    color: white;
+    font-weight: 700;
+    padding: 8px 12px;
+}
+
+.org-box.senza-pos .org-box-titolo { background: #b45309; }
+
+.org-box-conta {
+    background: rgba(255, 255, 255, 0.25);
+    border-radius: 10px;
+    padding: 1px 8px;
+    font-size: 12px;
+}
+
+.org-nota, .org-vuoto {
+    font-size: 12px;
+    color: var(--gray);
+    padding: 8px 12px;
+}
+
+.org-urg-titolo {
+    background: #f3f4f6;
+    font-weight: 700;
+    font-size: 12px;
+    padding: 4px 12px;
+}
+
+.org-urg-titolo span { color: var(--gray); font-weight: 400; }
+
+.org-voce {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 12px;
+    border-bottom: 1px solid #f3f4f6;
+    cursor: pointer;
+}
+
+.org-voce:hover { background: var(--light); }
+.org-voce.scad-scaduta { box-shadow: inset 4px 0 0 #dc2626; }
+.org-voce.scad-oggi { box-shadow: inset 4px 0 0 #ea580c; }
+
+.org-voce-testo { flex: 1; min-width: 0; }
+
+.org-voce-nome {
+    font-weight: 700;
+    font-size: 13px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.org-voce-info { font-size: 11px; color: var(--gray); }
+
+.org-voce.barrata .org-voce-nome {
+    text-decoration: line-through;
+    color: var(--gray);
+}
+
+.org-stato {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 700;
+    background: #dcfce7;
+    color: #166534;
+    border-radius: 6px;
+    padding: 0 5px;
+}
+
+.org-stato.nr { background: #fce7f3; color: #9d174d; }
+
+.org-voce-tel {
+    font-size: 18px;
+    text-decoration: none;
+    padding: 2px 4px;
+}
+
+/* ---------- Avviso volante (sopra alle finestre: 10000) ---------- */
+.rr-toast {
+    position: fixed;
+    left: 50%;
+    bottom: 24px;
+    transform: translate(-50%, 140%);
+    background: #1f2937;
+    color: white;
+    padding: 12px 18px;
+    border-radius: 12px;
+    font-size: 13px;
+    max-width: min(520px, 92vw);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+    z-index: 10050;
+    opacity: 0;
+    transition: transform 0.3s ease, opacity 0.3s ease;
+    pointer-events: none;
+}
+
+.rr-toast.visibile {
+    transform: translate(-50%, 0);
+    opacity: 1;
+}
+
+/* ---------- Planning (Interventi esterni): suggerimenti e link ---------- */
+.int-sugg-box { position: relative; }
+
+.int-sugg {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: calc(100% - 10px);
+    background: white;
+    border: 2px solid var(--primary);
+    border-radius: var(--border-radius-sm);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+    z-index: 5;
+    max-height: 280px;
+    overflow-y: auto;
+}
+
+.int-sugg.hidden { display: none; }
+
+.int-sugg-titolo {
+    font-size: 11px;
+    color: var(--gray);
+    padding: 6px 12px 2px;
+}
+
+.int-sugg button {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+    width: 100%;
+    text-align: left;
+    background: white;
+    border: none;
+    border-bottom: 1px solid #f3f4f6;
+    padding: 8px 12px;
+    font-family: 'Roboto Mono', monospace;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.int-sugg button:hover { background: var(--light); }
+.int-sugg button .rr-pallino { margin-top: 2px; }
+
+.int-sugg-riga2 {
+    display: block;
+    font-size: 11px;
+    color: var(--gray);
+}
+
+.int-collegata {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    background: #eff6ff;
+    border: 1px solid #93c5fd;
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-size: 12px;
+    margin: -4px 0 10px;
+}
+
+.int-collegata.hidden { display: none; }
+
+.int-collegata button {
+    margin-left: auto;
+    background: white;
+    border: 1px solid #93c5fd;
+    color: #1d4ed8;
+    border-radius: 6px;
+    padding: 3px 8px;
+    font-family: 'Roboto Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+#int-edit-modal small.int-nota {
+    display: block;
+    margin-bottom: 14px;
+}
+
+a.int-link-tel,
+a.int-link-paese {
+    color: #1d4ed8;
+    text-decoration: underline;
+    text-decoration-style: dotted;
+    text-underline-offset: 2px;
+}
+
+.int-link-agganciata {
+    font-size: 11px;
+    margin-left: 2px;
+}
+
+/* ---------- Telefono ---------- */
+@media (max-width: 768px) {
+    .rr-f-due { grid-template-columns: 1fr; }
+    #org-mappa { height: 52vh; min-height: 300px; }
+    .rr-tabella-box { max-height: calc(100dvh - 210px); }
+    .rr-avvisi-btn { margin-left: 0; }
+}
+
+/* ---------- Planning: giorni di festa (festivi + santo patrono) ---------- */
+.int-giorno-festa {
+    display: block;
+    margin-top: 4px;
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+    background: #dc2626;
+    color: white;
+    border-radius: 4px;
+    padding: 1px 2px;
+}
+
+.int-festa-tag {
+    display: inline-block;
+    font-size: 12px;
+    background: #dc2626;
+    color: white;
+    border-radius: 6px;
+    padding: 1px 6px;
+    vertical-align: middle;
+}
+
+.int-tab-festa {
+    display: block;
+    width: 8px;
+    height: 8px;
+    margin: 2px auto 0;
+    border-radius: 50%;
+    background: #dc2626;
+}
+
+/* Link leggibili sulle righe rosse */
+#section-interventi-esterni tr.col-ROSSO a.int-link-tel,
+#section-interventi-esterni tr.col-ROSSO a.int-link-paese,
+.int-m-riga.col-ROSSO a.int-link-tel,
+.int-m-riga.col-ROSSO a.int-link-paese {
+    color: #ffffff;
+}

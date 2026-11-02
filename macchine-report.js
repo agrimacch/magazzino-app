@@ -347,8 +347,9 @@ function rptHtml(doc) {
     const cella = (v, num) => '<td' + (num ? ' class="rpt-n"' : '') + '>' + (v === null || v === undefined ? '' : v) + '</td>';
     return '<div class="rpt-pagina">' +
         '<table class="rpt-testa"><tr>' +
-            '<td class="rpt-testa-logo"><img src="logo.png" alt="" class="rpt-logo"></td>' +
-            '<td class="rpt-titoli"><div class="rpt-titolo">' + doc.titolo + '</div><div class="rpt-sotto">' + doc.sottotitolo + '</div></td>' +
+            '<td class="rpt-testa-logo"><img src="' + (typeof aziendaLogo === 'function' ? aziendaLogo() : 'logo.png') + '" alt="" class="rpt-logo"></td>' +
+            '<td class="rpt-titoli"><div class="rpt-titolo">' + doc.titolo + '</div><div class="rpt-sotto">' + doc.sottotitolo + '</div>' +
+                (typeof aziendaIntestazioneHtml === 'function' ? '<div class="rpt-sotto rpt-azienda">' + aziendaIntestazioneHtml() + '</div>' : '') + '</td>' +
         '</tr></table>' +
         '<div class="rpt-kpi">' + doc.kpi.map(k => '<div><span>' + k.e + '</span><strong>' + k.v + '</strong></div>').join('') + '</div>' +
         (doc.nota ? '<p class="rpt-nota">' + doc.nota + '</p>' : '') +
@@ -372,6 +373,34 @@ async function rptCreaPdfBlob(doc) {
         tagli: 'tr, .rpt-kpi, .rpt-sezione, .rpt-nota, .rpt-testa'
     });
     return pdf.output('blob');
+}
+
+// Report "vecchi" (consumabili, ricambi, storico netti) nello stesso stile: testo per periodo e nome del file
+function rptPeriodoTesto(da, a) {
+    const it = d => { const p = String(d || '').split('-'); return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : d; };
+    if (!da && !a) return 'tutto il periodo';
+    return 'dal ' + (da ? it(da) : 'inizio') + ' al ' + (a ? it(a) : 'oggi');
+}
+
+function rptOggiTesto() {
+    const d = new Date();
+    return String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0') + '/' + d.getFullYear() +
+        ' alle ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+}
+
+function rptNomeFile(parti) {
+    return parti.filter(Boolean).join(' ').replace(/[^A-Za-z0-9 \-]+/g, ' ').replace(/\s+/g, ' ').trim().toUpperCase() + '.pdf';
+}
+
+function rptEsc(v) {
+    return (typeof listinoEsc === 'function') ? listinoEsc(v) : String(v === null || v === undefined ? '' : v);
+}
+
+function rptPiu(n) { return n > 0 ? '+' + n : '0'; }
+function rptMeno(n) { return n > 0 ? '-' + n : '0'; }
+
+function rptSegno(n) {
+    return (n > 0 ? '+' : '') + n;
 }
 
 function repEuroPdf(n) {

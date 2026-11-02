@@ -20,13 +20,7 @@
 // Permessi: come l'inventario macchine (macPuoGestire: admin e operatori)
 // ========================================
 
-// Dati aziendali stampati sull'ordine
-const ORD_AZIENDA = {
-    nome: 'Agrimacch srl',
-    indirizzo: 'Via Castellana, 86 - 30030 Martellago (VE)',
-    contatti: 'Tel. 041 5401030',
-    web: 'info@agrimacch.it - www.agrimacch.it'
-};
+// Dati aziendali stampati sull'ordine: dal pannello "Dati aziendali" (azienda-functions.js, solo admin)
 
 const ORD_CONDIZIONI =
     'CONDIZIONI DI VENDITA - Gli ordini pervenuti sia direttamente che tramite Agente sono da considerarsi effettivi solo se approvati ' +
@@ -904,6 +898,8 @@ async function ordSalva() {
     ordSwitchTab('elenco');
     ordApriDettaglio(ordine.id);
     ordSalvaSuDrive(ordine.id);   // PDF su Drive in automatico (non blocca)
+    // Robot / antizanzare con installazione: richiesta di montaggio in Assistenza (non blocca)
+    if (typeof rrSincronizzaOrdine === 'function') rrSincronizzaOrdine(ordine.id);
 }
 
 // Modifica: solo dati del cliente, pagamento, note e firma (le righe sono bloccate)
@@ -977,6 +973,8 @@ async function ordSalvaModifica() {
     ordSwitchTab('elenco');
     ordApriDettaglio(id);
     ordSalvaSuDrive(id);   // PDF aggiornato (dati / firma)
+    // Dati cliente o "senza installazione" cambiati: aggiorna / togli la richiesta di montaggio
+    if (typeof rrSincronizzaOrdine === 'function') rrSincronizzaOrdine(id);
 }
 
 async function ordSvuotaModulo() {
@@ -1144,6 +1142,8 @@ async function ordAzione(azione) {
     ordApriDettaglio(o.id);
     // Annullato: il PDF su Drive viene rifatto con la scritta ANNULLATO
     if (azione === 'annulla' && o.drive_file_id) ordSalvaSuDrive(o.id);
+    // Annullato: la richiesta di montaggio non ancora organizzata viene tolta (se gia' organizzata diventa NO)
+    if (azione === 'annulla' && typeof rrSincronizzaOrdine === 'function') rrSincronizzaOrdine(o.id);
 }
 
 // Elimina l'ordine: libera le macchine (come l'annullo), PDF di Drive nel cestino
@@ -1235,12 +1235,12 @@ function ordHtmlStampa(o, righeTotali) {
 
     return '<div class="rpt-pagina ordd">' +
         '<table class="rpt-testa"><tr>' +
-            '<td class="rpt-testa-logo"><img src="logo.png" alt="" class="rpt-logo ordd-logo"></td>' +
+            '<td class="rpt-testa-logo"><img src="' + aziendaLogo() + '" alt="" class="rpt-logo ordd-logo"></td>' +
             '<td class="rpt-titoli">' +
                 '<div class="rpt-titolo">' + casella(true) + ' Ordine N. ' + ordNumero(o) + '</div>' +
                 '<div class="rpt-sotto">Data <strong>' + ordDataIt(o.data) + '</strong>' +
                     (o.operatore ? ' &middot; Operatore <strong>' + macEsc(o.operatore) + '</strong>' : '') + '</div>' +
-                '<div class="rpt-sotto">' + ORD_AZIENDA.nome + ' &middot; ' + ORD_AZIENDA.indirizzo + '<br>' + ORD_AZIENDA.contatti + ' &middot; ' + ORD_AZIENDA.web + '</div>' +
+                '<div class="rpt-sotto rpt-azienda">' + aziendaIntestazioneHtml() + '</div>' +
             '</td>' +
         '</tr></table>' +
         '<div class="rpt-sezione">Cliente</div>' +
@@ -1321,6 +1321,40 @@ function ordStampa(o) {
 // Apre un PDF creato dall'app in una nuova scheda (da li' si stampa o si salva).
 // La scheda si apre subito (altrimenti il browser la blocca) e il PDF arriva appena pronto.
 // Se la scheda non si puo' aprire, il PDF viene scaricato.
+function pdfSuIos() {
+    return /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+}
+
+function pdfEscNome(v) {
+    return String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+// Pagina della nuova scheda: barra con il nome del file, "Scarica PDF" (con il nome giusto) e "Stampa",
+// sotto il PDF. Su iPhone/iPad il PDF dentro la pagina mostrerebbe solo la prima pagina: c'e' "Apri il PDF".
+function pdfPaginaScheda(url, nomeFile) {
+    const nome = pdfEscNome(nomeFile);
+    const ios = pdfSuIos();
+    const stile = 'body{margin:0;font-family:-apple-system,Segoe UI,Arial,sans-serif;background:#525659;height:100vh;display:flex;flex-direction:column}' +
+        '.barra{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 14px;background:#3f5a2c;color:#fff}' +
+        '.nome{flex:1 1 220px;font-weight:700;font-size:14px;overflow-wrap:anywhere}' +
+        '.btn{display:inline-block;background:#fff;color:#3f5a2c;border:none;border-radius:8px;padding:9px 14px;font-weight:700;font-size:14px;text-decoration:none;cursor:pointer}' +
+        'iframe{flex:1;width:100%;border:0;background:#fff}' +
+        '.ios{padding:30px 18px;color:#fff;text-align:center;font-size:15px;line-height:1.5}';
+    return '<!DOCTYPE html><html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">' +
+        '<title>' + nome + '</title><style>' + stile + '</style></head><body>' +
+        '<div class="barra"><span class="nome">&#128196; ' + nome + '</span>' +
+            '<a class="btn" href="' + url + '" download="' + nome + '">&#11015;&#65039; Scarica PDF</a>' +
+            (ios ? '<a class="btn" href="' + url + '">&#128065;&#65039; Apri il PDF</a>'
+                 : '<button class="btn" type="button" onclick="try{document.getElementById(\'pdf\').contentWindow.print()}catch(e){window.print()}">&#128424;&#65039; Stampa</button>') +
+        '</div>' +
+        (ios ? '<div class="ios">Il PDF &egrave; pronto.<br>Tocca <strong>Scarica PDF</strong> per salvarlo con il suo nome, oppure <strong>Apri il PDF</strong> per vederlo e stamparlo.</div>'
+             : '<iframe id="pdf" src="' + url + '" title="' + nome + '"></iframe>') +
+        '</body></html>';
+}
+
+// Apre un PDF creato dall'app in una nuova scheda (da li' si stampa o si scarica con il nome giusto).
+// La scheda si apre subito (altrimenti il browser la blocca) e il PDF arriva appena pronto.
+// Se la scheda non si puo' aprire, il PDF viene scaricato.
 async function pdfApriInScheda(creaBlob, nomeFile) {
     let finestra = null;
     try { finestra = window.open('', '_blank'); } catch (e) { finestra = null; }
@@ -1332,10 +1366,21 @@ async function pdfApriInScheda(creaBlob, nomeFile) {
     }
     try {
         const blob = await creaBlob();
-        const url = URL.createObjectURL(blob);
+        let file = blob;
+        try { file = new File([blob], nomeFile, { type: 'application/pdf' }); } catch (e) { /* browser vecchio: va bene il blob */ }
+        const url = URL.createObjectURL(file);
+        let mostrato = false;
         if (finestra && !finestra.closed) {
-            finestra.location.href = url;
-        } else {
+            try {
+                finestra.document.open();
+                finestra.document.write(pdfPaginaScheda(url, nomeFile));
+                finestra.document.close();
+                mostrato = true;
+            } catch (e) {
+                try { finestra.location.href = url; mostrato = true; } catch (e2) { /* niente */ }
+            }
+        }
+        if (!mostrato) {
             const a = document.createElement('a');
             a.href = url;
             a.download = nomeFile;
@@ -1343,7 +1388,7 @@ async function pdfApriInScheda(creaBlob, nomeFile) {
             a.click();
             a.remove();
         }
-        setTimeout(() => URL.revokeObjectURL(url), 300000);
+        setTimeout(() => URL.revokeObjectURL(url), 1800000);   // 30 minuti per scaricarlo
     } catch (err) {
         console.error('PDF non creato:', err);
         if (finestra && !finestra.closed) finestra.close();

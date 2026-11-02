@@ -1,0 +1,49 @@
+/* ============================================ */
+/* DATI AZIENDALI (pannello solo admin)         */
+/* ============================================ */
+.az-card { max-width: 900px; margin: 0 auto; }
+/* qui si vede esattamente quello che verra' stampato (niente maiuscolo automatico) */
+.az-card input { text-transform: none; }
+.az-avviso {
+    background: #fffbeb;
+    border: 2px solid #f59e0b;
+    border-radius: var(--border-radius-sm);
+    padding: 10px 12px;
+    margin-bottom: 14px;
+    font-size: 13px;
+}
+.az-avviso.hidden { display: none; }
+@media (min-width: 769px) {
+    .az-due { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0 12px; }
+}
+.az-due .form-col { min-width: 0; }
+.az-logo {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+    border: 2px dashed #c7d7bd;
+    border-radius: var(--border-radius-sm);
+    padding: 12px;
+    margin-bottom: 14px;
+    background: #fafcf8;
+}
+.az-logo img { max-height: 70px; max-width: 240px; object-fit: contain; background: white; border-radius: 6px; padding: 4px; }
+.az-logo-comandi { display: flex; flex-direction: column; gap: 6px; flex: 1 1 220px; min-width: 0; }
+.az-logo-comandi input[type="file"] { margin-bottom: 0; font-size: 13px; padding: 8px; }
+.az-logo-comandi .mac-btn-piccolo { width: auto; align-self: flex-start; }
+.az-anteprima {
+    border: 1px solid #e5e7eb;
+    border-radius: var(--border-radius-sm);
+    padding: 12px 14px;
+    margin-bottom: 16px;
+    background: white;
+}
+.az-anteprima-foglio { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; }
+.az-anteprima-foglio img { max-height: 44px; max-width: 220px; object-fit: contain; }
+.az-anteprima-testo { text-align: right; font-family: Arial, Helvetica, sans-serif; font-size: 11px; line-height: 1.5; color: #4b5563; }
+.az-anteprima-testo strong { color: #111827; }
+
+/* Logo nei documenti: qualsiasi proporzione resta dentro l'intestazione */
+.rpt-logo { max-width: 230px; object-fit: contain; }
+.rpt-azienda strong { color: #374151; }

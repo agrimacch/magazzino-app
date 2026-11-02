@@ -18,8 +18,22 @@ NON modificare funzioni Supabase che gia' funzionano per aggiungere cose nuove: 
 Edge Function separata (con bot/gruppo/secrets propri), cosi' se si rompe qualcosa il resto continua a funzionare.
 Testo per i messaggi: niente emoji dirette nei file; nei .ts e .gs le emoji si scrivono come \uXXXX.
 STILE DOCUMENTI: da ora in poi TUTTI i documenti generati dalla web app (PDF, stampe, report) devono avere lo stesso stile dei report
-(classi rpt-* in macchine.css, rptHtml/rptCreaPdfBlob in macchine-report.js, motore pdfCreaDaHtml). Ordine cliente gia' convertito;
-ancora nel vecchio stile (window.print): stampa storico netti del listino, report consumabili e ricambi.
+(classi rpt-* in macchine.css, rptHtml/rptCreaPdfBlob in macchine-report.js, motore pdfCreaDaHtml). Convertiti TUTTI (2/11/2026):
+ordine cliente, report vendite/valore macchine, report consumabili (app.js, reportDocPdf), report ricambi (ricambi-functions.js,
+reportRicambiDocPdf), storico netti (listino-functions.js stampaStorico). Niente piu' window.print. Il FAX non va in nessuna intestazione.
+Aiuti comuni in macchine-report.js: rptPeriodoTesto, rptOggiTesto, rptNomeFile, rptEsc, rptPiu/rptMeno/rptSegno.
+INTESTAZIONE DEI DOCUMENTI = DATI AZIENDALI (2/11/2026): pannello "Dati aziendali" (card in Dashboard, sezione 'azienda', SOLO admin,
+ADMIN_ONLY_SECTIONS). File azienda-functions.js + azienda.css. Tabella impostazioni_azienda (una riga id=1: ragione_sociale, indirizzo,
+telefono_whatsapp, telefono, email, partita_iva, codice_fiscale, codice_univoco, sito_web, logo = PNG data URL max 700 px);
+lettura tutti i collegati, scrittura solo is_admin() -> supabase/dati-azienda-setup.sql (DA ESEGUIRE). Caricata in showMainScreen
+(aziendaCarica); se manca si usano i dati predefiniti AZIENDA_PREDEFINITA. Nei documenti: aziendaLogo() (vuoto = logo.png) e
+aziendaIntestazioneHtml() sotto il titolo (rptHtml e ordHtmlStampa). ORD_AZIENDA tolto. NON usata (per ora) nel messaggio WhatsApp
+dei promemoria interventi (numero scritto in interventi-functions.js e organizzazione-interventi.ts).
+
+PROMEMORIA PER DONNY (da ricordargli quando avra' finito le prove / di implementare funzioni su macchine e ordini):
+- eseguire supabase/pulizia-prove-macchine.sql (+ PDF di prova da Drive, articoli/netti di prova del listino)
+- aprire Inventario Macchine e Ordini Clienti agli operatori (MACCHINE_PER_OPERATORI = true in macchine-functions.js)
+- Telegram per macchine/ordini: rimandato a piu' avanti
 
 
 NOME E INDIRIZZO
@@ -31,19 +45,20 @@ NOME E INDIRIZZO
 - NETLIFY: esiste un doppione vecchio "unrivaled-torrone-b6c6e2.netlify.app" (team agrimacch) ancora collegato a GitHub
   che consumava crediti (mail "credits - upgrade to restore full service"). Da fare: Stop builds / Unlink repository,
   dopo 2-3 settimane cancellarlo. NON fare upgrade.
-- Versione online: 6.1.1. Prossima da pubblicare: 6.2.0 (Inventario Macchine + Ordini Clienti) con ./update-version.sh
+- Versione online: 6.2.1 (Inventario Macchine + Ordini Clienti, per ora solo admin). Nuova versione con ./update-version.sh
   (CURRENT_VERSION in app.js). Se update-version.sh da' "permission denied":
   chmod +x update-version.sh  (oppure: bash update-version.sh)
 
 
 STRUTTURA APP (v6.2.0)
 
-Dashboard con 4 card dopo il login:
+Dashboard con 5 card dopo il login:
 - Magazzino: Inventario Consumabili, Inventario Ricambi Stock, Inventario Macchine (NUOVO v6.2.0, admin e operatori), Scanner (solo mobile)
 - Vendite (admin E operatori, con gli stessi permessi): Listino Vendite, Listini Fornitori (PDF su Google Drive),
   Ordini Clienti (NUOVO v6.2.0, admin e operatori)
 - Tecnici (admin, operatori e tecnici; modificano admin e operatori): Interventi Esterni (NUOVO v6.0.0)
 - Gestione Utenti (solo admin)
+- Dati aziendali (solo admin, card in Dashboard): intestazione e logo di ordini e report
 
 Ruoli: admin, operatore, tecnico (NUOVO v6.0.0).
 - Il TECNICO vede SOLO Tecnici > Interventi Esterni, in sola lettura (tutte le settimane, tutti i tecnici).
@@ -93,6 +108,8 @@ FILE PRINCIPALI
 - supabase/ordini-clienti-setup.sql - tabelle ordini + colonne operatore/Drive/senza installazione (rieseguibile)
 - supabase/ordini-senza-installazione.sql - colonne senza_installazione + firma_installazione (DA ESEGUIRE, 31/10)
 - supabase/ordini-sconto.sql - colonna sconto (DA ESEGUIRE, 31/10)
+- supabase/dati-azienda-setup.sql - tabella impostazioni_azienda per il pannello Dati aziendali (DA ESEGUIRE, 2/11)
+- azienda-functions.js + azienda.css - pannello Dati aziendali (solo admin) e intestazione di ordini/report
 - supabase/macchine-operatori.sql - apre macchine e ordini agli operatori (DA ESEGUIRE prima di mettere online)
 - supabase/pulizia-prove-macchine.sql - svuota quaderno, movimenti e ordini dopo le prove (DA ESEGUIRE una volta, a prove finite)
 - supabase/ordini-drive.ts + google/ordini-drive.gs - PDF ordini su Google Drive. Guida: GUIDA_ORDINI_DRIVE.md
@@ -432,7 +449,9 @@ CREAZIONE PDF (ordini, report, valore)
   coperto dall'avviso "Creazione del PDF...", lo fotografa html2canvas 1.4.1 e lo impagina jsPDF 2.5.1 (caricate da jsdelivr solo quando
   servono). Ordine = una pagina (scalata se serve); report = piu' pagine tagliate tra una riga e l'altra, numero pagina se > 1.
 - NIENTE window.print per ordini/report: "PDF / Stampa" apre il PDF in una nuova scheda (pdfApriInScheda), cosi' non compaiono
-  data/indirizzo/numeri del browser. Limite: salvando dalla scheda il nome del file e' casuale.
+  data/indirizzo/numeri del browser. La scheda (pdfPaginaScheda) ha una barra con il nome del file, "Scarica PDF" (<a download> sul
+  blob creato come File con il nome giusto) e "Stampa" (stampa l'iframe); sotto il PDF in un iframe. Su iPhone/iPad (pdfSuIos)
+  niente iframe (mostrerebbe solo la prima pagina): "Scarica PDF" + "Apri il PDF". Il link del blob vale 30 minuti.
 - LEZIONI: html2pdf.js tagliava il lato destro (centrava sulla larghezza della finestra: Safari/finestre strette) e con la pagina
   scorsa usciva spostato o bianco -> abbandonato. Prima di fotografare si torna in cima alla pagina e poi si rimette lo scroll.
   Gli stili da telefono dell'app NON devono entrare nel foglio PDF (regole .pdf-foglio ... !important in macchine.css).
@@ -484,13 +503,12 @@ POP-UP "NOVITA'"
 
 
 DA FARE PIU' AVANTI
-- PRIMA DI METTERE ONLINE la v6.2.0: eseguire supabase/macchine-operatori.sql; a prove finite pulizia-prove-macchine.sql
+- A PROVE FINITE (macchine/ordini): pulizia-prove-macchine.sql e apertura agli operatori (vedi PROMEMORIA in alto); macchine-operatori.sql se non gia' eseguito; pulizia-prove-macchine.sql
   (+ articoli di prova del listino in "Articoli cancellati", netti di prova corretti, PDF di prova cancellati da Drive);
   riportare il quadernone con "Nuova voce" e configurare i set; poi ./update-version.sh (rispondere "s" al push)
 - Configurare (o verificare con "Prova Drive") il salvataggio degli ordini su Drive: GUIDA_ORDINI_DRIVE.md
-- Telegram per macchine/ordini: Donny ci sta pensando (idee: macchina arrivata per un cliente, riepilogo da ordinare al fornitore,
+- Telegram per macchine/ordini: RIMANDATO a piu' avanti (idee: macchina arrivata per un cliente, riepilogo da ordinare al fornitore,
   nuovo ordine, macchine assegnate da troppo tempo). Va fatto con funzione/bot SEPARATI.
-- Eventuale nome giusto del PDF quando si salva dalla nuova scheda (oggi casuale)
 - NETLIFY: Stop builds sul doppione e poi cancellarlo (vedi NOME E INDIRIZZO)
 - Eventuale cambio "AGRIMAG" -> "AGRIDESK" anche nei messaggi Telegram (4 funzioni da ripubblicare)
 - Aggiornare MANUALE.md con v6.0.1 / v6.1.x (giorno ricordato, i miei interventi, promemoria, meteo, AGRIDESK)

@@ -11,8 +11,8 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 // ========================================
 // VARIABILI GLOBALI
 // ========================================
-const CURRENT_VERSION = '6.2.1';
-const SHOW_WHATS_NEW_POPUP = false;
+const CURRENT_VERSION = '6.3.0';
+const SHOW_WHATS_NEW_POPUP = true;
 
 let currentUser = null;
 let currentUserRole = null;
@@ -35,13 +35,27 @@ let currentSection = 'dashboard';
 
 // Sezioni accessibili SOLO agli admin.
 // (Vendite e' visibile a tutti: admin e operatori hanno gli stessi permessi sul listino)
-const ADMIN_ONLY_SECTIONS = ['utenti'];
+const ADMIN_ONLY_SECTIONS = ['utenti', 'azienda'];
 
-// Sezione Tecnici / Interventi Esterni.
-// Il ruolo "tecnico" vede SOLO queste sezioni (in sola lettura).
+// Sezione ASSISTENZA (ex Tecnici) / Interventi Esterni.
+// Il ruolo "tecnico" vede SOLO queste sezioni (Interventi Esterni in sola lettura).
 // Dalla v6.0.0 la vedono admin, operatori e tecnici (false = solo admin e tecnici).
-const SEZIONI_TECNICI = ['tecnici', 'interventi-esterni'];
+// ('tecnici' e' il vecchio nome della sezione Assistenza: openSection lo trasforma in 'assistenza')
+const SEZIONI_TECNICI = ['assistenza', 'interventi-esterni'];
 const TECNICI_PER_OPERATORI = true;
+
+// Sezioni dentro ASSISTENZA: ruoli che le vedono (v6.3.0).
+// Dal 2/11/2026 (sviluppo finito): Richieste interventi robot = tutti (e tutti le modificano, tecnici compresi).
+// Organizzazione (mappa) = solo admin: si apre col pulsante mappamondo in alto accanto alla campanella (id org-btn).
+// Richieste interventi e Richieste tagliandi: in costruzione, solo admin.
+// Chi puo' MODIFICARE le richieste: RR_RUOLI_MODIFICA in richieste-robot-functions.js
+// + funzione richieste_robot_puo_modificare() su Supabase (supabase/richieste-robot-operatori.sql).
+const SEZIONI_ASSISTENZA_RUOLI = {
+    'richieste-robot': ['admin', 'operatore', 'tecnico'],
+    'organizzazione-robot': ['admin'],
+    'richieste-interventi': ['admin'],
+    'richieste-tagliandi': ['admin']
+};
 
 // Inventario Macchine (dentro Magazzino): admin e operatori.
 // Il permesso e' deciso da macPuoGestire() in macchine-functions.js
@@ -49,6 +63,8 @@ const TECNICI_PER_OPERATORI = true;
 const SEZIONI_MACCHINE = ['inventario-macchine', 'ordini-clienti'];
 
 function sezioneConsentita(sectionName) {
+    if (sectionName === 'tecnici') sectionName = 'assistenza';
+    if (SEZIONI_ASSISTENZA_RUOLI[sectionName]) return SEZIONI_ASSISTENZA_RUOLI[sectionName].includes(currentUserRole);
     if (currentUserRole === 'tecnico') return SEZIONI_TECNICI.includes(sectionName);
     if (SEZIONI_MACCHINE.includes(sectionName)) return typeof macPuoGestire === 'function' && macPuoGestire();
     if (ADMIN_ONLY_SECTIONS.includes(sectionName)) return currentUserRole === 'admin';
@@ -467,12 +483,28 @@ function applyRolePermissions() {
     if (utentiCard) {
         utentiCard.style.display = isAdmin ? 'flex' : 'none';
     }
+
+    // Card Dati aziendali (solo admin)
+    const aziendaCard = document.getElementById('dashboard-azienda-card');
+    if (aziendaCard) {
+        aziendaCard.style.display = isAdmin ? 'flex' : 'none';
+    }
     
-    // Card Tecnici (Interventi Esterni): admin e tecnici (operatori quando TECNICI_PER_OPERATORI = true)
+    // Card ASSISTENZA (ex Tecnici): admin e tecnici (operatori quando TECNICI_PER_OPERATORI = true)
     const tecniciCard = document.getElementById('dashboard-tecnici-card');
     if (tecniciCard) {
-        tecniciCard.style.display = sezioneConsentita('tecnici') ? 'flex' : 'none';
+        tecniciCard.style.display = sezioneConsentita('assistenza') ? 'flex' : 'none';
     }
+
+    // Pulsante mappamondo in alto (Organizzazione interventi robot): solo chi puo' aprire la sezione (admin)
+    const orgBtn = document.getElementById('org-btn');
+    if (orgBtn) orgBtn.style.display = sezioneConsentita('organizzazione-robot') ? 'flex' : 'none';
+
+    // Card dentro ASSISTENZA (richieste robot...): secondo SEZIONI_ASSISTENZA_RUOLI
+    Object.keys(SEZIONI_ASSISTENZA_RUOLI).forEach(sezione => {
+        const card = document.getElementById('ass-card-' + sezione);
+        if (card) card.style.display = sezioneConsentita(sezione) ? 'flex' : 'none';
+    });
 
     // Card Vendite: visibile a tutti tranne i tecnici
     const venditeCard = document.getElementById('dashboard-vendite-card');
@@ -520,6 +552,8 @@ async function showMainScreen() {
     // (il tecnico vede solo gli interventi esterni: niente dati di magazzino)
     const isTecnico = currentUserRole === 'tecnico';
     await loadAllUsers();
+    // Dati aziendali per le intestazioni di ordini e report (non blocca l'avvio)
+    if (typeof aziendaCarica === 'function') aziendaCarica();
     if (!isTecnico) {
         loadInventory();
         loadMovements();
@@ -565,6 +599,9 @@ async function showMainScreen() {
     if (!isTecnico && typeof avviaNotificheListino === 'function') {
         avviaNotificheListino();
     }
+
+    // Numerino rosso su ASSISTENZA: richieste robot scadute / in scadenza oggi (solo chi le vede)
+    if (typeof rrAggiornaBadge === 'function') rrAggiornaBadge();
 }
 
 // ========================================
@@ -588,6 +625,9 @@ function showDashboard() {
 }
 
 function openSection(sectionName) {
+    // Vecchio nome della sezione Assistenza (es. salvato nella sessione)
+    if (sectionName === 'tecnici') sectionName = 'assistenza';
+
     // Blocco sezioni non consentite al ruolo (Gestione Utenti solo admin,
     // tecnico solo Tecnici/Interventi Esterni...). Anche se ci arrivasse
     // (es. sezione salvata in sessione), viene riportato alla dashboard.
@@ -634,6 +674,8 @@ function openSection(sectionName) {
         setTimeout(() => initScanner(), 100);
     } else if (sectionName === 'utenti') {
         renderUsersList();
+    } else if (sectionName === 'azienda') {
+        if (typeof openDatiAzienda === 'function') openDatiAzienda();
     } else if (sectionName === 'magazzino') {
         // Entrando dal menu Magazzino l'inventario macchine riparte dalla scheda "Inventario"
         sessionStorage.removeItem('macchineTab');
@@ -658,12 +700,21 @@ function openSection(sectionName) {
         if (typeof openOrdiniClienti === 'function') {
             openOrdiniClienti();
         }
-    } else if (sectionName === 'tecnici') {
-        // Entrando dal menu Tecnici gli interventi ripartono dall'elenco settimane
+    } else if (sectionName === 'assistenza') {
+        // Entrando dal menu Assistenza gli interventi ripartono dall'elenco settimane
         sessionStorage.removeItem('interventiSettimana');
+        if (typeof rrAggiornaBadge === 'function') rrAggiornaBadge();
     } else if (sectionName === 'interventi-esterni') {
         if (typeof openInterventiEsterni === 'function') {
             openInterventiEsterni();
+        }
+    } else if (sectionName === 'richieste-robot') {
+        if (typeof openRichiesteRobot === 'function') {
+            openRichiesteRobot();
+        }
+    } else if (sectionName === 'organizzazione-robot') {
+        if (typeof openOrganizzazioneRobot === 'function') {
+            openOrganizzazioneRobot();
         }
     }
 }
@@ -1510,6 +1561,7 @@ function handleReportTypeChange() {
 }
 
 async function generateReport() {
+    reportDocPdf = null;
     const reportType = document.getElementById('report-type').value;
     const dateFrom = document.getElementById('report-date-from').value;
     const dateTo = document.getElementById('report-date-to').value;
@@ -1612,6 +1664,31 @@ async function generateGeneralOrderReport(dateFrom, dateTo) {
         `;
     });
     
+    // Documento PDF (stile report)
+    reportDocPdf = {
+        nome: rptNomeFile(['REPORT CONSUMABILI GENERALE', dateFrom, dateTo]),
+        doc: {
+            titolo: 'Report generale consumabili',
+            sottotitolo: 'Movimenti ' + rptPeriodoTesto(dateFrom, dateTo) + ' &middot; creato il ' + rptOggiTesto(),
+            kpi: [
+                { e: 'Fornitori', v: Object.keys(supplierData).length },
+                { e: 'Ordinato (carico)', v: rptPiu(Object.values(supplierData).reduce((n, d) => n + d.totalCarico, 0)) + ' pz' },
+                { e: 'Venduto (scarico)', v: rptMeno(Object.values(supplierData).reduce((n, d) => n + d.totalScarico, 0)) + ' pz' }
+            ],
+            sezioni: [{
+                titolo: 'Riepilogo per fornitore',
+                colonne: [{ t: 'Fornitore' }, { t: 'Articoli', num: true }, { t: 'Ordinato', num: true }, { t: 'Venduto', num: true },
+                    { t: 'Differenza', num: true }, { t: 'Sotto soglia', num: true }],
+                righe: Object.keys(supplierData).sort().map(sup => {
+                    const d = supplierData[sup];
+                    const sotto = allArticles.filter(x => (x.marca_fornitore || 'Senza Fornitore') === sup && x.quantita <= x.soglia_minima).length;
+                    return [rptEsc(sup), d.articoli.size, rptPiu(d.totalCarico), rptMeno(d.totalScarico), rptSegno(d.totalCarico - d.totalScarico), sotto];
+                })
+            }],
+            nota: Object.keys(supplierData).length ? '' : 'Nessun movimento nel periodo scelto.'
+        }
+    };
+
     return html;
 }
 
@@ -1723,6 +1800,30 @@ async function generateSupplierOrderReport(supplier, dateFrom, dateTo) {
     
     html += '</tbody></table>';
     
+    // Documento PDF (stile report)
+    reportDocPdf = {
+        nome: rptNomeFile(['REPORT CONSUMABILI', supplier, dateFrom, dateTo]),
+        doc: {
+            titolo: 'Report consumabili &middot; ' + rptEsc(supplier),
+            sottotitolo: 'Movimenti ' + rptPeriodoTesto(dateFrom, dateTo) + ' &middot; creato il ' + rptOggiTesto(),
+            kpi: [
+                { e: 'Articoli', v: supplierArticles.length },
+                { e: 'Ordinato (carico)', v: rptPiu(totalCarico) },
+                { e: 'Venduto (scarico)', v: rptMeno(totalScarico) },
+                { e: 'Da ordinare', v: lowStockCount }
+            ],
+            sezioni: [{
+                titolo: 'Dettaglio articoli',
+                piccola: true,
+                colonne: [{ t: 'Nome' }, { t: 'Codice' }, { t: 'Q.t&agrave;', num: true }, { t: 'Soglia', num: true },
+                    { t: 'Ordinato', num: true }, { t: 'Venduto', num: true }, { t: 'Diff.', num: true }, { t: 'Stato' }],
+                righe: Object.values(articleData).map(x => [rptEsc(x.nome), rptEsc(x.codice), x.quantitaAttuale, x.soglia,
+                    rptPiu(x.carico), rptMeno(x.scarico), rptSegno(x.carico - x.scarico),
+                    x.quantitaAttuale <= x.soglia ? '<strong>DA ORDINARE</strong>' : 'OK'])
+            }]
+        }
+    };
+
     return html;
 }
 
@@ -1808,11 +1909,42 @@ async function generateArticleOrderReport(articleId, dateFrom, dateTo) {
     
     html += '</tbody></table>';
     
+    // Documento PDF (stile report)
+    reportDocPdf = {
+        nome: rptNomeFile(['REPORT ARTICOLO', article.codice_articolo, dateFrom, dateTo]),
+        doc: {
+            titolo: 'Report articolo &middot; ' + rptEsc(article.nome),
+            sottotitolo: 'Codice ' + rptEsc(article.codice_articolo) + ' &middot; fornitore ' + rptEsc(article.marca_fornitore || 'N/D') +
+                '<br>Movimenti ' + rptPeriodoTesto(dateFrom, dateTo) + ' &middot; creato il ' + rptOggiTesto(),
+            kpi: [
+                { e: 'Q.t&agrave; attuale', v: article.quantita },
+                { e: 'Ordinato (carico)', v: rptPiu(totalCarico) },
+                { e: 'Venduto (scarico)', v: rptMeno(totalScarico) },
+                { e: 'Differenza', v: rptSegno(differenza) }
+            ],
+            sezioni: [{
+                titolo: 'Storico movimenti',
+                piccola: true,
+                colonne: [{ t: 'Data', w: '20%' }, { t: 'Tipo', w: '12%' }, { t: 'Q.t&agrave;', num: true, w: '9%' }, { t: 'Utente', w: '22%' }, { t: 'Note' }],
+                righe: movements.map(m => [new Date(m.created_at).toLocaleString('it-IT'), m.tipo.toUpperCase(), m.quantita, rptEsc(m.utente), rptEsc(m.note || '-')])
+            }],
+            nota: movements.length ? '' : 'Nessun movimento nel periodo scelto.'
+        }
+    };
+
     return html;
 }
 
+// Documento PDF del report consumabili (lo prepara il generatore del report)
+let reportDocPdf = null;
+
 function printReport() {
-    window.print();
+    if (!reportDocPdf) {
+        showCustomAlert('Genera prima il report.', 'Report', '&#9888;&#65039;');
+        return;
+    }
+    const r = reportDocPdf;
+    pdfApriInScheda(() => rptCreaPdfBlob(r.doc), r.nome);
 }
 
 // ========================================

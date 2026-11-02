@@ -16,7 +16,7 @@
 6. Magazzino &rarr; Inventario Ricambi Stock
 7. Magazzino &rarr; Scanner (solo mobile)
 8. Vendite
-8bis. Tecnici &rarr; Interventi Esterni
+8bis. Assistenza (ex Tecnici) &rarr; Interventi Esterni, Richieste e Organizzazione interventi robot
 9. Gestione Utenti (solo admin)
 10. Funzioni automatiche dell'app
 11. Manutenzione: file e comandi da terminale
@@ -133,7 +133,7 @@ Premi &#10133; o &#10134; sulla riga, indica la quantit&agrave; e (facoltativo) 
 Storico di tutti i carichi/scarichi con data, utente, articolo, quantit&agrave; e note. Filtri per tipo e per periodo. Su smartphone l'utente &egrave; mostrato con le **iniziali**.
 
 ### 5.5 Report
-Report generale, per fornitore o per singolo articolo, nel periodo scelto, con tasto di stampa.
+Report generale, per fornitore o per singolo articolo, nel periodo scelto. Il tasto **Stampa** crea il PDF nello stile dei report (vedi sezione 10).
 
 ---
 
@@ -227,7 +227,7 @@ Configurazione notifiche: tabella `listino_notifiche` (script `supabase/listino-
 
 ---
 
-### 8.4 Inventario Macchine (per ora solo admin)
+### 8.4 Inventario Macchine (admin e operatori)
 Si apre da **Magazzino &rarr; Inventario Macchine** (la sezione sta in Magazzino; gli Ordini Clienti in Vendite). &Egrave; collegato al Listino Vendite: ogni macchina fisica &egrave; una riga legata a un articolo del listino (stessa suddivisione: attrezzo, marchio, alimentazione, tipologia, modello, note), senza prezzi.
 
 **Stati (i colori del quadernone)**
@@ -256,7 +256,7 @@ Si apre da **Magazzino &rarr; Inventario Macchine** (la sezione sta in Magazzino
 
 **Configurazione**: eseguire una volta `supabase/inventario-macchine-setup.sql` (Supabase &rarr; SQL Editor). **Per ora le sezioni Inventario Macchine e Ordini Clienti sono visibili solo all'admin** (sono in prova): `MACCHINE_PER_OPERATORI = false` in `macchine-functions.js`. Per aprirle anche agli **operatori** (stessi permessi dell'admin; i tecnici no) basta mettere `MACCHINE_PER_OPERATORI = true` e su Supabase `supabase/macchine-operatori.sql` (funzione `puo_gestire_macchine()` con `role in ('admin', 'operatore')`).
 
-### 8.5 Ordini Clienti (per ora solo admin)
+### 8.5 Ordini Clienti (admin e operatori)
 Si apre da **Vendite &rarr; Ordini Clienti**. Sostituisce il blocchetto delle commissioni (niente preventivi: solo ordini).
 
 **Nuovo ordine** (come il modulo cartaceo): data, **operatore** che fa il contratto (proposto chi &egrave; collegato, si pu&ograve; cambiare; compare sulla stampa), Sig./Sig.ra (cliente, obbligatorio), indirizzo, tel/cell, e-mail, C.F., P.IVA, note, pagamento (testo libero). Il numero viene assegnato al salvataggio: progressivo, riparte da 1 ogni anno (es. 12/2026).
@@ -288,9 +288,12 @@ Si apre da **Vendite &rarr; Ordini Clienti**. Sostituisce il blocchetto delle co
 
 **Prossime fasi**: Telegram (da decidere).
 
-## 8bis. TECNICI &rarr; INTERVENTI ESTERNI (v6.0.0)
+## 8bis. ASSISTENZA (ex TECNICI) &rarr; INTERVENTI ESTERNI (v6.0.0)
 
-Percorso: Dashboard &rarr; Tecnici &rarr; Interventi Esterni. Modificano **admin e operatori**; i **tecnici** vedono soltanto.
+Dalla v6.3.0 la card **Tecnici** si chiama **ASSISTENZA** e contiene: Interventi Esterni (tutti; tecnici in sola lettura),
+Richieste interventi robot, Organizzazione interventi robot, Richieste interventi, Richieste tagliandi (vedi 8bis.7).
+
+Percorso: Dashboard &rarr; Assistenza &rarr; Interventi Esterni. Modificano **admin e operatori**; i **tecnici** vedono soltanto.
 
 ### 8bis.1 Elenco settimane
 - Settimane da luned&igrave; a sabato, divise per mese, dal 2 novembre 2026. In alto si sceglie l'anno.
@@ -337,6 +340,67 @@ delete from public.tecnici where nome = 'NOME COGNOME';
 
 ---
 
+### 8bis.7 Richieste e Organizzazione interventi robot (v6.3.0)
+
+**Chi le vede (dal 2/11/2026):** Richieste interventi robot = tutti, e tutti le modificano (tecnici compresi);
+Organizzazione = solo admin, si apre con il pulsante **&#127758; mappamondo** in alto accanto alla campanella (niente card in Assistenza). Richieste interventi e Richieste tagliandi ("in costruzione") = solo admin.
+Si cambia in `app.js` (`SEZIONI_ASSISTENZA_RUOLI`), in `richieste-robot-functions.js` (`RR_RUOLI_MODIFICA`) e su Supabase
+(`supabase/richieste-robot-operatori.sql`: admin, operatori e tecnici).
+
+**Richieste interventi robot** (come il foglio Excel "INTERVENTI ROBOT"):
+- Tabella con intestazioni bloccate: OP, DATA, COGNOME NOME, INDIRIZZO, TELEFONO, NOTE, TIPO, URG., ESITO. In ordine di data della chiamata: le pi&ugrave; vecchie in alto, le pi&ugrave; recenti in fondo (la tabella si apre gi&agrave; in fondo).
+- **&#10133; Nuova richiesta**: OP = iniziali di chi &egrave; collegato, data = oggi (si possono cambiare). Cognome e nome, indirizzo e telefono obbligatori.
+  Scrivendo l'indirizzo (meglio via + numero + paese, es. VIA ROMA 5 MIRANO; Invio = cerca subito) compaiono i **suggerimenti**
+  (OpenStreetMap: Photon, e Nominatim se Photon non trova nulla). Sceglierne uno compila anche il **paese** e mette la richiesta sulla mappa;
+  se OpenStreetMap conosce solo la via, il numero civico scritto viene rimesso dopo la via. Se non trova nulla lo dice: l'indirizzo si pu&ograve; lasciare scritto a mano.
+- **Tipo**: dedotto dalle note (inizia con SOPRALLUOGO = SOP, con MONTAGGIO = MONT, altrimenti INT = assistenza); si pu&ograve; cambiare a mano.
+- **Urgenza** Un = da fare entro n giorni lavorativi (U1 = in giornata): non contano sabato, domenica, festivi italiani (Capodanno, Epifania, Pasquetta, 25 aprile, 1 maggio, 2 giugno, Ferragosto, Ognissanti, 8 dicembre, Natale, Santo Stefano) e il **santo patrono (3 ottobre)**. Elenco in `RR_FESTIVI_FISSI` (richieste-robot-functions.js). Sotto si vede la scadenza.
+- **Barra in alto** (e numerino rosso sulle card ASSISTENZA): richieste SCADUTE, in scadenza OGGI e DOMANI (solo quelle ancora da organizzare o NR). "Mostra" filtra la tabella.
+- **Esito**: vuoto = da organizzare, **-** = organizzato in attesa di conferma, **OK** = confermato, **NR** = non risponde, **NO** = annullato.
+- Clic su telefono = chiamata; clic su indirizzo = Google Maps. Clic sulla riga = modifica / elimina.
+- **Fine anno (solo admin)**: *PDF anno* scarica il PDF di tutte le richieste dell'anno. *Pulizia fine anno*: crea il PDF (da salvare su Drive),
+  poi chiede di scrivere l'anno e cancella dal server SOLO le richieste chiuse (OK e NO). Quelle ancora aperte restano.
+
+**Organizzazione interventi robot**:
+- Mappa OpenStreetMap con un pallino per ogni richiesta aperta: **rosso** assistenza, **blu** montaggio, **giallo** sopralluogo
+  (colore pi&ugrave; intenso = pi&ugrave; urgente: U1, U2, U3, U4, U5+, senza urgenza), **verde** = organizzato (esito ? nel planning),
+  **bianco** = non risponde (NR), **bordo nero** = scaduta. Casa = sede, cerchi tratteggiati ogni 10 km. Legenda sotto la mappa
+  (con le spunte si nascondono i tipi). Clic sul pallino = scheda con telefono, Google Maps e Modifica.
+- Sotto: contenitori per distanza in linea d'aria dalla sede (0-10, 10-20, 20-30, 30-40, oltre 40 km), divisi per urgenza.
+  Organizzati e NR restano ma barrati; OK e NO spariscono. Clic sul cliente = lo mostra sulla mappa.
+- "Posizione sconosciuta": indirizzi non trovati, da correggere nella richiesta.
+- La sede &egrave; l'indirizzo dei **Dati aziendali**.
+
+**Collegamenti automatici**:
+- **Interventi Esterni**: nella finestra della casella, scrivendo il cliente (cognome nome o nome cognome) compaiono le richieste aperte.
+  Scegliendone una si compilano "COGNOME NOME - PAESE - TELEFONO" e il tipo, e la casella resta **agganciata** (&#128279;; "Scollega" per toglierla).
+  Esito della casella &rarr; richiesta: **?** &rarr; "-" (pallino verde), **NR** &rarr; NR (pallino bianco), **OK** &rarr; OK (sparisce),
+  **NO** o casella svuotata &rarr; esito vuoto (torna da organizzare). Una richiesta messa a NO a mano sparisce dalla mappa.
+  Lo fa Supabase (trigger), quindi vale anche per gli operatori. "Archivia anno" del planning non riapre le richieste gi&agrave; OK.
+- Nel planning (PC, telefono e riquadro Promemoria) **telefono e paese sono link** per tutti, tecnici compresi: chiamata e Google Maps
+  (indirizzo completo se la casella &egrave; agganciata; se manca il paese compare &#128205;).
+- Planning: nei giorni di **festa** (festivi italiani e santo patrono, 3 ottobre) le righe sono **rosse di default** con la scritta FESTA
+  sul giorno (da telefono: pallino rosso sulla linguetta del giorno). &Egrave; solo l'aspetto: non viene salvato nulla, e una riga colorata a mano tiene il suo colore.
+- Riquadro **Promemoria clienti**: "tutti inviati" solo se sono davvero stati inviati tutti; altrimenti dice quanti sono da inviare,
+  da confermare (?), senza cellulare e gi&agrave; inviati.
+- **Ordini clienti**: un ordine con un **robot** o un **antizanzare** (categoria/attrezzo del listino o descrizione con ROBOT / ZANZAR)
+  e SENZA la spunta "senza servizio di installazione" crea da solo la richiesta di **MONTAGGIO** (note "MONTAGGIO ... - ORDINE anno/numero").
+  Modificando l'ordine si aggiornano cliente, indirizzo e telefono; ordine annullato, eliminato o con la spunta "senza installazione" messa dopo:
+  la richiesta non ancora organizzata viene tolta (se era gi&agrave; organizzata diventa NO).
+
+**Configurazione (una volta)**: Supabase &rarr; SQL Editor &rarr; incolla `supabase/richieste-robot-setup.sql` &rarr; Run.
+Finch&eacute; non &egrave; eseguito il planning funziona come prima (senza suggerimenti n&eacute; aggancio).
+
+---
+
+## 8ter. DATI AZIENDALI (SOLO ADMIN)
+
+Dalla Dashboard, card **Dati aziendali** (la vede solo l'admin). Si compilano ragione sociale, indirizzo, telefono, telefono/WhatsApp, e-mail, partita IVA, codice fiscale, codice univoco (SDI), sito web e il **logo** (PNG consigliato; viene rimpicciolito da solo). Sotto c'&egrave; l'anteprima dell'intestazione. **Salva** e i dati valgono per tutti gli utenti: compaiono nell'intestazione di ordini clienti, report vendite e valore macchine, report consumabili e ricambi, storico netti. Senza logo caricato si usa il logo dell'app.
+
+Configurazione: eseguire una volta `supabase/dati-azienda-setup.sql` (crea la tabella `impostazioni_azienda` con i dati attuali; lettura per tutti, modifica solo admin).
+
+---
+
 ## 9. GESTIONE UTENTI (SOLO ADMIN)
 
 Percorso: Dashboard &rarr; Gestione Utenti.
@@ -353,6 +417,7 @@ Percorso: Dashboard &rarr; Gestione Utenti.
 - **Persistenza sessione:** l'app ricorda sezione e scheda quando cambi finestra, fino a refresh manuale o logout.
 - **Pop-up novit&agrave;:** quando esce una nuova versione compare una finestra con le novit&agrave;, **una sola volta per utente**. Il "gi&agrave; visto" &egrave; salvato sul dispositivo e nel profilo utente su Supabase, cos&igrave; non ricompare ad ogni login (anche su mobile).
 - **Filtri:** tornando in una sezione i filtri ripartono dai valori predefiniti.
+- **Documenti PDF (tutti nello stesso stile):** ordini clienti, report vendite e valore macchine, report consumabili e ricambi, storico netti del listino. Il PDF si apre in una nuova scheda con in alto il nome del file, **Scarica PDF** (salva il file con il nome giusto, es. &quot;ORDINE 0012-2026 ROSSI MARIO.pdf&quot;, &quot;REPORT RICAMBI NGK.pdf&quot;) e **Stampa**. Su iPhone/iPad ci sono &quot;Scarica PDF&quot; e &quot;Apri il PDF&quot; (da l&igrave; si stampa o si condivide). Niente scritte del browser in alto e in fondo alla pagina. Il fax non compare in nessuna intestazione.
 
 ---
 
@@ -367,7 +432,9 @@ Percorso: Dashboard &rarr; Gestione Utenti.
 | `ricambi-functions.js` | Tutta la logica dei ricambi stock |
 | `listino-functions.js`, `listino.css` | Listino Vendite e notifiche (campanella) |
 | `fornitori-functions.js`, `fornitori.css` | Listini Fornitori (cartelle Google Drive) |
-| `interventi-functions.js`, `interventi.css` | Tecnici &rarr; Interventi Esterni (planning, Telegram, archivio) |
+| `interventi-functions.js`, `interventi.css` | Assistenza &rarr; Interventi Esterni (planning, Telegram, archivio, aggancio alle richieste robot) |
+| `richieste-robot-functions.js`, `richieste.css` | Assistenza &rarr; Richieste e Organizzazione interventi robot (tabella, mappa, contenitori, PDF e pulizia di fine anno) |
+| `supabase/richieste-robot-setup.sql` | Tabella richieste_robot, aggancio al planning, trigger degli esiti, richieste dagli ordini |
 | `macchine-functions.js`, `macchine.css` | Magazzino &rarr; Inventario Macchine (inventario, quaderno, carico, carico Excel, set, movimenti) |
 | `macchine-report.js` | Inventario Macchine &rarr; schede Report (vendite) e Valore (magazzino), Excel e PDF |
 | `ordini-functions.js`, `ordini.css` | Vendite &rarr; Ordini Clienti (commissioni con firma, stampa) |
@@ -460,6 +527,7 @@ git rm --cached localhost.pem localhost-key.pem
 
 ## 15. STORICO MODIFICHE PRINCIPALI
 
+- **v6.3.0 (nov 2026)** - La card Tecnici diventa **ASSISTENZA**. Nuove sezioni **Richieste interventi robot** (tabella come il foglio Excel, urgenze con scadenze, suggerimenti indirizzo, PDF e pulizia di fine anno) e **Organizzazione interventi robot** (mappa OpenStreetMap con pallini colorati, contenitori per distanza e urgenza). Planning agganciato alle richieste (esiti automatici), telefono e paese cliccabili. Ordini di robot/antizanzare con installazione = richiesta di montaggio automatica. Planning: festivi e santo patrono (3 ottobre) in rosso. Aperte agli operatori anche Inventario Macchine e Ordini Clienti.
 - **v6.0.0 (ott 2026)** - Nuova sezione **Tecnici &rarr; Interventi Esterni**: planning settimanale (4 righe mattina + 4 pomeriggio per tecnico), colori con pennello, tecnici per settimana, tempo reale; ruolo utente **Tecnico** (sola lettura, solo questa sezione); riepilogo Telegram con il pulsante "Invia a Telegram"; assenze lette da Google Calendar con conferma su Telegram e colorazione automatica; archivio di fine anno in Excel.
 - **v4.10.0 (ott 2026)** - Listini Fornitori: PDF su Google Drive letti in automatico dall'app (fornitori, marchi, pi&ugrave; recenti e archivio), guida in app, avvisi Telegram dei file nuovi o aggiornati.
 - **v4.9.5 (ott 2026)** - Promemoria ordini: notifiche (app e Telegram) per consumabili sotto soglia o esauriti e ricambi esauriti; filtri che restano dopo carico/scarico; ordinamento per codice articolo; finestre con pulsanti sempre visibili; prezzo "No promo" da mobile; pulsante "Dashboard" accanto a "Torna a Magazzino/Vendite".

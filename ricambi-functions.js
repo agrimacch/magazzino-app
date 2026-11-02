@@ -1050,6 +1050,7 @@ function handleReportRicambiTypeChange() {
 }
 
 async function generateReportRicambi() {
+    reportRicambiDocPdf = null;
     const reportType = document.getElementById('report-ricambi-type').value;
     const dateFrom = document.getElementById('report-ricambi-date-from').value;
     const dateTo = document.getElementById('report-ricambi-date-to').value;
@@ -1196,6 +1197,30 @@ async function generateGeneralRicambiReport(dateFrom, dateTo) {
         </ul>
     `;
     
+    // Documento PDF (stile report)
+    reportRicambiDocPdf = {
+        nome: rptNomeFile(['REPORT RICAMBI GENERALE', dateFrom, dateTo]),
+        doc: {
+            titolo: 'Report generale ricambi stock',
+            sottotitolo: 'Movimenti ' + rptPeriodoTesto(dateFrom, dateTo) + ' &middot; creato il ' + rptOggiTesto(),
+            kpi: [
+                { e: 'Fornitori', v: Object.keys(supplierData).length },
+                { e: 'Ordinato (carico)', v: rptPiu(Object.values(supplierData).reduce((n, d) => n + d.totalCarico, 0)) + ' pz' },
+                { e: 'Utilizzato (scarico)', v: rptMeno(Object.values(supplierData).reduce((n, d) => n + d.totalScarico, 0)) + ' pz' }
+            ],
+            sezioni: [{
+                titolo: 'Riepilogo per fornitore',
+                colonne: [{ t: 'Fornitore' }, { t: 'Ricambi', num: true }, { t: 'Ordinato', num: true }, { t: 'Utilizzato', num: true }, { t: 'Differenza', num: true }],
+                righe: Object.keys(supplierData).sort().map(sup => {
+                    const d = supplierData[sup];
+                    return [rptEsc(sup), d.ricambi.size, rptPiu(d.totalCarico), rptMeno(d.totalScarico), rptSegno(d.totalCarico - d.totalScarico)];
+                })
+            }],
+            nota: Object.keys(supplierData).length ? 'Ordinato = ricambi ricevuti dai fornitori; utilizzato = ricambi usati o venduti.'
+                : 'Nessun movimento nel periodo scelto.'
+        }
+    };
+
     return html;
 }
 
@@ -1314,6 +1339,28 @@ async function generateSupplierRicambiReport(supplier, dateFrom, dateTo) {
         </table>
     `;
     
+    // Documento PDF (stile report)
+    reportRicambiDocPdf = {
+        nome: rptNomeFile(['REPORT RICAMBI', supplier, dateFrom, dateTo]),
+        doc: {
+            titolo: 'Report ricambi &middot; ' + rptEsc(supplier),
+            sottotitolo: 'Movimenti ' + rptPeriodoTesto(dateFrom, dateTo) + ' &middot; creato il ' + rptOggiTesto(),
+            kpi: [
+                { e: 'Ricambi', v: supplierRicambi.length },
+                { e: 'Ordinato (carico)', v: rptPiu(totalCarico) },
+                { e: 'Utilizzato (scarico)', v: rptMeno(totalScarico) }
+            ],
+            sezioni: [{
+                titolo: 'Dettaglio ricambi',
+                piccola: true,
+                colonne: [{ t: 'Nome' }, { t: 'Codice' }, { t: 'Q.t&agrave; attuale', num: true }, { t: 'Ordinato', num: true },
+                    { t: 'Utilizzato', num: true }, { t: 'Diff.', num: true }],
+                righe: Object.values(ricambioData).map(x => [rptEsc(x.nome), rptEsc(x.codice), x.quantitaAttuale, rptPiu(x.carico), rptMeno(x.scarico), rptSegno(x.carico - x.scarico)])
+            }],
+            nota: supplierRicambi.length ? '' : 'Nessun ricambio per questo fornitore.'
+        }
+    };
+
     return html;
 }
 
@@ -1413,11 +1460,42 @@ async function generateRicambioReport(ricambioId, dateFrom, dateTo) {
         </table>
     `;
     
+    // Documento PDF (stile report)
+    reportRicambiDocPdf = {
+        nome: rptNomeFile(['REPORT RICAMBIO', ricambio.codice_articolo, dateFrom, dateTo]),
+        doc: {
+            titolo: 'Report ricambio &middot; ' + rptEsc(ricambio.nome),
+            sottotitolo: 'Codice ' + rptEsc(ricambio.codice_articolo) + ' &middot; fornitore ' + rptEsc(ricambio.marca_fornitore || 'N/D') +
+                '<br>Movimenti ' + rptPeriodoTesto(dateFrom, dateTo) + ' &middot; creato il ' + rptOggiTesto(),
+            kpi: [
+                { e: 'Q.t&agrave; attuale', v: ricambio.quantita },
+                { e: 'Ordinato (carico)', v: rptPiu(totalCarico) },
+                { e: 'Utilizzato (scarico)', v: rptMeno(totalScarico) },
+                { e: 'Differenza', v: rptSegno(differenza) }
+            ],
+            sezioni: [{
+                titolo: 'Storico movimenti',
+                piccola: true,
+                colonne: [{ t: 'Data', w: '20%' }, { t: 'Tipo', w: '12%' }, { t: 'Q.t&agrave;', num: true, w: '9%' }, { t: 'Utente', w: '22%' }, { t: 'Note' }],
+                righe: safeMovements.map(m => [new Date(m.created_at).toLocaleString('it-IT'), m.tipo.toUpperCase(), m.quantita, rptEsc(m.utente), rptEsc(m.note || '-')])
+            }],
+            nota: safeMovements.length ? '' : 'Nessun movimento per questo ricambio nel periodo scelto.'
+        }
+    };
+
     return html;
 }
 
+// Documento PDF del report ricambi (lo prepara il generatore del report)
+let reportRicambiDocPdf = null;
+
 function printReportRicambi() {
-    window.print();
+    if (!reportRicambiDocPdf) {
+        showCustomAlert('Genera prima il report.', 'Report', '&#9888;&#65039;');
+        return;
+    }
+    const r = reportRicambiDocPdf;
+    pdfApriInScheda(() => rptCreaPdfBlob(r.doc), r.nome);
 }
 
 // ========================================
