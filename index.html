@@ -17,14 +17,14 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Kalam:wght@400;700&family=Roboto+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=6.3.1">
-    <link rel="stylesheet" href="listino.css?v=6.3.1">
-    <link rel="stylesheet" href="fornitori.css?v=6.3.1">
-    <link rel="stylesheet" href="interventi.css?v=6.3.1">
-    <link rel="stylesheet" href="macchine.css?v=6.3.1">
-    <link rel="stylesheet" href="ordini.css?v=6.3.1">
-    <link rel="stylesheet" href="azienda.css?v=6.3.1">
-    <link rel="stylesheet" href="richieste.css?v=6.3.1">
+    <link rel="stylesheet" href="style.css?v=6.3.3">
+    <link rel="stylesheet" href="listino.css?v=6.3.3">
+    <link rel="stylesheet" href="fornitori.css?v=6.3.3">
+    <link rel="stylesheet" href="interventi.css?v=6.3.3">
+    <link rel="stylesheet" href="macchine.css?v=6.3.3">
+    <link rel="stylesheet" href="ordini.css?v=6.3.3">
+    <link rel="stylesheet" href="azienda.css?v=6.3.3">
+    <link rel="stylesheet" href="richieste.css?v=6.3.3">
 
     <!-- SheetJS per import Excel -->
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
@@ -85,7 +85,7 @@
 
 <body class="loading">
     <!-- Version badge -->
-    <div class="version-badge">v6.3.1</div>
+    <div class="version-badge">v6.3.3</div>
 
     <!-- SCHERMATA LOGIN -->
     <div id="login-screen" class="screen">
@@ -1587,6 +1587,11 @@
                 <h2 class="section-title">&#128656; Interventi Esterni</h2>
             </div>
             <div class="container">
+                <!-- Solo telefono: pulsanti compatti con il numerino (promemoria clienti e Telegram) -->
+                <div id="int-barra-mobile" class="int-barra-mobile">
+                    <button type="button" id="int-pm-mini" class="int-mini int-pm-mini hidden" onclick="intApriPromemoriaMobile()" title="Promemoria clienti" aria-label="Promemoria clienti">&#128242;<span id="int-pm-mini-num" class="int-mini-num hidden"></span></button>
+                    <button type="button" class="int-mini int-btn-invia hidden" onclick="intInviaTelegram()" title="Invia a Telegram" aria-label="Invia a Telegram">&#128232;</button>
+                </div>
                 <!-- Elenco settimane -->
                 <!-- Promemoria WhatsApp ai clienti del giorno lavorativo dopo (admin e operatori) -->
                 <details id="int-promemoria" class="card int-promemoria hidden" ontoggle="intPromemoriaAperto = this.open">
@@ -2266,7 +2271,7 @@
     <div id="whats-new-modal" class="modal hidden">
         <div class="modal-content whats-new-content">
             <div class="whats-new-header">
-                <h3>&#127881; AGRIDESK v6.3.1 - Aggiornamento!</h3>
+                <h3>&#127881; AGRIDESK v6.3.3 - Aggiornamento!</h3>
                 <p class="version-date">02 Novembre 2026</p>
             </div>
 
@@ -2537,15 +2542,15 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- Versione bloccata (la libreria non e' piu' mantenuta: cosi' non cambia mai da sola) -->
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-    <script src="ricambi-functions.js?v=6.3.1"></script>
-    <script src="listino-functions.js?v=6.3.1"></script>
-    <script src="fornitori-functions.js?v=6.3.1"></script>
-    <script src="interventi-functions.js?v=6.3.1"></script>
-    <script src="macchine-functions.js?v=6.3.1"></script>
-    <script src="macchine-report.js?v=6.3.1"></script>
-    <script src="ordini-functions.js?v=6.3.1"></script>
-    <script src="azienda-functions.js?v=6.3.1"></script>
-    <script src="richieste-robot-functions.js?v=6.3.1"></script>
-    <script src="app.js?v=6.3.1"></script>
+    <script src="ricambi-functions.js?v=6.3.3"></script>
+    <script src="listino-functions.js?v=6.3.3"></script>
+    <script src="fornitori-functions.js?v=6.3.3"></script>
+    <script src="interventi-functions.js?v=6.3.3"></script>
+    <script src="macchine-functions.js?v=6.3.3"></script>
+    <script src="macchine-report.js?v=6.3.3"></script>
+    <script src="ordini-functions.js?v=6.3.3"></script>
+    <script src="azienda-functions.js?v=6.3.3"></script>
+    <script src="richieste-robot-functions.js?v=6.3.3"></script>
+    <script src="app.js?v=6.3.3"></script>
 </body>
 </html>

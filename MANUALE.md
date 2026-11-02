@@ -382,7 +382,9 @@ Si cambia in `app.js` (`SEZIONI_ASSISTENZA_RUOLI`), in `richieste-robot-function
 - Planning: nei giorni di **festa** (festivi italiani e santo patrono, 3 ottobre) le righe sono **rosse di default** con la scritta FESTA
   sul giorno (da telefono: pallino rosso sulla linguetta del giorno). &Egrave; solo l'aspetto: non viene salvato nulla, e una riga colorata a mano tiene il suo colore.
 - Riquadro **Promemoria clienti**: "tutti inviati" solo se sono davvero stati inviati tutti; altrimenti dice quanti sono da inviare,
-  da confermare (?), senza cellulare e gi&agrave; inviati.
+  da confermare (?), NR, senza cellulare e gi&agrave; inviati. Le righe con esito **?** o **NR** non contano come "da inviare".
+- **Da telefono**: in alto a destra due pulsanti tondi con il numerino: &#128242; promemoria clienti (apre/chiude il riquadro)
+  e &#128232; Invia a Telegram. "Archivia anno" si vede solo da PC.
 - **Ordini clienti**: un ordine con un **robot** o un **antizanzare** (categoria/attrezzo del listino o descrizione con ROBOT / ZANZAR)
   e SENZA la spunta "senza servizio di installazione" crea da solo la richiesta di **MONTAGGIO** (note "MONTAGGIO ... - ORDINE anno/numero").
   Modificando l'ordine si aggiornano cliente, indirizzo e telefono; ordine annullato, eliminato o con la spunta "senza installazione" messa dopo:

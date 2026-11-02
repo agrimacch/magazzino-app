@@ -1306,22 +1306,49 @@ async function intCaricaPromemoria() {
     intCaricaMeteo();
 }
 
+// Telefono: il riquadro promemoria si apre/chiude dal pulsante compatto in alto
+function intApriPromemoriaMobile() {
+    const box = document.getElementById('int-promemoria');
+    if (!box) return;
+    const apri = !box.classList.contains('aperto-mobile');
+    box.classList.toggle('aperto-mobile', apri);
+    document.getElementById('int-pm-mini').classList.toggle('attivo', apri);
+    if (apri) {
+        box.open = true;
+        // resta in vista anche il pulsante, per richiudere
+        const barra = document.getElementById('int-barra-mobile');
+        (barra || box).scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+}
+
 function intRenderPromemoria() {
     const box = document.getElementById('int-promemoria');
     const righe = intPromemoriaRighe;
     const giorno = intPromemoriaGiorno;
     if (!box || !giorno) return;
-    if (!righe.length) { box.classList.add('hidden'); return; }
+    const mini = document.getElementById('int-pm-mini');
+    if (!righe.length) { box.classList.add('hidden'); if (mini) mini.classList.add('hidden'); return; }
 
-    const daInviare = righe.filter(r => r.esito !== '?' && !r.promemoria_at && intCellulare(r.cliente)).length;
-    const inviati = righe.filter(r => r.esito !== '?' && r.promemoria_at).length;
+    // Esito ? (da confermare) e NR (non risponde): il promemoria non va mandato
+    const inAttesa = r => r.esito === '?' || r.esito === 'NR';
+    const daInviare = righe.filter(r => !inAttesa(r) && !r.promemoria_at && intCellulare(r.cliente)).length;
+    const inviati = righe.filter(r => !inAttesa(r) && r.promemoria_at).length;
     const daConfermare = righe.filter(r => r.esito === '?').length;
-    const senzaCell = righe.filter(r => r.esito !== '?' && !r.promemoria_at && !intCellulare(r.cliente)).length;
+    const nonRisponde = righe.filter(r => r.esito === 'NR').length;
+    const senzaCell = righe.filter(r => !inAttesa(r) && !r.promemoria_at && !intCellulare(r.cliente)).length;
+    if (mini) {
+        mini.classList.remove('hidden');
+        mini.classList.toggle('da-inviare', daInviare > 0);
+        const num = document.getElementById('int-pm-mini-num');
+        num.textContent = daInviare;
+        num.classList.toggle('hidden', !daInviare);
+        mini.title = 'Promemoria clienti: ' + (daInviare ? daInviare + ' da inviare' : 'niente da inviare');
+    }
     // Etichetta: "tutti inviati" SOLO se davvero tutti sono stati inviati
     let stato;
     if (inviati === righe.length) stato = 'tutti inviati';
     else stato = [daInviare ? daInviare + ' da inviare' : '', daConfermare ? daConfermare + ' da confermare (?)' : '',
-        senzaCell ? senzaCell + ' senza cellulare' : '', inviati ? inviati + ' inviat' + (inviati === 1 ? 'o' : 'i') : '']
+        nonRisponde ? nonRisponde + ' NR' : '', senzaCell ? senzaCell + ' senza cellulare' : '', inviati ? inviati + ' inviat' + (inviati === 1 ? 'o' : 'i') : '']
         .filter(Boolean).join(' &middot; ');
     const d = intDaIso(giorno);
     const giornoTxt = INT_GIORNI_LUNGHI[(d.getDay() + 6) % 7] + ' ' + d.getDate() + ' ' + INT_MESI[d.getMonth()];
@@ -1333,6 +1360,7 @@ function intRenderPromemoria() {
         let azione;
         let classe = '';
         if (r.esito === '?') { azione = '<span class="int-pm-stato">&#10067; Da confermare (esito ?)</span>'; classe = 'attesa'; }
+        else if (r.esito === 'NR') { azione = '<span class="int-pm-stato">&#128245; Non risponde (NR)</span>'; classe = 'attesa'; }
         else if (r.promemoria_at) {
             azione = '<span class="int-pm-stato">' + intStatoPromemoria(r) + '</span>' +
                 (intCellulare(r.cliente) ? '<button type="button" class="int-btn-piccolo grigio" onclick="intInviaPromemoria(' + r.id + ')">Di nuovo</button>' : '');
@@ -1492,7 +1520,9 @@ function intAggiornaDaInviare() {
         intDaInviare = ris.elenco;
         const n = intDaInviare.length;
         pulsanti.forEach(b => {
-            b.innerHTML = '&#128232; Invia a Telegram' + (n ? ' <span class="int-invia-num">' + n + '</span>' : '');
+            // Pulsante compatto del telefono: solo icona + numerino
+            if (b.classList.contains('int-mini')) b.innerHTML = '&#128232;' + (n ? '<span class="int-mini-num">' + n + '</span>' : '');
+            else b.innerHTML = '&#128232; Invia a Telegram' + (n ? ' <span class="int-invia-num">' + n + '</span>' : '');
             b.classList.toggle('da-inviare', n > 0);
             b.title = (n ? n + (n === 1 ? ' modifica da inviare' : ' modifiche da inviare') : 'Nessuna modifica da inviare') +
                 (ris.inAttesa ? ' - ' + ris.inAttesa + ' in attesa (esito ?)' : '');
@@ -1783,6 +1813,7 @@ window.intScegliPennello = intScegliPennello;
 window.intApriModifica = intApriModifica;
 window.intChiudiModifica = intChiudiModifica;
 window.intSuggerisciRichieste = intSuggerisciRichieste;
+window.intApriPromemoriaMobile = intApriPromemoriaMobile;
 window.intNascondiSuggRichieste = intNascondiSuggRichieste;
 window.intScegliRichiesta = intScegliRichiesta;
 window.intScollegaRichiesta = intScollegaRichiesta;

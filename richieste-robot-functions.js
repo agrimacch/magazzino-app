@@ -59,6 +59,8 @@ const RR_FASCE = [
 const RR_SEDE_RISERVA = { lat: 45.5455, lon: 12.1590 };
 // Zona di ricerca degli indirizzi (Veneto e dintorni)
 const RR_BBOX = '10.5,44.6,13.95,46.8';
+// Zoom iniziale della mappa (10 = circa 40 km intorno, 11 = circa 20 km, 12 = circa 10 km): prima era 10
+const RR_ZOOM_INIZIALE = 11;
 const RR_LEAFLET_CSS = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
 const RR_LEAFLET_JS = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
 
@@ -1130,11 +1132,33 @@ function rrPreparaMappa() {
     const sede = rrPosizioneSede();
     if (!rrMappa) {
         el.innerHTML = '';
-        rrMappa = L.map(el, { scrollWheelZoom: false }).setView([sede.lat, sede.lon], 10);
-        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        rrMappa = L.map(el, { scrollWheelZoom: false }).setView([sede.lat, sede.lon], RR_ZOOM_INIZIALE);
+        // Satellite (Esri World Imagery) con nomi di strade e paesi sopra, oppure mappa stradale OpenStreetMap.
+        // La scelta (pulsante in alto a destra della mappa) resta ricordata nel browser.
+        const satellite = L.layerGroup([
+            L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+                maxZoom: 19,
+                attribution: 'Satellite &copy; Esri, Maxar, Earthstar Geographics'
+            }),
+            L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
+                maxZoom: 19
+            }),
+            L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}', {
+                maxZoom: 19, opacity: 0.8
+            })
+        ]);
+        const stradale = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
             maxZoom: 19,
             attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>'
-        }).addTo(rrMappa);
+        });
+        const sfondi = { 'Satellite': satellite, 'Mappa stradale': stradale };
+        let scelto = 'Satellite';
+        try { if (localStorage.getItem('rrSfondo') === 'Mappa stradale') scelto = 'Mappa stradale'; } catch (e) { /* niente */ }
+        sfondi[scelto].addTo(rrMappa);
+        L.control.layers(sfondi, null, { position: 'topleft', collapsed: false }).addTo(rrMappa);
+        rrMappa.on('baselayerchange', ev => {
+            try { localStorage.setItem('rrSfondo', ev.name); } catch (e) { /* niente */ }
+        });
         // La sede sta SOTTO ai pallini (pannello piu' basso di quello dei cerchi)
         rrMappa.createPane('rrSede');
         rrMappa.getPane('rrSede').style.zIndex = 350;
@@ -1148,7 +1172,7 @@ function rrPreparaMappa() {
     RR_FASCE.forEach(f => {
         if (f.a === Infinity) return;
         L.circle([sede.lat, sede.lon], {
-            radius: f.a * 1000, color: '#688E53', weight: 1.2, opacity: 0.7, fill: false, dashArray: '6 6', interactive: false, pane: 'rrSede'
+            radius: f.a * 1000, color: '#facc15', weight: 2, opacity: 0.9, fill: false, dashArray: '8 6', interactive: false, pane: 'rrSede'
         }).addTo(rrStratoSede);
     });
     L.marker([sede.lat, sede.lon], {
@@ -1340,7 +1364,7 @@ function rrMostraSullaMappa(id) {
 function rrCentraSede() {
     if (!rrMappa) return;
     const s = rrPosizioneSede();
-    rrMappa.setView([s.lat, s.lon], 10);
+    rrMappa.setView([s.lat, s.lon], RR_ZOOM_INIZIALE);
 }
 
 // ========================================

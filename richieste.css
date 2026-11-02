@@ -789,3 +789,32 @@ a.int-link-paese {
 .int-m-riga.col-ROSSO a.int-link-paese {
     color: #ffffff;
 }
+
+/* Scelta Satellite / Mappa stradale: niente stili generali dei moduli (input al 100%, etichette a blocco) */
+.org-mappa-box .leaflet-control-layers {
+    font-family: 'Roboto Mono', monospace;
+    font-size: 12px;
+    padding: 4px 8px;
+}
+
+.org-mappa-box .leaflet-control-layers label {
+    display: block;
+    margin: 0;
+    font-weight: 600;
+    font-size: 12px;
+}
+
+.org-mappa-box .leaflet-control-layers label > span,
+.org-mappa-box .leaflet-control-layers label > div {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 0;
+}
+
+.org-mappa-box .leaflet-control-layers input {
+    width: auto;
+    margin: 0;
+    padding: 0;
+    box-shadow: none;
+}

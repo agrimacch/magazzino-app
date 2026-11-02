@@ -1,5 +1,8 @@
 # Changelog App Magazzino
 
+## v6.3.3 - 2026-11-02 (PRODUZIONE)
+migliorie interventi robot e visualizzazioner mobilr
+
 ## v6.3.1 - 2026-11-02 (PRODUZIONE)
 RICHIESTE INTERVENTI ROBOT
 
