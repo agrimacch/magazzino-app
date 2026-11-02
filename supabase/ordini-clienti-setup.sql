@@ -65,6 +65,8 @@ alter table public.macchine_ordini add column if not exists drive_salvato_at tim
 -- Ordine "senza servizio di installazione" (robot e prodotti montati dal cliente): seconda dichiarazione con firma propria
 alter table public.macchine_ordini add column if not exists senza_installazione boolean not null default false;
 alter table public.macchine_ordini add column if not exists firma_installazione text;   -- PNG base64
+-- Sconto sul totale (in euro): le righe restano a prezzo pieno, totale = somma righe - sconto
+alter table public.macchine_ordini add column if not exists sconto numeric;
 
 -- Collegamento macchina del quaderno -> riga dell'ordine
 alter table public.macchine_pezzi add column if not exists ordine_riga_id bigint

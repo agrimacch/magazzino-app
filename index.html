@@ -865,6 +865,12 @@
                             </div>
                         </div>
 
+                        <!-- Sconto sull'ordine: il cliente vede i prezzi pieni delle righe e lo sconto solo sul totale -->
+                        <div class="ord-sconto-riga">
+                            <label for="ord-sconto">Sconto sul totale <small>(in euro, es. 50, oppure in percentuale, es. 10%)</small></label>
+                            <input type="text" id="ord-sconto" inputmode="decimal" autocomplete="off" placeholder="nessuno">
+                        </div>
+
                         <!-- Ordine senza servizio di installazione: seconda dichiarazione con firma propria (sopra il totale, come sulla commissione robot) -->
                         <label class="ord-check-noinst">
                             <input type="checkbox" id="ord-senza-installazione">
@@ -880,6 +886,7 @@
                             </div>
                         </div>
 
+                        <div id="ord-totale-dettaglio" class="ord-totale-dettaglio hidden"></div>
                         <div class="ord-totale-box"><span>TOTALE</span><strong id="ord-totale">-</strong></div>
 
 

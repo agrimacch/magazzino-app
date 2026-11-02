@@ -92,6 +92,7 @@ FILE PRINCIPALI
 - supabase/inventario-macchine-setup.sql - tabelle macchine (eseguito)
 - supabase/ordini-clienti-setup.sql - tabelle ordini + colonne operatore/Drive/senza installazione (rieseguibile)
 - supabase/ordini-senza-installazione.sql - colonne senza_installazione + firma_installazione (DA ESEGUIRE, 31/10)
+- supabase/ordini-sconto.sql - colonna sconto (DA ESEGUIRE, 31/10)
 - supabase/macchine-operatori.sql - apre macchine e ordini agli operatori (DA ESEGUIRE prima di mettere online)
 - supabase/pulizia-prove-macchine.sql - svuota quaderno, movimenti e ordini dopo le prove (DA ESEGUIRE una volta, a prove finite)
 - supabase/ordini-drive.ts + google/ordini-drive.gs - PDF ordini su Google Drive. Guida: GUIDA_ORDINI_DRIVE.md
@@ -145,7 +146,8 @@ TABELLE SUPABASE
   macchine_composizione (set_id, componente_id, quantita)
   macchine_movimenti (registro: tipo, stato_prima/dopo, cliente, matricola, netto, dettaglio, utente) - solo lettura e inserimento
   macchine_ordini: anno+numero (unique), data, operatore, cliente, indirizzo, telefono, email, codice_fiscale, partita_iva, note,
-    pagamento, totale, firma (PNG base64), consegnato_at, annullato_at, drive_url, drive_file_id, drive_salvato_at
+    pagamento, totale, firma (PNG base64), consegnato_at, annullato_at, drive_url, drive_file_id, drive_salvato_at,
+    senza_installazione, firma_installazione, sconto
   macchine_ordini_righe: ordine_id (cascade), posizione, articolo_id (vuoto = riga libera), descrizione, codice, quantita,
     prezzo_totale, disponibilita DISPONIBILE/DA_ORDINARE/LIBERA
   Funzione SQL puo_gestire_macchine(): admin e operatori. RLS di tutte le tabelle macchine/ordini basata su questa.
@@ -396,6 +398,11 @@ Sostituiscono il blocchetto delle commissioni (solo ordini, niente preventivi). 
   quantita}] in user_metadata.ordineBozza (+ copia localStorage), riletta con getUser() quando si apre listino/ordini (multi-dispositivo).
   Barra verde in cima al listino e in cima agli Ordini Clienti: "Crea l'ordine" (dal listino apre Ordini > Nuovo e mette le righe,
   ricontrolla Disponibile/Da ordinare con la quantita'), "Svuota". Usata la bozza si svuota. Stesso articolo = quantita' +1.
+- SCONTO SUL TOTALE (31/10): campo #ord-sconto (euro "50" o percentuale "10%", ordLeggiSconto). Colonna macchine_ordini.sconto
+  (numeric, euro) -> supabase/ordini-sconto.sql (anche in ordini-clienti-setup.sql); mandata solo se usata (ordCampiSconto).
+  totale = somma righe - sconto; le righe restano a prezzo pieno. PDF/dettaglio: Totale articoli, Sconto, TOTALE.
+  Report vendite: ricavo delle righe moltiplicato per (somma righe - sconto) / somma righe (repRicaviPerPezzo).
+  Modificabile anche da "Modifica dati cliente / firma" (ricalcola totale).
 - Firma del cliente sullo schermo (canvas, salvata come PNG nel campo firma). Due riquadri firma gestiti da ordFirme.vendita /
   ordFirme.installazione (ordFirmaCollega, ordFirmaPulisciUna, ordFirmaImposta, ordFirmaDatiUna).
 - SENZA SERVIZIO DI INSTALLAZIONE (31/10): casellina #ord-senza-installazione (spenta di default) nel modulo; mostra il testo

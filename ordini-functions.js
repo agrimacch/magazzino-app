@@ -323,6 +323,7 @@ function ordNuovoModulo() {
     document.getElementById('ord-aggiungi-box').classList.remove('hidden');
     ordFirmaPulisci();
     document.getElementById('ord-senza-installazione').checked = false;
+    document.getElementById('ord-sconto').value = '';
     ordAggiornaSenzaInstallazione();
     ordRenderFormRighe();
 }
@@ -501,11 +502,52 @@ function ordRenderFormRighe() {
     ordAggiornaTotale();
 }
 
+// ---------- Sconto sul totale ----------
+// Si scrive in euro (50) o in percentuale (10%). Le righe restano a prezzo pieno: lo sconto si vede solo sul totale.
+function ordSubtotale() {
+    return Math.round(ordFormRighe.reduce((s, r) => s + (Number(r.prezzo_totale) || 0), 0) * 100) / 100;
+}
+
+// Legge il campo sconto: { euro, percento, errore }
+function ordLeggiSconto() {
+    const el = document.getElementById('ord-sconto');
+    const testo = el ? String(el.value || '').trim() : '';
+    if (!testo) return { euro: 0, percento: null, errore: null };
+    const sub = ordSubtotale();
+    if (testo.indexOf('%') !== -1) {
+        const p = listinoParseNumero(testo.replace(/%/g, ''));
+        if (typeof p !== 'number' || isNaN(p) || p < 0 || p > 100) return { euro: 0, percento: null, errore: 'Sconto: la percentuale deve essere tra 0 e 100' };
+        return { euro: Math.round(sub * p) / 100, percento: p, errore: null };
+    }
+    const n = listinoParseNumero(testo);
+    if (typeof n !== 'number' || isNaN(n) || n < 0) return { euro: 0, percento: null, errore: 'Sconto: scrivi un importo in euro (es. 50) o una percentuale (es. 10%)' };
+    if (n > sub) return { euro: 0, percento: null, errore: 'Sconto: non pu&ograve; essere pi&ugrave; alto del totale degli articoli' };
+    return { euro: Math.round(n * 100) / 100, percento: null, errore: null };
+}
+
+// Totale dell'ordine (gia' scontato)
 function ordAggiornaTotale() {
-    const tot = ordFormRighe.reduce((s, r) => s + (Number(r.prezzo_totale) || 0), 0);
+    const sub = ordSubtotale();
+    const sc = ordLeggiSconto();
+    const tot = Math.round((sub - sc.euro) * 100) / 100;
     const el = document.getElementById('ord-totale');
-    if (el) el.innerHTML = macEuro(Math.round(tot * 100) / 100);
-    return Math.round(tot * 100) / 100;
+    if (el) el.innerHTML = macEuro(tot);
+    const det = document.getElementById('ord-totale-dettaglio');
+    if (det) {
+        const mostra = sc.euro > 0 || sc.errore;
+        det.classList.toggle('hidden', !mostra);
+        det.innerHTML = !mostra ? '' : (sc.errore ? '<span class="ord-sconto-errore">&#9888;&#65039; ' + sc.errore + '</span>' :
+            '<div><span>Totale articoli</span><span>' + macEuro(sub) + '</span></div>' +
+            '<div><span>Sconto' + (sc.percento !== null ? ' ' + String(sc.percento).replace('.', ',') + '%' : '') + '</span><span>&minus; ' + macEuro(sc.euro) + '</span></div>');
+    }
+    return tot;
+}
+
+// Campo sconto da salvare: mandato solo se c'e' (o se c'era), cosi' funziona anche prima di aggiungere la colonna su Supabase
+function ordCampiSconto(prima) {
+    const sc = ordLeggiSconto();
+    if (!(sc.euro > 0) && !(prima && Number(prima.sconto) > 0)) return {};
+    return { sconto: sc.euro > 0 ? sc.euro : null };
 }
 
 // Ridisegna le righe subito DOPO l'evento: se si ridisegna mentre un campo
@@ -736,6 +778,7 @@ async function ordSalva() {
     const errori = [];
     if (!testa.cliente) errori.push('Scrivi il nome del cliente (Sig./Sig.ra)');
     if (ordFormRighe.length === 0) errori.push('Aggiungi almeno un articolo');
+    if (ordLeggiSconto().errore) errori.push(ordLeggiSconto().errore);
     ordFormRighe.forEach((r, i) => {
         r.descrizione = listinoPulisciTesto(r.descrizione);
         r.codice = listinoPulisciTesto(r.codice);
@@ -778,7 +821,7 @@ async function ordSalva() {
         for (let tentativo = 0; tentativo < 3 && !ordine; tentativo++) {
             const numero = await ordProssimoNumero(anno);
             const riga = Object.assign({}, testa, {
-                anno: anno, numero: numero, totale: ordAggiornaTotale(), firma: ordFirmaDati(), ...ordCampiInstallazione(null),
+                anno: anno, numero: numero, totale: ordAggiornaTotale(), firma: ordFirmaDati(), ...ordCampiInstallazione(null), ...ordCampiSconto(null),
                 created_by: utente, updated_by: utente, updated_at: adesso
             });
             const { data, error } = await supabaseClient.from('macchine_ordini').insert([riga]).select('*').single();
@@ -890,6 +933,7 @@ function ordApriModifica(id) {
     ordFirmaImposta(ordFirme.vendita, o.firma);
     ordFirmaImposta(ordFirme.installazione, o.firma_installazione);
     document.getElementById('ord-senza-installazione').checked = !!o.senza_installazione;
+    document.getElementById('ord-sconto').value = Number(o.sconto) > 0 ? String(o.sconto).replace('.', ',') : '';
     ordAggiornaSenzaInstallazione();
     ordSwitchTab('nuovo');
 }
@@ -897,15 +941,16 @@ function ordApriModifica(id) {
 async function ordSalvaModifica() {
     const o = ordInModifica;
     const testa = ordLeggiTesta();
-    if (!testa.cliente) {
-        await showCustomAlert('Scrivi il nome del cliente (Sig./Sig.ra)', 'Controlla l\'ordine', '&#9888;&#65039;');
+    if (!testa.cliente || ordLeggiSconto().errore) {
+        await showCustomAlert(!testa.cliente ? 'Scrivi il nome del cliente (Sig./Sig.ra)' : ordLeggiSconto().errore, 'Controlla l\'ordine', '&#9888;&#65039;');
         return;
     }
     const btn = document.getElementById('ord-salva');
     btn.disabled = true;
     const adesso = new Date().toISOString();
     try {
-        const agg = Object.assign({}, testa, { firma: ordFirmaDati(), updated_at: adesso, updated_by: macUtente() }, ordCampiInstallazione(o));
+        const agg = Object.assign({}, testa, { firma: ordFirmaDati(), totale: ordAggiornaTotale(), updated_at: adesso, updated_by: macUtente() },
+            ordCampiInstallazione(o), ordCampiSconto(o));
         const { error } = await supabaseClient.from('macchine_ordini').update(agg).eq('id', o.id);
         if (error) throw error;
         // Cliente cambiato: aggiorna anche il nome nel quaderno
@@ -984,6 +1029,8 @@ function ordApriDettaglio(id) {
                     : '<div class="ord-det-pezzi">' + (quadri || '<em>nessuna macchina collegata</em>') + '</div>') +
             '</div>';
         }).join('') + '</div>' +
+        (Number(o.sconto) > 0 ? '<div class="ord-det-sconto"><span>Totale articoli</span><span>' + macEuro(Number(o.totale) + Number(o.sconto)) + '</span></div>' +
+            '<div class="ord-det-sconto"><span>Sconto</span><span>&minus; ' + macEuro(o.sconto) + '</span></div>' : '') +
         '<div class="ord-det-totale"><span>TOTALE</span><strong>' + macEuro(o.totale) + '</strong></div>' +
         (o.firma ? '<div class="ord-det-firma"><span>Firma per accettazione</span><img src="' + o.firma + '" alt="Firma"></div>' : '<p class="mac-aiuto">Ordine non firmato.</p>') +
         (o.senza_installazione ? '<div class="ord-det-noinst"><strong>&#9888;&#65039; Senza servizio di installazione</strong>' +
@@ -1220,7 +1267,13 @@ function ordHtmlStampa(o, righeTotali) {
                     (o.firma_installazione ? '<img src="' + o.firma_installazione + '" alt="Firma">' : '<div class="ordd-firma-vuota"></div>') +
                     '<div class="ordd-firma-linea">Firma per accettazione</div></td>' +
             '</tr></table></td></tr></tbody>' : '') +
-        '<tfoot><tr>' +
+        '<tfoot>' +
+        (Number(o.sconto) > 0 ?
+            '<tr class="ordd-sconto"><td colspan="3" class="ordd-caselle"></td><td class="ordd-tot-etich">Totale articoli</td>' +
+                '<td class="rpt-n">' + repEuroPdf(Number(o.totale) + Number(o.sconto)) + '</td></tr>' +
+            '<tr class="ordd-sconto"><td colspan="3" class="ordd-caselle"></td><td class="ordd-tot-etich">Sconto</td>' +
+                '<td class="rpt-n">&minus; ' + repEuroPdf(o.sconto) + '</td></tr>' : '') +
+        '<tr>' +
             '<td colspan="3" class="ordd-caselle">' + casella(disponibile) + ' Disponibile &nbsp;&nbsp;&nbsp; ' + casella(daOrdinare) + ' Da ordinare</td>' +
             '<td class="ordd-tot-etich">TOTALE</td>' +
             '<td class="rpt-n ordd-tot">' + (o.totale !== null && o.totale !== undefined ? repEuroPdf(o.totale) : '') + '</td>' +
@@ -1694,6 +1747,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Modulo
     macPickerImposta('ord-art-search', 'ord-art-results', null, ordAggiungiArticolo, { onPezzo: ordAggiungiPezzo });
     document.getElementById('ord-btn-libera').addEventListener('click', ordAggiungiLibera);
+    document.getElementById('ord-sconto').addEventListener('input', ordAggiornaTotale);
     const righe = document.getElementById('ord-righe');
     righe.addEventListener('input', ordCampoRigaCambiato);
     righe.addEventListener('change', ordCampoRigaCambiato);

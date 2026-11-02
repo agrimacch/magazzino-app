@@ -1048,3 +1048,22 @@
     text-align: left;
 }
 .ord-modulo input[type="date"]::-webkit-date-and-time-value { text-align: left; }
+
+/* ============================================ */
+/* SCONTO SUL TOTALE                            */
+/* ============================================ */
+.ord-sconto-riga { margin-top: 14px; max-width: 420px; }
+.ord-totale-dettaglio {
+    margin: 12px 0 -8px;
+    padding: 8px 14px;
+    border: 1px solid #c7d7bd;
+    border-bottom: none;
+    border-radius: var(--border-radius-sm) var(--border-radius-sm) 0 0;
+    background: #f3f7f0;
+    font-size: 13px;
+}
+.ord-totale-dettaglio.hidden { display: none; }
+.ord-totale-dettaglio > div { display: flex; justify-content: space-between; padding: 2px 0; }
+.ord-sconto-errore { color: #b91c1c; font-weight: 700; }
+.ord-det-sconto { display: flex; justify-content: space-between; padding: 2px 4px; font-size: 13px; color: #374151; }
+.pdf-foglio .ordd-righe tr.ordd-sconto td { font-weight: 400 !important; padding-top: 3px !important; padding-bottom: 3px !important; }

@@ -89,9 +89,20 @@ function repRicaviPerPezzo() {
         if (!p.ordine_riga_id) return;
         (perRiga[p.ordine_riga_id] = perRiga[p.ordine_riga_id] || []).push(p);
     });
+    // Sconto sul totale dell'ordine: ridistribuito su tutte le righe in proporzione al prezzo
+    const fattore = {};
+    if (typeof ordOrdini !== 'undefined') {
+        const somme = {};
+        ordRighe.forEach(r => { somme[r.ordine_id] = (somme[r.ordine_id] || 0) + (Number(r.prezzo_totale) || 0); });
+        ordOrdini.forEach(o => {
+            const s = somme[o.id] || 0;
+            if (Number(o.sconto) > 0 && s > 0) fattore[o.id] = Math.max(0, s - Number(o.sconto)) / s;
+        });
+    }
     ordRighe.forEach(r => {
         const pezzi = perRiga[r.id];
         if (!pezzi || r.prezzo_totale === null || r.prezzo_totale === undefined) return;
+        const prezzo = Number(r.prezzo_totale) * (fattore[r.ordine_id] !== undefined ? fattore[r.ordine_id] : 1);
         const pesi = pezzi.map(p => {
             let n = p.netto_carico;
             if (n === null || n === undefined) { const a = macArticolo(p.articolo_id); n = a ? a.netto_1 : null; }
@@ -99,7 +110,7 @@ function repRicaviPerPezzo() {
         });
         const somma = pesi.reduce((s, x) => s + x, 0);
         pezzi.forEach((p, i) => {
-            ricavi[p.id] = somma > 0 ? Number(r.prezzo_totale) * pesi[i] / somma : Number(r.prezzo_totale) / pezzi.length;
+            ricavi[p.id] = somma > 0 ? prezzo * pesi[i] / somma : prezzo / pezzi.length;
         });
     });
     return ricavi;
