@@ -59,8 +59,8 @@ const RR_FASCE = [
 const RR_SEDE_RISERVA = { lat: 45.5455, lon: 12.1590 };
 // Zona di ricerca degli indirizzi (Veneto e dintorni)
 const RR_BBOX = '10.5,44.6,13.95,46.8';
-// Zoom iniziale della mappa (10 = circa 40 km intorno, 11 = circa 20 km, 12 = circa 10 km): prima era 10
-const RR_ZOOM_INIZIALE = 11;
+// Zoom iniziale della mappa (10 = circa 40 km intorno, 11 = circa 20 km, 12 = circa 10 km): 12 su richiesta di Donny
+const RR_ZOOM_INIZIALE = 12;
 const RR_LEAFLET_CSS = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
 const RR_LEAFLET_JS = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
 

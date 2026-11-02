@@ -1,5 +1,8 @@
 # Changelog App Magazzino
 
+## v6.3.4 - 2026-11-02 (PRODUZIONE)
+zoom mappa
+
 ## v6.3.3 - 2026-11-02 (PRODUZIONE)
 migliorie interventi robot e visualizzazioner mobilr
 
