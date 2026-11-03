@@ -384,7 +384,9 @@
                             l'app sposta da sola il vecchio netto 1 in netto 2 e il netto 2 in netto 3. Tutti i netti restano comunque salvati nello storico.<br><br>
                             <strong>Regola importante:</strong> prima di lavorare sul tuo Excel scarica sempre il listino aggiornato da qui e usa quello
                             come file di lavoro. Cos&igrave; non perdi le modifiche fatte dall'app e netto 2 e netto 3 restano allineati.
-                            Il file scaricato ha la prima riga bloccata e i filtri su tutte le colonne.
+                            Il file scaricato ha la prima riga bloccata e i filtri su tutte le colonne.<br><br>
+                            <strong>Codice a barre:</strong> colonna <strong>CODICE A BARRE</strong> (l'ultima), facoltativa. La cella vuota non cancella
+                            il codice gi&agrave; salvato; due articoli non possono avere lo stesso codice (l'import si ferma e ti dice quali sono).
                         </p>
 
                         <input type="file" id="listino-file-input" accept=".xlsx,.xls" style="display: none;">
@@ -606,7 +608,8 @@
                         <p class="mac-aiuto">
                             Un solo file per tutti i marchi: quando arriva la conferma d'ordine scrivi quantit&agrave;, netti e prezzi
                             e l'app carica le macchine e aggiorna il listino. Le colonne sono quelle del Listino Vendite pi&ugrave;
-                            <strong>QUANTITA</strong> e <strong>MATRICOLE</strong>. L'articolo viene riconosciuto da <strong>MARCHIO + MODELLO + NOTE</strong>.<br><br>
+                            <strong>QUANTITA</strong>, <strong>MATRICOLE</strong> e <strong>CODICE A BARRE</strong>. L'articolo viene riconosciuto dal <strong>CODICE A BARRE</strong> (se c'&egrave;) oppure da <strong>MARCHIO + MODELLO + NOTE</strong>.<br><br>
+                            &bull; Codice a barre: facoltativo. Se lo scrivi viene salvato sull'articolo; la cella vuota non cancella quello gi&agrave; salvato.<br>
                             &bull; Articolo non presente nel listino: viene creato (serve l'ATTREZZO).<br>
                             &bull; Netto 1 diverso da quello del listino: il listino si aggiorna (netto 1 &rarr; 2 &rarr; 3 e storico).<br>
                             &bull; Prezzi di vendita compilati: aggiornano il listino. Le celle vuote non cancellano niente.<br>
@@ -2070,17 +2073,20 @@
             </div>
             <form id="mac-carico-form" autocomplete="off">
                 <label>Articolo del listino *</label>
+                <p class="mac-aiuto mac-lettore-aiuto">&#127991;&#65039; <strong>Lettore di codici a barre:</strong> leggi la prima scatola e l'articolo viene scelto da solo; ogni altra scatola dello stesso modello aggiunge 1 alla quantit&agrave;.</p>
                 <div id="mac-carico-art-ricerca">
                     <div class="mac-picker">
-                        <input type="text" id="mac-carico-art-search" placeholder="&#128269; Cerca modello, marchio..." autocomplete="off">
+                        <input type="text" id="mac-carico-art-search" placeholder="&#128269; Cerca modello, marchio, codice a barre..." autocomplete="off">
                         <div id="mac-carico-art-results" class="mac-picker-lista hidden"></div>
                     </div>
+                    <div id="mac-carico-codice-info" class="mac-info mac-codice-info hidden"></div>
                     <button type="button" class="mac-link mac-btn-nuovo-listino">&#10133; Non c'&egrave; nel listino? Crealo (con netti e prezzi)</button>
                     <button type="button" class="mac-link" id="mac-carico-vai-excel">&#128193; Hai una conferma d'ordine con tante righe? Usa il Carico Excel</button>
                 </div>
                 <div id="mac-carico-art-scelto" class="hidden"></div>
 
                 <div id="mac-carico-dettagli" class="hidden">
+                    <div id="mac-carico-lettore-msg" class="mac-lettore-msg"></div>
                     <div id="mac-carico-set-info" class="mac-info hidden"></div>
                     <div class="form-row">
                         <div class="form-col">
@@ -2256,6 +2262,9 @@
                 </div>
                 <label>Listino &#8364;</label>
                 <input type="text" inputmode="decimal" id="listino-edit-listino" placeholder="es. 485">
+
+                <label>Codice a barre <small>(facoltativo: scrivilo o leggilo col lettore. Non compare nel listino)</small></label>
+                <input type="text" id="listino-edit-codice-barre" placeholder="es. 8012345678901" autocomplete="off" autocapitalize="characters">
 
                 <div class="modal-buttons">
                     <button type="submit" id="listino-edit-salva" class="btn-primary">Salva</button>

@@ -1032,6 +1032,10 @@ function macApriCarico(articoloId) {
     document.getElementById('mac-carico-netto').value = '';
     document.getElementById('mac-carico-assegna').checked = true;
     document.getElementById('mac-carico-art-search').value = '';
+    macCaricoCodiceInSospeso = null;
+    macCaricoLetture = 0;
+    macCaricoMostraSospeso();
+    macLettoreMessaggio('');
     macCaricoAggiorna();
     document.getElementById('mac-carico-modal').classList.remove('hidden');
     if (!macCaricoArticolo) setTimeout(() => document.getElementById('mac-carico-art-search').focus(), 50);
@@ -1041,6 +1045,8 @@ function macChiudiCarico() {
     document.getElementById('mac-carico-modal').classList.add('hidden');
     macPickerChiudi('mac-carico-art-search');
     macCaricoArticolo = null;
+    macCaricoCodiceInSospeso = null;
+    macLettoreReset();
 }
 
 // Pezzi in attesa (clienti che aspettano quella macchina): prima le ORDINATE, poi le DA ORDINARE
@@ -1262,6 +1268,9 @@ function macCreaArticoloListino() {
     if (typeof openListinoEdit !== 'function') return;
     macAttesaNuovoArticolo = true;
     openListinoEdit(null);
+    // Codice letto col lettore e non ancora associato: lo propongo nel nuovo articolo
+    const campo = document.getElementById('listino-edit-codice-barre');
+    if (campo && macCaricoCodiceInSospeso && macCaricoAperto()) campo.value = macCaricoCodiceInSospeso;
 }
 
 let macAttesaNuovoArticolo = false;
@@ -1276,12 +1285,283 @@ function macDopoSalvataggioListino(articoloId, nuovo) {
     if (modalCarico && !modalCarico.classList.contains('hidden')) {
         macCaricoArticolo = macArticolo(articoloId);
         document.getElementById('mac-carico-netto').value = '';
+        macCaricoLetture = 0;
+        macCaricoCodiceInSospeso = null;
+        macCaricoMostraSospeso();
         macCaricoAggiorna();
     } else if (modalPezzo && !modalPezzo.classList.contains('hidden') && !macPezzoInModifica) {
         macPezzoArticolo = macArticolo(articoloId);
         document.getElementById('mac-pezzo-netto').value = '';
         macPezzoAggiornaArticolo();
     }
+}
+
+// ========================================
+// CARICO CON IL LETTORE DI CODICI A BARRE (collegato al PC)
+// ----------------------------------------
+// Il lettore per il browser e' una tastiera: scrive il codice molto velocemente e preme Invio.
+// Con la finestra Carico aperta:
+// - prima scatola: l'articolo viene scelto da solo (quantita' 1)
+// - altre scatole dello stesso modello: quantita' +1
+// - scatola di un altro modello: avviso (prima si salva il carico in corso)
+// - codice sconosciuto: si sceglie l'articolo e il codice resta salvato su quell'articolo
+// - nel campo matricola un codice che non e' di un modello viene scritto come matricola
+// Invio nella finestra Carico non salva mai: si salva solo col pulsante Carica.
+// ========================================
+const MAC_LETTORE_MIN_CARATTERI = 4;
+const MAC_LETTORE_MAX_MS_TASTO = 50;   // il lettore scrive un carattere ogni pochi ms, una persona molto piu' lentamente
+const macLettore = { buffer: '', inizio: 0, ultimo: 0, campo: null, valorePrima: '' };
+let macCaricoCodiceInSospeso = null;   // codice letto ma non ancora associato a un articolo
+let macCaricoLetture = 0;              // scatole lette col lettore per l'articolo scelto
+
+function macCaricoAperto() {
+    const m = document.getElementById('mac-carico-modal');
+    return !!(m && !m.classList.contains('hidden'));
+}
+
+function macModaleSopraAperta() {
+    return ['custom-alert-modal', 'listino-edit-modal', 'mac-scan-modal'].some(id => {
+        const m = document.getElementById(id);
+        return m && !m.classList.contains('hidden');
+    });
+}
+
+function macLettoreReset() {
+    macLettore.buffer = '';
+    macLettore.inizio = 0;
+    macLettore.ultimo = 0;
+    macLettore.campo = null;
+    macLettore.valorePrima = '';
+}
+
+function macCampoTesto(el) {
+    return !!(el && el.tagName === 'INPUT' && ['text', 'number', 'search', ''].indexOf(el.type) !== -1);
+}
+
+function macLettoreTasto(e) {
+    if (!macCaricoAperto() || macModaleSopraAperta()) { macLettoreReset(); return; }
+    const L = macLettore;
+    const ora = Date.now();
+
+    if (e.key === 'Enter') {
+        const campo = e.target;
+        const n = L.buffer.length;
+        const veloce = n >= MAC_LETTORE_MIN_CARATTERI && (ora - L.inizio) <= n * MAC_LETTORE_MAX_MS_TASTO;
+        if (veloce) {
+            e.preventDefault();
+            e.stopPropagation();
+            const codice = L.buffer;
+            // Il lettore ha scritto il codice nel campo: lo tolgo e rimetto quello che c'era
+            if (L.campo === campo && macCampoTesto(campo)) campo.value = L.valorePrima;
+            macLettoreReset();
+            macCaricoCodiceLetto(codice, campo);
+            return;
+        }
+        macLettoreReset();
+        if (campo && campo.closest && campo.closest('#mac-carico-form') && campo.tagName === 'INPUT') {
+            e.preventDefault(); // Invio scritto a mano: non salva il carico
+            macCaricoInvioManuale(campo);
+        }
+        return;
+    }
+
+    if (e.key === 'Shift') return; // il lettore usa Maiusc per le lettere maiuscole
+    if (!e.key || e.key.length !== 1 || e.ctrlKey || e.metaKey || e.altKey) { macLettoreReset(); return; }
+    if (!L.buffer || ora - L.ultimo > MAC_LETTORE_MAX_MS_TASTO) {
+        L.buffer = '';
+        L.inizio = ora;
+        L.campo = e.target;
+        L.valorePrima = macCampoTesto(e.target) ? e.target.value : '';
+    }
+    L.buffer += e.key;
+    L.ultimo = ora;
+}
+
+// Invio premuto a mano (codice scritto con la tastiera o lettore lento)
+function macCaricoInvioManuale(campo) {
+    if (campo.id === 'mac-carico-art-search') {
+        const valore = campo.value;
+        if (listinoArticoloDaCodiceBarre(valore)) {
+            campo.value = '';
+            macCaricoCodiceLetto(valore, campo);
+        }
+        return;
+    }
+    if (campo.id && campo.id.indexOf('mac-carico-matr-') === 0) macCaricoProssimaMatricola(campo);
+}
+
+function macCaricoProssimaMatricola(campo) {
+    const tutti = Array.from(document.querySelectorAll('#mac-carico-matricole input'));
+    const i = tutti.indexOf(campo);
+    const prossimo = tutti.slice(i + 1).find(x => !x.value) || tutti.find(x => !x.value);
+    if (prossimo) prossimo.focus();
+    else if (campo) campo.blur();
+}
+
+function macLettoreSuono(ok) {
+    try {
+        if (ok && typeof playSuccessSound === 'function') playSuccessSound();
+        if (!ok && typeof playErrorSound === 'function') playErrorSound();
+    } catch (e) { /* niente audio */ }
+}
+
+// Messaggio sotto l'articolo scelto (tipo: ok | err | info)
+function macLettoreMessaggio(html, tipo) {
+    const box = document.getElementById('mac-carico-lettore-msg');
+    if (!box) return;
+    box.className = 'mac-lettore-msg' + (html ? ' mac-lettore-' + (tipo || 'info') : '');
+    box.innerHTML = html || '';
+}
+
+function macCaricoMostraSospeso() {
+    const box = document.getElementById('mac-carico-codice-info');
+    if (!box) return;
+    if (!macCaricoCodiceInSospeso) {
+        box.innerHTML = '';
+        box.classList.add('hidden');
+        return;
+    }
+    box.innerHTML = '&#127991;&#65039; Il codice <strong>' + macEsc(macCaricoCodiceInSospeso) + '</strong> non &egrave; ancora associato a nessun articolo.<br>' +
+        'Cerca qui sopra l\'articolo giusto e sceglilo: il codice verr&agrave; salvato su quell\'articolo. ' +
+        'Se non c\'&egrave; nel listino, crealo con il link qui sotto.<br>' +
+        '<button type="button" class="mac-link" id="mac-carico-codice-annulla">Non associarlo</button>';
+    box.classList.remove('hidden');
+    const annulla = document.getElementById('mac-carico-codice-annulla');
+    if (annulla) annulla.addEventListener('click', () => {
+        macCaricoCodiceInSospeso = null;
+        macCaricoMostraSospeso();
+        document.getElementById('mac-carico-art-search').focus();
+    });
+}
+
+// Salva il codice a barre su un articolo del listino
+async function macAssociaCodice(art, codice) {
+    const { error } = await supabaseClient.from('listino_articoli').update({ codice_barre: codice }).eq('id', art.id);
+    if (error) {
+        console.error('Errore salvataggio codice a barre:', error);
+        const doppio = error.code === '23505';
+        await showCustomAlert(doppio
+            ? 'Il codice ' + macEsc(codice) + ' &egrave; gi&agrave; di un altro articolo (forse appena salvato da un collega). Ricarica la pagina.'
+            : 'Codice a barre non salvato:<br>' + macEsc(error.message), 'Errore', '&#10060;');
+        return false;
+    }
+    art.codice_barre = codice;
+    return true;
+}
+
+// Articolo scelto dall'elenco nella finestra Carico
+async function macCaricoSceltoDaElenco(a) {
+    const codice = macCaricoCodiceInSospeso;
+    if (codice) {
+        const proprietario = listinoArticoloDaCodiceBarre(codice);
+        if (proprietario && proprietario.id !== a.id) {
+            await showCustomAlert('Il codice ' + macEsc(codice) + ' &egrave; gi&agrave; di &quot;' + macEsc(macNome(proprietario)) + '&quot;.', 'Codice gi&agrave; usato', '&#9888;&#65039;');
+            return;
+        }
+        if (!proprietario) {
+            if (a.codice_barre && !window.confirm('"' + macNome(a) + '" ha gi\u00e0 il codice a barre ' + a.codice_barre +
+                '.\n\nSostituirlo con ' + codice + '?')) {
+                macCaricoCodiceInSospeso = null;
+                macCaricoMostraSospeso();
+            } else if (!(await macAssociaCodice(a, codice))) {
+                return;
+            }
+        }
+    }
+    const salvato = !!codice && a.codice_barre === codice;
+    macCaricoCodiceInSospeso = null;
+    macCaricoMostraSospeso();
+    macCaricoArticolo = a;
+    macCaricoLetture = 0;
+    document.getElementById('mac-carico-qta').value = '1';
+    document.getElementById('mac-carico-netto').value = '';
+    macCaricoAggiorna();
+    macLettoreMessaggio(salvato
+        ? '&#10004; Codice ' + macEsc(codice) + ' salvato su questo articolo. Le prossime scatole le riconosce da solo.'
+        : '', 'ok');
+}
+
+// Codice letto dal lettore con la finestra Carico aperta
+async function macCaricoCodiceLetto(codiceGrezzo, campo) {
+    const codice = listinoPulisciCodiceBarre(codiceGrezzo);
+    if (!codice) return;
+    macPickerChiudi('mac-carico-art-search');
+    const art = listinoArticoloDaCodiceBarre(codice);
+    const scelto = macCaricoArticolo;
+    const qtaEl = document.getElementById('mac-carico-qta');
+
+    if (art) {
+        if (!art.attivo) {
+            macLettoreSuono(false);
+            macLettoreMessaggio('&#10060; Il codice ' + macEsc(codice) + ' &egrave; di <strong>' + macEsc(macNome(art)) +
+                '</strong>, che &egrave; tra gli articoli cancellati del listino. Ripristinalo dal Listino Vendite e rileggi la scatola.', 'err');
+            return;
+        }
+        if (!scelto) {
+            // Prima scatola: scelgo l'articolo
+            macCaricoCodiceInSospeso = null;
+            macCaricoMostraSospeso();
+            macCaricoArticolo = art;
+            qtaEl.value = '1';
+            document.getElementById('mac-carico-netto').value = '';
+            macCaricoAggiorna();
+            macCaricoLetture = 1;
+            macLettoreSuono(true);
+            macLettoreMessaggio('&#128230; Letta 1 scatola. Leggi le altre scatole dello stesso modello: la quantit&agrave; sale da sola.', 'ok');
+            return;
+        }
+        if (scelto.id === art.id) {
+            // Articolo scelto a mano con quantita' 1: la prima scatola letta e' quella
+            const attuale = parseInt(qtaEl.value, 10) || 0;
+            const qta = (macCaricoLetture === 0 && attuale <= 1) ? 1 : attuale + 1;
+            macCaricoLetture++;
+            if (qta > MAC_MAX_QTA) {
+                macLettoreSuono(false);
+                macLettoreMessaggio('&#9888;&#65039; Massimo ' + MAC_MAX_QTA + ' pezzi per carico: salva questo carico e continua con un altro.', 'err');
+                return;
+            }
+            qtaEl.value = String(qta);
+            macCaricoMatricole();
+            macCaricoAnteprima();
+            macLettoreSuono(true);
+            macLettoreMessaggio('&#128230; ' + (qta === 1 ? 'Letta <strong>1</strong> scatola' : 'Lette <strong>' + qta + '</strong> scatole') + ' di questo modello.', 'ok');
+            return;
+        }
+        macLettoreSuono(false);
+        macLettoreMessaggio('&#9888;&#65039; Hai letto <strong>' + macEsc(macNome(art)) + '</strong>, ma stai caricando <strong>' +
+            macEsc(macNome(scelto)) + '</strong>.<br>Salva prima questo carico (pulsante Carica), poi rileggi l\'altra scatola.', 'err');
+        return;
+    }
+
+    // Codice che non e' di nessun modello
+    if (campo && campo.id && campo.id.indexOf('mac-carico-matr-') === 0) {
+        // Nel campo matricola: e' la matricola
+        campo.value = listinoPulisciTesto(codiceGrezzo) || '';
+        macLettoreSuono(true);
+        macCaricoProssimaMatricola(campo);
+        return;
+    }
+    if (!scelto) {
+        macCaricoCodiceInSospeso = codice;
+        macCaricoMostraSospeso();
+        macLettoreSuono(false);
+        const cerca = document.getElementById('mac-carico-art-search');
+        if (cerca) cerca.focus();
+        return;
+    }
+    if (!scelto.codice_barre) {
+        if (window.confirm('Il codice ' + codice + ' non \u00e8 associato a nessun articolo.\n\nAssociarlo a "' + macNome(scelto) + '"?\n\n' +
+            '(Se invece \u00e8 una matricola, tocca prima il campo matricola e rileggila.)')) {
+            if (await macAssociaCodice(scelto, codice)) {
+                macLettoreSuono(true);
+                macLettoreMessaggio('&#10004; Codice ' + macEsc(codice) + ' salvato su questo articolo. Le prossime scatole le riconosce da solo.', 'ok');
+            }
+        }
+        return;
+    }
+    macLettoreSuono(false);
+    macLettoreMessaggio('&#10060; Il codice ' + macEsc(codice) + ' non &egrave; di nessun articolo del listino (questo articolo ha il codice ' +
+        macEsc(scelto.codice_barre) + ').<br>Se &egrave; una matricola, tocca prima il campo matricola e rileggila.', 'err');
 }
 
 // ========================================
@@ -1301,10 +1581,12 @@ const MAC_EXCEL_COLONNE = Object.assign({}, LISTINO_COLONNE_EXCEL, {
 
 const MAC_EXCEL_INTESTAZIONI = [
     'ATTREZZO', 'MARCHIO', 'ALIMENTAZIONE', 'TIPOLOGIA ALIM.', 'MODELLO', 'NOTE', 'QUANTITA',
-    'NETTO 1', 'NOTE 1', 'VENDITA PROMO', 'SCADENZA PROMO', 'VENDITA IN SCATOLA', 'VENDITA NO PROMO', 'LISTINO', 'MATRICOLE'
+    'NETTO 1', 'NOTE 1', 'VENDITA PROMO', 'SCADENZA PROMO', 'VENDITA IN SCATOLA', 'VENDITA NO PROMO', 'LISTINO', 'MATRICOLE',
+    'CODICE A BARRE'
 ];
 const MAC_EXCEL_CAMPI = ['attrezzo', 'marchio', 'alimentazione', 'tipologia_alimentazione', 'modello', 'note', 'quantita',
-    'netto_1', 'note_1', 'vendita_promo', 'scadenza_promo', 'vendita_scatola', 'vendita_no_promo', 'listino', 'matricole'];
+    'netto_1', 'note_1', 'vendita_promo', 'scadenza_promo', 'vendita_scatola', 'vendita_no_promo', 'listino', 'matricole',
+    'codice_barre'];
 const MAC_EXCEL_PREZZI = ['vendita_promo', 'scadenza_promo', 'vendita_scatola', 'vendita_no_promo', 'listino'];
 const MAC_EXCEL_MAX_QTA = 200;
 
@@ -1344,19 +1626,22 @@ function macExcelScaricaModello() {
             righe.push([
                 a.attrezzo, a.marchio, a.alimentazione, a.tipologia_alimentazione, a.modello, a.note, null,
                 num(a.netto_1), a.note_1, num(a.vendita_promo), a.scadenza_promo, num(a.vendita_scatola),
-                num(a.vendita_no_promo), num(a.listino), null
+                num(a.vendita_no_promo), num(a.listino), null,
+                a.codice_barre ? String(a.codice_barre) : null
             ]);
         });
     }
     const ws = XLSX.utils.aoa_to_sheet(righe);
-    ws['!cols'] = [18, 14, 14, 14, 22, 30, 11, 11, 22, 13, 24, 13, 13, 11, 30].map(w => ({ wch: w }));
+    ws['!cols'] = [18, 14, 14, 14, 22, 30, 11, 11, 22, 13, 24, 13, 13, 11, 30, 18].map(w => ({ wch: w }));
     ws['!autofilter'] = { ref: XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: Math.max(righe.length - 1, 1), c: MAC_EXCEL_INTESTAZIONI.length - 1 } }) };
 
     const istruzioni = [
         ['CARICO MACCHINE DA EXCEL - ISTRUZIONI'],
         [''],
-        ['Si compila il foglio CARICO: una riga per articolo (stesse colonne del Listino Vendite + QUANTITA + MATRICOLE).'],
-        ['L\'articolo viene riconosciuto da MARCHIO + MODELLO + NOTE, come nel listino.'],
+        ['Si compila il foglio CARICO: una riga per articolo (stesse colonne del Listino Vendite + QUANTITA + MATRICOLE + CODICE A BARRE).'],
+        ['L\'articolo viene riconosciuto dal CODICE A BARRE (se c\'e\' ed e\' gia\' nel listino), altrimenti da MARCHIO + MODELLO + NOTE.'],
+        ['CODICE A BARRE: facoltativo. Se lo scrivi viene salvato sull\'articolo. La cella vuota non cancella quello gia\' salvato.'],
+        ['                Due articoli non possono avere lo stesso codice.'],
         ['Se la NOTE e\' vuota e nel listino c\'e\' un solo articolo con quel marchio e modello, viene abbinato a quello.'],
         [''],
         ['QUANTITA: quante macchine sono arrivate. Vuota o 0 = la riga aggiorna solo il listino (netti e prezzi).'],
@@ -1447,7 +1732,7 @@ function macExcelLeggi(workbook) {
         Object.keys(mappa).forEach(campo => {
             const cell = listinoLeggiCella(ws, r, mappa[campo]);
             if (!cell) return;
-            riga.valori[campo] = cell.v;
+            riga.valori[campo] = campo === 'codice_barre' ? listinoCodiceBarreDaCella(cell) : cell.v;
             if (String(cell.v).trim() !== '') piena = true;
         });
         if (piena) ris.righe.push(riga);
@@ -1470,7 +1755,8 @@ function macExcelCostruisciPiano(righeFile, aggiornaListino, assegna) {
         const v = rf.valori;
         const r = {
             numeri: [rf.numero], errori: [], avvisi: [], art: null, nuovo: false, ripristina: false,
-            dati: {}, qta: 0, matricole: [], netto: null, aggListino: null, differenze: [], nettoCambiato: false
+            dati: {}, qta: 0, matricole: [], netto: null, aggListino: null, differenze: [], nettoCambiato: false,
+            codiceBarre: listinoPulisciCodiceBarre(v.codice_barre), infoCodice: null
         };
         ['attrezzo', 'marchio', 'alimentazione', 'tipologia_alimentazione', 'modello', 'note', 'note_1'].forEach(c => {
             r.dati[c] = listinoPulisciTesto(v[c]);
@@ -1506,13 +1792,27 @@ function macExcelCostruisciPiano(righeFile, aggiornaListino, assegna) {
             r.matricole = String(v.matricole).split(/[,;\n]+/).map(m => listinoPulisciTesto(m)).filter(Boolean);
         }
 
-        if (!r.dati.modello && !r.dati.note) r.errori.push('Manca il MODELLO');
+        // Codice a barre gia' presente nel listino: riconosce l'articolo anche senza MODELLO
+        const artDaCodice = r.codiceBarre ? listinoArticoloDaCodiceBarre(r.codiceBarre) : null;
+        if (!r.dati.modello && !r.dati.note && !artDaCodice) {
+            r.errori.push(r.codiceBarre ? 'Codice a barre ' + macEsc(r.codiceBarre) + ' non presente nel listino e MODELLO vuoto' : 'Manca il MODELLO');
+        }
 
         // Abbinamento con il listino
         if (r.errori.length === 0) {
             const chiave = listinoChiave(r.dati.marchio, r.dati.modello, r.dati.note);
-            let art = listinoArticoli.find(a => a.chiave === chiave) || null;
-            if (!art && !r.dati.note && r.dati.modello) {
+            let art = (r.dati.modello || r.dati.note) ? (listinoArticoli.find(a => a.chiave === chiave) || null) : null;
+            if (artDaCodice) {
+                if (art && art.id !== artDaCodice.id) {
+                    r.errori.push('Il codice a barre ' + macEsc(r.codiceBarre) + ' &egrave; di &quot;' + macEsc(macNome(artDaCodice)) +
+                        '&quot;, ma marchio/modello/note della riga sono di &quot;' + macEsc(macNome(art)) + '&quot;');
+                } else {
+                    if (!art && (r.dati.modello || r.dati.note)) {
+                        r.avvisi.push('Riconosciuto dal codice a barre: &quot;' + macEsc(macNome(artDaCodice)) + '&quot; (marchio/modello/note del file diversi dal listino)');
+                    }
+                    art = artDaCodice;
+                }
+            } else if (!art && !r.dati.note && r.dati.modello) {
                 const simili = listinoArticoli.filter(a => a.attivo && (a.marchio || null) === r.dati.marchio && a.modello === r.dati.modello);
                 if (simili.length === 1) {
                     art = simili[0];
@@ -1535,12 +1835,19 @@ function macExcelCostruisciPiano(righeFile, aggiornaListino, assegna) {
             r.chiaveUnione = art ? 'ID' + art.id : 'NUOVO|' + chiave;
         }
 
+        // Riga ripetuta con un codice a barre diverso dalla prima
+        if (r.errori.length === 0 && r.codiceBarre && perChiave[r.chiaveUnione] && perChiave[r.chiaveUnione].codiceBarre &&
+            perChiave[r.chiaveUnione].codiceBarre !== r.codiceBarre) {
+            r.errori.push('Stesso articolo della riga ' + perChiave[r.chiaveUnione].numeri[0] + ' ma con un altro codice a barre');
+        }
+
         // Riga ripetuta: si unisce alla precedente
         if (r.errori.length === 0 && perChiave[r.chiaveUnione]) {
             const prima = perChiave[r.chiaveUnione];
             prima.numeri.push(rf.numero);
             prima.qta += r.qta;
             prima.matricole = prima.matricole.concat(r.matricole);
+            if (r.codiceBarre) prima.codiceBarre = r.codiceBarre;
             Object.keys(r.dati).forEach(c => {
                 if (r.dati[c] !== null && r.dati[c] !== undefined) prima.dati[c] = r.dati[c];
             });
@@ -1555,6 +1862,8 @@ function macExcelCostruisciPiano(righeFile, aggiornaListino, assegna) {
     const matricoleViste = {};
     const matricoleEsistenti = {};
     macPezzi.forEach(p => { if (p.matricola) matricoleEsistenti[p.matricola] = p; });
+    const codiciVisti = {}; // codice a barre -> riga che lo usa per prima
+
 
     piano.righe.forEach(r => {
         if (r.errori.length) return;
@@ -1575,13 +1884,35 @@ function macExcelCostruisciPiano(righeFile, aggiornaListino, assegna) {
                 matricoleViste[m] = true;
             });
         }
+        // Codice a barre: uno solo per articolo, in tutto il file e nel listino
+        let salvaCodice = false;
+        if (r.codiceBarre) {
+            const prima = codiciVisti[r.codiceBarre];
+            const proprietario = listinoArticoloDaCodiceBarre(r.codiceBarre);
+            if (prima && prima !== r) {
+                r.errori.push('Codice a barre ' + macEsc(r.codiceBarre) + ' gi&agrave; usato alla riga ' + prima.numeri[0] + ' per un altro articolo');
+            } else if (proprietario && (!art || proprietario.id !== art.id)) {
+                r.errori.push('Il codice a barre ' + macEsc(r.codiceBarre) + ' &egrave; gi&agrave; di &quot;' + macEsc(macNome(proprietario)) + '&quot;' +
+                    (proprietario.attivo ? '' : ' (tra gli articoli cancellati del listino)'));
+            } else {
+                codiciVisti[r.codiceBarre] = r;
+                if (r.nuovo || !art.codice_barre) {
+                    salvaCodice = true;
+                    r.infoCodice = 'Codice a barre ' + macEsc(r.codiceBarre) + ' salvato sull\'articolo';
+                } else if (art.codice_barre !== r.codiceBarre) {
+                    salvaCodice = true;
+                    r.infoCodice = 'Codice a barre cambiato: ' + macEsc(art.codice_barre) + ' &rarr; ' + macEsc(r.codiceBarre);
+                }
+            }
+        }
         if (r.errori.length) return;
 
         // Aggiornamento del listino
         if (r.nuovo) {
             r.aggListino = {};
-        } else if (aggiornaListino || r.ripristina) {
+        } else if (aggiornaListino || r.ripristina || salvaCodice) {
             const agg = {};
+            if (salvaCodice) agg.codice_barre = r.codiceBarre;
             if (aggiornaListino) {
                 if (r.dati.netto_1 !== null && r.dati.netto_1 !== undefined && !listinoStessoNumero(art.netto_1, r.dati.netto_1)) {
                     agg.netto_1 = r.dati.netto_1;
@@ -1605,6 +1936,7 @@ function macExcelCostruisciPiano(righeFile, aggiornaListino, assegna) {
             if (Object.keys(agg).length) {
                 r.aggListino = agg;
                 r.differenze = listinoNotDifferenze(art, Object.assign({}, art, agg));
+                r.soloCodice = Object.keys(agg).length === 1 && salvaCodice;
             }
         }
 
@@ -1670,6 +2002,7 @@ function macExcelRenderAnteprima(piano) {
         let etichetta, classe;
         if (r.errori.length) { etichetta = 'ERRORE'; classe = 'err'; }
         else if (r.nuovo) { etichetta = 'NUOVO'; classe = 'nuovo'; }
+        else if (r.qta === 0 && r.soloCodice) { etichetta = 'CODICE A BARRE'; classe = 'listino'; }
         else if (r.qta === 0) { etichetta = 'SOLO LISTINO'; classe = 'listino'; }
         else { etichetta = 'CARICO'; classe = 'ok'; }
 
@@ -1702,6 +2035,7 @@ function macExcelRenderAnteprima(piano) {
                 corpo += '<div class="mac-excel-list">' + r.differenze.map(d =>
                     '&#127991; <strong>' + macEsc(d.e) + '</strong> ' + macEsc(d.v)).join('<br>') + '</div>';
             }
+            if (r.infoCodice) corpo += '<div class="mac-excel-list">&#127991;&#65039; ' + r.infoCodice + '</div>';
             if (r.avvisi.length) corpo += '<div class="mac-excel-avvisi">' + r.avvisi.map(a => '&#9888;&#65039; ' + a).join('<br>') + '</div>';
         }
 
@@ -1768,6 +2102,7 @@ async function macExcelConferma() {
                     vendita_promo: r.dati.vendita_promo, scadenza_promo: r.dati.scadenza_promo,
                     vendita_scatola: r.dati.vendita_scatola, vendita_no_promo: r.dati.vendita_no_promo,
                     listino: r.dati.listino === undefined ? null : r.dati.listino,
+                    codice_barre: r.codiceBarre || null,
                     chiave: listinoChiave(r.dati.marchio, r.dati.modello, r.dati.note),
                     attivo: true, data_cancellazione: null
                 };
@@ -2155,10 +2490,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ----- Finestra carico -----
     macPickerImposta('mac-carico-art-search', 'mac-carico-art-results', null, (a) => {
-        macCaricoArticolo = a;
-        document.getElementById('mac-carico-netto').value = '';
-        macCaricoAggiorna();
+        document.getElementById('mac-carico-art-search').value = '';
+        macCaricoSceltoDaElenco(a);
     });
+    // Lettore di codici a barre collegato al PC (si comporta come una tastiera)
+    document.addEventListener('keydown', macLettoreTasto, true);
     document.getElementById('mac-carico-qta').addEventListener('input', () => { macCaricoMatricole(); macCaricoAnteprima(); });
     document.getElementById('mac-carico-netto').addEventListener('input', macCaricoAnteprima);
     document.getElementById('mac-carico-assegna').addEventListener('change', macCaricoAnteprima);
@@ -2187,6 +2523,9 @@ document.addEventListener('DOMContentLoaded', () => {
             if (cambia.dataset.macCambia === 'carico') {
                 macCaricoArticolo = null;
                 document.getElementById('mac-carico-netto').value = '';
+                document.getElementById('mac-carico-qta').value = '1';
+                macCaricoLetture = 0;
+                macLettoreMessaggio('');
                 macCaricoAggiorna();
                 document.getElementById('mac-carico-art-search').focus();
             } else {

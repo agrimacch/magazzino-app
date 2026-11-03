@@ -11,6 +11,8 @@
 // - Articoli rimossi dal file -> "Articoli cancellati"
 // - Download del listino aggiornato in Excel
 // - Notifiche delle modifiche: campanella in app (tempo reale) + Telegram
+// - Codice a barre per modello (colonna CODICE A BARRE, facoltativa e senza doppioni):
+//   non si vede nella tabella, serve per la ricerca e per il carico macchine col lettore
 // Tabelle Supabase: listino_articoli, listino_storico_netti (solo admin)
 // ========================================
 
@@ -40,7 +42,12 @@ const LISTINO_COLONNE_EXCEL = {
     'SCADENZA PROMO': 'scadenza_promo',
     'VENDITA IN SCATOLA': 'vendita_scatola',
     'VENDITA NO PROMO': 'vendita_no_promo',
-    'LISTINO': 'listino'
+    'LISTINO': 'listino',
+    'CODICE A BARRE': 'codice_barre',
+    'CODICE BARRE': 'codice_barre',
+    'CODICE A BARRA': 'codice_barre',
+    'BARCODE': 'codice_barre',
+    'EAN': 'codice_barre'
 };
 
 // Ordine e intestazioni usati anche per il download Excel
@@ -61,8 +68,12 @@ const LISTINO_CAMPI = [
     { campo: 'scadenza_promo', titolo: 'SCADENZA PROMO' },
     { campo: 'vendita_scatola', titolo: 'VENDITA IN SCATOLA' },
     { campo: 'vendita_no_promo', titolo: 'VENDITA NO PROMO' },
-    { campo: 'listino', titolo: 'LISTINO' }
+    { campo: 'listino', titolo: 'LISTINO' },
+    { campo: 'codice_barre', titolo: 'CODICE A BARRE' }
 ];
+
+// Colonne che possono mancare nel file (i file vecchi non le hanno)
+const LISTINO_CAMPI_FACOLTATIVI = ['codice_barre'];
 
 const LISTINO_CAMPI_NUMERICI = ['netto_1', 'netto_2', 'netto_3', 'listino'];
 const LISTINO_CAMPI_VENDITA_TESTO = ['vendita_promo', 'vendita_scatola', 'vendita_no_promo'];
@@ -87,6 +98,31 @@ function listinoPulisciTesto(valore) {
     if (valore === null || valore === undefined) return null;
     const s = String(valore).replace(/\s+/g, ' ').trim().toUpperCase();
     return s === '' ? null : s;
+}
+
+// Codice a barre: senza spazi, maiuscolo. Vuoto -> null
+function listinoPulisciCodiceBarre(valore) {
+    if (valore === null || valore === undefined) return null;
+    const s = String(valore).replace(/\s+/g, '').toUpperCase();
+    return s === '' ? null : s;
+}
+
+// Codice a barre letto da una cella Excel: se e' un numero (es. EAN 8012345678901)
+// uso il testo mostrato in Excel (tiene gli eventuali zeri davanti), mai la notazione 8,01E+12
+function listinoCodiceBarreDaCella(cell) {
+    if (!cell) return null;
+    if (cell.t === 'n') {
+        if (cell.w && /^\d+$/.test(String(cell.w).trim())) return String(cell.w).trim();
+        return String(Math.round(cell.v));
+    }
+    return listinoPulisciCodiceBarre(cell.v);
+}
+
+// Articolo (attivo o cancellato) che ha questo codice a barre
+function listinoArticoloDaCodiceBarre(codice, articoli) {
+    const c = listinoPulisciCodiceBarre(codice);
+    if (!c) return null;
+    return (articoli || listinoArticoli).find(a => a.codice_barre === c) || null;
 }
 
 function listinoArrotonda(n) {
@@ -377,7 +413,7 @@ function listinoCorrispondeRicerca(articolo, ricerca) {
     const testo = [
         articolo.attrezzo, articolo.marchio, articolo.alimentazione, articolo.tipologia_alimentazione,
         articolo.modello, articolo.note, articolo.scadenza_promo, articolo.vendita_promo,
-        articolo.vendita_scatola, articolo.vendita_no_promo
+        articolo.vendita_scatola, articolo.vendita_no_promo, articolo.codice_barre
     ].filter(Boolean).join(' ').toUpperCase();
     return ricerca.split(' ').every(parola => testo.indexOf(parola) !== -1);
 }
@@ -697,7 +733,8 @@ function listinoAnalizzaWorkbook(workbook) {
         return risultato;
     }
 
-    const mancanti = LISTINO_CAMPI.filter(c => mappa[c.campo] === undefined).map(c => c.titolo);
+    const mancanti = LISTINO_CAMPI.filter(c => mappa[c.campo] === undefined && LISTINO_CAMPI_FACOLTATIVI.indexOf(c.campo) === -1).map(c => c.titolo);
+    risultato.haCodiceBarre = mappa.codice_barre !== undefined;
     if (mancanti.length > 0) {
         risultato.errori.push('Mancano queste colonne nel file: <strong>' + mancanti.join(', ') + '</strong>');
         return risultato;
@@ -709,9 +746,12 @@ function listinoAnalizzaWorkbook(workbook) {
         const riga = {};
 
         LISTINO_CAMPI.forEach(({ campo, titolo }) => {
+            if (mappa[campo] === undefined) { riga[campo] = null; return; }
             const cell = listinoLeggiCella(ws, r, mappa[campo]);
 
-            if (LISTINO_CAMPI_NUMERICI.indexOf(campo) !== -1) {
+            if (campo === 'codice_barre') {
+                riga[campo] = listinoCodiceBarreDaCella(cell);
+            } else if (LISTINO_CAMPI_NUMERICI.indexOf(campo) !== -1) {
                 let valore = null;
                 if (cell) {
                     valore = cell.t === 'n' ? listinoArrotonda(cell.v) : listinoParseNumero(cell.v);
@@ -781,6 +821,8 @@ function listinoCostruisciPiano(righeFile, articoliDb) {
         cancellati: [],
         invariati: 0,
         avvisi: [],
+        errori: [],        // bloccano l'import (es. codice a barre doppio)
+        codiciBarre: [],   // codici a barre nuovi o cambiati
         upserts: [],
         storico: []
     };
@@ -800,6 +842,7 @@ function listinoCostruisciPiano(righeFile, articoliDb) {
             LISTINO_CAMPI.forEach(({ campo }) => { nuovo[campo] = r[campo]; });
             piano.upserts.push(nuovo);
             piano.nuovi.push(r);
+            if (r.codice_barre) piano.codiciBarre.push({ riga: r, vecchio: null, nuovo: r.codice_barre });
 
             // Storico: dal piu' vecchio al piu' recente
             [['netto_3', 'note_3'], ['netto_2', 'note_2'], ['netto_1', 'note_1']].forEach(([n, nt]) => {
@@ -815,6 +858,11 @@ function listinoCostruisciPiano(righeFile, articoliDb) {
         const aggiornato = { chiave: r.chiave, attivo: true, data_cancellazione: null };
         LISTINO_CAMPI_FILE.forEach(campo => { aggiornato[campo] = r[campo]; });
         LISTINO_CAMPI_NETTI.forEach(campo => { aggiornato[campo] = esistente[campo]; });
+        // Codice a barre: la cella vuota non cancella quello gia' salvato
+        aggiornato.codice_barre = r.codice_barre || esistente.codice_barre || null;
+        if (r.codice_barre && !listinoStessoTesto(esistente.codice_barre || null, r.codice_barre)) {
+            piano.codiciBarre.push({ riga: r, vecchio: esistente.codice_barre || null, nuovo: r.codice_barre });
+        }
 
         let nettoCambiato = false;
         if (r.netto_1 !== null) {
@@ -869,6 +917,31 @@ function listinoCostruisciPiano(righeFile, articoliDb) {
     // Articoli attivi che non sono piu' nel file -> cancellati
     articoliDb.forEach(a => {
         if (a.attivo && !chiaviFile.has(a.chiave)) piano.cancellati.push(a);
+    });
+
+    // Codici a barre doppi: dopo l'import ogni codice deve appartenere a un solo articolo
+    // (contano anche gli articoli che non sono nel file, compresi i cancellati)
+    const codiceDi = new Map(); // codice -> [descrizioni]
+    const aggiungi = (codice, descrizione) => {
+        if (!codice) return;
+        if (!codiceDi.has(codice)) codiceDi.set(codice, []);
+        codiceDi.get(codice).push(descrizione);
+    };
+    righeFile.forEach(r => {
+        const esistente = dbPerChiave.get(r.chiave);
+        aggiungi(r.codice_barre || (esistente ? esistente.codice_barre : null),
+            'riga ' + r.riga_excel + ' (' + listinoDescrizione(r) + ')');
+    });
+    articoliDb.forEach(a => {
+        if (!chiaviFile.has(a.chiave)) {
+            aggiungi(a.codice_barre, listinoDescrizione(a) + (a.attivo ? ' (non &#232; nel file)' : ' (tra gli articoli cancellati)'));
+        }
+    });
+    codiceDi.forEach((descrizioni, codice) => {
+        if (descrizioni.length > 1) {
+            piano.errori.push('Codice a barre <strong>' + listinoEsc(codice) + '</strong> usato per pi&#249; articoli: ' +
+                descrizioni.join(' &middot; '));
+        }
     });
 
     return piano;
@@ -942,6 +1015,7 @@ function renderListinoAnteprima(piano) {
     const tantiCancellati = !piano.primoCaricamento && piano.cancellati.length > 0 &&
         piano.cancellati.length >= Math.max(20, nAttiviPrima * 0.3);
     const nienteDaFare = piano.upserts.length === 0 && piano.cancellati.length === 0;
+    const bloccato = piano.errori && piano.errori.length > 0;
 
     let html =
         '<div class="listino-file-info">&#128221; <strong>' + listinoEsc(listinoImportFileName) + '</strong>' +
@@ -977,9 +1051,18 @@ function renderListinoAnteprima(piano) {
     html += listinoElenco('&#9999;&#65039; Altre modifiche (descrizioni o prezzi di vendita)', piano.aggiornati.map(listinoDescrizione), false);
     html += listinoElenco('&#9851;&#65039; Tornano nel listino', piano.riattivati.map(listinoDescrizione), true);
     html += listinoElenco('&#128465; Vanno in "Articoli cancellati"', piano.cancellati.map(listinoDescrizione), true);
+    html += listinoElenco('&#127991;&#65039; Codici a barre nuovi o cambiati',
+        piano.codiciBarre.map(c => listinoDescrizione(c.riga) + ': <strong>' +
+            (c.vecchio ? listinoEsc(c.vecchio) + ' &#8594; ' : '') + listinoEsc(c.nuovo) + '</strong>'), false);
     html += listinoElenco('&#9888;&#65039; Avvisi', piano.avvisi, true);
 
-    if (nienteDaFare) {
+    if (bloccato) {
+        html += '<div class="listino-box listino-box-errore"><strong>&#10060; Il file non pu&#242; essere importato</strong><br>' +
+            piano.errori.join('<br>') +
+            '<br><br>Correggi il file (ogni codice a barre deve essere di un solo articolo) e ricaricalo.</div>' +
+            '<div class="listino-import-azioni">' +
+            '<button type="button" class="btn-secondary listino-btn-annulla" id="listino-import-annulla">Chiudi</button></div>';
+    } else if (nienteDaFare) {
         html += '<div class="listino-box listino-box-info">&#10004; Il listino &#232; gi&#224; aggiornato: non c\'&#232; nulla da importare.</div>' +
             '<div class="listino-import-azioni">' +
             '<button type="button" class="btn-secondary listino-btn-annulla" id="listino-import-annulla">Chiudi</button></div>';
@@ -1013,7 +1096,7 @@ function cancelListinoImport() {
 // ========================================
 async function confirmListinoImport() {
     const piano = listinoImportPlan;
-    if (!piano) return;
+    if (!piano || (piano.errori && piano.errori.length > 0)) return;
 
     const btn = document.getElementById('listino-import-conferma');
     const btnAnnulla = document.getElementById('listino-import-annulla');
@@ -1122,6 +1205,7 @@ function listinoRigheExport() {
         LISTINO_CAMPI.map(({ campo }) => {
             const v = a[campo];
             if (v === null || v === undefined || v === '') return null;
+            if (campo === 'codice_barre') return String(v); // testo: Excel non lo trasforma in 8,01E+12
             if (LISTINO_CAMPI_NUMERICI.indexOf(campo) !== -1) return Number(v);
             if (LISTINO_CAMPI_VENDITA_TESTO.indexOf(campo) !== -1 && /^-?\d+(\.\d+)?$/.test(String(v))) return Number(v);
             return v;
@@ -1144,7 +1228,7 @@ async function listinoCreaExcelFormattato(ExcelJS, righe) {
     ws.columns = LISTINO_CAMPI.map(({ campo, titolo }) => ({
         header: titolo,
         key: campo,
-        width: LISTINO_COLONNE_LARGHE.indexOf(campo) !== -1 ? 26 : (campo === 'attrezzo' || campo === 'modello' ? 20 : 15)
+        width: LISTINO_COLONNE_LARGHE.indexOf(campo) !== -1 ? 26 : (campo === 'attrezzo' || campo === 'modello' || campo === 'codice_barre' ? 20 : 15)
     }));
 
     righe.forEach(r => ws.addRow(r));
@@ -1157,6 +1241,10 @@ async function listinoCreaExcelFormattato(ExcelJS, righe) {
         cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF688E53' } };
         cell.alignment = { vertical: 'middle' };
     });
+
+    // Codice a barre: colonna in formato testo (anche per i codici scritti dopo in Excel)
+    const iCodice = LISTINO_CAMPI.findIndex(c => c.campo === 'codice_barre');
+    if (iCodice !== -1) ws.getColumn(iCodice + 1).numFmt = '@';
 
     // Prezzi in formato euro
     const formatoEuro = '#,##0.00 "€"';
@@ -1233,7 +1321,8 @@ let listinoArticoloInModifica = null; // null = nuovo articolo
 
 const LISTINO_CAMPI_FORM = [
     'attrezzo', 'marchio', 'alimentazione', 'tipologia_alimentazione', 'modello', 'note',
-    'netto_1', 'note_1', 'vendita_promo', 'scadenza_promo', 'vendita_scatola', 'vendita_no_promo', 'listino'
+    'netto_1', 'note_1', 'vendita_promo', 'scadenza_promo', 'vendita_scatola', 'vendita_no_promo', 'listino',
+    'codice_barre'
 ];
 
 function listinoFormEl(campo) {
@@ -1322,6 +1411,8 @@ async function saveListinoEdit(e) {
             } else {
                 dati[campo] = n;
             }
+        } else if (campo === 'codice_barre') {
+            dati[campo] = listinoPulisciCodiceBarre(grezzo);
         } else if (LISTINO_CAMPI_VENDITA_TESTO.indexOf(campo) !== -1) {
             const n = listinoParseNumero(grezzo);
             dati[campo] = (typeof n === 'number' && !isNaN(n)) ? String(n) : listinoPulisciTesto(grezzo);
@@ -1338,6 +1429,13 @@ async function saveListinoEdit(e) {
     if (doppione) {
         errori.push('Esiste gi&#224; un articolo con stesso marchio, modello e note' +
             (doppione.attivo ? '' : ' (&#232; tra gli articoli cancellati: ripristinalo da l&#236;)'));
+    }
+    if (dati.codice_barre) {
+        const stessoCodice = listinoArticoli.find(x => x.codice_barre === dati.codice_barre && (!a || x.id !== a.id));
+        if (stessoCodice) {
+            errori.push('Il codice a barre ' + listinoEsc(dati.codice_barre) + ' &#232; gi&#224; di <strong>' +
+                listinoEsc(listinoNotNome(stessoCodice)) + '</strong>' + (stessoCodice.attivo ? '' : ' (tra gli articoli cancellati)'));
+        }
     }
 
     if (errori.length > 0) {
@@ -1396,7 +1494,10 @@ async function saveListinoEdit(e) {
     } catch (error) {
         console.error('Errore salvataggio articolo listino:', error);
         btn.disabled = false;
-        await showCustomAlert('Errore durante il salvataggio:<br>' + listinoEsc(error.message), 'Errore', '&#10060;');
+        const doppioCodice = error && error.code === '23505' && String(error.message || '').indexOf('codice_barre') !== -1;
+        await showCustomAlert(doppioCodice
+            ? 'Questo codice a barre &#232; gi&#224; di un altro articolo (forse appena salvato da un collega).<br>Ricarica la pagina e controlla.'
+            : 'Errore durante il salvataggio:<br>' + listinoEsc(error.message), 'Errore', '&#10060;');
         return;
     }
 
@@ -1829,6 +1930,7 @@ function listinoNotDifferenze(vecchio, nuovo) {
     }
     LISTINO_CAMPI.forEach(({ campo, titolo }) => {
         if (LISTINO_CAMPI_NETTI.indexOf(campo) !== -1) return;
+        if (campo === 'codice_barre') return; // il codice a barre non genera notifiche
         if (!(campo in nuovo)) return;
         const uguale = LISTINO_CAMPI_NUMERICI.indexOf(campo) !== -1
             ? listinoStessoNumero(vecchio[campo], nuovo[campo])
@@ -2467,6 +2569,16 @@ document.addEventListener('DOMContentLoaded', () => {
     if (btnNuovo) btnNuovo.addEventListener('click', () => openListinoEdit(null));
     const formEdit = document.getElementById('listino-edit-form');
     if (formEdit) formEdit.addEventListener('submit', saveListinoEdit);
+    // Il lettore di codici a barre preme Invio dopo il codice: non deve salvare la scheda
+    const campoCodice = document.getElementById('listino-edit-codice-barre');
+    if (campoCodice) {
+        campoCodice.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                campoCodice.value = listinoPulisciCodiceBarre(campoCodice.value) || '';
+            }
+        });
+    }
     const btnAnnullaEdit = document.getElementById('listino-edit-annulla');
     if (btnAnnullaEdit) btnAnnullaEdit.addEventListener('click', closeListinoEdit);
     const btnChiudiEdit = document.getElementById('listino-edit-close');

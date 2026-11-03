@@ -1660,3 +1660,41 @@
     min-width: 0 !important;
     font-size: 9.5px !important;
 }
+
+/* ========================================
+   CARICO CON IL LETTORE DI CODICI A BARRE
+   ======================================== */
+.mac-lettore-aiuto {
+    margin-top: -4px;
+}
+
+.mac-codice-info {
+    border-left-color: #d97706;
+    background: #fffbeb;
+}
+
+.mac-codice-info .mac-link {
+    margin: 6px 0 0;
+}
+
+.mac-lettore-msg {
+    display: none;
+}
+
+.mac-lettore-msg.mac-lettore-ok,
+.mac-lettore-msg.mac-lettore-err,
+.mac-lettore-msg.mac-lettore-info {
+    display: block;
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 13px;
+    line-height: 1.5;
+    margin-bottom: 12px;
+    border-left: 4px solid var(--primary);
+    background: var(--light);
+}
+
+.mac-lettore-msg.mac-lettore-err {
+    border-left-color: var(--danger);
+    background: #fef2f2;
+}
