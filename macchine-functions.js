@@ -485,7 +485,7 @@ function macPezzoCorrispondeRicerca(p, a, ricerca) {
     if (!ricerca) return true;
     const testo = [
         a ? a.attrezzo : '', a ? a.marchio : '', a ? a.modello : '', a ? a.note : '',
-        a ? a.alimentazione : '', a ? a.tipologia_alimentazione : '',
+        a ? a.alimentazione : '', a ? a.tipologia_alimentazione : '', a ? listinoCodiceBarrePerRicerca(a.codice_barre) : '',
         p.cliente, p.matricola, p.note
     ].filter(Boolean).join(' ').toUpperCase();
     return ricerca.split(' ').every(parola => testo.indexOf(parola) !== -1);
@@ -1468,7 +1468,7 @@ async function macCaricoSceltoDaElenco(a) {
             }
         }
     }
-    const salvato = !!codice && a.codice_barre === codice;
+    const salvato = !!codice && listinoStessoCodiceBarre(a.codice_barre, codice);
     macCaricoCodiceInSospeso = null;
     macCaricoMostraSospeso();
     macCaricoArticolo = a;
@@ -1648,7 +1648,11 @@ function macExcelScaricaModello() {
         ['NETTO 1: il netto della conferma d\'ordine. Se e\' diverso da quello del listino, il listino si aggiorna'],
         ['          (netto 1 -> netto 2 -> netto 3 e storico). Vuoto = si usa il netto 1 del listino.'],
         ['PREZZI DI VENDITA / LISTINO: se compilati aggiornano il listino. Le celle vuote non cancellano niente.'],
-        ['MATRICOLE: facoltative, separate da virgola o punto e virgola (al massimo quante la QUANTITA).'],
+        ['MATRICOLE: facoltative. Tre modi (vanno bene tutti):'],
+        ['   a) una riga con QUANTITA 10 e nella cella MATRICOLE le 10 matricole separate da virgola, punto e virgola o a capo (Alt+Invio);'],
+        ['   b) 10 righe uguali, una matricola per riga e QUANTITA 1 (le righe uguali vengono unite);'],
+        ['   c) QUANTITA vuota e solo le matricole: tante macchine quante matricole.'],
+        ['   Le matricole possono essere meno della QUANTITA (le altre si aggiungono dopo dal quaderno), mai di piu\'.'],
         [''],
         ['ARTICOLO NUOVO (non presente nel listino): viene creato. Servono ATTREZZO e MODELLO (o NOTE).'],
         ['SET: si carica il set e l\'app carica i singoli componenti (se il set e\' configurato nella scheda Set).'],
@@ -1789,7 +1793,13 @@ function macExcelCostruisciPiano(righeFile, aggiornaListino, assegna) {
 
         // Matricole
         if (v.matricole !== null && v.matricole !== undefined && String(v.matricole).trim() !== '') {
-            r.matricole = String(v.matricole).split(/[,;\n]+/).map(m => listinoPulisciTesto(m)).filter(Boolean);
+            r.matricole = String(v.matricole).split(/[,;\n\r]+/).map(m => listinoPulisciTesto(m)).filter(Boolean);
+        }
+        // QUANTITA vuota ma matricole scritte: tante macchine quante matricole
+        const qVuota = qGrezza === null || qGrezza === undefined || String(qGrezza).trim() === '';
+        if (qVuota && r.matricole.length > 0) {
+            r.qta = r.matricole.length;
+            r.avvisi.push('QUANTITA vuota: ' + r.qta + (r.qta === 1 ? ' macchina' : ' macchine') + ', una per matricola');
         }
 
         // Codice a barre gia' presente nel listino: riconosce l'articolo anche senza MODELLO
@@ -1899,7 +1909,7 @@ function macExcelCostruisciPiano(righeFile, aggiornaListino, assegna) {
                 if (r.nuovo || !art.codice_barre) {
                     salvaCodice = true;
                     r.infoCodice = 'Codice a barre ' + macEsc(r.codiceBarre) + ' salvato sull\'articolo';
-                } else if (art.codice_barre !== r.codiceBarre) {
+                } else if (!listinoStessoCodiceBarre(art.codice_barre, r.codiceBarre)) {
                     salvaCodice = true;
                     r.infoCodice = 'Codice a barre cambiato: ' + macEsc(art.codice_barre) + ' &rarr; ' + macEsc(r.codiceBarre);
                 }
