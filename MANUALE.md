@@ -288,6 +288,30 @@ Si apre da **Vendite &rarr; Ordini Clienti**. Sostituisce il blocchetto delle co
 
 **Prossime fasi**: Telegram (da decidere).
 
+### 8.6 Buoni Regalo (admin e operatori)
+Si apre da **Vendite &rarr; Buoni Regalo**.
+- **&#10133; Nuovo buono**: data di emissione (oggi), operatore (le tue iniziali), **cliente** e **telefono** (obbligatori),
+  **intestato a** (chi riceve il regalo; se vuoto si stampa il nome del cliente), **importo**, **scadenza** (di base 1 anno;
+  pulsanti 3 mesi / 6 mesi / 1 anno / 2 anni), note (solo sulla copia per il negozio).
+- **Numero progressivo** che riparte da 1 ogni anno (2026/1, 2026/2 ... 2027/1), come gli ordini clienti.
+- Salvando si apre subito il **PDF del buono**: foglio A4 con il **buono regalo nella met&agrave; superiore** (da tagliare sulla
+  linea tratteggiata) e la **copia per il negozio** nella met&agrave; inferiore (dati del cliente, firma, data di utilizzo).
+  Grafica (v6.4.1): fascia verde a sinistra con logo, regalo e dati aziendali; nastro rosso con fiocco; a destra titolo,
+  numero, importo, intestato a, date, spazio per la dedica scritta a mano, condizioni e timbro. Zone a misura fissa: niente
+  si sovrappone; i nomi lunghi diventano pi&ugrave; piccoli. Logo e dati dai Dati aziendali.
+- Elenco con riepilogo (buoni da usare, valore da usare, in scadenza entro 30 giorni), ricerca, filtri per stato e anno.
+  Stati: Valido, In scadenza, Scaduto, Utilizzato, Annullato.
+- Clic su un buono: modifica, **Stampa buono**, **Segna utilizzato** (o "Non ancora utilizzato"), **Annulla buono**
+  (il numero resta usato, il PDF esce con la scritta ANNULLATO), **Elimina** (meglio annullare: eliminando resta un buco nella numerazione,
+  tranne per l'ultimo dell'anno).
+- **PDF su Google Drive** come gli ordini: salvato da solo alla creazione, rifatto dopo modifica / annullo / ripristino,
+  nel cestino di Drive se il buono viene eliminato. Cartelle `BUONI REGALO / BUONI REGALO <anno>`. Nella finestra del buono:
+  Apri / Salva di nuovo; nell'elenco l'icona &#128193;. Pulsante **Prova Drive** accanto ai filtri.
+  Script e funzione SEPARATI da quelli degli ordini: `google/buoni-drive.gs` + Edge Function `buoni-drive`
+  (`supabase/buoni-drive.ts`, secrets BUONI_SCRIPT_URL e BUONI_SCRIPT_KEY). Configurazione: `GUIDA_BUONI_DRIVE.md`.
+- Configurazione (una volta): Supabase &rarr; SQL Editor &rarr; `supabase/buoni-regalo-setup.sql` &rarr; Run.
+  Dal 3/11/2026 li usano admin e operatori: `BUONI_RUOLI` in `app.js` + funzione `buoni_puo_gestire()` (`supabase/buoni-regalo-operatori.sql`).
+
 ## 8bis. ASSISTENZA (ex TECNICI) &rarr; INTERVENTI ESTERNI (v6.0.0)
 
 Dalla v6.3.0 la card **Tecnici** si chiama **ASSISTENZA** e contiene: Interventi Esterni (tutti; tecnici in sola lettura),
@@ -435,6 +459,9 @@ Percorso: Dashboard &rarr; Gestione Utenti.
 | `listino-functions.js`, `listino.css` | Listino Vendite e notifiche (campanella) |
 | `fornitori-functions.js`, `fornitori.css` | Listini Fornitori (cartelle Google Drive) |
 | `interventi-functions.js`, `interventi.css` | Assistenza &rarr; Interventi Esterni (planning, Telegram, archivio, aggancio alle richieste robot) |
+| `buoni-functions.js`, `buoni.css` | Vendite &rarr; Buoni Regalo (elenco, numerazione per anno, PDF del buono su mezzo A4) |
+| `google/buoni-drive.gs`, `supabase/buoni-drive.ts` | PDF dei buoni regalo su Google Drive (script Google + funzione Supabase) |
+| `GUIDA_BUONI_DRIVE.md` | Guida di configurazione del salvataggio buoni su Drive |
 | `richieste-robot-functions.js`, `richieste.css` | Assistenza &rarr; Richieste e Organizzazione interventi robot (tabella, mappa, contenitori, PDF e pulizia di fine anno) |
 | `supabase/richieste-robot-setup.sql` | Tabella richieste_robot, aggancio al planning, trigger degli esiti, richieste dagli ordini |
 | `macchine-functions.js`, `macchine.css` | Magazzino &rarr; Inventario Macchine (inventario, quaderno, carico, carico Excel, set, movimenti) |

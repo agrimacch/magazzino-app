@@ -1,0 +1,596 @@
+/* ============================================ */
+/* VENDITE - BUONI REGALO (v6.4.0)              */
+/* Classi buo-* : non toccano il resto dell'app */
+/* z-index: finestra = .modal (10000); il foglio */
+/* del PDF usa .pdf-foglio / .pdf-velo esistenti */
+/* ============================================ */
+
+/* ---------- Sezione ---------- */
+.buo-strumenti {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.buo-strumenti input,
+.buo-strumenti select {
+    margin: 0;
+    width: auto;
+    padding: 9px 10px;
+    font-size: 14px;
+}
+
+.buo-strumenti .buo-cerca { flex: 1 1 220px; min-width: 160px; }
+
+.buo-strumenti .btn-primary {
+    width: auto;
+    display: inline-block;
+    padding: 9px 14px;
+}
+
+.buo-riepilogo {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+.buo-riepilogo > div {
+    background: white;
+    border: 2px solid var(--green-light);
+    border-radius: var(--border-radius-sm);
+    padding: 10px 14px;
+}
+
+.buo-riepilogo > div.avviso { border-color: #f59e0b; background: #fffbeb; }
+
+.buo-riepilogo span {
+    display: block;
+    font-size: 11px;
+    color: var(--gray);
+    text-transform: uppercase;
+}
+
+.buo-riepilogo strong {
+    font-size: 20px;
+    color: var(--primary-dark);
+}
+
+.buo-conta {
+    color: var(--gray);
+    font-size: 13px;
+    margin: 0 0 8px 2px;
+}
+
+.buo-vuoto {
+    text-align: center;
+    color: var(--gray);
+    padding: 30px 15px;
+}
+
+.buo-elenco {
+    background: white;
+    border: 2px solid var(--green-light);
+    border-radius: var(--border-radius-sm);
+    overflow: auto;
+    max-height: calc(100vh - 300px);
+    max-height: calc(100dvh - 300px);
+    min-height: 200px;
+}
+
+.buo-tabella {
+    width: 100%;
+    min-width: 860px;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 13px;
+}
+
+.buo-tabella thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: var(--primary);
+    color: white;
+    font-weight: 700;
+    text-align: left;
+    padding: 9px 8px;
+    white-space: nowrap;
+}
+
+.buo-tabella td {
+    padding: 8px;
+    border-bottom: 1px solid #e5e7eb;
+    vertical-align: middle;
+}
+
+.buo-tabella .buo-n { text-align: right; white-space: nowrap; }
+.buo-num { font-weight: 700; white-space: nowrap; }
+
+.buo-tabella tr.buo-riga { cursor: pointer; }
+.buo-tabella tr.buo-riga:hover td { background: #f0fdf4; }
+.buo-tabella tr.st-annullato td { color: #9ca3af; text-decoration: line-through; }
+.buo-tabella tr.st-annullato td:nth-last-child(-n+2) { text-decoration: none; }
+.buo-tabella tr.st-utilizzato td { color: #6b7280; }
+
+.buo-tabella a { color: #1d4ed8; font-weight: 600; text-decoration: none; }
+
+.buo-note {
+    display: block;
+    font-size: 11px;
+    color: var(--gray);
+}
+
+.buo-stato {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 700;
+    border-radius: 6px;
+    padding: 2px 7px;
+    white-space: nowrap;
+    text-decoration: none;
+}
+
+.buo-st-valido { background: #dcfce7; color: #166534; }
+.buo-st-scadenza { background: #ffedd5; color: #9a3412; }
+.buo-st-scaduto { background: #fee2e2; color: #991b1b; }
+.buo-st-usato { background: #e0e7ff; color: #3730a3; }
+.buo-st-annullato { background: #e5e7eb; color: #374151; }
+
+.buo-az-riga { white-space: nowrap; }
+
+.buo-az-riga .buo-btn-pdf + .buo-btn-pdf { margin-left: 4px; }
+
+a.buo-btn-pdf { display: inline-block; text-decoration: none; }
+
+.buo-strumenti .buo-btn-drive {
+    padding: 8px 12px;
+    font-size: 13px;
+}
+
+.buo-drive {
+    flex-basis: 100%;
+    font-size: 12px;
+    padding-top: 8px;
+    margin-top: 4px;
+    border-top: 1px solid #dfe9d6;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.buo-drive a.buo-az { text-decoration: none; display: inline-block; }
+
+.buo-btn-pdf {
+    background: white;
+    border: 2px solid var(--green-light);
+    border-radius: 8px;
+    padding: 4px 8px;
+    font-size: 16px;
+    cursor: pointer;
+}
+
+/* ---------- Finestra ---------- */
+.buo-modal-content { max-width: 580px; }
+
+.buo-modal-content h3 .buo-stato { vertical-align: middle; margin-left: 6px; }
+
+.buo-f-due {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0 12px;
+}
+
+.buo-f-durate {
+    margin-top: -4px;
+}
+
+.buo-f-azioni {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 14px;
+    padding: 10px;
+    background: var(--light);
+    border-radius: var(--border-radius-sm);
+}
+
+.buo-f-azioni.hidden { display: none; }
+
+.buo-f-azioni .buo-az {
+    padding: 7px 10px;
+    font-size: 12px;
+}
+
+.buo-f-azioni .buo-az-usa { border-color: #16a34a; color: #166534; }
+.buo-f-azioni .buo-az-annulla { border-color: #fecaca; color: #b91c1c; }
+
+@media (max-width: 768px) {
+    .buo-f-due { grid-template-columns: 1fr; }
+    .buo-elenco { max-height: calc(100dvh - 260px); }
+}
+
+/* ============================================ */
+/* IL BUONO STAMPATO (foglio A4 718 x 1015 px)  */
+/* v6.4.1: grafica nuova. Tutte le zone hanno   */
+/* misure fisse: niente si sovrappone, anche    */
+/* con nomi lunghi o importi grandi.            */
+/* ============================================ */
+.buo-foglio {
+    width: 718px;
+    height: 1015px;
+    background: #ffffff;
+    font-family: Arial, Helvetica, sans-serif;
+    color: #1f2937;
+    position: relative;
+    box-sizing: border-box;
+}
+
+.buo-meta {
+    height: 500px;
+    box-sizing: border-box;
+    padding: 24px 26px;
+    position: relative;
+}
+
+.buo-meta-copia { padding-top: 22px; }
+
+/* --- Il buono: due parti affiancate --- */
+.buo-card {
+    position: relative;
+    height: 452px;
+    display: flex;
+    border: 2px solid #3f5a2c;
+    border-radius: 16px;
+    overflow: hidden;
+    background: #ffffff;
+}
+
+/* Fascia verde a sinistra */
+.buo-lato {
+    width: 226px;
+    flex-shrink: 0;
+    box-sizing: border-box;
+    padding: 18px 22px 16px 16px;
+    background: linear-gradient(165deg, #7fa861 0%, #688E53 45%, #3f5a2c 100%);
+    color: #ffffff;
+    display: flex;
+    flex-direction: column;
+}
+
+.buo-lato-logo {
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    box-sizing: border-box;
+}
+
+.buo-lato-logo img {
+    max-width: 100%;
+    max-height: 50px;
+    object-fit: contain;
+}
+
+.buo-lato-regalo {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+}
+
+.buo-lato-regalo span {
+    font-size: 66px;
+    line-height: 1;
+}
+
+.buo-lato-regalo div {
+    margin-top: 10px;
+    font-family: 'Kalam', 'Comic Sans MS', cursive;
+    font-size: 22px;
+    line-height: 1.1;
+    font-weight: 700;
+}
+
+.buo-lato-azienda {
+    font-size: 8.5px;
+    line-height: 1.5;
+    color: rgba(255, 255, 255, 0.92);
+    border-top: 1px solid rgba(255, 255, 255, 0.35);
+    padding-top: 8px;
+}
+
+/* Ogni riga dei dati aziendali su una sola riga (se serve il carattere si rimpicciolisce) */
+.buo-lato-azienda .buo-una-riga {
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+.buo-lato-azienda strong {
+    display: block;
+    font-size: 11px;
+    color: #ffffff;
+    margin-bottom: 2px;
+}
+
+/* Nastro rosso tra le due parti, con il fiocco */
+.buo-nastro {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 220px;
+    width: 14px;
+    background: linear-gradient(90deg, #991b1b, #dc2626 50%, #991b1b);
+}
+
+.buo-fiocco {
+    position: absolute;
+    left: 179px;
+    top: 6px;
+    width: 96px;
+    height: 83px;
+    line-height: 0;
+}
+
+/* Parte destra */
+.buo-dx {
+    flex: 1;
+    min-width: 0;
+    box-sizing: border-box;
+    padding: 20px 26px 16px 48px;
+    display: flex;
+    flex-direction: column;
+    background: linear-gradient(180deg, #f3f8ef 0%, #ffffff 38%);
+}
+
+.buo-dx-testa {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+    height: 62px;
+}
+
+.buo-titolo {
+    font-family: 'Kalam', 'Comic Sans MS', cursive;
+    font-size: 46px;
+    font-weight: 700;
+    line-height: 1.2;
+    color: #3f5a2c;
+    white-space: nowrap;
+}
+
+.buo-numero {
+    margin-top: 8px;
+    font-size: 12px;
+    color: #3f5a2c;
+    border: 1.5px solid #688E53;
+    border-radius: 20px;
+    padding: 3px 11px;
+    background: #ffffff;
+    white-space: nowrap;
+}
+
+.buo-valore {
+    height: 76px;
+    margin-top: 8px;
+    display: flex;
+    align-items: baseline;
+    line-height: 74px;
+    font-size: 54px;
+    font-weight: 800;
+    color: #111111;
+    letter-spacing: 0.5px;
+    border-top: 2px solid #c9dcbb;
+    border-bottom: 2px solid #c9dcbb;
+    white-space: nowrap;
+}
+
+.buo-valore-eur {
+    font-size: 34px;
+    font-weight: 700;
+    color: #111111;
+    margin-right: 10px;
+}
+
+.buo-campo {
+    margin-top: 14px;
+    border-bottom: 1.5px dashed #a7c493;
+    padding-bottom: 3px;
+    min-width: 0;
+}
+
+.buo-campo span {
+    display: block;
+    font-size: 9.5px;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    color: #6b7280;
+    margin-bottom: 2px;
+}
+
+.buo-campo strong {
+    display: block;
+    font-size: 17px;
+    color: #111827;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.buo-campo strong.buo-nome { font-size: 21px; }
+.buo-campo strong.buo-nome.piccolo { font-size: 17px; }
+.buo-campo strong.buo-nome.piccolissimo { font-size: 14px; }
+
+.buo-date {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0 22px;
+}
+
+.buo-dedica {
+    margin-top: 16px;
+}
+
+.buo-dedica span {
+    display: block;
+    font-size: 9.5px;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    color: #6b7280;
+}
+
+.buo-dedica div {
+    height: 26px;
+    border-bottom: 1px dotted #a7c493;
+}
+
+.buo-piede {
+    margin-top: auto;
+    display: flex;
+    align-items: flex-end;
+    gap: 16px;
+}
+
+.buo-condizioni {
+    flex: 1;
+    font-size: 8px;
+    line-height: 1.4;
+    color: #6b7280;
+}
+
+.buo-timbro {
+    width: 128px;
+    height: 46px;
+    border: 1.5px dashed #9ca3af;
+    border-radius: 8px;
+    font-size: 9px;
+    color: #9ca3af;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    padding-bottom: 4px;
+    box-sizing: border-box;
+    flex-shrink: 0;
+}
+
+.buo-annullato {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) rotate(-16deg);
+    font-size: 80px;
+    font-weight: 900;
+    color: rgba(185, 28, 28, 0.38);
+    border: 7px solid rgba(185, 28, 28, 0.38);
+    border-radius: 16px;
+    padding: 0 22px;
+    letter-spacing: 6px;
+    background: rgba(255, 255, 255, 0.35);
+}
+
+.buo-annullato.piccolo { font-size: 44px; border-width: 5px; }
+
+/* --- Linea da tagliare --- */
+.buo-taglio {
+    height: 15px;
+    position: relative;
+    border-top: 1.5px dashed #9ca3af;
+}
+
+.buo-taglio span {
+    position: absolute;
+    left: 24px;
+    top: -9px;
+    background: #ffffff;
+    padding: 0 6px;
+    font-size: 11px;
+    color: #9ca3af;
+}
+
+/* --- Copia per il negozio --- */
+.buo-copia {
+    position: relative;
+    border: 1.5px solid #d1d5db;
+    border-radius: 12px;
+    padding: 14px 18px 16px;
+}
+
+.buo-copia-testa {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    border-bottom: 2px solid #688E53;
+    padding-bottom: 10px;
+    margin-bottom: 10px;
+}
+
+.buo-copia-logo {
+    max-width: 110px;
+    max-height: 34px;
+    object-fit: contain;
+}
+
+.buo-copia-titoli { flex: 1; min-width: 0; }
+
+.buo-copia-titolo {
+    font-size: 14px;
+    font-weight: 800;
+    color: #3f5a2c;
+}
+
+.buo-copia-sotto {
+    font-size: 10px;
+    color: #6b7280;
+    letter-spacing: 0.5px;
+}
+
+.buo-copia-valore {
+    font-size: 22px;
+    font-weight: 800;
+    color: #3f5a2c;
+    white-space: nowrap;
+}
+
+.buo-copia-tab {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11px;
+    table-layout: fixed;
+}
+
+.buo-copia-tab th {
+    text-align: left;
+    font-weight: 600;
+    color: #6b7280;
+    width: 20%;
+    padding: 6px 6px;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.buo-copia-tab td {
+    padding: 6px 6px;
+    border-bottom: 1px solid #e5e7eb;
+    font-weight: 700;
+    color: #111827;
+    overflow-wrap: anywhere;
+}
+
+.buo-copia-firme {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    margin-top: 36px;
+}
+
+.buo-copia-firme div {
+    border-top: 1px solid #6b7280;
+    padding-top: 4px;
+    font-size: 10px;
+    color: #6b7280;
+}

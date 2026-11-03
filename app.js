@@ -62,9 +62,14 @@ const SEZIONI_ASSISTENZA_RUOLI = {
 // Ordini Clienti (dentro Vendite): stessi permessi dell'inventario macchine.
 const SEZIONI_MACCHINE = ['inventario-macchine', 'ordini-clienti'];
 
+// Vendite > Buoni Regalo: admin e operatori (dal 3/11/2026).
+// Deve corrispondere a buoni_puo_gestire() su Supabase (supabase/buoni-regalo-operatori.sql)
+const BUONI_RUOLI = ['admin', 'operatore'];
+
 function sezioneConsentita(sectionName) {
     if (sectionName === 'tecnici') sectionName = 'assistenza';
     if (SEZIONI_ASSISTENZA_RUOLI[sectionName]) return SEZIONI_ASSISTENZA_RUOLI[sectionName].includes(currentUserRole);
+    if (sectionName === 'buoni-regalo') return BUONI_RUOLI.includes(currentUserRole);
     if (currentUserRole === 'tecnico') return SEZIONI_TECNICI.includes(sectionName);
     if (SEZIONI_MACCHINE.includes(sectionName)) return typeof macPuoGestire === 'function' && macPuoGestire();
     if (ADMIN_ONLY_SECTIONS.includes(sectionName)) return currentUserRole === 'admin';
@@ -524,6 +529,12 @@ function applyRolePermissions() {
         ordiniCard.style.display = sezioneConsentita('ordini-clienti') ? 'flex' : 'none';
     }
 
+    // Card Buoni Regalo (dentro Vendite): BUONI_RUOLI (per ora solo admin)
+    const buoniCard = document.getElementById('vendite-buoni-card');
+    if (buoniCard) {
+        buoniCard.style.display = sezioneConsentita('buoni-regalo') ? 'flex' : 'none';
+    }
+
     // Gestione tab report (solo admin)
     const tabReportBtn = document.getElementById('tab-report-btn');
     if (tabReportBtn) {
@@ -699,6 +710,10 @@ function openSection(sectionName) {
     } else if (sectionName === 'ordini-clienti') {
         if (typeof openOrdiniClienti === 'function') {
             openOrdiniClienti();
+        }
+    } else if (sectionName === 'buoni-regalo') {
+        if (typeof openBuoniRegalo === 'function') {
+            openBuoniRegalo();
         }
     } else if (sectionName === 'assistenza') {
         // Entrando dal menu Assistenza gli interventi ripartono dall'elenco settimane

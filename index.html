@@ -25,6 +25,7 @@
     <link rel="stylesheet" href="ordini.css?v=6.3.4">
     <link rel="stylesheet" href="azienda.css?v=6.3.4">
     <link rel="stylesheet" href="richieste.css?v=6.3.4">
+    <link rel="stylesheet" href="buoni.css?v=6.3.4">
 
     <!-- SheetJS per import Excel -->
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
@@ -277,6 +278,13 @@
                         <span class="card-icon">&#128221;</span>
                         <h3>Ordini Clienti</h3>
                         <p>Commissioni con firma, collegate al quaderno macchine</p>
+                    </div>
+
+                    <!-- Card Buoni Regalo (admin e operatori: BUONI_RUOLI in app.js) -->
+                    <div class="dashboard-card" id="vendite-buoni-card" onclick="openSection('buoni-regalo')" style="display: none;">
+                        <span class="card-icon">&#127873;</span>
+                        <h3>Buoni Regalo</h3>
+                        <p>Buoni numerati da stampare su mezzo foglio A4</p>
                     </div>
 
                 </div>
@@ -772,6 +780,42 @@
         <!-- ========================================== -->
         <!-- SEZIONE ORDINI CLIENTI (commissioni) -->
         <!-- ========================================== -->
+        <!-- ========================================== -->
+        <!-- VENDITE > BUONI REGALO                      -->
+        <!-- ========================================== -->
+        <div id="section-buoni-regalo" class="section-container hidden">
+            <div class="back-to-dashboard">
+                <div class="back-buttons">
+                    <button onclick="openSection('vendite')" class="btn-back">
+                        &#8592; Torna a Vendite
+                    </button>
+                    <button onclick="backToDashboard()" class="btn-back btn-dashboard">
+                        &#127968; Dashboard
+                    </button>
+                </div>
+                <h2 class="section-title">&#127873; Buoni Regalo</h2>
+            </div>
+            <div class="container">
+                <div id="buo-riepilogo" class="buo-riepilogo"></div>
+                <div class="buo-strumenti">
+                    <button type="button" class="btn-primary" onclick="buoApriNuovo()">&#10133; Nuovo buono</button>
+                    <input type="search" class="buo-cerca" placeholder="Cerca numero, cliente, telefono..." autocomplete="off" oninput="buoCambiaCerca(this.value)">
+                    <select id="buo-filtro" onchange="buoImpostaFiltro(this.value)">
+                        <option value="TUTTI">Tutti</option>
+                        <option value="VALIDI">Da usare (validi)</option>
+                        <option value="IN_SCADENZA">In scadenza</option>
+                        <option value="SCADUTO">Scaduti</option>
+                        <option value="UTILIZZATO">Utilizzati</option>
+                        <option value="ANNULLATO">Annullati</option>
+                    </select>
+                    <select id="buo-anno" onchange="buoImpostaAnno(this.value)"></select>
+                    <button type="button" id="buo-prova-drive" class="btn-back buo-btn-drive" onclick="buoProvaDrive()" title="Controlla il collegamento con Google Drive">&#128193; Prova Drive</button>
+                </div>
+                <p id="buo-conta" class="buo-conta"></p>
+                <div id="buo-elenco" class="buo-elenco"></div>
+            </div>
+        </div>
+
         <div id="section-ordini-clienti" class="section-container hidden">
             <div class="back-to-dashboard">
                 <div class="back-buttons">
@@ -2312,6 +2356,67 @@
     <!-- ========================================== -->
     <!-- INTERVENTI ESTERNI: modifica riga -->
     <!-- ========================================== -->
+    <!-- BUONI REGALO: nuovo / modifica -->
+    <div id="buo-modal" class="modal hidden">
+        <div class="modal-content buo-modal-content">
+            <div class="modal-header">
+                <h3 id="buo-modal-titolo">&#10133; Nuovo buono regalo</h3>
+                <button type="button" class="modal-close" onclick="buoChiudiFinestra()">&times;</button>
+            </div>
+            <div id="buo-f-azioni" class="buo-f-azioni hidden"></div>
+
+            <div class="buo-f-due">
+                <div class="form-col">
+                    <label for="buo-f-data">Data di emissione</label>
+                    <input type="date" id="buo-f-data" onchange="buoAggiornaDurata()">
+                </div>
+                <div class="form-col">
+                    <label for="buo-f-operatore">Operatore</label>
+                    <input type="text" id="buo-f-operatore" maxlength="6" autocomplete="off">
+                </div>
+            </div>
+
+            <div class="buo-f-due">
+                <div class="form-col">
+                    <label for="buo-f-cliente">Cliente (chi compra il buono) *</label>
+                    <input type="text" id="buo-f-cliente" maxlength="80" autocomplete="off" placeholder="es. ROSSI MARIO">
+                </div>
+                <div class="form-col">
+                    <label for="buo-f-telefono">Telefono *</label>
+                    <input type="tel" id="buo-f-telefono" maxlength="40" autocomplete="off">
+                </div>
+            </div>
+
+            <label for="buo-f-intestato">Intestato a <small style="font-weight: 400; color: var(--gray);">(chi riceve il regalo; vuoto = il cliente)</small></label>
+            <input type="text" id="buo-f-intestato" maxlength="80" autocomplete="off" placeholder="es. BIANCHI LUCIA">
+
+            <div class="buo-f-due">
+                <div class="form-col">
+                    <label for="buo-f-importo">Importo (&euro;) *</label>
+                    <input type="text" id="buo-f-importo" inputmode="decimal" maxlength="12" autocomplete="off" placeholder="es. 50,00">
+                </div>
+                <div class="form-col">
+                    <label for="buo-f-scadenza">Scadenza *</label>
+                    <input type="date" id="buo-f-scadenza" onchange="buoAggiornaDurata()">
+                </div>
+            </div>
+            <div id="buo-f-durate" class="int-scelte buo-f-durate">
+                <button type="button" data-mesi="3" onclick="buoScegliDurata(3)">3 mesi</button>
+                <button type="button" data-mesi="6" onclick="buoScegliDurata(6)">6 mesi</button>
+                <button type="button" data-mesi="12" onclick="buoScegliDurata(12)">1 anno</button>
+                <button type="button" data-mesi="24" onclick="buoScegliDurata(24)">2 anni</button>
+            </div>
+
+            <label for="buo-f-note">Note <small style="font-weight: 400; color: var(--gray);">(solo sulla copia per il negozio)</small></label>
+            <textarea id="buo-f-note" rows="2" maxlength="300"></textarea>
+
+            <div class="modal-buttons">
+                <button type="button" id="buo-f-salva" class="btn-primary" onclick="buoSalva()">&#127873; Crea e stampa il buono</button>
+                <button type="button" class="btn-secondary" onclick="buoChiudiFinestra()">Chiudi</button>
+            </div>
+        </div>
+    </div>
+
     <!-- RICHIESTE INTERVENTI ROBOT: nuova / modifica -->
     <div id="rr-modal" class="modal hidden">
         <div class="modal-content rr-modal-content">
@@ -2551,6 +2656,7 @@
     <script src="ordini-functions.js?v=6.3.4"></script>
     <script src="azienda-functions.js?v=6.3.4"></script>
     <script src="richieste-robot-functions.js?v=6.3.4"></script>
+    <script src="buoni-functions.js?v=6.3.4"></script>
     <script src="app.js?v=6.3.4"></script>
 </body>
 </html>
