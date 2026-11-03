@@ -1,5 +1,8 @@
 # Changelog App Magazzino
 
+## v6.3.6 - 2026-11-03 (PRODUZIONE)
+codici a barre macchine
+
 ## v6.3.5 - 2026-11-03 (PRODUZIONE)
 BUONI SPESA AGRIMACCH
 
