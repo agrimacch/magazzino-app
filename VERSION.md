@@ -1,5 +1,8 @@
 # Changelog App Magazzino
 
+## v6.3.5 - 2026-11-03 (PRODUZIONE)
+BUONI SPESA AGRIMACCH
+
 ## v6.3.4 - 2026-11-02 (PRODUZIONE)
 zoom mappa
 
