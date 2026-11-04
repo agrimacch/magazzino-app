@@ -429,6 +429,8 @@ Finch&eacute; non &egrave; eseguito il planning funziona come prima (senza sugge
 
 ---
 
+**Indirizzo e posizione (v6.4.0)**: l'indirizzo si scrive a mano (niente suggerimenti) e il **PAESE &egrave; obbligatorio**. Sulla mappa dell'Organizzazione la richiesta va al **centro del paese** (OpenStreetMap trova sempre i paesi; pi&ugrave; richieste nello stesso paese si affiancano); le distanze dalla sede sono calcolate dal paese. Il meteo del planning usa il paese (campo Cliente). Il link dell'indirizzo (tabella, fumetto sulla mappa, planning Interventi esterni) apre **Google Maps con l'indirizzo preciso**: &egrave; un link normale, gratis, senza chiavi. Le richieste vecchie posizionate con l'indirizzo si spostano da sole al centro del paese la prima volta che si apre la sezione. Nessun servizio Google a pagamento.
+
 ## 8ter. DATI AZIENDALI (SOLO ADMIN)
 
 Dalla Dashboard, card **Dati aziendali** (la vede solo l'admin). Si compilano ragione sociale, indirizzo, telefono, telefono/WhatsApp, e-mail, partita IVA, codice fiscale, codice univoco (SDI), sito web e il **logo** (PNG consigliato; viene rimpicciolito da solo). Sotto c'&egrave; l'anteprima dell'intestazione. **Salva** e i dati valgono per tutti gli utenti: compaiono nell'intestazione di ordini clienti, report vendite e valore macchine, report consumabili e ricambi, storico netti. Senza logo caricato si usa il logo dell'app.
@@ -566,7 +568,7 @@ git rm --cached localhost.pem localhost-key.pem
 
 ## 15. STORICO MODIFICHE PRINCIPALI
 
-- **v6.4.0 (nov 2026)** - **Codice a barre per modello** nel Listino Vendite (non visibile in tabella, usato da ricerca e carico), colonna CODICE A BARRE negli Excel del listino e del Carico Excel, **carico macchine con il lettore di codici a barre** collegato al PC.
+- **v6.4.0 (nov 2026)** - Richieste robot: indirizzo a mano, paese obbligatorio, mappa per paese. **Codice a barre per modello** nel Listino Vendite (non visibile in tabella, usato da ricerca e carico), colonna CODICE A BARRE negli Excel del listino e del Carico Excel, **carico macchine con il lettore di codici a barre** collegato al PC.
 - **v6.3.0 (nov 2026)** - La card Tecnici diventa **ASSISTENZA**. Nuove sezioni **Richieste interventi robot** (tabella come il foglio Excel, urgenze con scadenze, suggerimenti indirizzo, PDF e pulizia di fine anno) e **Organizzazione interventi robot** (mappa OpenStreetMap con pallini colorati, contenitori per distanza e urgenza). Planning agganciato alle richieste (esiti automatici), telefono e paese cliccabili. Ordini di robot/antizanzare con installazione = richiesta di montaggio automatica. Planning: festivi e santo patrono (3 ottobre) in rosso. Aperte agli operatori anche Inventario Macchine e Ordini Clienti.
 - **v6.0.0 (ott 2026)** - Nuova sezione **Tecnici &rarr; Interventi Esterni**: planning settimanale (4 righe mattina + 4 pomeriggio per tecnico), colori con pennello, tecnici per settimana, tempo reale; ruolo utente **Tecnico** (sola lettura, solo questa sezione); riepilogo Telegram con il pulsante "Invia a Telegram"; assenze lette da Google Calendar con conferma su Telegram e colorazione automatica; archivio di fine anno in Excel.
 - **v4.10.0 (ott 2026)** - Listini Fornitori: PDF su Google Drive letti in automatico dall'app (fornitori, marchi, pi&ugrave; recenti e archivio), guida in app, avvisi Telegram dei file nuovi o aggiornati.

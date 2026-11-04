@@ -5,7 +5,9 @@
 //   OP, data chiamata, cognome nome, indirizzo, telefono, note, urgenza, esito.
 //   - Intestazioni della tabella bloccate in alto.
 //   - Data = oggi (si puo' cambiare). Operatore = iniziali di chi e' collegato.
-//   - Indirizzo con suggerimenti mentre si scrive (OpenStreetMap / Photon).
+//   - Indirizzo scritto a mano (niente suggerimenti) + PAESE obbligatorio.
+//     Sulla mappa la richiesta va al centro del PAESE (OpenStreetMap trova sempre i paesi);
+//     il link dell'indirizzo apre Google Maps con l'indirizzo preciso (link normale, gratis).
 //   - Tipo: dedotto dalle NOTE (SOPRALLUOGO... = SOP, MONTAGGIO... = MONT, altro = INT),
 //     si puo' cambiare a mano.
 //   - Urgenza Un = entro n giorni lavorativi (U1 = in giornata), sabato e domenica esclusi.
@@ -610,12 +612,10 @@ function rrAggiornaScadenzaForm() {
 }
 
 // ---------- Suggerimenti indirizzo (Photon, dati OpenStreetMap) ----------
+// Indirizzo scritto a mano: i suggerimenti non ci sono piu' (v6.4.0), la posizione si prende dal PAESE
 function rrIndirizzoCambiato() {
-    const testo = document.getElementById('rr-f-indirizzo').value.trim();
-    if (rrSuggScelto && rrNorm(testo) !== rrNorm(rrSuggScelto.testo)) rrSuggScelto = null;
-    clearTimeout(rrSuggTimer);
-    if (testo.length < 4) { rrNascondiSuggerimenti(); return; }
-    rrSuggTimer = setTimeout(() => rrCercaSuggerimenti(testo), 500);
+    rrSuggScelto = null;
+    rrNascondiSuggerimenti();
 }
 
 async function rrCercaSuggerimenti(testo, subito) {
@@ -669,9 +669,8 @@ async function rrCercaSuggerimenti(testo, subito) {
 function rrIndirizzoTasto(e) {
     if (e.key !== 'Enter') return;
     e.preventDefault();
-    const testo = document.getElementById('rr-f-indirizzo').value.trim();
-    clearTimeout(rrSuggTimer);
-    if (testo.length >= 3) rrCercaSuggerimenti(testo, true);
+    const paese = document.getElementById('rr-f-paese');
+    if (paese) paese.focus();
 }
 
 // Numero civico scritto ma non trovato su OpenStreetMap (succede spesso): lo rimetto dopo la via
@@ -784,13 +783,17 @@ async function rrNominatimLista(testo, quanti) {
     });
 }
 
-// Posizione di un indirizzo scritto a mano: Photon, poi Nominatim
+// Posizione sulla mappa: il centro del PAESE (se manca il paese, l'indirizzo come prima).
+// Photon, poi Nominatim (OpenStreetMap)
 async function rrGeocodifica(r) {
-    const testo = [r.indirizzo, (r.paese && rrNorm(r.indirizzo).indexOf(rrNorm(r.paese)) < 0) ? r.paese : ''].filter(Boolean).join(', ');
+    const testo = r.paese ? r.paese
+        : [r.indirizzo, (r.paese && rrNorm(r.indirizzo).indexOf(rrNorm(r.paese)) < 0) ? r.paese : ''].filter(Boolean).join(', ');
     if (!testo) return null;
     try {
-        const lista = await rrPhoton(testo, 1);
-        if (lista.length) return { lat: lista[0].lat, lon: lista[0].lon, paese: lista[0].paese };
+        const lista = await rrPhoton(testo, 5);
+        // Per il paese prendo un luogo (paese, frazione), non una via che si chiama come il paese
+        const luogo = r.paese ? (lista.find(x => !x.via) || lista[0]) : lista[0];
+        if (luogo) return { lat: luogo.lat, lon: luogo.lon, paese: r.paese ? null : luogo.paese };
     } catch (e) { console.log('Photon non risponde:', e); }
     try {
         await new Promise(ok => setTimeout(ok, 1100));    // Nominatim: massimo 1 richiesta al secondo
@@ -800,8 +803,10 @@ async function rrGeocodifica(r) {
     return null;
 }
 
+// Cosa e' stato cercato per la posizione: se cambia, la posizione si ricalcola.
+// Con il paese conta solo il paese (le richieste vecchie, posizionate con l'indirizzo, si spostano una volta al centro del paese)
 function rrIndirizzoGeo(r) {
-    return rrNorm([r.indirizzo, r.paese].join(' '));
+    return r.paese ? 'PAESE ' + rrNorm(r.paese) : rrNorm([r.indirizzo, r.paese].join(' '));
 }
 
 async function rrSalvaPosizione(r, pos) {
@@ -867,6 +872,7 @@ async function rrSalva() {
     const errori = [];
     if (!valori.cliente) errori.push('Scrivi <strong>cognome e nome</strong> del cliente');
     if (!valori.indirizzo) errori.push('Scrivi l\'<strong>indirizzo</strong>');
+    if (!valori.paese) errori.push('Scrivi il <strong>paese</strong> (serve per la mappa, il planning e il meteo)');
     if (!valori.telefono) errori.push('Scrivi il <strong>telefono</strong>');
     if (String(document.getElementById('rr-f-urgenza').value || '').trim() && !valori.urgenza) errori.push('Urgenza: scrivi un numero da 1 a 99 (es. 2 = U2)');
     if (errori.length) {
@@ -874,11 +880,9 @@ async function rrSalva() {
         return;
     }
 
-    // Posizione: dal suggerimento scelto, oppure da cercare se l'indirizzo e' cambiato
-    const geoNuovo = rrNorm([valori.indirizzo, valori.paese].join(' '));
-    if (rrSuggScelto && rrNorm(rrSuggScelto.testo) === rrNorm(valori.indirizzo)) {
-        Object.assign(valori, { lat: rrSuggScelto.lat, lon: rrSuggScelto.lon, geo_stato: 'OK', geo_indirizzo: geoNuovo });
-    } else if (!prima || prima.geo_indirizzo !== geoNuovo) {
+    // Posizione: da cercare (centro del paese) se il paese e' cambiato
+    const geoNuovo = rrIndirizzoGeo(valori);
+    if (!prima || prima.geo_indirizzo !== geoNuovo) {
         Object.assign(valori, { lat: null, lon: null, geo_stato: null, geo_indirizzo: null });
     }
 

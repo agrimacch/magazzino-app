@@ -1,5 +1,8 @@
 # Changelog App Magazzino
 
+## v6.3.8 - 2026-11-04 (PRODUZIONE)
+indirizzi no google
+
 ## v6.3.7 - 2026-11-03 (PRODUZIONE)
 codici a barre miglioria
 
