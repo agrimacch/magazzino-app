@@ -1,5 +1,8 @@
 # Changelog App Magazzino
 
+## v6.4.0 - 2026-11-04 (PRODUZIONE)
+tasti interventi esterni
+
 ## v6.3.9 - 2026-11-04 (PRODUZIONE)
 indirizzo semplice interventi
 
