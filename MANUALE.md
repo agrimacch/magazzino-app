@@ -429,7 +429,7 @@ Finch&eacute; non &egrave; eseguito il planning funziona come prima (senza sugge
 
 ---
 
-**Indirizzo e posizione (v6.4.0)**: l'indirizzo si scrive a mano (niente suggerimenti) e il **PAESE &egrave; obbligatorio**. Sulla mappa dell'Organizzazione la richiesta va al **centro del paese** (OpenStreetMap trova sempre i paesi; pi&ugrave; richieste nello stesso paese si affiancano); le distanze dalla sede sono calcolate dal paese. Il meteo del planning usa il paese (campo Cliente). Il link dell'indirizzo (tabella, fumetto sulla mappa, planning Interventi esterni) apre **Google Maps con l'indirizzo preciso**: &egrave; un link normale, gratis, senza chiavi. Le richieste vecchie posizionate con l'indirizzo si spostano da sole al centro del paese la prima volta che si apre la sezione. Nessun servizio Google a pagamento.
+**Indirizzo e posizione (v6.4.0)**: due campi scritti a mano (niente suggerimenti): **Via e civico** e sotto **Paese**, tutti e due obbligatori (il paese non va ripetuto nella via). L'indirizzo completo (link Google Maps, PDF, fumetto sulla mappa) &egrave; l'unione dei due. Sulla mappa dell'Organizzazione la richiesta va al **centro del paese** (OpenStreetMap trova sempre i paesi; pi&ugrave; richieste nello stesso paese si affiancano); le distanze dalla sede sono calcolate dal paese. Il meteo del planning usa il paese (campo Cliente). Il link dell'indirizzo (tabella, fumetto sulla mappa, planning Interventi esterni) apre **Google Maps con l'indirizzo preciso**: &egrave; un link normale, gratis, senza chiavi. Le richieste vecchie posizionate con l'indirizzo si spostano da sole al centro del paese la prima volta che si apre la sezione. Nessun servizio Google a pagamento.
 
 ## 8ter. DATI AZIENDALI (SOLO ADMIN)
 

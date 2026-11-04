@@ -5,7 +5,8 @@
 //   OP, data chiamata, cognome nome, indirizzo, telefono, note, urgenza, esito.
 //   - Intestazioni della tabella bloccate in alto.
 //   - Data = oggi (si puo' cambiare). Operatore = iniziali di chi e' collegato.
-//   - Indirizzo scritto a mano (niente suggerimenti) + PAESE obbligatorio.
+//   - Due campi scritti a mano (niente suggerimenti): VIA E CIVICO (colonna indirizzo) + PAESE, tutti e due obbligatori.
+//     L'indirizzo completo (link Google Maps, PDF, fumetto) e' la loro unione: rrIndirizzoCompleto().
 //     Sulla mappa la richiesta va al centro del PAESE (OpenStreetMap trova sempre i paesi);
 //     il link dell'indirizzo apre Google Maps con l'indirizzo preciso (link normale, gratis).
 //   - Tipo: dedotto dalle NOTE (SOPRALLUOGO... = SOP, MONTAGGIO... = MONT, altro = INT),
@@ -175,6 +176,12 @@ function rrTelHref(tel) {
     if (t.startsWith('00')) t = '+' + t.slice(2);
     if (!t.startsWith('+')) t = '+39' + t;
     return 'tel:' + t;
+}
+
+// Indirizzo completo = via e civico + paese (il paese non si ripete se e' gia' scritto nella via, richieste vecchie)
+function rrIndirizzoCompleto(r) {
+    if (!r) return '';
+    return [r.indirizzo, (r.paese && rrNorm(r.indirizzo).indexOf(rrNorm(r.paese)) < 0) ? r.paese : ''].filter(Boolean).join(', ');
 }
 
 // Paese della richiesta: quello salvato, altrimenti dedotto dall'indirizzo
@@ -556,7 +563,7 @@ async function rrRenderInfoFinestra(r) {
     if (!r) { box.classList.add('hidden'); box.innerHTML = ''; return; }
     let html = '';
     if (r.ordine_id) html += '<div>&#128221; Creata automaticamente da un <strong>ordine cliente</strong> (montaggio).</div>';
-    if (r.geo_stato === 'NON_TROVATO') html += '<div>&#128205; Indirizzo <strong>non trovato</strong> sulla mappa: correggilo o scegli un suggerimento.</div>';
+    if (r.geo_stato === 'NON_TROVATO') html += '<div>&#128205; Paese <strong>non trovato</strong> sulla mappa: controlla come &egrave; scritto.</div>';
     box.innerHTML = html;
     box.classList.toggle('hidden', !html);
     // Caselle del planning agganciate
@@ -871,7 +878,7 @@ async function rrSalva() {
     };
     const errori = [];
     if (!valori.cliente) errori.push('Scrivi <strong>cognome e nome</strong> del cliente');
-    if (!valori.indirizzo) errori.push('Scrivi l\'<strong>indirizzo</strong>');
+    if (!valori.indirizzo) errori.push('Scrivi <strong>via e civico</strong>');
     if (!valori.paese) errori.push('Scrivi il <strong>paese</strong> (serve per la mappa, il planning e il meteo)');
     if (!valori.telefono) errori.push('Scrivi il <strong>telefono</strong>');
     if (String(document.getElementById('rr-f-urgenza').value || '').trim() && !valori.urgenza) errori.push('Urgenza: scrivi un numero da 1 a 99 (es. 2 = U2)');
@@ -1199,7 +1206,7 @@ function rrPopupHtml(r) {
             (scad === 'SCADUTA' ? ' <span class="rr-scad scaduta">SCADUTA</span>' : '') + '</div>' +
         (stato === 'ORGANIZZATA' ? '<div class="rr-popup-stato">&#128994; Organizzato, in attesa di conferma</div>' : '') +
         (stato === 'NR' ? '<div class="rr-popup-stato">&#9898; Non risponde (NR)</div>' : '') +
-        '<div><a href="' + rrEsc(rrMapsUrl(r)) + '" target="_blank" rel="noopener">&#128205; ' + rrEsc(r.indirizzo || r.paese) + '</a>' +
+        '<div><a href="' + rrEsc(rrMapsUrl(r)) + '" target="_blank" rel="noopener">&#128205; ' + rrEsc(rrIndirizzoCompleto(r) || r.paese) + '</a>' +
             (rrHaPosizione(r) ? ' <small>(' + rrKm(s, r).toFixed(1).replace('.', ',') + ' km)</small>' : '') + '</div>' +
         (tel ? '<div><a href="' + rrTelHref(tel) + '">&#128222; ' + rrEsc(tel) + '</a></div>' : '') +
         (r.note ? '<div class="rr-popup-note">' + rrEsc(r.note) + '</div>' : '') +
@@ -1329,7 +1336,7 @@ function rrHtmlContenitore(titolo, voci, senzaPosizione) {
     }
     return '<div class="org-box' + (senzaPosizione ? ' senza-pos' : '') + '">' +
         '<div class="org-box-titolo"><span>' + titolo + '</span><span class="org-box-conta">' + daOrg + (voci.length !== daOrg ? ' / ' + voci.length : '') + '</span></div>' +
-        (senzaPosizione ? '<div class="org-nota">Indirizzo non trovato (o in ricerca): correggilo nella richiesta.</div>' : '') +
+        (senzaPosizione ? '<div class="org-nota">Paese non trovato (o in ricerca): controlla il paese nella richiesta.</div>' : '') +
         corpo + '</div>';
 }
 
