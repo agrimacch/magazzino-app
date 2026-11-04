@@ -381,7 +381,16 @@ function rrTrova(id) {
 // ========================================
 // SEZIONE RICHIESTE INTERVENTI ROBOT
 // ========================================
+// Pulsanti di collegamento in alto (Organizzazione / Interventi esterni): solo per chi puo' aprire quella sezione
+function rrMostraCollegamenti() {
+    document.querySelectorAll('.rr-vai[data-vai-sezione]').forEach(b => {
+        const ok = typeof sezioneConsentita !== 'function' || sezioneConsentita(b.dataset.vaiSezione);
+        b.classList.toggle('hidden', !ok);
+    });
+}
+
 async function openRichiesteRobot() {
+    rrMostraCollegamenti();
     rrAvviaTempoReale();
     const nuova = document.getElementById('rr-btn-nuova');
     if (nuova) nuova.classList.toggle('hidden', !rrPuoModificare());
@@ -1055,6 +1064,7 @@ async function rrPuliziaAnno() {
 // SEZIONE ORGANIZZAZIONE INTERVENTI ROBOT (mappa + contenitori)
 // ========================================
 async function openOrganizzazioneRobot() {
+    rrMostraCollegamenti();
     rrAvviaTempoReale();
     const box = document.getElementById('org-contenitori');
     if (box && !rrCaricate) box.innerHTML = '<div class="rr-vuoto">Caricamento...</div>';
