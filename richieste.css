@@ -818,3 +818,8 @@ a.int-link-paese {
     padding: 0;
     box-shadow: none;
 }
+
+/* Mappa sotto ai contenitori (4/11/2026) */
+.org-mappa-sotto {
+    margin-top: 18px;
+}
