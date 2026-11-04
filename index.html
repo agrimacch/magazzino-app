@@ -17,15 +17,15 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Kalam:wght@400;700&family=Roboto+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=6.4.1">
-    <link rel="stylesheet" href="listino.css?v=6.4.1">
-    <link rel="stylesheet" href="fornitori.css?v=6.4.1">
-    <link rel="stylesheet" href="interventi.css?v=6.4.1">
-    <link rel="stylesheet" href="macchine.css?v=6.4.1">
-    <link rel="stylesheet" href="ordini.css?v=6.4.1">
-    <link rel="stylesheet" href="azienda.css?v=6.4.1">
-    <link rel="stylesheet" href="richieste.css?v=6.4.1">
-    <link rel="stylesheet" href="buoni.css?v=6.4.1">
+    <link rel="stylesheet" href="style.css?v=6.4.2">
+    <link rel="stylesheet" href="listino.css?v=6.4.2">
+    <link rel="stylesheet" href="fornitori.css?v=6.4.2">
+    <link rel="stylesheet" href="interventi.css?v=6.4.2">
+    <link rel="stylesheet" href="macchine.css?v=6.4.2">
+    <link rel="stylesheet" href="ordini.css?v=6.4.2">
+    <link rel="stylesheet" href="azienda.css?v=6.4.2">
+    <link rel="stylesheet" href="richieste.css?v=6.4.2">
+    <link rel="stylesheet" href="buoni.css?v=6.4.2">
 
     <!-- SheetJS per import Excel -->
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
@@ -86,7 +86,7 @@
 
 <body class="loading">
     <!-- Version badge -->
-    <div class="version-badge">v6.4.1</div>
+    <div class="version-badge">v6.4.2</div>
 
     <!-- SCHERMATA LOGIN -->
     <div id="login-screen" class="screen">
@@ -1556,11 +1556,14 @@
         <div id="section-organizzazione-robot" class="section-container hidden">
             <div class="back-to-dashboard">
                 <div class="back-buttons">
-                    <button onclick="openSection('richieste-robot')" class="btn-back">
-                        &#8592; Torna alle Richieste robot
+                    <button onclick="openSection('assistenza')" class="btn-back">
+                        &#8592; Torna ad Assistenza
                     </button>
                     <button onclick="backToDashboard()" class="btn-back btn-dashboard">
                         &#127968; Dashboard
+                    </button>
+                    <button onclick="openSection('richieste-robot')" class="btn-back rr-vai hidden" data-vai-sezione="richieste-robot">
+                        &#129302; Richieste interventi robot
                     </button>
                     <button onclick="openSection('interventi-esterni')" class="btn-back rr-vai hidden" data-vai-sezione="interventi-esterni">
                         &#128656; Interventi esterni
@@ -1640,6 +1643,12 @@
                     </button>
                     <button onclick="backToDashboard()" class="btn-back btn-dashboard">
                         &#127968; Dashboard
+                    </button>
+                    <button onclick="openSection('organizzazione-robot')" class="btn-back rr-vai hidden" data-vai-sezione="organizzazione-robot">
+                        &#127758; Organizzazione interventi
+                    </button>
+                    <button onclick="openSection('richieste-robot')" class="btn-back rr-vai hidden" data-vai-sezione="richieste-robot">
+                        &#129302; Richieste interventi robot
                     </button>
                 </div>
                 <h2 class="section-title">&#128656; Interventi Esterni</h2>
@@ -2335,7 +2344,7 @@
     <div id="whats-new-modal" class="modal hidden">
         <div class="modal-content whats-new-content">
             <div class="whats-new-header">
-                <h3>&#127881; AGRIDESK v6.4.1 - Aggiornamento!</h3>
+                <h3>&#127881; AGRIDESK v6.4.2 - Aggiornamento!</h3>
                 <p class="version-date">04 Novembre 2026</p>
             </div>
 
@@ -2667,16 +2676,16 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- Versione bloccata (la libreria non e' piu' mantenuta: cosi' non cambia mai da sola) -->
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-    <script src="ricambi-functions.js?v=6.4.1"></script>
-    <script src="listino-functions.js?v=6.4.1"></script>
-    <script src="fornitori-functions.js?v=6.4.1"></script>
-    <script src="interventi-functions.js?v=6.4.1"></script>
-    <script src="macchine-functions.js?v=6.4.1"></script>
-    <script src="macchine-report.js?v=6.4.1"></script>
-    <script src="ordini-functions.js?v=6.4.1"></script>
-    <script src="azienda-functions.js?v=6.4.1"></script>
-    <script src="richieste-robot-functions.js?v=6.4.1"></script>
-    <script src="buoni-functions.js?v=6.4.1"></script>
-    <script src="app.js?v=6.4.1"></script>
+    <script src="ricambi-functions.js?v=6.4.2"></script>
+    <script src="listino-functions.js?v=6.4.2"></script>
+    <script src="fornitori-functions.js?v=6.4.2"></script>
+    <script src="interventi-functions.js?v=6.4.2"></script>
+    <script src="macchine-functions.js?v=6.4.2"></script>
+    <script src="macchine-report.js?v=6.4.2"></script>
+    <script src="ordini-functions.js?v=6.4.2"></script>
+    <script src="azienda-functions.js?v=6.4.2"></script>
+    <script src="richieste-robot-functions.js?v=6.4.2"></script>
+    <script src="buoni-functions.js?v=6.4.2"></script>
+    <script src="app.js?v=6.4.2"></script>
 </body>
 </html>

@@ -163,6 +163,8 @@ async function intLeggiTutti(creaQuery) {
 // APERTURA SEZIONE
 // ========================================
 async function openInterventiEsterni() {
+    // Pulsanti in alto verso Organizzazione / Richieste robot (funzione in richieste-robot-functions.js)
+    if (typeof rrMostraCollegamenti === 'function') rrMostraCollegamenti();
     intAvviaTempoReale();
     const salvata = sessionStorage.getItem('interventiSettimana');
     // Settimana gia' aperta sullo schermo (es. tornando da WhatsApp l'app ricarica la sezione):
