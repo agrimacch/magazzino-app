@@ -1,5 +1,8 @@
 # Changelog App Magazzino
 
+## v6.4.1 - 2026-11-04 (PRODUZIONE)
+mappa spostata su org interventi
+
 ## v6.4.0 - 2026-11-04 (PRODUZIONE)
 tasti interventi esterni
 
