@@ -208,6 +208,9 @@ function macBadgeListino(a) {
 // ========================================
 async function openInventarioMacchine() {
     if (!macPuoGestire()) return;
+    // Scheda Correzioni: solo admin
+    const tabCorr = document.querySelector('#tabs-macchine [data-mac-tab="correzioni"]');
+    if (tabCorr) tabCorr.classList.toggle('hidden', !macCorrPuo());
     macSwitchTab(macSessione('macchineTab') || 'inventario', true);
     const container = document.getElementById('mac-inv-container');
     if (container && !macCaricato) {
@@ -228,7 +231,8 @@ async function openInventarioMacchine() {
 }
 
 function macSwitchTab(tab, senzaRender) {
-    if (['inventario', 'quaderno', 'excel', 'set', 'movimenti', 'report', 'valore'].indexOf(tab) === -1) tab = 'inventario';
+    if (['inventario', 'quaderno', 'excel', 'set', 'movimenti', 'report', 'valore', 'correzioni'].indexOf(tab) === -1) tab = 'inventario';
+    if (tab === 'correzioni' && !macCorrPuo()) tab = 'inventario';
     macSessione('macchineTab', tab);
     document.querySelectorAll('#tabs-macchine .tab-btn').forEach(b => {
         b.classList.toggle('active', b.dataset.macTab === tab);
@@ -251,6 +255,7 @@ function macRenderTutto() {
     else if (tab === 'report' && typeof repApri === 'function') repApri();
     else if (tab === 'valore' && typeof valApri === 'function') valApri();
     else if (tab === 'movimenti') macCaricaMovimenti();
+    else if (tab === 'correzioni') macCorrApri();
 }
 
 async function macRicarica() {
@@ -2563,6 +2568,228 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     document.getElementById('mac-scan-close').addEventListener('click', macScanChiudi);
     document.getElementById('mac-scan-annulla').addEventListener('click', macScanChiudi);
+});
+
+// ========================================
+// CORREZIONE INVENTARIO (solo admin)
+// ----------------------------------------
+// Toglie una macchina caricata per errore come se non fosse mai entrata: spariscono la riga del
+// quaderno e i suoi movimenti; tutto resta copiato nel registro Correzioni (solo admin).
+// Si legge la MATRICOLA (QR) o il CODICE A BARRE del modello col lettore, oppure si cerca il modello.
+// Si tolgono solo macchine IN CASA, senza cliente e senza ordine. Prima di togliere: conferma.
+// Database: supabase/macchine-correzioni.sql (funzione macchine_correzione_togli).
+// ========================================
+let macCorrPezzo = null;        // macchina scelta, in attesa di conferma
+let macCorrCodice = '';         // codice letto/scritto
+let macCorrRegistro = [];
+
+function macCorrPuo() {
+    return currentUserRole === 'admin';
+}
+
+function macCorrNorm(v) {
+    return String(v || '').toUpperCase().replace(/[\s\-\/.]/g, '');
+}
+
+// Macchine che si possono togliere
+function macCorrTogliibile(p) {
+    return p.stato === 'IN_CASA' && !String(p.cliente || '').trim() && !p.ordine_id;
+}
+
+function macCorrPerche(p) {
+    if (p.stato !== 'IN_CASA') return macStatoTesto(p.stato).toLowerCase();
+    if (String(p.cliente || '').trim()) return 'assegnata a ' + p.cliente;
+    if (p.ordine_id) return 'legata a un ordine';
+    return '';
+}
+
+// Ultime caricate in cima
+function macCorrOrdina(lista) {
+    return lista.slice().sort((x, y) => String(y.data_carico || y.created_at || '').localeCompare(String(x.data_carico || x.created_at || '')) || y.id - x.id);
+}
+
+function macCorrApri() {
+    if (!macCorrPuo()) return;
+    macCorrAnnullaConferma();
+    const campo = document.getElementById('mac-corr-codice');
+    if (campo) setTimeout(() => campo.focus(), 50);
+    macCorrCaricaRegistro();
+}
+
+// Codice letto (Invio del lettore) o scritto a mano
+function macCorrCerca() {
+    const campo = document.getElementById('mac-corr-codice');
+    const box = document.getElementById('mac-corr-risultati');
+    const grezzo = campo ? campo.value.trim() : '';
+    macCorrAnnullaConferma();
+    if (!grezzo) { box.innerHTML = ''; return; }
+    macCorrCodice = grezzo;
+    let html = '';
+
+    // 1. Matricola (QR sulla macchina)
+    const cerca = macCorrNorm(grezzo);
+    const perMatricola = cerca.length >= 2 ? macPezzi.filter(p => p.matricola && macCorrNorm(p.matricola) === cerca) : [];
+    if (perMatricola.length) {
+        html += '<div class="mac-corr-titolo">Matricola ' + macEsc(grezzo) + '</div>' + macCorrListaHtml(perMatricola, true);
+        box.innerHTML = html;
+        return;
+    }
+
+    // 2. Codice a barre del modello (scatola)
+    const art = listinoArticoloDaCodiceBarre(grezzo);
+    if (art) {
+        box.innerHTML = macCorrArticoloHtml(art, 'Codice a barre ' + macEsc(grezzo));
+        return;
+    }
+
+    // 3. Ricerca per modello / marchio (anche matricola scritta a meta')
+    const ricerca = listinoPulisciTesto(grezzo) || '';
+    const articoli = listinoOrdina(listinoArticoli.filter(a => listinoCorrispondeRicerca(a, ricerca) &&
+        macPezzi.some(p => p.articolo_id === a.id && p.stato === 'IN_CASA')));
+    const parziali = cerca.length >= 3 ? macPezzi.filter(p => p.matricola && macCorrNorm(p.matricola).indexOf(cerca) !== -1) : [];
+    if (parziali.length) html += '<div class="mac-corr-titolo">Matricole che contengono ' + macEsc(grezzo) + '</div>' + macCorrListaHtml(parziali.slice(0, 20), true);
+    if (articoli.length) {
+        html += '<div class="mac-corr-titolo">Modelli con macchine in casa</div>' + articoli.slice(0, 30).map(a => {
+            const liberi = macPezzi.filter(p => p.articolo_id === a.id && macCorrTogliibile(p)).length;
+            return '<button type="button" class="mac-picker-voce" data-corr-art="' + a.id + '">' +
+                '<span class="mac-picker-attrezzo">' + listinoVal(a.attrezzo) + '</span><span>' + macNomeHtml(a) + '</span>' +
+                '<span class="mac-picker-disp">' + liberi + ' da poter togliere</span></button>';
+        }).join('');
+    }
+    if (!html) html = '<p class="mac-aiuto">Nessuna macchina trovata con &quot;' + macEsc(grezzo) + '&quot;. Leggi la matricola (QR) o il codice a barre della scatola, oppure scrivi il modello.</p>';
+    box.innerHTML = html;
+}
+
+function macCorrArticoloHtml(a, titolo) {
+    const pezzi = macCorrOrdina(macPezzi.filter(p => p.articolo_id === a.id && p.stato === 'IN_CASA'));
+    let html = '<div class="mac-corr-titolo">' + (titolo ? titolo + ' &middot; ' : '') + macNomeHtml(a) + '</div>';
+    if (!pezzi.length) return html + '<p class="mac-aiuto">Nessuna macchina di questo modello in casa.</p>';
+    if (!pezzi.some(macCorrTogliibile)) html += '<p class="mac-aiuto">Le macchine in casa di questo modello sono tutte assegnate: non si possono togliere da qui.</p>';
+    else html += '<p class="mac-aiuto">Scegli quale togliere (in cima l\'ultima caricata).</p>';
+    return html + macCorrListaHtml(pezzi, false);
+}
+
+function macCorrListaHtml(pezzi, conNome) {
+    return '<div class="mac-corr-lista">' + pezzi.map(p => {
+        const a = macArticolo(p.articolo_id);
+        const ok = macCorrTogliibile(p);
+        const info = [
+            p.matricola ? 'Matr. <strong>' + macEsc(p.matricola) + '</strong>' : 'senza matricola',
+            'caricata il ' + macData(p.data_carico || p.created_at),
+            'netto ' + macEuro(p.netto_carico)
+        ].join(' &middot; ');
+        return '<div class="mac-corr-riga' + (ok ? '' : ' mac-corr-no') + '">' +
+            '<div class="mac-corr-testo">' + (conNome ? '<div>' + macNomeHtml(a) + '</div>' : '') +
+                '<div class="mac-corr-info">' + info + (ok ? '' : ' &middot; <em>' + macEsc(macCorrPerche(p)) + '</em>') + '</div></div>' +
+            (ok ? '<button type="button" class="btn-danger mac-btn-piccolo" data-corr-pezzo="' + p.id + '">&#128465; Togli</button>' : '') +
+        '</div>';
+    }).join('') + '</div>';
+}
+
+// Riepilogo e conferma
+function macCorrChiediConferma(id) {
+    const p = macPezzi.find(x => x.id === id);
+    if (!p || !macCorrTogliibile(p)) return;
+    macCorrPezzo = p;
+    const a = macArticolo(p.articolo_id);
+    const box = document.getElementById('mac-corr-conferma');
+    box.innerHTML =
+        '<div class="mac-corr-conf-titolo">&#9888;&#65039; Stai per togliere dal magazzino:</div>' +
+        '<div class="mac-corr-conf-nome">' + macNomeHtml(a) + '</div>' +
+        '<div class="mac-corr-info">' + (p.matricola ? 'Matricola <strong>' + macEsc(p.matricola) + '</strong> &middot; ' : 'Senza matricola &middot; ') +
+            'caricata il ' + macData(p.data_carico || p.created_at) + ' &middot; netto ' + macEuro(p.netto_carico) + '</div>' +
+        '<p class="mac-aiuto">La macchina sparisce dal quaderno, dai movimenti e dal valore del magazzino. Resta solo nel registro Correzioni qui sotto.</p>' +
+        '<label for="mac-corr-motivo">Motivo <small>(facoltativo)</small></label>' +
+        '<input type="text" id="mac-corr-motivo" maxlength="120" placeholder="es. caricata due volte" autocomplete="off">' +
+        '<div class="mac-corr-conf-pulsanti">' +
+            '<button type="button" class="btn-danger" id="mac-corr-si">&#128465; S&igrave;, togli questa macchina</button>' +
+            '<button type="button" class="btn-secondary" id="mac-corr-annulla">Annulla</button>' +
+        '</div>';
+    box.classList.remove('hidden');
+    document.getElementById('mac-corr-si').addEventListener('click', macCorrConferma);
+    document.getElementById('mac-corr-annulla').addEventListener('click', () => {
+        macCorrAnnullaConferma();
+        const campo = document.getElementById('mac-corr-codice');
+        if (campo) campo.focus();
+    });
+    box.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function macCorrAnnullaConferma() {
+    macCorrPezzo = null;
+    const box = document.getElementById('mac-corr-conferma');
+    if (box) { box.innerHTML = ''; box.classList.add('hidden'); }
+}
+
+async function macCorrConferma() {
+    const p = macCorrPezzo;
+    if (!p) return;
+    const btn = document.getElementById('mac-corr-si');
+    if (btn) { btn.disabled = true; btn.innerHTML = '&#8987; Tolgo...'; }
+    const motivo = listinoPulisciTesto((document.getElementById('mac-corr-motivo') || {}).value || '');
+    const { data, error } = await supabaseClient.rpc('macchine_correzione_togli', {
+        p_pezzo_id: p.id, p_codice: macCorrCodice || null, p_motivo: motivo
+    });
+    if (error) {
+        console.error('Errore correzione inventario:', error);
+        if (btn) { btn.disabled = false; btn.innerHTML = '&#128465; S&igrave;, togli questa macchina'; }
+        const manca = /function|could not find|does not exist/i.test(error.message || '');
+        await showCustomAlert(manca
+            ? 'La funzione non &egrave; ancora attiva: esegui una volta lo script <strong>supabase/macchine-correzioni.sql</strong> su Supabase.'
+            : 'Macchina non tolta:<br>' + macEsc(error.message), 'Errore', '&#10060;');
+        return;
+    }
+    macCorrAnnullaConferma();
+    const campo = document.getElementById('mac-corr-codice');
+    if (campo) campo.value = '';
+    document.getElementById('mac-corr-risultati').innerHTML =
+        '<div class="mac-corr-fatto">&#9989; Tolta dal magazzino: <strong>' + macEsc(data || macNome(macArticolo(p.articolo_id))) + '</strong>' +
+        (p.matricola ? ' (matr. ' + macEsc(p.matricola) + ')' : '') + '</div>';
+    await macRicarica();
+    macCorrCaricaRegistro();
+    if (campo) campo.focus();
+}
+
+// Registro delle correzioni (ultime 100)
+async function macCorrCaricaRegistro() {
+    const box = document.getElementById('mac-corr-registro');
+    if (!box || !macCorrPuo()) return;
+    const { data, error } = await supabaseClient.from('macchine_correzioni').select('*').order('created_at', { ascending: false }).limit(100);
+    if (error) {
+        box.innerHTML = '<p class="mac-aiuto">Registro non disponibile. Hai eseguito lo script <strong>supabase/macchine-correzioni.sql</strong> su Supabase?</p>';
+        return;
+    }
+    macCorrRegistro = data || [];
+    if (!macCorrRegistro.length) { box.innerHTML = '<p class="mac-aiuto">Nessuna correzione fatta finora.</p>'; return; }
+    box.innerHTML = '<div class="table-container"><table class="listino-table mac-corr-tabella"><thead><tr>' +
+        '<th>Quando</th><th>Chi</th><th>Macchina tolta</th><th>Matricola</th><th>Caricata il</th><th>Netto</th><th>Motivo</th></tr></thead><tbody>' +
+        macCorrRegistro.map(c => '<tr><td>' + macDataOra(c.created_at) + '</td><td>' + macEsc(macChi(c.utente)) + '</td>' +
+            '<td>' + macEsc(c.descrizione || '-') + '</td><td>' + macEsc(c.matricola || '-') + '</td>' +
+            '<td>' + macData(c.data_carico) + '</td><td>' + macEuro(c.netto) + '</td><td>' + macEsc(c.motivo || '') + '</td></tr>').join('') +
+        '</tbody></table></div>';
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const campo = document.getElementById('mac-corr-codice');
+    if (!campo) return;
+    // Il lettore scrive il codice e preme Invio
+    campo.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); macCorrCerca(); }
+    });
+    const btn = document.getElementById('mac-corr-cerca');
+    if (btn) btn.addEventListener('click', macCorrCerca);
+    const sezione = document.getElementById('tab-mac-correzioni');
+    if (sezione) sezione.addEventListener('click', (e) => {
+        const b = e.target.closest('[data-corr-pezzo]');
+        if (b) { macCorrChiediConferma(parseInt(b.dataset.corrPezzo, 10)); return; }
+        const art = e.target.closest('[data-corr-art]');
+        if (art) {
+            const a = macArticolo(parseInt(art.dataset.corrArt, 10));
+            if (a) document.getElementById('mac-corr-risultati').innerHTML = macCorrArticoloHtml(a, '');
+        }
+    });
+    const agg = document.getElementById('mac-corr-aggiorna');
+    if (agg) agg.addEventListener('click', macCorrCaricaRegistro);
 });
 
 // ========================================

@@ -1698,3 +1698,87 @@
     border-left-color: var(--danger);
     background: #fef2f2;
 }
+
+/* ========================================
+   CORREZIONE INVENTARIO (solo admin)
+   ======================================== */
+.mac-corr-cerca {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.mac-corr-cerca input {
+    flex: 1;
+    margin: 0;
+}
+
+.mac-corr-titolo {
+    font-weight: 700;
+    font-size: 13px;
+    margin: 12px 0 6px;
+}
+
+.mac-corr-lista {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.mac-corr-riga {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    background: var(--light);
+    border-radius: 8px;
+    padding: 8px 10px;
+}
+
+.mac-corr-riga.mac-corr-no {
+    opacity: 0.6;
+}
+
+.mac-corr-info {
+    font-size: 12px;
+    color: var(--gray);
+    line-height: 1.5;
+}
+
+.mac-corr-conferma {
+    margin-top: 14px;
+    background: #fef2f2;
+    border-left: 4px solid var(--danger);
+    border-radius: 8px;
+    padding: 12px 14px;
+}
+
+.mac-corr-conf-titolo {
+    font-weight: 700;
+    margin-bottom: 6px;
+}
+
+.mac-corr-conf-nome {
+    font-size: 15px;
+    margin-bottom: 4px;
+}
+
+.mac-corr-conf-pulsanti {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.mac-corr-fatto {
+    background: #f0fdf4;
+    border-left: 4px solid var(--primary);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 13px;
+}
+
+.mac-corr-tabella td,
+.mac-corr-tabella th {
+    font-size: 12px;
+}

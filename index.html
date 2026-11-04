@@ -549,6 +549,7 @@
                 <button class="tab-btn" data-mac-tab="movimenti">&#128337; Movimenti</button>
                 <button class="tab-btn" data-mac-tab="report">&#128202; Report</button>
                 <button class="tab-btn" data-mac-tab="valore">&#128176; Valore</button>
+                <button class="tab-btn hidden" data-mac-tab="correzioni">&#129529; Correzioni</button>
             </nav>
 
             <!-- TAB: INVENTARIO (stesse colonne del listino, senza prezzi) -->
@@ -777,6 +778,34 @@
                         <button type="button" id="mac-mov-aggiorna" class="btn-back mac-btn-piccolo">&#128260; Aggiorna</button>
                     </div>
                     <div id="mac-mov-container"></div>
+                </div>
+            </div>
+
+            <!-- TAB: CORREZIONE INVENTARIO (solo admin) -->
+            <div id="tab-mac-correzioni" class="tab-content">
+                <div class="container">
+                    <div class="card">
+                        <h2>&#129529; Correzione inventario</h2>
+                        <p class="mac-aiuto">
+                            Per togliere una macchina caricata per errore, <strong>come se non fosse mai entrata</strong>: sparisce dal quaderno,
+                            dai movimenti e dal valore del magazzino. Resta solo nel registro qui sotto (lo vede solo l'admin).<br>
+                            Leggi col lettore la <strong>matricola</strong> (QR sulla macchina) o il <strong>codice a barre</strong> della scatola,
+                            oppure scrivi il modello. Si tolgono solo macchine in casa non assegnate a un cliente. Prima di togliere ti chiedo conferma.
+                        </p>
+                        <div class="mac-corr-cerca">
+                            <input type="text" id="mac-corr-codice" placeholder="&#128269; Matricola, codice a barre o modello..." autocomplete="off">
+                            <button type="button" id="mac-corr-cerca" class="btn-primary">Cerca</button>
+                        </div>
+                        <div id="mac-corr-risultati" class="mac-corr-risultati"></div>
+                        <div id="mac-corr-conferma" class="mac-corr-conferma hidden"></div>
+                    </div>
+                    <div class="card">
+                        <div class="listino-filtri-footer">
+                            <h3 style="margin: 0;">&#128203; Registro correzioni</h3>
+                            <button type="button" id="mac-corr-aggiorna" class="btn-back mac-btn-piccolo">&#128260; Aggiorna</button>
+                        </div>
+                        <div id="mac-corr-registro"></div>
+                    </div>
                 </div>
             </div>
         </div>
