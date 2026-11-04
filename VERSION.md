@@ -1,5 +1,8 @@
 # Changelog App Magazzino
 
+## v6.3.9 - 2026-11-04 (PRODUZIONE)
+indirizzo semplice interventi
+
 ## v6.3.8 - 2026-11-04 (PRODUZIONE)
 indirizzi no google
 
