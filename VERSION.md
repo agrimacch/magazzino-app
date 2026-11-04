@@ -1,5 +1,8 @@
 # Changelog App Magazzino
 
+## v6.4.3 - 2026-11-04 (PRODUZIONE)
+correzione magazzino
+
 ## v6.4.2 - 2026-11-04 (PRODUZIONE)
 ok scadenze promo
 
