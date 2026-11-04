@@ -206,9 +206,11 @@ function listinoVal(valore) {
 // Senza data (es. "VERIFICA VOL. E CONTR.") la promo non risulta mai scaduta.
 function listinoDataScadenza(testo) {
     if (!testo) return null;
-    const trovate = String(testo).match(/\b(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2}|\d{4})\b/g);
+    // Anno: prima le 4 cifre, poi le 2 (con l'ordine al contrario "30/11/2026" veniva letto come 2020)
+    const trovate = String(testo).match(/\b(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{4}|\d{2})\b/g);
     if (!trovate) return null;
-    const m = trovate[trovate.length - 1].match(/(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2}|\d{4})/);
+    const m = trovate[trovate.length - 1].match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{4}|\d{2})$/);
+    if (!m) return null;
     const giorno = parseInt(m[1], 10);
     const mese = parseInt(m[2], 10);
     let anno = parseInt(m[3], 10);
