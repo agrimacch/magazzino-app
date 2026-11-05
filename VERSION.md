@@ -1,5 +1,8 @@
 # Changelog App Magazzino
 
+## v7.0.3 - 2026-11-05 (PRODUZIONE)
+commissione acconto pagato timbro logo e data grandi
+
 ## v7.0.2 - 2026-11-05 (PRODUZIONE)
 tasto elimina ordine admin
 
