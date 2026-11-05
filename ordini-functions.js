@@ -1410,7 +1410,7 @@ function ordHtmlStampa(o, righeTotali) {
             '<tr>' + campo('C.F.', o.codice_fiscale) + campo('P.IVA', o.partita_iva) + '</tr>' +
             '<tr>' + campo('Note', o.note, 3) + '</tr>' +
         '</table>' +
-        '<div class="rpt-sezione">Pagamento <span class="ordd-nota-sezione">La fattura potr&agrave; essere richiesta solo all&#39;ordine</span></div>' +
+        '<div class="rpt-sezione">Pagamento</div>' +
         '<div class="ordd-box">' + macEsc(o.pagamento || '') + ordMetodiPdfHtml(o) + '</div>' +
         '<div class="rpt-sezione">Articoli</div>' +
         '<div class="ordd-righe-wrap">' +
