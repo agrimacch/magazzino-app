@@ -1,5 +1,8 @@
 # Changelog App Magazzino
 
+## v7.0.1 - 2026-11-05 (PRODUZIONE)
+no collegamento listini operatori
+
 ## v7.0.0 - 2026-11-05 (PRODUZIONE)
 caricamento raffica inventario + listino stihl
 

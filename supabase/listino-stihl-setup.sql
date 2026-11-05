@@ -11,9 +11,9 @@
 -- Se lo stesso codice c'e' in piu' file vale l'ULTIMO caricato.
 --
 -- Chi puo' fare cosa (tabella user_roles):
---   vedere il listino e collegare/creare articoli: admin e operatori (stihl_puo_vedere)
---   caricare file, EAN e cambiare ricarico: SOLO admin (stihl_puo_caricare)
---   Gli operatori cambiano solo il collegamento con il Listino Vendite, tramite la funzione stihl_collega().
+--   vedere il listino: admin e operatori (stihl_puo_vedere)
+--   caricare file, EAN, cambiare ricarico e collegare/creare articoli: SOLO admin (stihl_puo_caricare)
+--   Il collegamento con il Listino Vendite passa dalla funzione stihl_collega().
 --
 -- Come si usa: Supabase > SQL Editor > New query, incolla tutto e premi Run.
 -- Si puo' rieseguire senza problemi.
@@ -106,7 +106,7 @@ create policy "stihl_articoli_scrittura" on public.stihl_articoli
     with check (public.stihl_puo_caricare());
 
 -- ------------------------------------------------------------
--- Collegamento con il Listino Vendite (admin e operatori):
+-- Collegamento con il Listino Vendite (solo admin):
 -- cambia SOLO articolo_id, niente prezzi
 -- ------------------------------------------------------------
 create or replace function public.stihl_collega(p_id bigint, p_articolo bigint)
@@ -116,7 +116,7 @@ security definer
 set search_path = public
 as $$
 begin
-    if not public.stihl_puo_vedere() then
+    if not public.stihl_puo_caricare() then
         raise exception 'Non autorizzato';
     end if;
     update public.stihl_articoli

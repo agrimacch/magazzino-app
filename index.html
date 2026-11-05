@@ -17,16 +17,16 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Kalam:wght@400;700&family=Roboto+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=7.0.0">
-    <link rel="stylesheet" href="listino.css?v=7.0.0">
-    <link rel="stylesheet" href="stihl.css?v=7.0.0">
-    <link rel="stylesheet" href="fornitori.css?v=7.0.0">
-    <link rel="stylesheet" href="interventi.css?v=7.0.0">
-    <link rel="stylesheet" href="macchine.css?v=7.0.0">
-    <link rel="stylesheet" href="ordini.css?v=7.0.0">
-    <link rel="stylesheet" href="azienda.css?v=7.0.0">
-    <link rel="stylesheet" href="richieste.css?v=7.0.0">
-    <link rel="stylesheet" href="buoni.css?v=7.0.0">
+    <link rel="stylesheet" href="style.css?v=7.0.1">
+    <link rel="stylesheet" href="listino.css?v=7.0.1">
+    <link rel="stylesheet" href="stihl.css?v=7.0.1">
+    <link rel="stylesheet" href="fornitori.css?v=7.0.1">
+    <link rel="stylesheet" href="interventi.css?v=7.0.1">
+    <link rel="stylesheet" href="macchine.css?v=7.0.1">
+    <link rel="stylesheet" href="ordini.css?v=7.0.1">
+    <link rel="stylesheet" href="azienda.css?v=7.0.1">
+    <link rel="stylesheet" href="richieste.css?v=7.0.1">
+    <link rel="stylesheet" href="buoni.css?v=7.0.1">
 
     <!-- SheetJS per import Excel -->
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
@@ -87,7 +87,7 @@
 
 <body class="loading">
     <!-- Version badge -->
-    <div class="version-badge">v7.0.0</div>
+    <div class="version-badge">v7.0.1</div>
 
     <!-- SCHERMATA LOGIN -->
     <div id="login-screen" class="screen">
@@ -352,7 +352,7 @@
                         </div>
                     </div>
                     <p class="mac-aiuto sti-legenda">Prezzi IVA inclusa. <strong>Prezzo cliente</strong> = netto + ricarico, poi IVA 22%, arrotondato all'euro.
-                        <strong>Collega</strong> = l'articolo c'&egrave; gi&agrave; nel tuo Listino Vendite; <strong>Crea</strong> = lo aggiunge al Listino Vendite (e quindi al quaderno) gi&agrave; compilato.</p>
+                        <span class="sti-solo-collega hidden"><strong>Collega</strong> = l'articolo c'&egrave; gi&agrave; nel tuo Listino Vendite; <strong>Crea</strong> = lo aggiunge al Listino Vendite (e quindi al quaderno) gi&agrave; compilato.</span></p>
                     <div id="sti-container"></div>
                 </div>
             </div>
@@ -2744,7 +2744,7 @@
     <div id="whats-new-modal" class="modal hidden">
         <div class="modal-content whats-new-content">
             <div class="whats-new-header">
-                <h3>&#127881; AGRIDESK v7.0.0 - Aggiornamento!</h3>
+                <h3>&#127881; AGRIDESK v7.0.1 - Aggiornamento!</h3>
                 <p class="version-date">05 Novembre 2026</p>
             </div>
 
@@ -2754,16 +2754,8 @@
                 <div class="new-feature">
                     <span class="feature-icon">&#11088;</span>
                     <div class="feature-content">
-                        <h4>INTERVENTI ESTERNI E RICHIESTA INTERVENTI ROBOT IN APP</h4>
-                        <p></p>
-                    </div>
-                </div>
-
-                <div class="new-feature">
-                    <span class="feature-icon">&#11088;</span>
-                    <div class="feature-content">
-                        <h4>LISTINO STIHL IN APP</h4>
-                        <p>Listino OPG e OPM consultabile da app.</p>
+                        <h4>LISTINO STIHL</h4>
+                        <p>Listini Stihl OPM e OPG visibili in app</p>
                     </div>
                 </div>
 
@@ -3092,18 +3084,18 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- Versione bloccata (la libreria non e' piu' mantenuta: cosi' non cambia mai da sola) -->
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-    <script src="ricambi-functions.js?v=7.0.0"></script>
-    <script src="listino-functions.js?v=7.0.0"></script>
-    <script src="fornitori-functions.js?v=7.0.0"></script>
-    <script src="interventi-functions.js?v=7.0.0"></script>
-    <script src="macchine-functions.js?v=7.0.0"></script>
-    <script src="macchine-report.js?v=7.0.0"></script>
-    <script src="macchine-raffica.js?v=7.0.0"></script>
-    <script src="stihl-functions.js?v=7.0.0"></script>
-    <script src="ordini-functions.js?v=7.0.0"></script>
-    <script src="azienda-functions.js?v=7.0.0"></script>
-    <script src="richieste-robot-functions.js?v=7.0.0"></script>
-    <script src="buoni-functions.js?v=7.0.0"></script>
-    <script src="app.js?v=7.0.0"></script>
+    <script src="ricambi-functions.js?v=7.0.1"></script>
+    <script src="listino-functions.js?v=7.0.1"></script>
+    <script src="fornitori-functions.js?v=7.0.1"></script>
+    <script src="interventi-functions.js?v=7.0.1"></script>
+    <script src="macchine-functions.js?v=7.0.1"></script>
+    <script src="macchine-report.js?v=7.0.1"></script>
+    <script src="macchine-raffica.js?v=7.0.1"></script>
+    <script src="stihl-functions.js?v=7.0.1"></script>
+    <script src="ordini-functions.js?v=7.0.1"></script>
+    <script src="azienda-functions.js?v=7.0.1"></script>
+    <script src="richieste-robot-functions.js?v=7.0.1"></script>
+    <script src="buoni-functions.js?v=7.0.1"></script>
+    <script src="app.js?v=7.0.1"></script>
 </body>
 </html>

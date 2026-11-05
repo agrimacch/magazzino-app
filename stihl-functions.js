@@ -1,8 +1,8 @@
 // ========================================
 // LISTINO STIHL - FUNZIONI DEDICATE
 // ----------------------------------------
-// Sezione dentro VENDITE: admin e operatori vedono il listino e possono collegare/creare articoli;
-// solo l'admin vede Carica file, Caricamenti e la guida "i" (caricamenti).
+// Sezione dentro VENDITE: admin e operatori vedono il listino (sola consultazione per gli operatori);
+// solo l'admin collega/crea articoli e vede Carica file, Caricamenti e la guida "i" (caricamenti).
 // - Listino unico degli articoli STIHL caricato dai file Excel del fornitore (OPG, OPM, ...)
 //   Se lo stesso codice c'e' in piu' file vale l'ULTIMO caricato.
 // - Caricamento guidato (solo admin): file -> foglio -> riga delle intestazioni -> colonne
@@ -26,6 +26,7 @@
 // Chi vede la sezione e chi carica i file (devono corrispondere a stihl_puo_vedere() / stihl_puo_caricare())
 const STIHL_RUOLI_VEDERE = ['admin', 'operatore'];
 const STIHL_RUOLI_CARICARE = ['admin'];
+const STIHL_RUOLI_COLLEGARE = ['admin'];   // Collega / Crea nel Listino Vendite (deve corrispondere a stihl_collega() su Supabase)
 const STIHL_IVA = 1.22;
 const STIHL_RICARICO_DEFAULT = 30;
 const STIHL_MAX_RIGHE_VISTA = 400;
@@ -46,6 +47,10 @@ let stiEanPiano = null;
 
 function stiPuoVedere() {
     return typeof currentUserRole !== 'undefined' && STIHL_RUOLI_VEDERE.indexOf(currentUserRole) !== -1;
+}
+
+function stiPuoCollegare() {
+    return typeof currentUserRole !== 'undefined' && STIHL_RUOLI_COLLEGARE.indexOf(currentUserRole) !== -1;
 }
 
 function stiPuoCaricare() {
@@ -106,6 +111,7 @@ async function openListinoStihl() {
     stiNettiVisibili = listinoLeggiPreferenza('stihlNettiVisibili');
     stiApplicaNetti();
     document.querySelectorAll('#section-listino-stihl .sti-solo-carica').forEach(b => b.classList.toggle('hidden', !stiPuoCaricare()));
+    document.querySelectorAll('#section-listino-stihl .sti-solo-collega').forEach(b => b.classList.toggle('hidden', !stiPuoCollegare()));
     stiSwitchTab(sessionStorage.getItem('stihlTab') || 'elenco');
     const box = document.getElementById('sti-container');
     if (box && !stiCaricato) box.innerHTML = '<div class="card"><p style="text-align:center">&#8987; Caricamento listino STIHL...</p></div>';
@@ -176,6 +182,7 @@ function stiFiltrati() {
 
 function stiAzioniHtml(a) {
     const coll = stiArticoloListino(a);
+    if (!stiPuoCollegare()) return coll ? '<span class="sti-btn-collegato sti-solo-info" title="&Egrave; nel Listino Vendite">&#10004; Nel listino</span>' : '';
     if (coll) {
         return '<button type="button" class="sti-btn-collegato" data-sti-apri="' + coll.id + '" title="Apri l\'articolo nel Listino Vendite">&#10004; Nel listino</button>' +
             '<button type="button" class="sti-btn-scollega" data-sti-scollega="' + a.id + '" title="Togli il collegamento">&#10006;</button>';
@@ -294,6 +301,7 @@ async function stiSalvaCollegamento(stihlId, articoloId) {
 }
 
 function stiApriCollega(id) {
+    if (!stiPuoCollegare()) return;
     const a = stiArticoli.find(x => x.id === id);
     if (!a) return;
     stiCollegaId = id;
@@ -339,7 +347,7 @@ async function stiScollega(id) {
 // "Crea": apre la finestra Nuovo articolo del Listino Vendite gia' compilata
 function stiCreaInListino(id) {
     const a = stiArticoli.find(x => x.id === id);
-    if (!a || typeof openListinoEdit !== 'function') return;
+    if (!a || typeof openListinoEdit !== 'function' || !stiPuoCollegare()) return;
     stiInCreazione = id;
     openListinoEdit(null);
     const metti = (campo, valore) => {

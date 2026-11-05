@@ -146,6 +146,11 @@ function rafStihlDi(codice) {
     return stiArticoli.find(a => a.ean && listinoStessoCodiceBarre(a.ean, codice)) || null;
 }
 
+// "Crea nel listino" con i dati STIHL: solo chi puo' collegare/creare dal Listino STIHL (admin)
+function rafPuoCreareDaStihl() {
+    return typeof stiPuoCollegare === 'function' && stiPuoCollegare();
+}
+
 // Codice letto della scatola (codice del modello STIHL oppure la matricola/codice sconosciuto)
 function rafCodiceScatola(s) {
     return s ? (s.codiceModello || s.matricola || null) : null;
@@ -332,7 +337,8 @@ function rafLeggi(grezzo) {
     } else if (s && s.stihlId) {
         const st = stiArticoli.find(x => x.id === s.stihlId);
         rafMessaggio('&#127381; Scatola ' + s.n + ': <strong>STIHL ' + macEsc(st ? st.descrizione : '') + '</strong> non &egrave; nel tuo listino. ' +
-            'Tocca <strong>Crea nel listino</strong> sulla scatola (dati gi&agrave; compilati), anche alla fine.', 'info');
+            (rafPuoCreareDaStihl() ? 'Tocca <strong>Crea nel listino</strong> sulla scatola (dati gi&agrave; compilati), anche alla fine.' :
+                'Tocca <strong>Crea nuovo</strong> sulla scatola, anche alla fine.'), 'info');
     } else if (s && s.probabileModello) {
         const quante = rafScatole.filter(x => x.probabileModello && rafNorm(x.matricola) === rafNorm(s.matricola)).length;
         rafMessaggio('&#10067; Scatola ' + s.n + ': il codice <strong>' + macEsc(s.matricola) + '</strong> si ripete (' + quante +
@@ -503,8 +509,8 @@ function rafRender() {
                 '<span class="mac-raf-n">' + s.n + '</span>' +
                 '<span class="mac-raf-nome">' + nome + sotto + '</span>' +
                 '<span class="mac-raf-azioni">' +
-                (st ? '<button type="button" class="btn-primary mac-btn-piccolo" data-raf-crea="' + id + '">&#10133; Crea nel listino</button>' : '') +
-                (!a && !st ? '<button type="button" class="btn-back mac-btn-piccolo" data-raf-crea="' + id + '">&#10133; Crea nuovo</button>' : '') +
+                (st && rafPuoCreareDaStihl() ? '<button type="button" class="btn-primary mac-btn-piccolo" data-raf-crea="' + id + '">&#10133; Crea nel listino</button>' : '') +
+                (!a && !(st && rafPuoCreareDaStihl()) ? '<button type="button" class="btn-back mac-btn-piccolo" data-raf-crea="' + id + '">&#10133; Crea nuovo</button>' : '') +
                 '<button type="button" class="btn-back mac-btn-piccolo" data-raf-modello="' + id + '">' + (a ? 'Cambia' : 'Scegli modello') + '</button>' +
                 (s.matricola && a ? '<button type="button" class="mac-azione" data-raf-togli-matr="' + id + '" title="Togli la matricola">&#10006;</button>' : '') +
                 '<button type="button" class="mac-azione" data-raf-elimina="' + id + '" title="Elimina la scatola">&#128465;</button>' +
@@ -599,7 +605,7 @@ function rafCreaArticolo(idLettura) {
     if (pannello) rafChiudiScelta();
     document.getElementById('mac-raf-input').blur();
     rafCreazione = { idLettura: idLettura, codice: codice, codiceModello: codiceModello };
-    if (s.stihlId && typeof stiCreaInListino === 'function') {
+    if (s.stihlId && rafPuoCreareDaStihl() && typeof stiCreaInListino === 'function') {
         stiCreaInListino(s.stihlId);       // compila marchio, modello, netto, prezzi e codice a barre (EAN)
         const cb = document.getElementById('listino-edit-codice-barre');
         if (cb && !cb.value && codice && !listinoArticoloDaCodiceBarre(codice)) cb.value = codice;
