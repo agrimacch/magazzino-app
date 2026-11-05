@@ -1,5 +1,8 @@
 # Changelog App Magazzino
 
+## v7.0.2 - 2026-11-05 (PRODUZIONE)
+tasto elimina ordine admin
+
 ## v7.0.1 - 2026-11-05 (PRODUZIONE)
 no collegamento listini operatori
 
