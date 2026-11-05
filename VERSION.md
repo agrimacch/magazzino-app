@@ -1,5 +1,8 @@
 # Changelog App Magazzino
 
+## v7.0.0 - 2026-11-05 (PRODUZIONE)
+caricamento raffica inventario + listino stihl
+
 ## v6.4.3 - 2026-11-04 (PRODUZIONE)
 correzione magazzino
 
