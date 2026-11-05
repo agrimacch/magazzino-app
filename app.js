@@ -70,6 +70,8 @@ function sezioneConsentita(sectionName) {
     if (sectionName === 'tecnici') sectionName = 'assistenza';
     if (SEZIONI_ASSISTENZA_RUOLI[sectionName]) return SEZIONI_ASSISTENZA_RUOLI[sectionName].includes(currentUserRole);
     if (sectionName === 'buoni-regalo') return BUONI_RUOLI.includes(currentUserRole);
+    // Vendite > Listino STIHL: STIHL_RUOLI_VEDERE in stihl-functions.js (per ora solo admin)
+    if (sectionName === 'listino-stihl') return typeof stiPuoVedere === 'function' && stiPuoVedere();
     if (currentUserRole === 'tecnico') return SEZIONI_TECNICI.includes(sectionName);
     if (SEZIONI_MACCHINE.includes(sectionName)) return typeof macPuoGestire === 'function' && macPuoGestire();
     if (ADMIN_ONLY_SECTIONS.includes(sectionName)) return currentUserRole === 'admin';
@@ -529,6 +531,12 @@ function applyRolePermissions() {
         ordiniCard.style.display = sezioneConsentita('ordini-clienti') ? 'flex' : 'none';
     }
 
+    // Card Listino STIHL (dentro Vendite): STIHL_RUOLI_VEDERE (per ora solo admin)
+    const stihlCard = document.getElementById('vendite-stihl-card');
+    if (stihlCard) {
+        stihlCard.style.display = sezioneConsentita('listino-stihl') ? 'flex' : 'none';
+    }
+
     // Card Buoni Regalo (dentro Vendite): BUONI_RUOLI (per ora solo admin)
     const buoniCard = document.getElementById('vendite-buoni-card');
     if (buoniCard) {
@@ -695,6 +703,7 @@ function openSection(sectionName) {
         // (e gli ordini dall'elenco)
         sessionStorage.removeItem('listinoTab');
         sessionStorage.removeItem('ordiniTab');
+        sessionStorage.removeItem('stihlTab');
     } else if (sectionName === 'listini-fornitori') {
         if (typeof openListiniFornitori === 'function') {
             openListiniFornitori();
@@ -702,6 +711,10 @@ function openSection(sectionName) {
     } else if (sectionName === 'listino-vendite') {
         if (typeof openListinoVendite === 'function') {
             openListinoVendite();
+        }
+    } else if (sectionName === 'listino-stihl') {
+        if (typeof openListinoStihl === 'function') {
+            openListinoStihl();
         }
     } else if (sectionName === 'inventario-macchine') {
         if (typeof openInventarioMacchine === 'function') {

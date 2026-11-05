@@ -1782,3 +1782,365 @@
 .mac-corr-tabella th {
     font-size: 12px;
 }
+
+/* ========================================
+   CARICO A RAFFICA (lettore di codici a barre)
+   ======================================== */
+.mac-raf-content {
+    max-width: 760px;
+}
+
+.mac-raf-badge {
+    display: inline-block;
+    margin-left: 6px;
+    padding: 1px 8px;
+    border-radius: 10px;
+    background: #fef3c7;
+    color: #92400e;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.mac-raf-input {
+    width: 100%;
+    font-size: 18px;
+    padding: 14px 12px;
+    margin: 4px 0 12px;
+    border: 3px solid var(--primary);
+    border-radius: 10px;
+    text-transform: uppercase;
+    box-sizing: border-box;
+}
+
+.mac-raf-input:focus {
+    outline: none;
+    box-shadow: 0 0 0 4px rgba(104, 142, 83, 0.25);
+}
+
+.mac-raf-memoria {
+    margin: 0 0 12px;
+    font-size: 13px;
+    background: var(--light);
+    border-radius: 8px;
+    padding: 8px 12px;
+}
+
+.mac-raf-memoria summary {
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.mac-raf-memoria ol {
+    margin: 8px 0 0;
+    padding-left: 20px;
+    line-height: 1.6;
+}
+
+.mac-raf-scelta {
+    border: 2px solid #f59e0b;
+    background: #fffbeb;
+    border-radius: 10px;
+    padding: 12px;
+    margin-bottom: 12px;
+}
+
+.mac-raf-scelta .mac-picker {
+    margin: 8px 0;
+}
+
+.mac-raf-contatori {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    margin: 4px 0 10px;
+    font-size: 14px;
+}
+
+.mac-raf-allarme {
+    color: var(--danger);
+    font-weight: 600;
+}
+
+.mac-raf-tabella td {
+    vertical-align: top;
+    font-size: 13px;
+}
+
+.mac-raf-num {
+    text-align: center;
+    white-space: nowrap;
+}
+
+.mac-raf-vuoto {
+    text-align: center;
+    color: #64748b;
+    margin: 16px 0;
+}
+
+.mac-raf-titolo-lista {
+    font-weight: 700;
+    margin: 14px 0 6px;
+}
+
+#mac-raf-scatole {
+    max-height: 320px;
+    overflow-y: auto;
+}
+
+.mac-raf-riga {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 6px;
+    border-bottom: 1px solid #e2e8f0;
+    font-size: 13px;
+}
+
+.mac-raf-riga-allarme {
+    background: #fef2f2;
+}
+
+.mac-raf-n {
+    flex: 0 0 30px;
+    text-align: center;
+    font-weight: 700;
+    color: #64748b;
+}
+
+.mac-raf-nome {
+    flex: 1 1 auto;
+    min-width: 0;
+    word-break: break-word;
+}
+
+.mac-raf-grigio {
+    color: #94a3b8;
+}
+
+.mac-raf-azioni {
+    display: flex;
+    gap: 6px;
+    flex: 0 0 auto;
+}
+
+#mac-raf-modal .modal-buttons {
+    box-shadow: 0 -8px 12px -8px rgba(0, 0, 0, 0.15);
+}
+
+#mac-raf-modal .modal-buttons button {
+    min-width: 0;
+    white-space: normal;
+}
+
+@media (max-width: 768px) {
+    #mac-raf-modal {
+        align-items: flex-start;
+        padding-top: max(10px, env(safe-area-inset-top));
+    }
+
+    #mac-raf-modal .modal-content {
+        max-height: 92vh;
+        max-height: 92dvh;
+    }
+
+    .mac-raf-riga {
+        flex-wrap: wrap;
+    }
+
+    .mac-raf-nome {
+        flex: 1 1 calc(100% - 50px);
+    }
+
+    .mac-raf-azioni {
+        width: 100%;
+        justify-content: flex-end;
+    }
+
+    #mac-raf-modal .modal-buttons {
+        gap: 8px;
+    }
+
+    #mac-raf-modal .modal-buttons button {
+        font-size: 13px;
+        padding: 10px 6px;
+    }
+
+    #mac-raf-scatole {
+        max-height: none;
+    }
+}
+
+.mac-raf-ordine-riga {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin: 0 0 12px;
+    font-size: 13px;
+}
+
+.mac-raf-ordine-riga label {
+    font-weight: 600;
+    margin: 0;
+}
+
+.mac-raf-ordine-riga select {
+    width: auto;
+    padding: 6px 8px;
+    font-size: 13px;
+}
+
+.mac-raf-barra {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin: 0 0 10px;
+}
+
+.mac-raf-censimento {
+    margin: 0;
+}
+
+.mac-raf-ok {
+    color: #15803d;
+    font-weight: 600;
+}
+
+/* Foglio codici del lettore */
+.mac-lett-content {
+    max-width: 820px;
+}
+
+.mac-lett-gruppo h4 {
+    margin: 16px 0 8px;
+    color: var(--primary-dark);
+    border-bottom: 2px solid var(--light);
+    padding-bottom: 4px;
+}
+
+.mac-lett-griglia {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(370px, 1fr));
+    gap: 10px;
+}
+
+.mac-lett-voce {
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 8px 10px;
+    background: #fff;
+}
+
+.mac-lett-grande .mac-lett-voce {
+    border: 2px solid var(--primary);
+}
+
+.mac-lett-titolo {
+    font-weight: 700;
+    font-size: 14px;
+    margin-bottom: 6px;
+}
+
+.mac-lett-svg {
+    display: block;
+    max-width: 100%;
+    height: auto;
+}
+
+.mac-lett-desc {
+    font-size: 12px;
+    color: #475569;
+    margin-top: 4px;
+    line-height: 1.4;
+}
+
+.mac-lett-pag {
+    font-size: 11px;
+    color: #94a3b8;
+    margin-top: 2px;
+}
+
+@media (max-width: 768px) {
+    #mac-lett-modal {
+        align-items: flex-start;
+        padding-top: max(10px, env(safe-area-inset-top));
+    }
+
+    #mac-lett-modal .modal-content {
+        max-height: 92vh;
+        max-height: 92dvh;
+    }
+
+    .mac-lett-griglia {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Guida rapida del Carico a raffica */
+.mac-raf-info-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    margin-left: 6px;
+    padding: 0;
+    border-radius: 50%;
+    border: 2px solid var(--primary);
+    background: #fff;
+    color: var(--primary);
+    font: italic 700 14px Georgia, serif;
+    vertical-align: middle;
+    cursor: pointer;
+}
+
+.mac-raf-info-btn:hover {
+    background: var(--primary);
+    color: #fff;
+}
+
+.mac-raf-guida-content {
+    max-width: 680px;
+}
+
+.mac-raf-guida {
+    font-size: 14px;
+    line-height: 1.55;
+}
+
+.mac-raf-guida h4 {
+    margin: 16px 0 6px;
+    color: var(--primary-dark);
+}
+
+.mac-raf-guida h4:first-child {
+    margin-top: 0;
+}
+
+.mac-raf-guida p {
+    margin: 0 0 8px;
+}
+
+.mac-raf-guida ol,
+.mac-raf-guida ul {
+    margin: 0 0 8px;
+    padding-left: 22px;
+}
+
+.mac-raf-guida li {
+    margin-bottom: 4px;
+}
+
+@media (max-width: 768px) {
+    #mac-raf-guida-modal {
+        align-items: flex-start;
+        padding-top: max(10px, env(safe-area-inset-top));
+    }
+
+    #mac-raf-guida-modal .modal-content {
+        max-height: 92vh;
+        max-height: 92dvh;
+    }
+}

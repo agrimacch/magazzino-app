@@ -126,7 +126,13 @@ function listinoCodiceBarrePerRicerca(valore) {
 // Due codici a barre sono lo stesso codice? (anche se uno e' salvato con l'apostrofo)
 function listinoStessoCodiceBarre(a, b) {
     const x = listinoPulisciCodiceBarre(a);
-    return x !== null && x === listinoPulisciCodiceBarre(b);
+    const y = listinoPulisciCodiceBarre(b);
+    if (x === null || y === null) return false;
+    if (x === y) return true;
+    // Codici numerici lunghi (EAN-13 / UPC-A da 12 cifre): uguali anche con gli zeri davanti.
+    // Alcuni lettori trasformano l'UPC-A 886661774678 in EAN-13 0886661774678.
+    if (/^\d{11,14}$/.test(x) && /^\d{11,14}$/.test(y)) return x.replace(/^0+/, '') === y.replace(/^0+/, '');
+    return false;
 }
 
 // Codice a barre letto da una cella Excel: se e' un numero (es. EAN 8012345678901)
@@ -1539,6 +1545,10 @@ async function saveListinoEdit(e) {
     await loadListino();
     // Se l'articolo e' stato creato dal carico dell'inventario macchine, lo seleziona li'
     if (typeof macDopoSalvataggioListino === 'function') macDopoSalvataggioListino(idSalvato, !a);
+    // Se l'articolo e' stato creato dal Listino STIHL ("Crea"), lo collega li'
+    if (typeof stihlDopoSalvataggioListino === 'function') stihlDopoSalvataggioListino(idSalvato, !a);
+    // Se l'articolo e' stato creato dal Carico a raffica, sistema le scatole li'
+    if (typeof rafDopoSalvataggioListino === 'function') rafDopoSalvataggioListino(idSalvato, !a);
     await showCustomAlert(
         (a ? 'Articolo modificato.' : 'Articolo aggiunto.') +
         '<br><br>Ricorda: prima di lavorare sul tuo Excel scarica il listino aggiornato dalla scheda Import Excel.',

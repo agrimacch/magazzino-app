@@ -1,0 +1,159 @@
+/* ========================================
+   LISTINO STIHL (stihl-functions.js)
+   Usa le classi del Listino Vendite (listino.css): listino-table, listino-gruppo, listino-card...
+   ======================================== */
+
+/* Netti e ricarico oscurati (occhio in alto), come nel Listino Vendite */
+#section-listino-stihl.netti-nascosti .netto-val {
+    filter: blur(6px);
+    user-select: none;
+    -webkit-user-select: none;
+    pointer-events: none;
+}
+
+.sti-legenda {
+    margin: 6px 0 12px;
+}
+
+.sti-table td {
+    vertical-align: middle;
+}
+
+.sti-col-codice {
+    white-space: nowrap;
+    font-family: monospace;
+    font-size: 13px;
+}
+
+.sti-col-cliente {
+    font-size: 15px;
+    color: var(--primary-dark);
+}
+
+.sti-col-ric,
+.sti-col-fonte {
+    white-space: nowrap;
+    font-size: 12px;
+}
+
+.sti-col-azioni {
+    white-space: nowrap;
+}
+
+.sti-col-azioni .mac-btn-piccolo,
+.sti-card-azioni .mac-btn-piccolo {
+    margin: 2px;
+}
+
+.sti-btn-collegato {
+    background: #dcfce7;
+    color: #166534;
+    border: 1px solid #86efac;
+    border-radius: 8px;
+    padding: 5px 10px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.sti-btn-scollega {
+    background: none;
+    border: none;
+    color: #94a3b8;
+    cursor: pointer;
+    font-size: 13px;
+    margin-left: 4px;
+}
+
+.sti-btn-scollega:hover {
+    color: var(--danger);
+}
+
+.sti-card-azioni {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 6px;
+    margin-top: 8px;
+}
+
+/* Caricamento file */
+.sti-file-nome {
+    margin: 10px 0;
+    font-size: 14px;
+}
+
+.sti-impostazioni-griglia {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+    gap: 10px 14px;
+    margin-bottom: 12px;
+}
+
+.sti-colonna label {
+    display: block;
+    font-weight: 600;
+    font-size: 13px;
+    margin-bottom: 4px;
+}
+
+.sti-colonna select,
+.sti-colonna input {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.sti-sottotitolo {
+    margin: 8px 0;
+    color: var(--primary-dark);
+}
+
+.sti-riepilogo {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin: 16px 0 8px;
+}
+
+.sti-riepilogo > div {
+    background: var(--light);
+    border-radius: 8px;
+    padding: 8px 14px;
+    font-size: 14px;
+}
+
+.sti-riepilogo .sti-ok { background: #dcfce7; }
+.sti-riepilogo .sti-mod { background: #fef3c7; }
+.sti-riepilogo .sti-err { background: #fee2e2; }
+
+#sti-anteprima details {
+    margin: 10px 0;
+}
+
+#sti-anteprima summary {
+    cursor: pointer;
+    font-weight: 700;
+    margin-bottom: 6px;
+}
+
+.sti-scartate {
+    font-size: 12px;
+    max-height: 260px;
+    overflow-y: auto;
+    margin: 0;
+    padding-left: 20px;
+}
+
+.sti-ric-input {
+    width: 60px !important;
+    padding: 4px 6px;
+}
+
+.sti-col-ric-mod {
+    white-space: nowrap;
+}
+
+.sti-ean {
+    color: #64748b;
+    font-size: 11px;
+}

@@ -19,6 +19,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Kalam:wght@400;700&family=Roboto+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css?v=6.4.3">
     <link rel="stylesheet" href="listino.css?v=6.4.3">
+    <link rel="stylesheet" href="stihl.css?v=6.4.3">
     <link rel="stylesheet" href="fornitori.css?v=6.4.3">
     <link rel="stylesheet" href="interventi.css?v=6.4.3">
     <link rel="stylesheet" href="macchine.css?v=6.4.3">
@@ -273,6 +274,13 @@
                         <p>Prezzi e condizioni dei fornitori</p>
                     </div>
 
+                    <!-- Card Listino STIHL (STIHL_RUOLI_VEDERE in stihl-functions.js: admin e operatori) -->
+                    <div class="dashboard-card" id="vendite-stihl-card" onclick="openSection('listino-stihl')" style="display: none;">
+                        <span class="card-icon">&#129690;</span>
+                        <h3>Listino STIHL</h3>
+                        <p>Tutti gli articoli STIHL con il prezzo al cliente</p>
+                    </div>
+
                     <!-- Card Ordini Clienti (admin e operatori) -->
                     <div class="dashboard-card" id="vendite-ordini-card" onclick="openSection('ordini-clienti')" style="display: none;">
                         <span class="card-icon">&#128221;</span>
@@ -287,6 +295,155 @@
                         <p>Buoni numerati da stampare su mezzo foglio A4</p>
                     </div>
 
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- SEZIONE LISTINO STIHL (stihl-functions.js) -->
+        <!-- ========================================== -->
+        <div id="section-listino-stihl" class="section-container hidden netti-nascosti">
+            <div class="back-to-dashboard">
+                <div class="back-buttons">
+                    <button onclick="openSection('vendite')" class="btn-back">
+                        &#8592; Torna a Vendite
+                    </button>
+                    <button onclick="backToDashboard()" class="btn-back btn-dashboard">
+                        &#127968; Dashboard
+                    </button>
+                </div>
+                <h2 class="section-title">&#129690; Listino STIHL <button type="button" class="mac-raf-info-btn sti-solo-carica hidden" id="sti-guida-btn" title="Guida rapida ai caricamenti">i</button></h2>
+            </div>
+
+            <nav class="tabs" id="tabs-stihl">
+                <button class="tab-btn active" data-stihl-tab="elenco">&#128203; Listino</button>
+                <button class="tab-btn sti-solo-carica" data-stihl-tab="carica">&#128193; Carica file</button>
+                <button class="tab-btn sti-solo-carica" data-stihl-tab="fonti">&#128337; Caricamenti</button>
+            </nav>
+
+            <div class="container listino-toolbar" id="sti-toolbar">
+                <div class="toggle-container listino-toggle-box">
+                    <input type="checkbox" id="sti-toggle-netti" class="toggle-checkbox">
+                    <label for="sti-toggle-netti" class="toggle-label">
+                        <span class="toggle-text">&#128065; Mostra netti e ricarico</span>
+                        <span class="toggle-switch"></span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- TAB: LISTINO -->
+            <div id="tab-stihl-elenco" class="tab-content active">
+                <div class="container">
+                    <div class="search-bar">
+                        <input type="text" id="sti-search" placeholder="&#128269; Cerca descrizione o codice articolo...">
+                    </div>
+                    <div class="listino-filtri">
+                        <select id="sti-filtro-categoria"><option value="">Tutte le categorie</option></select>
+                        <select id="sti-filtro-collegati">
+                            <option value="">Tutti gli articoli</option>
+                            <option value="si">Solo quelli nel mio Listino Vendite</option>
+                            <option value="no">Solo quelli che non ho nel Listino Vendite</option>
+                        </select>
+                    </div>
+                    <div class="listino-filtri-footer">
+                        <span id="sti-count"></span>
+                        <div class="listino-filtri-pulsanti">
+                            <button type="button" id="sti-reset" class="btn-back">&#10006; Azzera filtri</button>
+                        </div>
+                    </div>
+                    <p class="mac-aiuto sti-legenda">Prezzi IVA inclusa. <strong>Prezzo cliente</strong> = netto + ricarico, poi IVA 22%, arrotondato all'euro.
+                        <strong>Collega</strong> = l'articolo c'&egrave; gi&agrave; nel tuo Listino Vendite; <strong>Crea</strong> = lo aggiunge al Listino Vendite (e quindi al quaderno) gi&agrave; compilato.</p>
+                    <div id="sti-container"></div>
+                </div>
+            </div>
+
+            <!-- TAB: CARICA FILE (solo admin) -->
+            <div id="tab-stihl-carica" class="tab-content">
+                <div class="container">
+                    <div class="card">
+                        <h2>&#128193; Carica un file del fornitore</h2>
+                        <p class="listino-help">
+                            Carica il file Excel di STIHL (es. OPG, OPM). Scegli il foglio, la riga con i titoli delle colonne e quali colonne usare:
+                            l'app propone da sola le scelte e si ricorda quelle dell'ultima volta. Prima di salvare vedi l'anteprima con articoli nuovi,
+                            aggiornati e righe scartate.<br><br>
+                            <strong>Se un articolo c'&egrave; gi&agrave;</strong> (stesso codice) vengono aggiornati descrizione e prezzi: vale l'ultimo file caricato.
+                            Gli articoli che non sono nel file restano come sono. Il collegamento con il Listino Vendite non si perde.
+                        </p>
+                        <input type="file" id="sti-file" accept=".xlsx,.xls,.xlsm" style="display: none;">
+                        <div class="listino-import-pulsanti">
+                            <button type="button" id="sti-btn-file" class="btn-primary">&#128194; Seleziona file Excel</button>
+                        </div>
+                        <div id="sti-file-nome" class="sti-file-nome"></div>
+
+                        <div id="sti-impostazioni" class="hidden">
+                            <div class="sti-impostazioni-griglia">
+                                <div class="sti-colonna">
+                                    <label>Foglio</label>
+                                    <select id="sti-foglio"></select>
+                                </div>
+                                <div class="sti-colonna">
+                                    <label>Riga dei titoli delle colonne</label>
+                                    <input type="number" id="sti-riga" min="1" inputmode="numeric">
+                                </div>
+                                <div class="sti-colonna">
+                                    <label>Nome del caricamento *</label>
+                                    <input type="text" id="sti-nome" placeholder="es. OPG 2026">
+                                </div>
+                                <div class="sti-colonna">
+                                    <label>Ricarico % *</label>
+                                    <input type="text" id="sti-ricarico" inputmode="decimal" value="30">
+                                </div>
+                            </div>
+                            <h4 class="sti-sottotitolo">Colonne da usare</h4>
+                            <div id="sti-colonne" class="sti-impostazioni-griglia"></div>
+                            <div class="listino-import-pulsanti">
+                                <button type="button" id="sti-btn-anteprima" class="btn-primary">&#128269; Anteprima</button>
+                            </div>
+                        </div>
+                        <div id="sti-anteprima"></div>
+                    </div>
+
+                    <div class="card">
+                        <h2>&#9646;&#9647;&#9646; Codici EAN da un catalogo</h2>
+                        <p class="listino-help">
+                            Carica un catalogo STIHL con codice articolo ed EAN (es. <strong>Superlistino</strong>, foglio &quot;Listino GENERALE&quot;).
+                            Anche se ha decine di migliaia di righe, vengono presi <strong>solo gli EAN degli articoli che sono nel listino STIHL</strong>:
+                            il resto non entra nel database. Agli articoli collegati del Listino Vendite l'EAN passa anche nel <strong>codice a barre</strong>
+                            (solo se &egrave; vuoto), cos&igrave; il lettore riconosce subito la scatola. Caricalo <strong>dopo</strong> i file delle promo.
+                        </p>
+                        <input type="file" id="sti-ean-file" accept=".xlsx,.xls,.xlsm" style="display: none;">
+                        <div class="listino-import-pulsanti">
+                            <button type="button" id="sti-ean-btn-file" class="btn-primary">&#128194; Seleziona catalogo EAN</button>
+                        </div>
+                        <div id="sti-ean-file-nome" class="sti-file-nome"></div>
+                        <div id="sti-ean-impostazioni" class="hidden">
+                            <div class="sti-impostazioni-griglia">
+                                <div class="sti-colonna">
+                                    <label>Foglio</label>
+                                    <select id="sti-ean-foglio"></select>
+                                </div>
+                                <div class="sti-colonna">
+                                    <label>Riga dei titoli delle colonne</label>
+                                    <input type="number" id="sti-ean-riga" min="1" inputmode="numeric">
+                                </div>
+                            </div>
+                            <div id="sti-ean-colonne" class="sti-impostazioni-griglia"></div>
+                            <div class="listino-import-pulsanti">
+                                <button type="button" id="sti-ean-btn-anteprima" class="btn-primary">&#128269; Anteprima</button>
+                            </div>
+                        </div>
+                        <div id="sti-ean-anteprima"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB: CARICAMENTI (solo admin) -->
+            <div id="tab-stihl-fonti" class="tab-content">
+                <div class="container">
+                    <div class="card">
+                        <h2>&#128337; File caricati</h2>
+                        <div id="sti-fonti"></div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -537,6 +694,7 @@
             <!-- Azioni principali -->
             <div class="container mac-azioni-top">
                 <button type="button" id="mac-btn-carico" class="btn-primary">&#128230; Carico macchine</button>
+                <button type="button" id="mac-btn-raffica" class="btn-primary">&#9889; Carico a raffica</button>
                 <button type="button" id="mac-btn-nuova-voce" class="btn-back">&#9997;&#65039; Nuova voce</button>
             </div>
 
@@ -2163,6 +2321,219 @@
         </div>
     </div>
 
+    <!-- Carico a raffica (lettore di codici a barre, piu' modelli insieme) -->
+    <div id="mac-raf-modal" class="modal hidden">
+        <div class="modal-content mac-modal-content mac-raf-content">
+            <div class="modal-header">
+                <h3>&#9889; Carico a raffica <button type="button" class="mac-raf-info-btn" id="mac-raf-guida" title="Guida rapida">i</button></h3>
+                <button type="button" class="modal-close" id="mac-raf-close">&times;</button>
+            </div>
+            <p class="mac-aiuto">Leggi le scatole una dopo l'altra, anche di modelli diversi: <strong>codice del modello</strong> e <strong>matricola</strong>, nell'ordine che vuoi (prima il modello o prima la matricola, ma sempre allo stesso modo). Alla fine controlla l'elenco e premi <strong>Conferma carico</strong>. Le letture restano salvate anche se chiudi la finestra.</p>
+            <div class="mac-raf-barra">
+                <label class="mac-check mac-raf-censimento">
+                    <input type="checkbox" id="mac-raf-censimento">
+                    <span><strong>Carico iniziale</strong> (macchine gi&agrave; in magazzino)</span>
+                </label>
+                <button type="button" class="btn-back mac-btn-piccolo" id="mac-raf-codici">&#127991;&#65039; Codici del lettore</button>
+            </div>
+            <div id="mac-raf-censimento-info" class="mac-info hidden">&#128203; <strong>Carico iniziale:</strong> nessuna assegnazione ai clienti; le macchine gi&agrave; nel quaderno vengono riconosciute (per matricola, oppure usando quelle in casa di quel modello) e ricevono la matricola letta se non l'avevano; solo le scatole in pi&ugrave; diventano macchine nuove. Alla fine vedi cosa risulta nel quaderno ma non hai letto. Puoi farlo un marchio alla volta.</div>
+            <input type="text" id="mac-raf-input" class="mac-raf-input" placeholder="&#127991;&#65039; Leggi un codice (o scrivilo e premi Invio)" autocomplete="off" autocapitalize="characters" spellcheck="false">
+            <div id="mac-raf-msg" class="mac-lettore-msg"></div>
+            <div class="mac-raf-ordine-riga">
+                <label for="mac-raf-ordine">Ordine di lettura</label>
+                <select id="mac-raf-ordine">
+                    <option value="auto">Automatico</option>
+                    <option value="modello">Prima il modello, poi la matricola</option>
+                    <option value="matricola">Prima la matricola, poi il modello</option>
+                </select>
+                <span id="mac-raf-ordine-info" class="mac-raf-grigio"></span>
+            </div>
+            <details class="mac-raf-memoria">
+                <summary>&#128190; Hai letto le scatole con il lettore staccato (modalit&agrave; memoria)?</summary>
+                <ol>
+                    <li>Prima di partire leggi <strong>Svuota memoria</strong> e <strong>Modalit&agrave; memoria</strong> (pulsante &quot;Codici del lettore&quot;).</li>
+                    <li>Leggi le scatole in magazzino: modello e matricola, una dopo l'altra.</li>
+                    <li>Al ritorno collega il lettore, lascia aperta questa finestra e leggi <strong>Scarica i dati</strong>: i codici arrivano tutti di fila.</li>
+                    <li>Dopo la conferma leggi <strong>Svuota memoria</strong> (e <strong>Modalit&agrave; normale</strong> se poi lo usi collegato).</li>
+                </ol>
+            </details>
+            <div id="mac-raf-scelta" class="mac-raf-scelta hidden">
+                <div id="mac-raf-scelta-titolo"></div>
+                <label class="mac-check mac-check-blocco hidden" id="mac-raf-scelta-codice-box">
+                    <input type="checkbox" id="mac-raf-scelta-codice">
+                    <span id="mac-raf-scelta-codice-testo"></span>
+                </label>
+                <div class="mac-picker">
+                    <input type="text" id="mac-raf-art-search" placeholder="&#128269; Cerca modello, marchio..." autocomplete="off">
+                    <div id="mac-raf-art-results" class="mac-picker-lista hidden"></div>
+                </div>
+                <p class="mac-aiuto">Non c'&egrave; nel listino? <button type="button" class="btn-back mac-btn-piccolo" id="mac-raf-scelta-crea">&#10133; Crea nuovo articolo</button> (netto e prezzi si possono mettere anche dopo, dal Listino Vendite)</p>
+                <button type="button" class="btn-back mac-btn-piccolo" id="mac-raf-scelta-annulla">Annulla</button>
+            </div>
+            <div id="mac-raf-riepilogo"></div>
+            <div id="mac-raf-scatole"></div>
+            <label class="mac-check mac-check-blocco" id="mac-raf-assegna-box">
+                <input type="checkbox" id="mac-raf-assegna" checked>
+                Assegna in automatico ai clienti che aspettano queste macchine
+            </label>
+            <div class="modal-buttons mac-raf-pulsanti">
+                <button type="button" id="mac-raf-conferma" class="btn-primary">Conferma carico</button>
+                <button type="button" id="mac-raf-annulla-ultima" class="btn-secondary">&#8630; Annulla ultima operazione</button>
+                <button type="button" id="mac-raf-svuota" class="btn-secondary">Svuota</button>
+                <button type="button" id="mac-raf-chiudi" class="btn-secondary">Chiudi</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Guida rapida del Carico a raffica (sopra al Carico a raffica) -->
+    <div id="mac-raf-guida-modal" class="modal hidden">
+        <div class="modal-content mac-modal-content mac-raf-guida-content">
+            <div class="modal-header">
+                <h3>&#8505;&#65039; Guida rapida: carico con il lettore</h3>
+                <button type="button" class="modal-close" id="mac-raf-guida-close">&times;</button>
+            </div>
+            <div class="mac-raf-guida">
+                <h4>1. Prima volta: impostare il lettore</h4>
+                <p>Apri <strong>&#127991;&#65039; Codici del lettore</strong> e leggi, una volta sola: <strong>Tastiera italiana</strong>, <strong>Invio dopo ogni codice</strong>, <strong>PC Windows</strong> oppure <strong>Mac</strong>, <strong>Memoria automatica</strong>, <strong>Standby dopo 10 minuti</strong>. Se usi la chiavetta USB: <strong>Chiavetta USB 2.4G</strong> e poi <strong>Abbina la chiavetta</strong> (con la chiavetta inserita nel PC).</p>
+                <p>Prova: apri un campo qualsiasi e leggi una scatola. Deve comparire il codice e andare a capo.</p>
+
+                <h4>2. Carico vicino al PC (lettore collegato)</h4>
+                <ol>
+                    <li>Apri <strong>Carico a raffica</strong>.</li>
+                    <li>Per ogni scatola leggi il <strong>codice del modello</strong> e la <strong>matricola</strong> (se c'&egrave;), sempre nello stesso ordine.</li>
+                    <li>Controlla l'elenco e sistema le scatole in rosso (vedi punto 4).</li>
+                    <li>Premi <strong>Conferma carico</strong>.</li>
+                </ol>
+
+                <h4>3. Giro in magazzino (lettore staccato, senza PC n&eacute; telefono)</h4>
+                <ol>
+                    <li>Al PC leggi dal foglio <strong>Svuota memoria</strong> e poi <strong>Modalit&agrave; memoria</strong>.</li>
+                    <li>In magazzino leggi le scatole: modello e matricola, una dopo l'altra.</li>
+                    <li>Torna al PC, apri <strong>Carico a raffica</strong> e leggi <strong>Scarica i dati</strong>: le scatole compaiono nell'elenco.</li>
+                    <li>Controlla, sistema le scatole in rosso e premi <strong>Conferma carico</strong>.</li>
+                    <li>Leggi <strong>Svuota memoria</strong> e, se poi lo usi collegato, <strong>Modalit&agrave; normale</strong>.</li>
+                </ol>
+
+                <h4>4. Scatole in rosso</h4>
+                <ul>
+                    <li><strong>Modello da scegliere</strong>: il codice non &egrave; di nessun modello del listino. Tocca <strong>Scegli modello</strong> e cerca l'articolo.</li>
+                    <li><strong>Codice ripetuto</strong>: &egrave; quasi certamente il codice a barre di un <strong>modello nuovo</strong>. Tocca <strong>Scegli modello</strong>, scegli l'articolo e lascia la spunta &quot;&egrave; il codice a barre del modello&quot;: il codice viene salvato sul listino, le scatole si riabbinano da sole e la prossima volta le riconosce subito.</li>
+                    <li><strong>STIHL ... non &egrave; nel tuo listino</strong>: l'app l'ha riconosciuto dall'EAN del Listino STIHL. Tocca <strong>Crea nel listino</strong>: la finestra &egrave; gi&agrave; compilata (netto, prezzo, listino, codice a barre). Scegli l'attrezzo, correggi quello che vuoi e salva.</li>
+                    <li>Articolo di un altro marchio che non c'&egrave; nel listino: tocca <strong>Crea nuovo</strong>, scrivi marchio, modello e attrezzo e salva. <strong>Netto e prezzi puoi lasciarli vuoti</strong> e completarli quando vuoi dal Listino Vendite.</li>
+                    <li>Dopo il salvataggio la scatola (e quelle uguali) si sistema da sola con le sue matricole.</li>
+                </ul>
+
+                <h4>5. Carico iniziale (macchine gi&agrave; in magazzino)</h4>
+                <p>Spunta <strong>Carico iniziale</strong> prima di confermare. Non assegna niente ai clienti, riconosce le macchine gi&agrave; nel quaderno e aggiunge solo quelle in pi&ugrave;. Meglio un marchio alla volta. Se alla fine risultano macchine &quot;nel quaderno ma non lette&quot;, controlla se ci sono davvero; se mancano si tolgono dalla scheda <strong>Correzioni</strong>.</p>
+
+                <h4>6. Se qualcosa non va</h4>
+                <ul>
+                    <li><strong>Trattini o simboli sbagliati</strong> nei codici: rileggi <strong>Tastiera italiana</strong>.</li>
+                    <li><strong>Il codice compare ma non succede niente</strong>: rileggi <strong>Invio dopo ogni codice</strong>.</li>
+                    <li><strong>Hai sbagliato una lettura</strong>: <strong>Annulla ultima operazione</strong>, oppure il cestino sulla scatola.</li>
+                    <li><strong>Scatole abbinate alla matricola sbagliata</strong>: cambia <strong>Ordine di lettura</strong> (prima il modello / prima la matricola).</li>
+                    <li><strong>Il lettore non trasmette</strong>: controlla la batteria (<strong>Livello batteria</strong>) e rifai <strong>Abbina la chiavetta</strong>.</li>
+                    <li>Hai chiuso la finestra o ricaricato la pagina? Le letture non si perdono: il pulsante mostra quante sono in sospeso.</li>
+                </ul>
+                <p class="mac-aiuto">Manuale completo del lettore in italiano: documento &quot;Manuale lettore U820 - traduzione italiana&quot;.</p>
+            </div>
+            <div class="modal-buttons">
+                <button type="button" id="mac-raf-guida-chiudi" class="btn-secondary">Chiudi</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Foglio codici del lettore (sopra al Carico a raffica) -->
+    <div id="mac-lett-modal" class="modal hidden">
+        <div class="modal-content mac-modal-content mac-lett-content">
+            <div class="modal-header">
+                <h3>&#127991;&#65039; Codici del lettore</h3>
+                <button type="button" class="modal-close" id="mac-lett-close">&times;</button>
+            </div>
+            <div id="mac-lett-contenuto"></div>
+            <div class="modal-buttons">
+                <button type="button" id="mac-lett-stampa" class="btn-primary">&#128424;&#65039; Stampa</button>
+                <button type="button" id="mac-lett-chiudi" class="btn-secondary">Chiudi</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Listino STIHL: guida rapida ai caricamenti -->
+    <div id="sti-guida-modal" class="modal hidden">
+        <div class="modal-content mac-modal-content mac-raf-guida-content">
+            <div class="modal-header">
+                <h3>&#8505;&#65039; Guida rapida: Listino STIHL</h3>
+                <button type="button" class="modal-close" id="sti-guida-close">&times;</button>
+            </div>
+            <div class="mac-raf-guida">
+                <h4>1. Ordine dei caricamenti</h4>
+                <ol>
+                    <li>Prima i <strong>file delle promo</strong> (OPG, OPM...).</li>
+                    <li>Poi il <strong>catalogo EAN</strong> (Superlistino).</li>
+                    <li>Poi <strong>Collega</strong> o <strong>Crea</strong> gli articoli che ti servono nel Listino Vendite.</li>
+                </ol>
+                <p>Quando arriva una promo nuova: carica il file, poi ripassa il catalogo EAN per gli articoli nuovi.</p>
+
+                <h4>2. Caricare un file delle promo (OPG, OPM...)</h4>
+                <ol>
+                    <li>Scheda <strong>Carica file</strong> &#8594; <strong>Seleziona file Excel</strong>.</li>
+                    <li>Controlla le proposte: <strong>foglio</strong> (OPG: &quot;OPG&quot;; OPM: &quot;OPM&quot;, non il primo), <strong>riga dei titoli</strong> (OPG 19, OPM 28), <strong>nome</strong> (es. OPM 2026) e le colonne: <strong>Codice</strong>, <strong>Descrizione prodotto</strong>, <strong>Listino Escl. Iva</strong>, <strong>Prezzo Promo</strong> (= nostro netto), <strong>Categ. prod</strong>.</li>
+                    <li><strong>Ricarico</strong>: 30% se non lo cambi.</li>
+                    <li><strong>Anteprima</strong>: guarda nuovi, aggiornati e righe scartate.</li>
+                    <li><strong>Conferma caricamento</strong>.</li>
+                </ol>
+                <p>Stesso articolo in pi&ugrave; file: vale l'<strong>ultimo caricato</strong>. Gli articoli che non sono nel file restano come sono.</p>
+
+                <h4>3. Caricare gli EAN (Superlistino)</h4>
+                <ol>
+                    <li>Scheda <strong>Carica file</strong> &#8594; riquadro <strong>Codici EAN da un catalogo</strong> &#8594; <strong>Seleziona catalogo EAN</strong>.</li>
+                    <li>Foglio <strong>Listino GENERALE</strong>, riga <strong>1</strong>, colonne <strong>Codice</strong> ed <strong>EAN</strong> (le propone da solo).</li>
+                    <li><strong>Anteprima</strong> e <strong>Salva gli EAN</strong>.</li>
+                </ol>
+                <p>Vengono presi solo gli EAN degli articoli del listino STIHL. Agli articoli gi&agrave; collegati al Listino Vendite l'EAN passa nel codice a barre (solo se &egrave; vuoto).</p>
+
+                <h4>4. Portare un articolo nel tuo Listino Vendite</h4>
+                <ul>
+                    <li><strong>Collega</strong>: l'articolo c'&egrave; gi&agrave; nel Listino Vendite. Gli passa anche l'EAN come codice a barre, se manca.</li>
+                    <li><strong>Crea</strong>: si apre la finestra Nuovo articolo gi&agrave; compilata (netto, prezzo, listino, EAN). Scegli l'<strong>attrezzo</strong>, togli dal modello scritte tipo &quot;- NEW&quot; e salva: l'articolo &egrave; subito nel quaderno.</li>
+                </ul>
+
+                <h4>5. Prezzi</h4>
+                <p>Tutti IVA inclusa. <strong>Prezzo cliente</strong> = (netto + ricarico) &times; 1,22, arrotondato all'euro. Netti e ricarico si vedono con l'occhio in alto. Per cambiare il ricarico di un file: scheda <strong>Caricamenti</strong> &#8594; scrivi la percentuale &#8594; <strong>Applica</strong>.</p>
+
+                <h4>6. Se qualcosa non va</h4>
+                <ul>
+                    <li><strong>&quot;In questa riga non ci sono intestazioni&quot;</strong>: scrivi a mano il numero della riga con i titoli delle colonne.</li>
+                    <li><strong>Colonne sbagliate</strong>: cambiale dai menu prima dell'anteprima.</li>
+                    <li><strong>Tanti articoli &quot;non nel catalogo&quot;</strong>: il catalogo EAN &egrave; vecchio o di un altro tipo; per quelli l'EAN si impara dalla scatola con il lettore.</li>
+                </ul>
+            </div>
+            <div class="modal-buttons">
+                <button type="button" id="sti-guida-chiudi" class="btn-secondary">Chiudi</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Listino STIHL: collega un articolo al Listino Vendite -->
+    <div id="sti-collega-modal" class="modal hidden">
+        <div class="modal-content mac-modal-content">
+            <div class="modal-header">
+                <h3>&#128279; Collega al Listino Vendite</h3>
+                <button type="button" class="modal-close" id="sti-collega-close">&times;</button>
+            </div>
+            <div id="sti-collega-articolo" class="mac-info"></div>
+            <label>Articolo del Listino Vendite</label>
+            <div class="mac-picker">
+                <input type="text" id="sti-collega-search" placeholder="&#128269; Cerca modello, marchio..." autocomplete="off">
+                <div id="sti-collega-results" class="mac-picker-lista hidden"></div>
+            </div>
+            <p class="mac-aiuto">Il collegamento serve a sapere quali articoli STIHL hai gi&agrave; nel tuo listino. Nel Listino Vendite non cambia niente.</p>
+            <div class="modal-buttons">
+                <button type="button" id="sti-collega-annulla" class="btn-secondary">Annulla</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Composizione set -->
     <div id="mac-set-modal" class="modal hidden">
         <div class="modal-content mac-modal-content">
@@ -2711,6 +3082,8 @@
     <script src="interventi-functions.js?v=6.4.3"></script>
     <script src="macchine-functions.js?v=6.4.3"></script>
     <script src="macchine-report.js?v=6.4.3"></script>
+    <script src="macchine-raffica.js?v=6.4.3"></script>
+    <script src="stihl-functions.js?v=6.4.3"></script>
     <script src="ordini-functions.js?v=6.4.3"></script>
     <script src="azienda-functions.js?v=6.4.3"></script>
     <script src="richieste-robot-functions.js?v=6.4.3"></script>
