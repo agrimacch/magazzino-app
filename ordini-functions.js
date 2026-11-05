@@ -22,6 +22,17 @@
 // Permessi: come l'inventario macchine (macPuoGestire: admin e operatori)
 // ========================================
 
+// Pagamento: acconto versato (si scala dal totale: "da saldare") e ordine pagato (timbro sul PDF).
+// Colonne acconto / pagato di macchine_ordini: supabase/ordini-pagamento.sql
+// Timbro: immagine timbro-pagato.png nella cartella dell'app; se manca si usa un timbro scritto.
+const ORD_TIMBRO_PAGATO = 'timbro-pagato.png';
+let ordTimbroPronto = false;
+(function () {
+    const img = new Image();
+    img.onload = () => { ordTimbroPronto = true; };
+    img.src = ORD_TIMBRO_PAGATO;
+})();
+
 // Chi puo' eliminare un ordine (senza lasciare traccia). Gli altri vedono solo "Annulla ordine".
 const ORD_RUOLI_ELIMINA = ['admin'];
 
@@ -327,6 +338,8 @@ function ordNuovoModulo() {
     ordFirmaPulisci();
     document.getElementById('ord-senza-installazione').checked = false;
     document.getElementById('ord-sconto').value = '';
+    document.getElementById('ord-acconto').value = '';
+    document.getElementById('ord-pagato').checked = false;
     ordAggiornaSenzaInstallazione();
     ordRenderFormRighe();
 }
@@ -528,20 +541,67 @@ function ordLeggiSconto() {
     return { euro: Math.round(n * 100) / 100, percento: null, errore: null };
 }
 
+// Legge il campo acconto: { euro, errore } (il controllo sul totale lo fa ordAggiornaTotale)
+function ordLeggiAcconto(totale) {
+    const el = document.getElementById('ord-acconto');
+    const testo = el ? String(el.value || '').trim() : '';
+    if (!testo) return { euro: 0, errore: null };
+    const n = listinoParseNumero(testo);
+    if (typeof n !== 'number' || isNaN(n) || n < 0) return { euro: 0, errore: 'Acconto: scrivi un importo in euro (es. 200)' };
+    if (totale !== undefined && n > totale + 0.001) return { euro: 0, errore: 'Acconto: non pu&ograve; essere pi&ugrave; alto del totale' };
+    return { euro: Math.round(n * 100) / 100, errore: null };
+}
+
+function ordTotaleForm() {
+    return Math.round((ordSubtotale() - ordLeggiSconto().euro) * 100) / 100;
+}
+
+function ordErroreAcconto() {
+    return ordLeggiAcconto(ordTotaleForm()).errore;
+}
+
+// Campi pagamento da salvare: mandati solo se ci sono (o se c'erano), come lo sconto
+function ordCampiPagamento(prima) {
+    const ac = ordLeggiAcconto(ordTotaleForm());
+    const pagato = document.getElementById('ord-pagato').checked;
+    const c = {};
+    if (ac.euro > 0 || (prima && Number(prima.acconto) > 0)) c.acconto = ac.euro > 0 ? ac.euro : null;
+    if (pagato || (prima && prima.pagato)) c.pagato = pagato;
+    return c;
+}
+
 // Totale dell'ordine (gia' scontato)
 function ordAggiornaTotale() {
     const sub = ordSubtotale();
     const sc = ordLeggiSconto();
     const tot = Math.round((sub - sc.euro) * 100) / 100;
+    const ac = ordLeggiAcconto(tot);
+    const pagato = document.getElementById('ord-pagato') && document.getElementById('ord-pagato').checked;
     const el = document.getElementById('ord-totale');
     if (el) el.innerHTML = macEuro(tot);
     const det = document.getElementById('ord-totale-dettaglio');
     if (det) {
-        const mostra = sc.euro > 0 || sc.errore;
+        const mostra = sc.euro > 0 || sc.errore || ac.errore;
         det.classList.toggle('hidden', !mostra);
         det.innerHTML = !mostra ? '' : (sc.errore ? '<span class="ord-sconto-errore">&#9888;&#65039; ' + sc.errore + '</span>' :
+            ac.errore ? '<span class="ord-sconto-errore">&#9888;&#65039; ' + ac.errore + '</span>' :
             '<div><span>Totale articoli</span><span>' + macEuro(sub) + '</span></div>' +
             '<div><span>Sconto' + (sc.percento !== null ? ' ' + String(sc.percento).replace('.', ',') + '%' : '') + '</span><span>&minus; ' + macEuro(sc.euro) + '</span></div>');
+    }
+    // Acconto e saldo sotto il totale
+    let saldo = document.getElementById('ord-saldo-dettaglio');
+    if (!saldo && el) {
+        saldo = document.createElement('div');
+        saldo.id = 'ord-saldo-dettaglio';
+        saldo.className = 'ord-totale-dettaglio';
+        el.closest('.ord-totale-box').insertAdjacentElement('afterend', saldo);
+    }
+    if (saldo) {
+        const mostraSaldo = (ac.euro > 0 && !ac.errore) || pagato;
+        saldo.classList.toggle('hidden', !mostraSaldo);
+        saldo.innerHTML = !mostraSaldo ? '' : (pagato ? '<div><span>&#128182; <strong>PAGATO</strong></span><span>' + macEuro(tot) + '</span></div>' :
+            '<div><span>Acconto versato</span><span>&minus; ' + macEuro(ac.euro) + '</span></div>' +
+            '<div><span><strong>DA SALDARE</strong></span><strong>' + macEuro(Math.round((tot - ac.euro) * 100) / 100) + '</strong></div>');
     }
     return tot;
 }
@@ -782,6 +842,7 @@ async function ordSalva() {
     if (!testa.cliente) errori.push('Scrivi il nome del cliente (Sig./Sig.ra)');
     if (ordFormRighe.length === 0) errori.push('Aggiungi almeno un articolo');
     if (ordLeggiSconto().errore) errori.push(ordLeggiSconto().errore);
+    if (ordErroreAcconto()) errori.push(ordErroreAcconto());
     ordFormRighe.forEach((r, i) => {
         r.descrizione = listinoPulisciTesto(r.descrizione);
         r.codice = listinoPulisciTesto(r.codice);
@@ -824,7 +885,7 @@ async function ordSalva() {
         for (let tentativo = 0; tentativo < 3 && !ordine; tentativo++) {
             const numero = await ordProssimoNumero(anno);
             const riga = Object.assign({}, testa, {
-                anno: anno, numero: numero, totale: ordAggiornaTotale(), firma: ordFirmaDati(), ...ordCampiInstallazione(null), ...ordCampiSconto(null),
+                anno: anno, numero: numero, totale: ordAggiornaTotale(), firma: ordFirmaDati(), ...ordCampiInstallazione(null), ...ordCampiSconto(null), ...ordCampiPagamento(null),
                 created_by: utente, updated_by: utente, updated_at: adesso
             });
             const { data, error } = await supabaseClient.from('macchine_ordini').insert([riga]).select('*').single();
@@ -939,15 +1000,18 @@ function ordApriModifica(id) {
     ordFirmaImposta(ordFirme.installazione, o.firma_installazione);
     document.getElementById('ord-senza-installazione').checked = !!o.senza_installazione;
     document.getElementById('ord-sconto').value = Number(o.sconto) > 0 ? String(o.sconto).replace('.', ',') : '';
+    document.getElementById('ord-acconto').value = Number(o.acconto) > 0 ? String(o.acconto).replace('.', ',') : '';
+    document.getElementById('ord-pagato').checked = !!o.pagato;
     ordAggiornaSenzaInstallazione();
+    ordAggiornaTotale();
     ordSwitchTab('nuovo');
 }
 
 async function ordSalvaModifica() {
     const o = ordInModifica;
     const testa = ordLeggiTesta();
-    if (!testa.cliente || ordLeggiSconto().errore) {
-        await showCustomAlert(!testa.cliente ? 'Scrivi il nome del cliente (Sig./Sig.ra)' : ordLeggiSconto().errore, 'Controlla l\'ordine', '&#9888;&#65039;');
+    if (!testa.cliente || ordLeggiSconto().errore || ordErroreAcconto()) {
+        await showCustomAlert(!testa.cliente ? 'Scrivi il nome del cliente (Sig./Sig.ra)' : (ordLeggiSconto().errore || ordErroreAcconto()), 'Controlla l\'ordine', '&#9888;&#65039;');
         return;
     }
     const btn = document.getElementById('ord-salva');
@@ -955,7 +1019,7 @@ async function ordSalvaModifica() {
     const adesso = new Date().toISOString();
     try {
         const agg = Object.assign({}, testa, { firma: ordFirmaDati(), totale: ordAggiornaTotale(), updated_at: adesso, updated_by: macUtente() },
-            ordCampiInstallazione(o), ordCampiSconto(o));
+            ordCampiInstallazione(o), ordCampiSconto(o), ordCampiPagamento(o));
         const { error } = await supabaseClient.from('macchine_ordini').update(agg).eq('id', o.id);
         if (error) throw error;
         // Cliente cambiato: aggiorna anche il nome nel quaderno
@@ -1038,7 +1102,9 @@ function ordApriDettaglio(id) {
         }).join('') + '</div>' +
         (Number(o.sconto) > 0 ? '<div class="ord-det-sconto"><span>Totale articoli</span><span>' + macEuro(Number(o.totale) + Number(o.sconto)) + '</span></div>' +
             '<div class="ord-det-sconto"><span>Sconto</span><span>&minus; ' + macEuro(o.sconto) + '</span></div>' : '') +
-        '<div class="ord-det-totale"><span>TOTALE</span><strong>' + macEuro(o.totale) + '</strong></div>' +
+        '<div class="ord-det-totale"><span>TOTALE' + (o.pagato ? '<span class="ord-badge-pagato">&#128182; PAGATO</span>' : '') + '</span><strong>' + macEuro(o.totale) + '</strong></div>' +
+        (!o.pagato && Number(o.acconto) > 0 ? '<div class="ord-det-saldo"><span>Acconto versato</span><span>&minus; ' + macEuro(o.acconto) + '</span></div>' +
+            '<div class="ord-det-saldo ord-da-saldare"><span>DA SALDARE</span><span>' + macEuro(Math.round((Number(o.totale) - Number(o.acconto)) * 100) / 100) + '</span></div>' : '') +
         (o.firma ? '<div class="ord-det-firma"><span>Firma per accettazione</span><img src="' + o.firma + '" alt="Firma"></div>' : '<p class="mac-aiuto">Ordine non firmato.</p>') +
         (o.senza_installazione ? '<div class="ord-det-noinst"><strong>&#9888;&#65039; Senza servizio di installazione</strong>' +
             (o.firma_installazione ? '<div class="ord-det-firma"><span>Firma della dichiarazione</span><img src="' + o.firma_installazione + '" alt="Firma"></div>'
@@ -1056,7 +1122,8 @@ function ordApriDettaglio(id) {
     if (!annullato) {
         if (daOrdinare) azioni += '<button type="button" class="btn-back" data-ord-azione="ordinato">&#128998; Ordinato al fornitore (' + daOrdinare + ')</button>';
         if (inCasa || (pezzi.length === 0 && !o.consegnato_at)) azioni += '<button type="button" class="btn-back" data-ord-azione="consegna">&#9989; Consegnato al cliente' + (inCasa ? ' (' + inCasa + ')' : '') + '</button>';
-        azioni += '<button type="button" class="btn-back" data-ord-azione="modifica">&#9997;&#65039; Modifica dati cliente / firma</button>';
+        azioni += '<button type="button" class="btn-back" data-ord-azione="pagato">' + (o.pagato ? '&#8617;&#65039; Togli &quot;Pagato&quot;' : '&#128182; Segna come pagato') + '</button>';
+        azioni += '<button type="button" class="btn-back" data-ord-azione="modifica">&#9997;&#65039; Modifica dati cliente / firma / pagamento</button>';
         azioni += '<button type="button" class="btn-danger" data-ord-azione="annulla">&#10006; Annulla ordine</button>';
     }
     if (ordPuoEliminare()) azioni += '<button type="button" class="btn-danger" data-ord-azione="elimina">&#128465; Elimina ordine</button>';
@@ -1076,6 +1143,7 @@ async function ordAzione(azione) {
     if (azione === 'modifica') return ordApriModifica(o.id);
     if (azione === 'drive') return ordSalvaSuDrive(o.id);
     if (azione === 'elimina') return ordElimina(o);
+    if (azione === 'pagato') return ordSegnaPagato(o);
 
     const pezzi = ordPezziOrdine(o);
     const adesso = new Date().toISOString();
@@ -1153,6 +1221,23 @@ async function ordAzione(azione) {
     if (azione === 'annulla' && o.drive_file_id) ordSalvaSuDrive(o.id);
     // Annullato: la richiesta di montaggio non ancora organizzata viene tolta (se gia' organizzata diventa NO)
     if (azione === 'annulla' && typeof rrSincronizzaOrdine === 'function') rrSincronizzaOrdine(o.id);
+}
+
+// Segna / toglie "Pagato" dal dettaglio (il PDF su Drive viene rifatto con il timbro)
+async function ordSegnaPagato(o) {
+    const nuovo = !o.pagato;
+    if (!window.confirm(nuovo ? 'Segnare l\'ordine N. ' + ordNumero(o) + ' come PAGATO?\n\nSul PDF comparir\u00e0 il timbro PAGATO.'
+        : 'Togliere "Pagato" dall\'ordine N. ' + ordNumero(o) + '?')) return;
+    const { error } = await supabaseClient.from('macchine_ordini')
+        .update({ pagato: nuovo, updated_at: new Date().toISOString(), updated_by: macUtente() }).eq('id', o.id);
+    if (error) {
+        console.error('Errore pagato:', error);
+        await showCustomAlert('Non salvato:<br>' + macEsc(error.message) + '<br><br>Hai eseguito lo script <strong>ordini-pagamento.sql</strong> su Supabase?', 'Errore', '&#10060;');
+        return;
+    }
+    await ordRicarica();
+    ordApriDettaglio(o.id);
+    ordSalvaSuDrive(o.id);
 }
 
 // Elimina l'ordine (solo admin): libera le macchine (come l'annullo), PDF di Drive nel cestino
@@ -1260,7 +1345,7 @@ function ordHtmlStampa(o, righeTotali) {
             '<td class="rpt-testa-logo"><img src="' + aziendaLogo() + '" alt="" class="rpt-logo ordd-logo"></td>' +
             '<td class="rpt-titoli">' +
                 '<div class="rpt-titolo">' + casella(true) + ' Ordine N. ' + ordNumero(o) + '</div>' +
-                '<div class="rpt-sotto">Data <strong>' + ordDataIt(o.data) + '</strong>' +
+                '<div class="rpt-sotto ordd-data">Data <strong>' + ordDataIt(o.data) + '</strong>' +
                     (o.operatore ? ' &middot; Operatore <strong>' + macEsc(o.operatore) + '</strong>' : '') + '</div>' +
                 '<div class="rpt-sotto rpt-azienda">' + aziendaIntestazioneHtml() + '</div>' +
             '</td>' +
@@ -1300,10 +1385,16 @@ function ordHtmlStampa(o, righeTotali) {
             '<td class="ordd-tot-etich">TOTALE</td>' +
             '<td class="rpt-n ordd-tot">' + (o.totale !== null && o.totale !== undefined ? repEuroPdf(o.totale) : '') + '</td>' +
         '</tr>' +
+        (!o.pagato && Number(o.acconto) > 0 ?
+            '<tr class="ordd-acconto"><td colspan="3" class="ordd-caselle"></td><td class="ordd-tot-etich">Acconto versato</td>' +
+                '<td class="rpt-n">&minus; ' + repEuroPdf(o.acconto) + '</td></tr>' +
+            '<tr class="ordd-saldo"><td colspan="3" class="ordd-caselle"></td><td class="ordd-tot-etich">DA SALDARE</td>' +
+                '<td class="rpt-n">' + repEuroPdf(Math.round((Number(o.totale) - Number(o.acconto)) * 100) / 100) + '</td></tr>' : '') +
         '</tfoot></table>' +
         '<p class="ordd-condizioni">' + ORD_CONDIZIONI + '</p>' +
         '<table class="ordd-firme"><tr>' +
-            '<td class="ordd-firme-sx"></td>' +
+            '<td class="ordd-firme-sx">' + (o.pagato ? (ordTimbroPronto ? '<img src="' + ORD_TIMBRO_PAGATO + '" alt="PAGATO" class="ordd-timbro">'
+                : '<span class="ordd-timbro-testo">PAGATO</span>') : '') + '</td>' +
             '<td class="ordd-firma">' + (o.firma ? '<img src="' + o.firma + '" alt="Firma">' : '<div class="ordd-firma-vuota"></div>') +
                 '<div class="ordd-firma-linea">Firma per accettazione</div></td>' +
         '</tr></table>' +
@@ -1815,6 +1906,8 @@ document.addEventListener('DOMContentLoaded', () => {
     macPickerImposta('ord-art-search', 'ord-art-results', null, ordAggiungiArticolo, { onPezzo: ordAggiungiPezzo });
     document.getElementById('ord-btn-libera').addEventListener('click', ordAggiungiLibera);
     document.getElementById('ord-sconto').addEventListener('input', ordAggiornaTotale);
+    document.getElementById('ord-acconto').addEventListener('input', ordAggiornaTotale);
+    document.getElementById('ord-pagato').addEventListener('change', ordAggiornaTotale);
     const righe = document.getElementById('ord-righe');
     righe.addEventListener('input', ordCampoRigaCambiato);
     righe.addEventListener('change', ordCampoRigaCambiato);

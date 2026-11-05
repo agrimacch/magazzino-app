@@ -696,8 +696,13 @@
     font-size: 11px;
 }
 
+.ordd .rpt-testa-logo {
+    width: 45%;
+}
+
 .ordd .rpt-logo.ordd-logo {
-    height: 44px;
+    height: 88px;
+    max-width: 100%;
 }
 
 .ordd .rpt-titolo {
@@ -706,6 +711,12 @@
 
 .ordd .rpt-sotto {
     font-size: 9.5px;
+}
+
+/* Data dell'ordine piu' grande (si vedeva poco) */
+.ordd .rpt-sotto.ordd-data {
+    font-size: 14px;
+    margin-top: 4px;
 }
 
 .ordd .rpt-sotto strong {
@@ -1067,3 +1078,28 @@
 .ord-sconto-errore { color: #b91c1c; font-weight: 700; }
 .ord-det-sconto { display: flex; justify-content: space-between; padding: 2px 4px; font-size: 13px; color: #374151; }
 .pdf-foglio .ordd-righe tr.ordd-sconto td { font-weight: 400 !important; padding-top: 3px !important; padding-bottom: 3px !important; }
+
+/* ---------- Pagamento: acconto e timbro PAGATO ---------- */
+.ord-pagamento-riga { margin-top: 14px; display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-end; }
+.ord-pagamento-riga .ord-acconto { max-width: 220px; }
+.ord-pagamento-riga .ord-check-pagato { display: flex; align-items: center; gap: 8px; font-weight: 700; margin: 0 0 8px; }
+.ord-pagamento-riga .ord-check-pagato input { width: 20px; height: 20px; }
+.ord-det-saldo { display: flex; justify-content: space-between; padding: 2px 4px; font-size: 13px; color: #374151; }
+.ord-det-saldo.ord-da-saldare { font-weight: 700; color: #b45309; font-size: 14px; }
+.ord-badge-pagato { display: inline-block; margin-left: 8px; padding: 2px 10px; border-radius: 10px; background: #dcfce7; color: #166534; font-size: 12px; font-weight: 700; border: 1px solid #86efac; }
+.pdf-foglio .ordd-righe tr.ordd-acconto td { font-weight: 400 !important; padding-top: 3px !important; padding-bottom: 3px !important; }
+.pdf-foglio .ordd-righe tr.ordd-saldo td { font-weight: 700 !important; }
+.ordd-firme-sx { position: relative; }
+.ordd-timbro { display: block; width: 150px; margin: 0 auto 4px; transform: rotate(-10deg); }
+.ordd-timbro-testo {
+    display: inline-block;
+    margin: 0 0 24px 40px;
+    padding: 6px 22px;
+    font-size: 30px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    color: rgba(22, 128, 61, 0.85);
+    border: 4px solid rgba(22, 128, 61, 0.85);
+    border-radius: 8px;
+    transform: rotate(-10deg);
+}

@@ -1120,6 +1120,18 @@
                             <input type="text" id="ord-sconto" inputmode="decimal" autocomplete="off" placeholder="nessuno">
                         </div>
 
+                        <!-- Pagamento: acconto versato (si scala dal totale) e ordine pagato (timbro PAGATO sul PDF) -->
+                        <div class="ord-pagamento-riga">
+                            <div class="ord-acconto">
+                                <label for="ord-acconto">Acconto versato <small>(in euro: si scala dal totale)</small></label>
+                                <input type="text" id="ord-acconto" inputmode="decimal" autocomplete="off" placeholder="nessuno">
+                            </div>
+                            <label class="ord-check-pagato">
+                                <input type="checkbox" id="ord-pagato">
+                                <span>&#128182; Pagato <small>(timbro PAGATO sul PDF)</small></span>
+                            </label>
+                        </div>
+
                         <!-- Ordine senza servizio di installazione: seconda dichiarazione con firma propria (sopra il totale, come sulla commissione robot) -->
                         <label class="ord-check-noinst">
                             <input type="checkbox" id="ord-senza-installazione">

@@ -1484,11 +1484,13 @@
 }
 
 .rpt-testa-logo {
-    width: 32%;
+    width: 38%;
 }
 
+/* Logo dei documenti (ordini, report, valore): il doppio di prima, mai piu' largo della sua colonna */
 .rpt-logo {
-    height: 34px;
+    height: 68px;
+    max-width: 100%;
 }
 
 .rpt-titoli {
@@ -1504,7 +1506,7 @@
 }
 
 .rpt-sotto {
-    font-size: 9px;
+    font-size: 11px;
     color: #6b7280;
     margin-top: 2px;
     line-height: 1.4;
