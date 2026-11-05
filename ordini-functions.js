@@ -15,10 +15,19 @@
 // - Operatore che ha fatto il contratto
 // - PDF salvato in automatico su Google Drive (cartella ORDINI CLIENTI / ORDINI CLIENTI <anno>)
 //   tramite la Edge Function "ordini-drive" e lo script Google google/ordini-drive.gs
-// - Eliminazione dell'ordine (libera le macchine e manda il PDF nel cestino di Drive)
+// - Eliminazione dell'ordine SOLO ADMIN (ORD_RUOLI_ELIMINA): libera le macchine, manda il PDF nel cestino
+//   di Drive e cancella anche i movimenti di quell'ordine (funzione Supabase ordine_elimina_tracce,
+//   supabase/ordini-elimina-admin.sql): non resta traccia. Gli operatori possono solo annullare.
 // Tabelle Supabase: macchine_ordini, macchine_ordini_righe (+ macchine_pezzi)
 // Permessi: come l'inventario macchine (macPuoGestire: admin e operatori)
 // ========================================
+
+// Chi puo' eliminare un ordine (senza lasciare traccia). Gli altri vedono solo "Annulla ordine".
+const ORD_RUOLI_ELIMINA = ['admin'];
+
+function ordPuoEliminare() {
+    return typeof currentUserRole !== 'undefined' && ORD_RUOLI_ELIMINA.indexOf(currentUserRole) !== -1;
+}
 
 // Dati aziendali stampati sull'ordine: dal pannello "Dati aziendali" (azienda-functions.js, solo admin)
 
@@ -1050,7 +1059,7 @@ function ordApriDettaglio(id) {
         azioni += '<button type="button" class="btn-back" data-ord-azione="modifica">&#9997;&#65039; Modifica dati cliente / firma</button>';
         azioni += '<button type="button" class="btn-danger" data-ord-azione="annulla">&#10006; Annulla ordine</button>';
     }
-    azioni += '<button type="button" class="btn-danger" data-ord-azione="elimina">&#128465; Elimina ordine</button>';
+    if (ordPuoEliminare()) azioni += '<button type="button" class="btn-danger" data-ord-azione="elimina">&#128465; Elimina ordine</button>';
     document.getElementById('ord-dettaglio-azioni').innerHTML = azioni;
     document.getElementById('ord-dettaglio-modal').classList.remove('hidden');
 }
@@ -1146,8 +1155,10 @@ async function ordAzione(azione) {
     if (azione === 'annulla' && typeof rrSincronizzaOrdine === 'function') rrSincronizzaOrdine(o.id);
 }
 
-// Elimina l'ordine: libera le macchine (come l'annullo), PDF di Drive nel cestino
+// Elimina l'ordine (solo admin): libera le macchine (come l'annullo), PDF di Drive nel cestino
+// e cancella i movimenti di quell'ordine: non resta traccia
 async function ordElimina(o) {
+    if (!ordPuoEliminare()) return;
     const pezzi = ordPezziOrdine(o);
     const consegnate = pezzi.filter(p => p.stato === 'CONSEGNATA').length;
     const ultimo = !ordOrdini.some(x => x.anno === o.anno && x.numero > o.numero);
@@ -1156,7 +1167,8 @@ async function ordElimina(o) {
         '- Le righe DA ORDINARE vengono tolte dal quaderno\n' +
         '- Le macchine gia\' ORDINATE al fornitore restano ordinate, senza cliente\n' +
         (consegnate ? '- ' + consegnate + ' macchine gia\' consegnate restano consegnate a ' + o.cliente + '\n' : '') +
-        '- Il PDF su Google Drive va nel cestino\n\n' +
+        '- Il PDF su Google Drive va nel cestino\n' +
+        '- Nel registro movimenti non resta traccia di questo ordine\n\n' +
         (ultimo ? 'Era l\'ultimo ordine del ' + o.anno + ': il numero ' + o.numero + ' verra\' riusato dal prossimo ordine.'
                 : 'Attenzione: nella numerazione del ' + o.anno + ' restera\' un buco (manca il ' + o.numero + ').') +
         '\n\nL\'operazione non si puo\' annullare.')) return;
@@ -1193,7 +1205,17 @@ async function ordElimina(o) {
         await showCustomAlert('Errore durante l\'eliminazione:<br>' + macEsc(error.message), 'Errore', '&#10060;');
         return;
     }
-    await macRegistra(log);
+    // Ordine eliminato: tolgo dal registro tutti i movimenti con il suo numero (non registro niente di nuovo)
+    let notaMovimenti = '<br>Nel registro movimenti non resta traccia.';
+    try {
+        const { error } = await supabaseClient.rpc('ordine_elimina_tracce', { p_numero: ordNumero(o) });
+        if (error) throw error;
+        if (typeof macMovimentiCaricati !== 'undefined') macMovimentiCaricati = false;
+    } catch (err) {
+        console.error('Movimenti dell\'ordine non tolti:', err);
+        notaMovimenti = '<br>&#9888;&#65039; I movimenti dell\'ordine sono rimasti nel registro (hai eseguito supabase/ordini-elimina-admin.sql?): ' +
+            macEsc(err.message || String(err));
+    }
     let notaDrive = '';
     if (o.drive_file_id) {
         try {
@@ -1205,7 +1227,7 @@ async function ordElimina(o) {
     }
     ordChiudiDettaglio();
     await ordRicarica();
-    await showCustomAlert('Ordine N. ' + ordNumero(o) + ' eliminato.' + notaDrive, 'Eliminato', '&#10004;');
+    await showCustomAlert('Ordine N. ' + ordNumero(o) + ' eliminato.' + notaMovimenti + notaDrive, 'Eliminato', '&#10004;');
 }
 
 // ========================================
