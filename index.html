@@ -1122,9 +1122,21 @@
 
                         <!-- Pagamento: acconto versato (si scala dal totale) e ordine pagato (timbro PAGATO sul PDF) -->
                         <div class="ord-pagamento-riga">
+                            <div class="ord-metodo">
+                                <label for="ord-metodo">Metodo di pagamento</label>
+                                <select id="ord-metodo"><option value="">- scegli -</option><option>CONTANTI</option><option>CARTA DI CREDITO</option><option>BONIFICO</option><option>BONIFICO ANTICIPATO</option><option>ASSEGNO</option></select>
+                            </div>
                             <div class="ord-acconto">
                                 <label for="ord-acconto">Acconto versato <small>(in euro: si scala dal totale)</small></label>
                                 <input type="text" id="ord-acconto" inputmode="decimal" autocomplete="off" placeholder="nessuno">
+                            </div>
+                            <div class="ord-metodo ord-solo-acconto hidden">
+                                <label for="ord-metodo-acconto">Acconto pagato con</label>
+                                <select id="ord-metodo-acconto"><option value="">- scegli -</option><option>CONTANTI</option><option>CARTA DI CREDITO</option><option>BONIFICO</option><option>BONIFICO ANTICIPATO</option><option>ASSEGNO</option></select>
+                            </div>
+                            <div class="ord-metodo ord-solo-acconto hidden">
+                                <label for="ord-metodo-saldo">Saldo da pagare con</label>
+                                <select id="ord-metodo-saldo"><option value="">- scegli -</option><option>CONTANTI</option><option>CARTA DI CREDITO</option><option>BONIFICO</option><option>BONIFICO ANTICIPATO</option><option>ASSEGNO</option></select>
                             </div>
                             <label class="ord-check-pagato">
                                 <input type="checkbox" id="ord-pagato">

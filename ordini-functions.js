@@ -26,6 +26,10 @@
 // Colonne acconto / pagato di macchine_ordini: supabase/ordini-pagamento.sql
 // Timbro: immagine timbro-pagato.png nella cartella dell'app; se manca si usa un timbro scritto.
 const ORD_TIMBRO_PAGATO = 'timbro-pagato.png';
+// Metodi di pagamento (complessivo; con l'acconto: metodo dell'acconto e del saldo). Colonne metodo_pagamento,
+// metodo_acconto, metodo_saldo di macchine_ordini (supabase/ordini-pagamento.sql)
+const ORD_METODI = ['CONTANTI', 'CARTA DI CREDITO', 'BONIFICO', 'BONIFICO ANTICIPATO', 'ASSEGNO'];
+const ORD_CAMPI_METODO = { 'ord-metodo': 'metodo_pagamento', 'ord-metodo-acconto': 'metodo_acconto', 'ord-metodo-saldo': 'metodo_saldo' };
 let ordTimbroPronto = false;
 (function () {
     const img = new Image();
@@ -340,6 +344,7 @@ function ordNuovoModulo() {
     document.getElementById('ord-sconto').value = '';
     document.getElementById('ord-acconto').value = '';
     document.getElementById('ord-pagato').checked = false;
+    Object.keys(ORD_CAMPI_METODO).forEach(id => { document.getElementById(id).value = ''; });
     ordAggiornaSenzaInstallazione();
     ordRenderFormRighe();
 }
@@ -567,6 +572,12 @@ function ordCampiPagamento(prima) {
     const c = {};
     if (ac.euro > 0 || (prima && Number(prima.acconto) > 0)) c.acconto = ac.euro > 0 ? ac.euro : null;
     if (pagato || (prima && prima.pagato)) c.pagato = pagato;
+    Object.keys(ORD_CAMPI_METODO).forEach(id => {
+        const campo = ORD_CAMPI_METODO[id];
+        let v = document.getElementById(id).value || null;
+        if (campo !== 'metodo_pagamento' && !(ac.euro > 0)) v = null;   // senza acconto niente metodo acconto / saldo
+        if (v || (prima && prima[campo])) c[campo] = v;
+    });
     return c;
 }
 
@@ -598,11 +609,16 @@ function ordAggiornaTotale() {
     }
     if (saldo) {
         const mostraSaldo = (ac.euro > 0 && !ac.errore) || pagato;
+        const mAcc = document.getElementById('ord-metodo-acconto').value;
+        const mSal = document.getElementById('ord-metodo-saldo').value;
         saldo.classList.toggle('hidden', !mostraSaldo);
         saldo.innerHTML = !mostraSaldo ? '' : (pagato ? '<div><span>&#128182; <strong>PAGATO</strong></span><span>' + macEuro(tot) + '</span></div>' :
-            '<div><span>Acconto versato</span><span>&minus; ' + macEuro(ac.euro) + '</span></div>' +
-            '<div><span><strong>DA SALDARE</strong></span><strong>' + macEuro(Math.round((tot - ac.euro) * 100) / 100) + '</strong></div>');
+            '<div><span>Acconto versato' + (mAcc ? ' (' + macEsc(mAcc) + ')' : '') + '</span><span>&minus; ' + macEuro(ac.euro) + '</span></div>' +
+            '<div><span><strong>DA SALDARE</strong>' + (mSal ? ' (' + macEsc(mSal) + ')' : '') + '</span><strong>' + macEuro(Math.round((tot - ac.euro) * 100) / 100) + '</strong></div>');
     }
+    // Metodo dell'acconto e del saldo: solo se c'e' un acconto
+    const conAcconto = ac.euro > 0 && !ac.errore;
+    document.querySelectorAll('.ord-solo-acconto').forEach(x => x.classList.toggle('hidden', !conAcconto));
     return tot;
 }
 
@@ -1002,6 +1018,7 @@ function ordApriModifica(id) {
     document.getElementById('ord-sconto').value = Number(o.sconto) > 0 ? String(o.sconto).replace('.', ',') : '';
     document.getElementById('ord-acconto').value = Number(o.acconto) > 0 ? String(o.acconto).replace('.', ',') : '';
     document.getElementById('ord-pagato').checked = !!o.pagato;
+    Object.keys(ORD_CAMPI_METODO).forEach(id => { document.getElementById(id).value = o[ORD_CAMPI_METODO[id]] || ''; });
     ordAggiornaSenzaInstallazione();
     ordAggiornaTotale();
     ordSwitchTab('nuovo');
@@ -1103,8 +1120,9 @@ function ordApriDettaglio(id) {
         (Number(o.sconto) > 0 ? '<div class="ord-det-sconto"><span>Totale articoli</span><span>' + macEuro(Number(o.totale) + Number(o.sconto)) + '</span></div>' +
             '<div class="ord-det-sconto"><span>Sconto</span><span>&minus; ' + macEuro(o.sconto) + '</span></div>' : '') +
         '<div class="ord-det-totale"><span>TOTALE' + (o.pagato ? '<span class="ord-badge-pagato">&#128182; PAGATO</span>' : '') + '</span><strong>' + macEuro(o.totale) + '</strong></div>' +
-        (!o.pagato && Number(o.acconto) > 0 ? '<div class="ord-det-saldo"><span>Acconto versato</span><span>&minus; ' + macEuro(o.acconto) + '</span></div>' +
-            '<div class="ord-det-saldo ord-da-saldare"><span>DA SALDARE</span><span>' + macEuro(Math.round((Number(o.totale) - Number(o.acconto)) * 100) / 100) + '</span></div>' : '') +
+        (!o.pagato && Number(o.acconto) > 0 ? '<div class="ord-det-saldo"><span>Acconto versato' + (o.metodo_acconto ? ' (' + macEsc(o.metodo_acconto) + ')' : '') + '</span><span>&minus; ' + macEuro(o.acconto) + '</span></div>' +
+            '<div class="ord-det-saldo ord-da-saldare"><span>DA SALDARE' + (o.metodo_saldo ? ' (' + macEsc(o.metodo_saldo) + ')' : '') + '</span><span>' + macEuro(Math.round((Number(o.totale) - Number(o.acconto)) * 100) / 100) + '</span></div>' : '') +
+        (o.metodo_pagamento ? '<div class="ord-det-saldo"><span>Metodo di pagamento</span><span>' + macEsc(o.metodo_pagamento) + '</span></div>' : '') +
         (o.firma ? '<div class="ord-det-firma"><span>Firma per accettazione</span><img src="' + o.firma + '" alt="Firma"></div>' : '<p class="mac-aiuto">Ordine non firmato.</p>') +
         (o.senza_installazione ? '<div class="ord-det-noinst"><strong>&#9888;&#65039; Senza servizio di installazione</strong>' +
             (o.firma_installazione ? '<div class="ord-det-firma"><span>Firma della dichiarazione</span><img src="' + o.firma_installazione + '" alt="Firma"></div>'
@@ -1318,6 +1336,40 @@ async function ordElimina(o) {
 // ========================================
 // STAMPA (come il modulo cartaceo) - dal browser si puo' "Salva come PDF"
 // ========================================
+// Righe dei totali del PDF: le caselle Disponibile / Da ordinare in UNA cella a sinistra (in basso),
+// a destra Totale articoli / Sconto / TOTALE / Acconto / DA SALDARE (niente righe vuote a sinistra)
+function ordTotaliPdfHtml(o, caselle) {
+    const righe = [];
+    if (Number(o.sconto) > 0) {
+        righe.push({ cls: 'ordd-sconto', e: 'Totale articoli', v: repEuroPdf(Number(o.totale) + Number(o.sconto)) });
+        righe.push({ cls: 'ordd-sconto', e: 'Sconto', v: '&minus; ' + repEuroPdf(o.sconto) });
+    }
+    righe.push({ cls: '', e: 'TOTALE', v: (o.totale !== null && o.totale !== undefined ? repEuroPdf(o.totale) : ''), tot: true });
+    if (!o.pagato && Number(o.acconto) > 0) {
+        righe.push({ cls: 'ordd-acconto', e: 'Acconto versato', m: o.metodo_acconto, v: '&minus; ' + repEuroPdf(o.acconto) });
+        righe.push({ cls: 'ordd-saldo', e: 'DA SALDARE', m: o.metodo_saldo, v: repEuroPdf(Math.round((Number(o.totale) - Number(o.acconto)) * 100) / 100) });
+    }
+    return righe.map((r, i) => '<tr' + (r.cls ? ' class="' + r.cls + '"' : '') + '>' +
+        (i === 0 ? '<td colspan="3" rowspan="' + righe.length + '" class="ordd-caselle ordd-caselle-blocco">' + caselle + '</td>' : '') +
+        '<td class="ordd-tot-etich">' + r.e + (r.m ? '<span class="ordd-tot-metodo">' + macEsc(r.m) + '</span>' : '') + '</td>' +
+        '<td class="rpt-n' + (r.tot ? ' ordd-tot' : '') + '">' + r.v + '</td></tr>').join('');
+}
+
+// Metodo di pagamento nel riquadro Pagamento del PDF
+function ordMetodiPdfHtml(o) {
+    const parti = [];
+    if (o.pagato) parti.push('<strong>PAGATO</strong>' + (o.metodo_pagamento ? ' con <strong>' + macEsc(o.metodo_pagamento) + '</strong>' : ''));
+    else {
+        if (o.metodo_pagamento) parti.push('Metodo di pagamento: <strong>' + macEsc(o.metodo_pagamento) + '</strong>');
+        if (Number(o.acconto) > 0) {
+            parti.push('Acconto ' + repEuroPdf(o.acconto) + (o.metodo_acconto ? ' con <strong>' + macEsc(o.metodo_acconto) + '</strong>' : ''));
+            parti.push('Saldo ' + repEuroPdf(Math.round((Number(o.totale) - Number(o.acconto)) * 100) / 100) +
+                (o.metodo_saldo ? ' con <strong>' + macEsc(o.metodo_saldo) + '</strong>' : ''));
+        }
+    }
+    return parti.length ? '<div class="ordd-metodo-riga">' + parti.join(' &middot; ') + '</div>' : '';
+}
+
 function ordHtmlStampa(o, righeTotali) {
     // Stesso stile dei report (rpt-*): intestazione logo + titolo, sezioni con titolo verde, tabelle leggere
     const righe = ordRigheOrdine(o);
@@ -1359,8 +1411,9 @@ function ordHtmlStampa(o, righeTotali) {
             '<tr>' + campo('Note', o.note, 3) + '</tr>' +
         '</table>' +
         '<div class="rpt-sezione">Pagamento <span class="ordd-nota-sezione">La fattura potr&agrave; essere richiesta solo all&#39;ordine</span></div>' +
-        '<div class="ordd-box">' + macEsc(o.pagamento || '') + '</div>' +
+        '<div class="ordd-box">' + macEsc(o.pagamento || '') + ordMetodiPdfHtml(o) + '</div>' +
         '<div class="rpt-sezione">Articoli</div>' +
+        '<div class="ordd-righe-wrap">' +
         '<table class="rpt-tab ordd-righe"><thead><tr>' +
             '<th style="width:47%">Articolo</th><th style="width:17%">Codice</th><th class="rpt-n" style="width:7%">Q.t&agrave;</th>' +
             '<th style="width:13%">Magazzino</th><th class="rpt-n" style="width:16%">P. totale</th>' +
@@ -1374,27 +1427,13 @@ function ordHtmlStampa(o, righeTotali) {
                     (o.firma_installazione ? '<img src="' + o.firma_installazione + '" alt="Firma">' : '<div class="ordd-firma-vuota"></div>') +
                     '<div class="ordd-firma-linea">Firma per accettazione</div></td>' +
             '</tr></table></td></tr></tbody>' : '') +
-        '<tfoot>' +
-        (Number(o.sconto) > 0 ?
-            '<tr class="ordd-sconto"><td colspan="3" class="ordd-caselle"></td><td class="ordd-tot-etich">Totale articoli</td>' +
-                '<td class="rpt-n">' + repEuroPdf(Number(o.totale) + Number(o.sconto)) + '</td></tr>' +
-            '<tr class="ordd-sconto"><td colspan="3" class="ordd-caselle"></td><td class="ordd-tot-etich">Sconto</td>' +
-                '<td class="rpt-n">&minus; ' + repEuroPdf(o.sconto) + '</td></tr>' : '') +
-        '<tr>' +
-            '<td colspan="3" class="ordd-caselle">' + casella(disponibile) + ' Disponibile &nbsp;&nbsp;&nbsp; ' + casella(daOrdinare) + ' Da ordinare</td>' +
-            '<td class="ordd-tot-etich">TOTALE</td>' +
-            '<td class="rpt-n ordd-tot">' + (o.totale !== null && o.totale !== undefined ? repEuroPdf(o.totale) : '') + '</td>' +
-        '</tr>' +
-        (!o.pagato && Number(o.acconto) > 0 ?
-            '<tr class="ordd-acconto"><td colspan="3" class="ordd-caselle"></td><td class="ordd-tot-etich">Acconto versato</td>' +
-                '<td class="rpt-n">&minus; ' + repEuroPdf(o.acconto) + '</td></tr>' +
-            '<tr class="ordd-saldo"><td colspan="3" class="ordd-caselle"></td><td class="ordd-tot-etich">DA SALDARE</td>' +
-                '<td class="rpt-n">' + repEuroPdf(Math.round((Number(o.totale) - Number(o.acconto)) * 100) / 100) + '</td></tr>' : '') +
-        '</tfoot></table>' +
+        '<tfoot>' + ordTotaliPdfHtml(o, casella(disponibile) + ' Disponibile &nbsp;&nbsp;&nbsp; ' + casella(daOrdinare) + ' Da ordinare') + '</tfoot></table>' +
+        (o.pagato ? '<div class="ordd-timbro-box">' + (ordTimbroPronto ? '<img src="' + ORD_TIMBRO_PAGATO + '" alt="PAGATO" class="ordd-timbro">'
+            : '<span class="ordd-timbro-testo">PAGATO</span>') + '</div>' : '') +
+        '</div>' +
         '<p class="ordd-condizioni">' + ORD_CONDIZIONI + '</p>' +
         '<table class="ordd-firme"><tr>' +
-            '<td class="ordd-firme-sx">' + (o.pagato ? (ordTimbroPronto ? '<img src="' + ORD_TIMBRO_PAGATO + '" alt="PAGATO" class="ordd-timbro">'
-                : '<span class="ordd-timbro-testo">PAGATO</span>') : '') + '</td>' +
+            '<td class="ordd-firme-sx"></td>' +
             '<td class="ordd-firma">' + (o.firma ? '<img src="' + o.firma + '" alt="Firma">' : '<div class="ordd-firma-vuota"></div>') +
                 '<div class="ordd-firma-linea">Firma per accettazione</div></td>' +
         '</tr></table>' +
@@ -1908,6 +1947,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('ord-sconto').addEventListener('input', ordAggiornaTotale);
     document.getElementById('ord-acconto').addEventListener('input', ordAggiornaTotale);
     document.getElementById('ord-pagato').addEventListener('change', ordAggiornaTotale);
+    Object.keys(ORD_CAMPI_METODO).forEach(id => document.getElementById(id).addEventListener('change', ordAggiornaTotale));
     const righe = document.getElementById('ord-righe');
     righe.addEventListener('input', ordCampoRigaCambiato);
     righe.addEventListener('change', ordCampoRigaCambiato);
