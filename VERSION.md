@@ -1,5 +1,8 @@
 # Changelog App Magazzino
 
+## v7.1.0 - 2026-11-06 (PRODUZIONE)
+telefonate + riga bloccata + agg automatico
+
 ## v7.0.4 - 2026-11-05 (PRODUZIONE)
 migliorie ordine 2
 
