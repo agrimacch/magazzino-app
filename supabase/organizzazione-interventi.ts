@@ -1,5 +1,5 @@
 // ============================================================
-// AGRIMAG - Edge Function "organizzazione-interventi" (v6.1.0)
+// AGRIMAG - Edge Function "organizzazione-interventi" (v7.1.0: telefonate TEL e NR a parte)
 // ------------------------------------------------------------
 // Sistema SEPARATO da assenze e "Invia a Telegram": bot e gruppo propri,
 // secrets propri. Se qui qualcosa si rompe, il resto continua a funzionare.
@@ -392,16 +392,20 @@ async function promemoria(corpo: { oggi?: string }) {
         ordine(a.tecnico_id) - ordine(b.tecnico_id) || a.turno.localeCompare(b.turno) || a.posizione - b.posizione);
 
     let meteo: Record<number, Meteo> = {};
-    try { meteo = await meteoRighe(righe, oggi); } catch (err) { console.log('Meteo non disponibile:', err); }
+    try { meteo = await meteoRighe(righe.filter((r) => r.tipo !== 'TEL'), oggi); } catch (err) { console.log('Meteo non disponibile:', err); }
 
     const intest = (r: Intervento) => '<b>' + esc(r.ora || (r.turno === 'P' ? 'pom.' : 'mat.')) + '</b> \u00B7 ' + esc(nome(r.tecnico_id)) +
         (r.tipo ? ' \u00B7 ' + esc(r.tipo) : '') + '\n   ' + esc(r.cliente || '');
     const conMeteo = (r: Intervento) => { const m = rigaMeteo(meteo[r.id]); return m ? '\n' + m : ''; };
     const pioggia = righe.filter((r) => meteo[r.id]?.stato === 'PIOGGIA');
     const daInviare: string[] = [], inviati: string[] = [], senza: string[] = [], attesaConf: string[] = [];
+    const nonRisponde: string[] = [], telefonate: string[] = [];   // v7.1.0
     const base = Deno.env.get('SUPABASE_URL') + '/functions/v1/organizzazione-interventi?wa=';
     for (const r of righe) {
-        if (r.esito === '?') attesaConf.push('\u2022 ' + intest(r) + conMeteo(r));
+        // Telefonate (TEL): niente promemoria al cliente, elenco a parte
+        if (r.tipo === 'TEL') telefonate.push('\u2022 ' + intest(r) + (r.esito === 'OK' ? '\n   \u2705 fatta' : r.esito === 'NR' ? '\n   \uD83D\uDCF5 non risponde' : ''));
+        else if (r.esito === '?') attesaConf.push('\u2022 ' + intest(r) + conMeteo(r));
+        else if (r.esito === 'NR') nonRisponde.push('\u2022 ' + intest(r) + conMeteo(r));
         else if (r.promemoria_at) inviati.push('\u2022 ' + intest(r) + conMeteo(r) + '\n   \u2705 inviato ' + esc(oraBreve(r.promemoria_at)));
         else if (!cellulare(r.cliente)) senza.push('\u2022 ' + intest(r) + conMeteo(r));
         else daInviare.push('\u2022 ' + intest(r) + conMeteo(r) + '\n   <a href="' + base + r.id + '.' + (await firmaLink(r.id)) +
@@ -424,6 +428,8 @@ async function promemoria(corpo: { oggi?: string }) {
         if (inviati.length) testo += '\n<b>\u2705 Gi\u00E0 inviati</b>\n' + inviati.join('\n') + '\n';
         if (senza.length) testo += '\n<b>\u26A0\uFE0F Senza cellulare</b> (scrivilo nel campo Cliente)\n' + senza.join('\n') + '\n';
         if (attesaConf.length) testo += '\n<b>\u2753 Da confermare</b> (esito ?, cliente da chiamare)\n' + attesaConf.join('\n') + '\n';
+        if (nonRisponde.length) testo += '\n<b>\uD83D\uDCF5 Non risponde</b> (esito NR)\n' + nonRisponde.join('\n') + '\n';
+        if (telefonate.length) testo += '\n<b>\uD83D\uDCDE Telefonate</b> (tipo TEL)\n' + telefonate.join('\n') + '\n';
     }
     testo += '\n<i>Meteo: MET Norway</i>';
 

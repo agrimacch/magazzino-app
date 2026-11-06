@@ -3,7 +3,7 @@
 // ----------------------------------------
 // Planning settimanale dei tecnici (lunedi' - sabato), dal 2 novembre 2026.
 // Per ogni tecnico e ogni giorno: 4 righe la mattina (M) e 4 il pomeriggio (P)
-// con ORA, TIPO (INT/SOP/MONT), ESITO (?/NR/OK/NO) e CLIENTE.
+// con ORA, TIPO (INT/SOP/MONT/TEL), ESITO (?/NR/OK/NO) e CLIENTE.
 // Le righe si possono colorare (rosso = assente, giallo, verde, blu):
 //   - una riga: dalla finestra di modifica
 //   - piu' righe: "Pennello" (scegli il colore e tocca le righe)
@@ -26,7 +26,7 @@ const INT_GIORNI = ['LUN', 'MAR', 'MER', 'GIO', 'VEN', 'SAB'];
 const INT_GIORNI_LUNGHI = ['LUNED&Igrave;', 'MARTED&Igrave;', 'MERCOLED&Igrave;', 'GIOVED&Igrave;', 'VENERD&Igrave;', 'SABATO'];
 const INT_MESI = ['GENNAIO', 'FEBBRAIO', 'MARZO', 'APRILE', 'MAGGIO', 'GIUGNO',
     'LUGLIO', 'AGOSTO', 'SETTEMBRE', 'OTTOBRE', 'NOVEMBRE', 'DICEMBRE'];
-const INT_TIPI = ['INT', 'SOP', 'MONT'];
+const INT_TIPI = ['INT', 'SOP', 'MONT', 'TEL'];   // TEL = telefonare al cliente (v7.1.0)
 const INT_ESITI = ['?', 'NR', 'OK', 'NO'];
 const INT_COLORI = {
     ROSSO: 'Rosso',
@@ -446,7 +446,8 @@ function intClassiRiga(r, turno, pos, data) {
     else if (data && intFesta(data)) classi.push('col-ROSSO', 'festa');
     if (turno === 'P' && pos === 1) classi.push('inizio-pom');
     if (r && r.esito === 'NO') classi.push('annullato');
-    if (intPuoModificare()) classi.push('cliccabile');
+    if (r && r.tipo === 'TEL') classi.push('tel');
+    if (intPuoModificare() || intHaContenuto(r)) classi.push('cliccabile');
     return classi.join(' ');
 }
 
@@ -461,7 +462,7 @@ function intRenderTabellaTecnico(t) {
             for (let pos = 1; pos <= 4; pos++) {
                 const r = intDati[intChiave(t.id, data, turno, pos)];
                 righe += '<tr class="' + intClassiRiga(r, turno, pos, data) + (intEMio(r, mioId) ? ' mia' : '') + '"' +
-                    (modificabile ? ' onclick="intClickRiga(' + t.id + ',\'' + data + '\',\'' + turno + '\',' + pos + ')"' : '') + '>';
+                    ((modificabile || intHaContenuto(r)) ? ' onclick="intClickRiga(' + t.id + ',\'' + data + '\',\'' + turno + '\',' + pos + ')"' : '') + '>';
                 if (turno === 'M' && pos === 1) {
                     righe += '<td rowspan="8" class="int-c-giorno' + (data === oggi ? ' oggi' : '') + '"' +
                         (modificabile ? ' onclick="event.stopPropagation(); intApriColora(' + t.id + ',\'' + data + '\')" title="Colora mattina / pomeriggio / giornata"' : '') + '>' +
@@ -532,8 +533,9 @@ function intRenderMobile(tecnici) {
                 if (r && r.esito === 'NO') classi.push('annullato');
                 if (!intHaContenuto(r)) classi.push('vuota');
                 if (intEMio(r, mioId)) classi.push('mia');
+                if (r && r.tipo === 'TEL') classi.push('tel');
                 html += '<div class="' + classi.join(' ') + '"' +
-                    (modificabile ? ' onclick="intClickRiga(' + t.id + ',\'' + data + '\',\'' + turno + '\',' + pos + ')"' : '') + '>';
+                    ((modificabile || intHaContenuto(r)) ? ' onclick="intClickRiga(' + t.id + ',\'' + data + '\',\'' + turno + '\',' + pos + ')"' : '') + '>';
                 if (intHaContenuto(r)) {
                     html += '<div class="int-m-riga-alto">' +
                         '<span class="int-m-ora">' + intEsc(r.ora || '--') + '</span>' +
@@ -579,7 +581,14 @@ function intGiornoRicordato(settimana) {
 // CLIC SU UNA RIGA: pennello oppure modifica
 // ========================================
 function intClickRiga(tid, data, turno, pos) {
-    if (!intPuoModificare()) return;
+    const r = intDati[intChiave(tid, data, turno, pos)];
+    if (!intPuoModificare()) {
+        // Tecnici (solo lettura): telefonata da fare -> finestra OK / NR; altrimenti i dati della richiesta
+        if (!intHaContenuto(r)) return;
+        if (r.tipo === 'TEL' && r.esito !== 'NO') intApriChiamata(r.id);
+        else intApriInfo(r.id);
+        return;
+    }
     if (intPennello) {
         intDipingi([{ tid: tid, data: data, turno: turno, pos: pos }], intPennello === 'GOMMA' ? null : intPennello);
     } else {
@@ -687,6 +696,12 @@ function intApriModifica(tid, data, turno, pos) {
     intSelezionaScelta('int-edit-esito', r && r.esito ? r.esito : '');
     intSelezionaScelta('int-edit-colore', r && r.colore ? r.colore : '');
     document.getElementById('int-edit-svuota').classList.toggle('hidden', !r);
+    // Telefonata gia' salvata: pulsante per registrare OK / NR (come fa il tecnico)
+    const telBtn = document.getElementById('int-edit-telefonata');
+    if (telBtn) {
+        telBtn.classList.toggle('hidden', !(r && r.id && r.tipo === 'TEL'));
+        telBtn.onclick = r && r.id ? () => intApriChiamata(r.id) : null;
+    }
     intRenderPromemoriaFinestra(r);
     intRichiestaScelta = r && r.richiesta_id ? (intRichiesteMappa[r.richiesta_id] || { id: r.richiesta_id, cliente: '' }) : null;
     intNascondiSuggRichieste();
@@ -769,12 +784,12 @@ async function intSvuotaRiga() {
     await intCaricaSettimana();
 }
 
-// Riga con esito "?" (cliente non ancora chiamato) che viene svuotata:
+// Riga con esito "?" (cliente non ancora chiamato) o NR (non risponde) che viene svuotata:
 // nessun avviso Telegram. Tolgo la riga anche da "gia' inviati", cosi'
 // "Invia a Telegram" non la segnala come intervento cancellato.
 async function intDimenticaSeInAttesa(c, dopo) {
     const prima = c.riga;
-    if (!prima || prima.esito !== '?' || intHaContenuto(dopo)) return;
+    if (!prima || (prima.esito !== '?' && prima.esito !== 'NR') || intHaContenuto(dopo)) return;
     try {
         const { error } = await supabaseClient.from('interventi_inviati').delete()
             .eq('tecnico_id', c.tid).eq('data', c.data).eq('turno', c.turno).eq('posizione', c.pos);
@@ -808,7 +823,7 @@ async function intCaricaRichiesteAgganciate(righe) {
     if (!ids.length) return;
     try {
         const { data, error } = await supabaseClient.from('richieste_robot')
-            .select('id, cliente, indirizzo, paese, telefono, tipo, urgenza, esito, lat, lon, data').in('id', ids);
+            .select('id, cliente, indirizzo, paese, telefono, tipo, urgenza, esito, lat, lon, data, note, operatore').in('id', ids);
         if (error) throw error;
         (data || []).forEach(x => { intRichiesteMappa[x.id] = x; });
     } catch (e) {
@@ -842,7 +857,9 @@ function intClienteHtml(r) {
     // Senza paese scritto ma agganciata a una richiesta: segnaposto con la posizione
     const pin = (!conMappa && ric && typeof rrMapsUrl === 'function')
         ? ' <a class="int-link-paese" href="' + intEsc(rrMapsUrl(ric)) + '" target="_blank" rel="noopener"' + stop + ' title="Apri in Google Maps">&#128205;</a>' : '';
-    return html + pin + (r.richiesta_id ? ' <span class="int-link-agganciata" title="Agganciato a una richiesta interventi robot">&#128279;</span>' : '');
+    return html + pin + (r.richiesta_id ? ' <span class="int-link-agganciata" title="Dati della richiesta (data, cliente, note)"' +
+        (r.id ? ' onclick="event.stopPropagation(); intApriInfo(' + r.id + ')"' : '') + '>&#128279;</span>' : '') +
+        (r.tipo === 'TEL' && (r.chiamata_note || r.chiamata_tentativi) ? ' <span class="int-tel-segno" title="Telefonata registrata">&#128172;</span>' : '');
 }
 
 async function intCaricaCandidati(forza) {
@@ -925,6 +942,177 @@ function intRenderCollegata() {
         (x.indirizzo ? ' &middot; ' + intEsc(x.indirizzo) : '') + (x.urgenza ? ' &middot; U' + x.urgenza : '') + '</span>' +
         '<button type="button" onclick="intScollegaRichiesta()">Scollega</button>';
     box.classList.remove('hidden');
+}
+
+// ========================================
+// DATI DELLA RICHIESTA (v7.1.0)
+// Toccando un cliente (tecnici: tutta la riga; tutti: l'icona della catena)
+// si apre una finestra con data della chiamata, cliente e note della richiesta.
+// ========================================
+function intRigaPerId(id) {
+    return Object.values(intDati).find(x => x.id === id) || null;
+}
+
+function intNormNome(t) {
+    return typeof rrNorm === 'function' ? rrNorm(t) : String(t || '').toUpperCase();
+}
+
+function intDataItaliana(iso) {
+    if (!iso) return '';
+    const p = String(iso).slice(0, 10).split('-');
+    return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : iso;
+}
+
+// Blocco comune: data della chiamata, cliente, note (+ telefonata gia' registrata)
+function intHtmlDatiCliente(r) {
+    const ric = r.richiesta_id ? intRichiesteMappa[r.richiesta_id] : null;
+    let html = '<div class="int-info-righe">';
+    if (ric && ric.data) {
+        html += '<div class="int-info-voce"><span class="int-info-et">&#128197; Data chiamata</span><span>' +
+            intDataItaliana(ric.data) + (ric.operatore ? ' <small>(' + intEsc(ric.operatore) + ')</small>' : '') + '</span></div>';
+    } else {
+        const d = intDaIso(r.data);
+        html += '<div class="int-info-voce"><span class="int-info-et">&#128197; Nel planning</span><span>' +
+            INT_GIORNI_LUNGHI[(d.getDay() + 6) % 7] + ' ' + d.getDate() + ' ' + INT_MESI[d.getMonth()] +
+            (r.ora ? ' &middot; ore ' + intEsc(r.ora) : '') + '</span></div>';
+    }
+    html += '<div class="int-info-voce"><span class="int-info-et">&#128100; Cliente</span><span class="int-info-cliente">' +
+        // Nome della richiesta in grassetto solo se nel planning e' scritto diverso
+        (ric && intNormNome(r.cliente).indexOf(intNormNome(ric.cliente)) !== 0 ? '<strong>' + intEsc(ric.cliente) + '</strong><br>' : '') +
+        intClienteHtml(Object.assign({}, r, { richiesta_id: null })) + '</span></div>';
+    html += '<div class="int-info-voce"><span class="int-info-et">&#128221; Note</span><span class="int-info-note">' +
+        (ric ? (ric.note ? intEsc(ric.note) : '<em>nessuna nota</em>') : '<em>riga non agganciata a una richiesta</em>') + '</span></div>';
+    html += '</div>';
+    return html;
+}
+
+function intHtmlTelefonata(r) {
+    let html = '';
+    const tentativi = String(r.chiamata_tentativi || '').split('\n').filter(Boolean);
+    if (tentativi.length) {
+        html += '<div class="int-tel-tentativi"><strong>&#128245; Non ha risposto</strong>' +
+            tentativi.map(t => '<span>' + intEsc(t) + '</span>').join('') + '</div>';
+    }
+    if (r.esito === 'OK' && r.chiamata_note) {
+        const chi = (typeof userInitials !== 'undefined' && userInitials[r.chiamata_da]) || r.chiamata_da || '';
+        html += '<div class="int-tel-fatta"><strong>&#9989; Chiamata eseguita' + (r.chiamata_at ? ' il ' + intDataOra(r.chiamata_at) : '') +
+            (chi ? ' (' + intEsc(chi) + ')' : '') + '</strong><span>' + intEsc(r.chiamata_note) + '</span></div>';
+    }
+    return html;
+}
+
+function intApriInfo(id) {
+    const r = intRigaPerId(id);
+    if (!r) return;
+    document.getElementById('int-info-dove').innerHTML = intDescrizioneCasella(r.tecnico_id, r.data, r.turno, null) +
+        (r.tipo ? ' &middot; ' + intEsc(r.tipo) : '') + (r.esito ? ' &middot; esito ' + intEsc(r.esito) : '');
+    document.getElementById('int-info-corpo').innerHTML = intHtmlDatiCliente(r) + (r.tipo === 'TEL' ? intHtmlTelefonata(r) : '');
+    document.getElementById('int-info-modal').classList.remove('hidden');
+}
+
+function intChiudiInfo() {
+    document.getElementById('int-info-modal').classList.add('hidden');
+}
+
+// ========================================
+// TELEFONATE (tipo TEL, v7.1.0)
+// Il tecnico tocca la riga TEL e sceglie:
+//   OK = ha risposto -> scrive cosa si e' detto con il cliente; parte da solo il Telegram "Chiamata eseguita"
+//   NR = non risponde -> si segna data e ora del tentativo (si puo' richiamare piu' volte)
+// Salvataggio con la funzione Supabase intervento_chiamata (script supabase/telefonate-setup.sql):
+// funziona anche per il ruolo tecnico, che il planning lo puo' solo leggere.
+// L'esito passa alla richiesta agganciata come per gli altri tipi (OK = chiusa).
+// ========================================
+let intChiamata = null;          // { id, scelta: null / 'OK' / 'NR' }
+
+function intAdessoLocale() {
+    const d = new Date();
+    return intIso(d) + 'T' + intPad(d.getHours()) + ':' + intPad(d.getMinutes());
+}
+
+function intApriChiamata(id) {
+    const r = intRigaPerId(id);
+    if (!r) return;
+    intChiudiModifica();
+    intChiamata = { id: id, scelta: null };
+    document.getElementById('int-tel-dove').innerHTML = intDescrizioneCasella(r.tecnico_id, r.data, r.turno, null) +
+        (r.ora ? ' &middot; ore ' + intEsc(r.ora) : '');
+    document.getElementById('int-tel-info').innerHTML = intHtmlDatiCliente(r) + intHtmlTelefonata(r);
+    const fatta = r.esito === 'OK';
+    document.getElementById('int-tel-scelte').classList.toggle('hidden', fatta);
+    document.getElementById('int-tel-ok-box').classList.add('hidden');
+    document.getElementById('int-tel-nr-box').classList.add('hidden');
+    document.getElementById('int-tel-salva').classList.add('hidden');
+    document.getElementById('int-tel-pulsanti').classList.add('solo-chiudi');
+    document.getElementById('int-tel-note').value = '';
+    document.getElementById('int-tel-quando').value = intAdessoLocale();
+    document.querySelectorAll('#int-tel-scelte button').forEach(b => b.classList.remove('attivo'));
+    document.getElementById('int-tel-modal').classList.remove('hidden');
+}
+
+function intChiudiChiamata() {
+    document.getElementById('int-tel-modal').classList.add('hidden');
+    intChiamata = null;
+}
+
+function intChiamataScegli(scelta) {
+    if (!intChiamata) return;
+    intChiamata.scelta = scelta;
+    document.querySelectorAll('#int-tel-scelte button').forEach(b => b.classList.toggle('attivo', b.dataset.valore === scelta));
+    document.getElementById('int-tel-ok-box').classList.toggle('hidden', scelta !== 'OK');
+    document.getElementById('int-tel-nr-box').classList.toggle('hidden', scelta !== 'NR');
+    const btn = document.getElementById('int-tel-salva');
+    btn.innerHTML = scelta === 'OK' ? '&#9989; Salva e invia' : '&#128245; Salva NR';
+    btn.classList.remove('hidden');
+    document.getElementById('int-tel-pulsanti').classList.remove('solo-chiudi');
+    if (scelta === 'OK') setTimeout(() => document.getElementById('int-tel-note').focus(), 50);
+    else document.getElementById('int-tel-quando').value = intAdessoLocale();
+}
+
+async function intSalvaChiamata() {
+    if (!intChiamata || !intChiamata.scelta) return;
+    const c = intChiamata;
+    const note = String(document.getElementById('int-tel-note').value || '').trim();
+    const quandoTxt = document.getElementById('int-tel-quando').value;
+    if (c.scelta === 'OK' && !note) {
+        showCustomAlert('Scrivi <strong>cosa vi siete detti tu e il cliente</strong>.', 'Telefonata', '&#9888;&#65039;');
+        return;
+    }
+    const quando = c.scelta === 'NR' && quandoTxt ? new Date(quandoTxt) : new Date();
+    const btn = document.getElementById('int-tel-salva');
+    btn.disabled = true;
+    try {
+        const { error } = await supabaseClient.rpc('intervento_chiamata', {
+            p_id: c.id,
+            p_esito: c.scelta,
+            p_note: c.scelta === 'OK' ? note.toUpperCase() : null,
+            p_quando: isNaN(quando.getTime()) ? new Date().toISOString() : quando.toISOString(),
+            p_chi: intIniziali() || null
+        });
+        if (error) {
+            const msg = String(error.message || error);
+            const extra = /intervento_chiamata|function|schema cache/i.test(msg)
+                ? '<br><br>Hai eseguito su Supabase lo script <strong>supabase/telefonate-setup.sql</strong>?' : '';
+            showCustomAlert('Telefonata non salvata:<br>' + intEsc(msg) + extra, 'Errore', '&#10060;');
+            return;
+        }
+        intChiudiChiamata();
+        if (c.scelta === 'OK') {
+            const { data, error: errTg } = await supabaseClient.functions.invoke('notifica-interventi', {
+                body: { chiamata: c.id, iniziali: intIniziali() }
+            });
+            if (!errTg && data && data.ok) {
+                if (typeof rrToast === 'function') rrToast('&#9989; Telefonata salvata e mandata nel gruppo Telegram');
+            } else {
+                await intMostraErroreTelegram(data, errTg);
+            }
+        } else if (typeof rrToast === 'function') {
+            rrToast('&#128245; Segnato: non risponde. Puoi richiamare quando vuoi.');
+        }
+        await intCaricaSettimana();
+    } finally {
+        btn.disabled = false;
+    }
 }
 
 // ========================================
@@ -1269,7 +1457,7 @@ async function intInviaPromemoria(id) {
 function intRenderPromemoriaFinestra(r) {
     const box = document.getElementById('int-edit-promemoria');
     if (!box) return;
-    if (!r || !intHaContenuto(r) || r.esito === 'NO') { box.classList.add('hidden'); return; }
+    if (!r || !intHaContenuto(r) || r.esito === 'NO' || r.tipo === 'TEL') { box.classList.add('hidden'); return; }
     const num = intCellulare(r.cliente);
     let html = '';
     if (!num) {
@@ -1300,7 +1488,8 @@ async function intCaricaPromemoria() {
         if (!resTec.error) intTecnici = resTec.data || [];
     }
     const ordine = id => { const t = intTecnici.find(x => x.id === id); return t ? (t.ordine || 0) : 999; };
-    const righe = (data || []).filter(r => intHaContenuto(r) && r.esito !== 'NO').sort((a, b) =>
+    // Telefonate (TEL): niente promemoria al cliente
+    const righe = (data || []).filter(r => intHaContenuto(r) && r.esito !== 'NO' && r.tipo !== 'TEL').sort((a, b) =>
         ordine(a.tecnico_id) - ordine(b.tecnico_id) || a.turno.localeCompare(b.turno) || a.posizione - b.posizione);
     intPromemoriaRighe = righe;
     intPromemoriaGiorno = giorno;
@@ -1390,7 +1579,7 @@ function intRigheMeteo() {
     const limite = intPiuGiorni(oggi, 9);
     const viste = {};
     return Object.values(intDati).concat(intPromemoriaRighe).filter(r => {
-        if (!r || viste[r.id] || !intHaContenuto(r) || r.esito === 'NO' || r.data < oggi || r.data > limite) return false;
+        if (!r || viste[r.id] || !intHaContenuto(r) || r.esito === 'NO' || r.tipo === 'TEL' || r.data < oggi || r.data > limite) return false;
         viste[r.id] = true;
         return true;
     });
@@ -1446,8 +1635,10 @@ function intPioggiaNelGiorno(data, tid) {
 // e manda UN riepilogo con lo stato finale delle righe.
 // Il messaggio e' raggruppato per tecnico: "Interventi aggiunti per ...", "modificati" (ora / tipo / cliente),
 // "riprogrammati" (tolto l'esito NO), "cancellati" (esito NO oppure riga svuotata).
-// Esito "?" = cliente non ancora chiamato: la riga resta in attesa e parte quando l'esito cambia.
-// NON generano avvisi: colori, esiti NR/OK, giorni gia' passati.
+// Esito "?" (cliente non ancora chiamato) e NR (non risponde, 6/11/2026): la riga resta in attesa
+// e parte quando l'esito cambia (es. NR -> OK).
+// NON generano avvisi: colori, esito OK, giorni gia' passati.
+// Telefonate (tipo TEL) chiuse con OK: messaggio "Chiamata eseguita" che parte da solo (vedi intSalvaChiamata).
 // La stessa regola e' scritta anche in supabase/notifica-interventi.ts: se si cambia, cambiarla in tutti e due.
 // ========================================
 const INT_CAMPI_NOTIFICA = [
@@ -1464,6 +1655,12 @@ const INT_ETICHETTE_EVENTO = {
 };
 let intDaInviare = [];          // modifiche in attesa di essere mandate
 let intContaTimer = null;
+
+// Riga in attesa: esito "?" (cliente da chiamare) o NR (non risponde). Non va su Telegram finche' l'esito non cambia.
+// Stessa regola in supabase/notifica-interventi.ts (inAttesa).
+function intInAttesa(r) {
+    return intHaContenuto(r) && (r.esito === '?' || r.esito === 'NR');
+}
 
 function intTipoEvento(prima, dopo) {
     const haPrima = intHaContenuto(prima);
@@ -1496,8 +1693,8 @@ async function intCalcolaDaInviare() {
     new Set(Object.keys(mappaAtt).concat(Object.keys(mappaInv))).forEach(k => {
         const prima = mappaInv[k];
         const dopo = mappaAtt[k];
-        // Esito "?" = cliente non ancora chiamato: resta in attesa
-        if (intHaContenuto(dopo) && dopo.esito === '?') { inAttesa++; return; }
+        // Esito "?" (cliente non ancora chiamato) o NR (non risponde): resta in attesa, non si manda
+        if (intInAttesa(dopo)) { inAttesa++; return; }
         const tipo = intTipoEvento(prima, dopo);
         if (tipo) elenco.push({ tipo: tipo, riga: intHaContenuto(dopo) ? dopo : prima });
     });
@@ -1527,7 +1724,7 @@ function intAggiornaDaInviare() {
             else b.innerHTML = '&#128232; Invia a Telegram' + (n ? ' <span class="int-invia-num">' + n + '</span>' : '');
             b.classList.toggle('da-inviare', n > 0);
             b.title = (n ? n + (n === 1 ? ' modifica da inviare' : ' modifiche da inviare') : 'Nessuna modifica da inviare') +
-                (ris.inAttesa ? ' - ' + ris.inAttesa + ' in attesa (esito ?)' : '');
+                (ris.inAttesa ? ' - ' + ris.inAttesa + ' in attesa (esito ? o NR)' : '');
         });
     }, 300);
 }
@@ -1540,7 +1737,7 @@ async function intInviaTelegram() {
     if (elenco.length === 0) {
         showCustomAlert('Nessuna modifica da inviare: il gruppo Telegram &egrave; gi&agrave; aggiornato.' +
             (ris.inAttesa ? '<br><br>' + ris.inAttesa + (ris.inAttesa === 1 ? ' riga &egrave;' : ' righe sono') +
-                ' in attesa con esito <strong>?</strong>: partiranno quando cambi l\'esito.' : ''),
+                ' in attesa con esito <strong>?</strong> o <strong>NR</strong>: partiranno quando cambi l\'esito.' : ''),
             'Invia a Telegram', '&#9989;');
         intAggiornaDaInviare();
         return;
@@ -1553,7 +1750,7 @@ async function intInviaTelegram() {
             intNomeTecnico(e.riga.tecnico_id) + ' ' + (e.riga.ora || '') + ' ' + (e.riga.cliente || '');
     });
     if (elenco.length > 15) righe.push('... e altre ' + (elenco.length - 15));
-    if (ris.inAttesa) righe.push('\n(' + ris.inAttesa + ' in attesa con esito ? : non vengono inviate)');
+    if (ris.inAttesa) righe.push('\n(' + ris.inAttesa + ' in attesa con esito ? o NR: non vengono inviate)');
     if (!window.confirm('Inviare al gruppo Telegram "Interventi esterni" ' + elenco.length +
         (elenco.length === 1 ? ' modifica' : ' modifiche') + '?\n\n' + righe.join('\n'))) {
         return;
@@ -1657,7 +1854,8 @@ const INT_COLONNE_ARCHIVIO = [
     { titolo: 'TIPO', larghezza: 8 },
     { titolo: 'ESITO', larghezza: 8 },
     { titolo: 'CLIENTE', larghezza: 50 },
-    { titolo: 'COLORE', larghezza: 10 }
+    { titolo: 'COLORE', larghezza: 10 },
+    { titolo: 'TELEFONATA', larghezza: 50 }
 ];
 
 function intRigheArchivio(interventi, tecnici) {
@@ -1684,7 +1882,8 @@ function intRigheArchivio(interventi, tecnici) {
                 r.tipo || '',
                 r.esito || '',
                 r.cliente || '',
-                r.colore || ''
+                r.colore || '',
+                [r.chiamata_tentativi ? String(r.chiamata_tentativi).replace(/\n/g, ' / ') : '', r.chiamata_note || ''].filter(Boolean).join(' - ')
             ],
             colore: r.colore
         };
@@ -1811,6 +2010,12 @@ window.intSpostaSettimana = intSpostaSettimana;
 window.intVaiOggi = intVaiOggi;
 window.intScegliGiorno = intScegliGiorno;
 window.intClickRiga = intClickRiga;
+window.intApriInfo = intApriInfo;
+window.intChiudiInfo = intChiudiInfo;
+window.intApriChiamata = intApriChiamata;
+window.intChiudiChiamata = intChiudiChiamata;
+window.intChiamataScegli = intChiamataScegli;
+window.intSalvaChiamata = intSalvaChiamata;
 window.intScegliPennello = intScegliPennello;
 window.intApriModifica = intApriModifica;
 window.intChiudiModifica = intChiudiModifica;

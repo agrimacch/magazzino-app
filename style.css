@@ -2148,3 +2148,46 @@ button, input, textarea, select, label, span, div, td, th, p, h1, h2, h3, h4 {
         font-size: 13px;
     }
 }
+/* ---------- Aggiornamento disponibile (v7.1.0) ---------- */
+.agg-barra {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 10050;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 10px 44px 10px 14px;
+    background: #1e40af;
+    color: white;
+    font-size: 14px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.25);
+}
+
+.agg-barra.hidden { display: none; }
+
+.agg-btn {
+    background: white;
+    color: #1e40af;
+    border: none;
+    border-radius: 8px;
+    padding: 7px 14px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.agg-chiudi {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: transparent;
+    border: none;
+    color: white;
+    font-size: 24px;
+    line-height: 1;
+    cursor: pointer;
+}

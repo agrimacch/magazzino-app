@@ -823,3 +823,43 @@ a.int-link-paese {
 .org-mappa-sotto {
     margin-top: 18px;
 }
+
+/* ---------- v7.1.0: telefonate (TEL), OK nascoste, intestazioni bloccate ---------- */
+.rr-tipo-TEL { background: #f3e8ff; color: #6b21a8; }
+
+.rr-tabella-box { overscroll-behavior: contain; }
+
+/* La regola generale "table { overflow: hidden }" (style.css) impediva alle intestazioni di restare bloccate */
+.rr-tabella-box .rr-tabella { overflow: visible; }
+
+.rr-nascondi-ok {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0;
+    padding: 8px 12px;
+    font-size: 14px;
+    font-weight: 600;
+    background: #f0fdf4;
+    border: 2px solid var(--green-light);
+    border-radius: var(--border-radius-sm);
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.rr-strumenti .rr-nascondi-ok input {
+    width: 18px;
+    height: 18px;
+    margin: 0;
+    padding: 0;
+}
+
+.rr-conta-ok { color: #15803d; font-weight: 600; }
+
+.rr-nota-tel { display: block; margin-top: 4px; }
+
+.org-box.telefonate { border-color: #a855f7; }
+.org-box.telefonate .org-box-titolo { background: #7e22ce; }
+
+.int-link-agganciata[onclick] { cursor: pointer; font-size: 14px; }
+.int-tel-segno { font-size: 13px; }

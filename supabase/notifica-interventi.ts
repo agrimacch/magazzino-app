@@ -1,5 +1,5 @@
 // ============================================================
-// AGRIMAG - Edge Function "notifica-interventi" (v5.1.0)
+// AGRIMAG - Edge Function "notifica-interventi" (v7.1.0)
 // ------------------------------------------------------------
 // Pulsante "Invia a Telegram" degli Interventi Esterni.
 // Confronta il planning (tabella interventi, da OGGI in avanti) con
@@ -10,8 +10,10 @@
 //   "Interventi modificati per ..."    (cambia ora / tipo / cliente)
 //   "Interventi riprogrammati per ..." (esito NO tolto)
 //   "Interventi cancellati per ..."    (esito NO oppure riga svuotata)
-// Le righe con esito "?" (cliente non ancora chiamato) restano in attesa:
-// partono quando l'esito cambia. Colori ed esiti NR/OK non generano avvisi.
+// Le righe con esito "?" (cliente non ancora chiamato) o NR (non risponde) restano
+// in attesa: partono quando l'esito cambia. Colori ed esito OK non generano avvisi.
+// v7.1.0: { chiamata: id } = messaggio "Chiamata eseguita" di una telefonata (tipo TEL)
+// chiusa con OK. Puo' mandarlo anche il ruolo tecnico (funzione puo_registrare_chiamata).
 // Poi aggiorna interventi_inviati (la "fotografia" di cosa e' stato mandato).
 // Tutto con i permessi dell'utente collegato: deve essere admin o operatore.
 //
@@ -65,9 +67,9 @@ function risposta(dati: unknown, stato = 200): Response {
     });
 }
 
-function esc(testo: unknown): string {
+function esc(testo: unknown, max = 200): string {
     return String(testo ?? '')
-        .slice(0, 200)
+        .slice(0, max)
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;');
@@ -85,9 +87,9 @@ function giornoCorto(iso: string): string {
     return GIORNI_CORTI[d.getUTCDay()] + ' ' + p[2] + ' ' + MESI_CORTI[p[1] - 1];
 }
 
-// Esito "?" = cliente non ancora chiamato: la riga resta in attesa
+// Esito "?" (cliente non ancora chiamato) o NR (non risponde): la riga resta in attesa
 function inAttesa(r?: Riga | null): boolean {
-    return haContenuto(r) && r!.esito === '?';
+    return haContenuto(r) && (r!.esito === '?' || r!.esito === 'NR');
 }
 
 function chiave(r: Riga): string {
@@ -210,22 +212,59 @@ Deno.serve(async (req: Request) => {
     const utente = await utenteRes.json();
     const email = utente.email || 'utente';
 
-    // 2. Puo' modificare gli interventi? (admin / operatore)
-    const permessoRes = await fetch(supabaseUrl + '/rest/v1/rpc/puo_modificare_interventi', {
-        method: 'POST',
-        headers: { ...intestazioni, 'Content-Type': 'application/json' },
-        body: '{}',
-    });
-    const permesso = permessoRes.ok ? await permessoRes.json().catch(() => false) : false;
-    if (permesso !== true) return risposta({ ok: false, errore: 'Permessi insufficienti' }, 403);
-
-    let corpo: { prova?: boolean; invia?: boolean; iniziali?: string } = {};
+    let corpo: { prova?: boolean; invia?: boolean; iniziali?: string; chiamata?: number } = {};
     try {
         corpo = await req.json();
     } catch (_) {
         return risposta({ ok: false, errore: 'Richiesta non valida' }, 400);
     }
     const iniziali = corpo.iniziali ? String(corpo.iniziali).slice(0, 5) : '';
+
+    // 2. Permessi: riepilogo e prova = admin / operatore; telefonata eseguita = anche tecnico
+    const regola = corpo.chiamata ? 'puo_registrare_chiamata' : 'puo_modificare_interventi';
+    const permessoRes = await fetch(supabaseUrl + '/rest/v1/rpc/' + regola, {
+        method: 'POST',
+        headers: { ...intestazioni, 'Content-Type': 'application/json' },
+        body: '{}',
+    });
+    const permesso = permessoRes.ok ? await permessoRes.json().catch(() => false) : false;
+    if (permesso !== true) {
+        return risposta({ ok: false, errore: 'Permessi insufficienti' + (corpo.chiamata && !permessoRes.ok ? ' (eseguito telefonate-setup.sql?)' : '') }, 403);
+    }
+
+    // ---- Telefonata eseguita (tipo TEL chiusa con OK) ----
+    if (corpo.chiamata) {
+        try {
+            const db = creaDb(supabaseUrl, intestazioni);
+            const id = Number(corpo.chiamata);
+            const righe = await db.leggiTutto('interventi?select=*&id=eq.' + id);
+            const r = righe[0];
+            if (!r) return risposta({ ok: false, errore: 'Telefonata non trovata nel planning' }, 404);
+            if (r.tipo !== 'TEL' || r.esito !== 'OK') return risposta({ ok: false, errore: 'La telefonata non risulta chiusa con OK' }, 400);
+            const tecnici = await db.leggiTutto('tecnici?select=id,nome&id=eq.' + r.tecnico_id);
+            const nome = tecnici[0]?.nome || 'TECNICO';
+            let cliente = r.cliente || '';
+            if (r.richiesta_id) {
+                const ric = await db.leggiTutto('richieste_robot?select=cliente,note&id=eq.' + r.richiesta_id).catch(() => []);
+                if (ric[0]?.cliente) cliente = ric[0].cliente + (r.cliente && r.cliente.indexOf(ric[0].cliente) < 0 ? ' - ' + r.cliente : '');
+            }
+            const quando = r.chiamata_at ? new Date(r.chiamata_at).toLocaleString('it-IT', {
+                timeZone: 'Europe/Rome', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
+            }) : '';
+            const tentativi = String(r.chiamata_tentativi || '').split('\n').filter(Boolean).length;
+            const testo = FURGONE + ' <b>AGRIMAG - Interventi esterni</b>\n' +
+                '\uD83D\uDCDE <b>Chiamata eseguita da ' + esc(nome) + '</b>\n' +
+                CALENDARIO + ' ' + giornoCorto(r.data) + PUNTO + (r.turno === 'P' ? 'pom.' : 'mat.') +
+                (r.ora ? PUNTO + 'ore <b>' + esc(r.ora) + '</b>' : '') + (quando ? PUNTO + 'chiamato il ' + esc(quando) : '') + '\n' +
+                '      ' + esc(cliente) + '\n' +
+                (tentativi ? '      <i>dopo ' + tentativi + (tentativi === 1 ? ' tentativo' : ' tentativi') + ' senza risposta</i>\n' : '') +
+                '\uD83D\uDCAC ' + esc(r.chiamata_note || '-', 1500) + '\n' + firma(email, iniziali);
+            const esito = await inviaTelegram(testo);
+            return risposta(esito, esito.ok ? 200 : 500);
+        } catch (err) {
+            return risposta({ ok: false, errore: String((err as Error)?.message || err) }, 500);
+        }
+    }
 
     // ---- Messaggio di prova ----
     if (corpo.prova) {
@@ -263,7 +302,7 @@ Deno.serve(async (req: Request) => {
         chiavi.forEach((k) => {
             const prima = mappaInviati[k];
             const dopo = mappaAttuali[k];
-            if (inAttesa(dopo)) return;     // esito "?": non si manda e non si aggiorna la foto
+            if (inAttesa(dopo)) return;     // esito "?" o NR: non si manda e non si aggiorna la foto
             if (uguali(prima, dopo)) return;
             const tipo = tipoEvento(prima, dopo);
             const rif = (haContenuto(dopo) ? dopo : prima)!;

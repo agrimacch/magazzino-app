@@ -363,19 +363,27 @@ Percorso: Dashboard &rarr; Assistenza &rarr; Interventi Esterni. Modificano **ad
 ### 8bis.2 Planning della settimana
 - **PC**: una tabella per tecnico (GIORNO, ORA, TIPO, ESITO, CLIENTE), 4 righe la mattina e 4 il pomeriggio (separate da una linea tratteggiata). Pulsanti *Settimane*, *Prec.*, *Oggi*, *Succ.*
 - **Telefono**: un giorno alla volta (linguette LUN...SAB), parte dal giorno di oggi.
-- **Modificare una riga**: toccarla. Ora (testo libero), Tipo (INT / SOP / MONT), Esito (? / NR / OK / NO), Cliente, Colore. **NO** = intervento annullato (riga barrata). *Svuota riga* cancella testo e colore.
+- **Modificare una riga**: toccarla. Ora (testo libero), Tipo (INT / SOP / MONT / **TEL** = telefonare al cliente), Esito (? / NR / OK / NO), Cliente, Colore. **NO** = intervento annullato (riga barrata). *Svuota riga* cancella testo e colore.
 - **Colori** (rosso = assente, giallo, verde, blu):
   - una riga: dalla finestra di modifica;
   - pi&ugrave; righe: **Pennello** (scegli il colore e tocca le righe; la X = gomma, toglie il colore);
   - mezza giornata / giornata intera: toccare la casella del giorno (da telefono "Colora").
 - **Tecnici**: pulsante *Tecnici* nella settimana. "Tutte le settimane" = compare sempre; altrimenti "In questa settimana" lo aggiunge solo alla settimana aperta. Si pu&ograve; rinominare e disattivare (resta dove ha gi&agrave; interventi). Per eliminarlo del tutto: SQL su Supabase (vedi sotto).
 - Le modifiche dei colleghi compaiono da sole (tempo reale).
+- **Tecnici (v7.1.0)**: toccando una riga (o, per tutti, l'icona &#128279; di una riga agganciata) si apre la finestra **Richiesta del cliente**
+  con data della chiamata, cliente (telefono e paese cliccabili) e note della richiesta. Se la riga non &egrave; agganciata a una richiesta lo dice.
+- **Telefonate TEL (v7.1.0)**: riga con tipo TEL = il tecnico deve chiamare il cliente. Il tecnico tocca la riga e sceglie
+  **&#9989; Ha risposto (OK)**: scrive cosa si &egrave; detto con il cliente (campo &quot;Cosa ci siamo detti io e il cliente&quot;) e, salvando, arriva **da solo** nel gruppo Telegram il messaggio "Chiamata eseguita";
+  oppure **&#128245; Non risponde (NR)**: viene segnata data e ora del tentativo (si pu&ograve; richiamare pi&ugrave; volte, i tentativi restano in elenco).
+  Admin e operatori lo fanno dal pulsante *Registra la telefonata* nella finestra della riga. L'esito passa alla richiesta agganciata come per gli altri tipi
+  (OK = chiusa). Sulla riga compare &#128172; quando la telefonata &egrave; registrata; nell'Excel di fine anno c'&egrave; la colonna TELEFONATA.
+  Le telefonate non hanno promemoria WhatsApp n&eacute; meteo. Serve lo script `supabase/telefonate-setup.sql`.
 
 ### 8bis.3 Telegram: pulsante "Invia a Telegram"
 - Salvando le righe **non parte nulla**: le modifiche si accumulano e il pulsante &#128232; *Invia a Telegram* diventa azzurro con il numero di modifiche.
 - Premendolo (anteprima + conferma) parte **un solo messaggio** nel gruppo "Interventi esterni" (bot @interventiesterni_bot), raggruppato per tecnico: *Interventi aggiunti per...*, *modificati* (ora/tipo/cliente, con prima &rarr; dopo), *riprogrammati* (tolto l'esito NO), *cancellati* (esito NO o riga svuotata). Arriva solo lo stato finale delle righe.
-- **Esito "?"** (cliente non ancora chiamato): la riga resta in attesa e parte quando l'esito cambia; se viene svuotata non parte nulla.
-- Non generano avvisi: colori, esiti NR/OK, giorni passati.
+- **Esito "?"** (cliente non ancora chiamato) e **NR** (non risponde, dal 6/11/2026): la riga resta in attesa e parte quando l'esito cambia (es. NR &rarr; OK); se viene svuotata non parte nulla.
+- Non generano avvisi: colori, esito OK, giorni passati. Le telefonate TEL chiuse con OK mandano da sole il loro messaggio "Chiamata eseguita".
 - Admin: pulsante *Prova Telegram* nella finestra Tecnici.
 
 ### 8bis.4 Assenze da Google Calendar
@@ -409,12 +417,14 @@ Si cambia in `app.js` (`SEZIONI_ASSISTENZA_RUOLI`), in `richieste-robot-function
 (`supabase/richieste-robot-operatori.sql`: admin, operatori e tecnici).
 
 **Richieste interventi robot** (come il foglio Excel "INTERVENTI ROBOT"):
-- Tabella con intestazioni bloccate: OP, DATA, COGNOME NOME, INDIRIZZO, TELEFONO, NOTE, TIPO, URG., ESITO. In ordine di data della chiamata: le pi&ugrave; vecchie in alto, le pi&ugrave; recenti in fondo (la tabella si apre gi&agrave; in fondo).
+- Tabella con intestazioni bloccate (v7.1.0: la tabella arriva al fondo dello schermo e scorre al suo interno, la riga gialla resta sempre in vista): OP, DATA, COGNOME NOME, INDIRIZZO, TELEFONO, NOTE, TIPO, URG., ESITO. In ordine di data della chiamata: le pi&ugrave; vecchie in alto, le pi&ugrave; recenti in fondo (la tabella si apre gi&agrave; in fondo).
 - **&#10133; Nuova richiesta**: OP = iniziali di chi &egrave; collegato, data = oggi (si possono cambiare). Cognome e nome, indirizzo e telefono obbligatori.
   Scrivendo l'indirizzo (meglio via + numero + paese, es. VIA ROMA 5 MIRANO; Invio = cerca subito) compaiono i **suggerimenti**
   (OpenStreetMap: Photon, e Nominatim se Photon non trova nulla). Sceglierne uno compila anche il **paese** e mette la richiesta sulla mappa;
   se OpenStreetMap conosce solo la via, il numero civico scritto viene rimesso dopo la via. Se non trova nulla lo dice: l'indirizzo si pu&ograve; lasciare scritto a mano.
-- **Tipo**: dedotto dalle note (inizia con SOPRALLUOGO = SOP, con MONTAGGIO = MONT, altrimenti INT = assistenza); si pu&ograve; cambiare a mano.
+- **Tipo**: dedotto dalle note (inizia con SOPRALLUOGO = SOP, con MONTAGGIO = MONT, con TELEFONARE / RICHIAMARE = TEL, altrimenti INT = assistenza); si pu&ograve; cambiare a mano.
+  **TEL** (telefonata, v7.1.0): basta il telefono, via e paese non sono obbligatori; non va sulla mappa ma nel contenitore viola **&#128222; Da telefonare** dell'Organizzazione.
+- **Nascondi le OK** (v7.1.0, sempre attiva quando si apre la sezione): le richieste confermate restano salvate ma non si vedono; sotto la ricerca c'&egrave; quante sono nascoste. Togliendo la spunta (o scegliendo il filtro "Confermate (OK)") ricompaiono.
 - **Urgenza** Un = da fare entro n giorni lavorativi (U1 = in giornata): non contano sabato, domenica, festivi italiani (Capodanno, Epifania, Pasquetta, 25 aprile, 1 maggio, 2 giugno, Ferragosto, Ognissanti, 8 dicembre, Natale, Santo Stefano) e il **santo patrono (3 ottobre)**. Elenco in `RR_FESTIVI_FISSI` (richieste-robot-functions.js). Sotto si vede la scadenza.
 - **Barra in alto** (e numerino rosso sulle card ASSISTENZA): richieste SCADUTE, in scadenza OGGI e DOMANI (solo quelle ancora da organizzare o NR). "Mostra" filtra la tabella.
 - **Esito**: vuoto = da organizzare, **-** = organizzato in attesa di conferma, **OK** = confermato, **NR** = non risponde, **NO** = annullato.
@@ -482,6 +492,7 @@ Percorso: Dashboard &rarr; Gestione Utenti.
 - **Persistenza sessione:** l'app ricorda sezione e scheda quando cambi finestra, fino a refresh manuale o logout.
 - **Pop-up novit&agrave;:** quando esce una nuova versione compare una finestra con le novit&agrave;, **una sola volta per utente**. Il "gi&agrave; visto" &egrave; salvato sul dispositivo e nel profilo utente su Supabase, cos&igrave; non ricompare ad ogni login (anche su mobile).
 - **Filtri:** tornando in una sezione i filtri ripartono dai valori predefiniti.
+- **Aggiornamento automatico (v7.1.0):** ogni 5 minuti, e ogni volta che si torna sull'app, l'app controlla se su Vercel c'&egrave; una versione nuova (il numero vX.Y.Z di `index.html`, cambiato da `./update-version.sh`). Se l'app era in secondo piano o si sta riaprendo, si ricarica da sola (sezione e scheda restano); se si sta lavorando (finestra aperta o campo in scrittura) compare in alto la barra blu *&Egrave; disponibile la versione... Aggiorna ora*. Funziona solo se la versione &egrave; stata cambiata con `./update-version.sh` prima di `./push-all.sh`.
 - **Documenti PDF (tutti nello stesso stile):** ordini clienti, report vendite e valore macchine, report consumabili e ricambi, storico netti del listino. Il PDF si apre in una nuova scheda con in alto il nome del file, **Scarica PDF** (salva il file con il nome giusto, es. &quot;ORDINE 0012-2026 ROSSI MARIO.pdf&quot;, &quot;REPORT RICAMBI NGK.pdf&quot;) e **Stampa**. Su iPhone/iPad ci sono &quot;Scarica PDF&quot; e &quot;Apri il PDF&quot; (da l&igrave; si stampa o si condivide). Niente scritte del browser in alto e in fondo alla pagina. Il fax non compare in nessuna intestazione.
 
 ---
@@ -594,6 +605,8 @@ git rm --cached localhost.pem localhost-key.pem
 ---
 
 ## 15. STORICO MODIFICHE PRINCIPALI
+
+- **v7.1.0 (nov 2026)** - Aggiornamento automatico dell'app dopo una pubblicazione. Planning: esito NR non va pi&ugrave; su Telegram (resta in attesa come "?"), finestra con data/cliente/note della richiesta per i tecnici, nuovo tipo **TEL** (telefonata con OK + note e Telegram automatico, o NR con data e ora). Richieste robot: intestazioni davvero bloccate, richieste OK nascoste di default, tipo TEL con contenitore "Da telefonare" nell'Organizzazione.
 
 - **v6.4.0 (nov 2026)** - Richieste robot: indirizzo a mano, paese obbligatorio, mappa per paese. **Codice a barre per modello** nel Listino Vendite (non visibile in tabella, usato da ricerca e carico), colonna CODICE A BARRE negli Excel del listino e del Carico Excel, **carico macchine con il lettore di codici a barre** collegato al PC.
 - **v6.3.0 (nov 2026)** - La card Tecnici diventa **ASSISTENZA**. Nuove sezioni **Richieste interventi robot** (tabella come il foglio Excel, urgenze con scadenze, suggerimenti indirizzo, PDF e pulizia di fine anno) e **Organizzazione interventi robot** (mappa OpenStreetMap con pallini colorati, contenitori per distanza e urgenza). Planning agganciato alle richieste (esiti automatici), telefono e paese cliccabili. Ordini di robot/antizanzare con installazione = richiesta di montaggio automatica. Planning: festivi e santo patrono (3 ottobre) in rosso. Aperte agli operatori anche Inventario Macchine e Ordini Clienti.

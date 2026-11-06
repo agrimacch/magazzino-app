@@ -1753,6 +1753,9 @@
                         <option value="NO">Annullate (NO)</option>
                         <option value="SCADENZE">Scadute / in scadenza</option>
                     </select>
+                    <label class="rr-nascondi-ok" title="Le richieste OK restano salvate: vengono solo nascoste">
+                        <input type="checkbox" id="rr-nascondi-ok" checked onchange="rrCambiaNascondiOk(this.checked)"> Nascondi le OK
+                    </label>
                     <button type="button" class="btn-back rr-solo-admin hidden" onclick="rrPdfAnno()">&#128196; PDF anno</button>
                     <button type="button" class="btn-back rr-solo-admin hidden" onclick="rrPuliziaAnno()">&#128230; Pulizia fine anno</button>
                 </div>
@@ -2921,14 +2924,16 @@
 
             <label for="rr-f-note">Note (richiesta del cliente)</label>
             <textarea id="rr-f-note" rows="3" oninput="rrNoteCambiate()"
-                placeholder="Problema / modello del robot. Inizia con SOPRALLUOGO o MONTAGGIO per quei tipi."></textarea>
+                placeholder="Problema / modello del robot. Inizia con SOPRALLUOGO, MONTAGGIO o TELEFONARE per quei tipi."></textarea>
 
             <label>Tipo <small style="font-weight: 400; color: var(--gray);">(dedotto dalle note, si pu&ograve; cambiare)</small></label>
             <div id="rr-f-tipo" class="int-scelte" data-valore="INT">
                 <button type="button" data-valore="INT" onclick="rrScegliTipo('INT')">&#128308; Assistenza</button>
                 <button type="button" data-valore="SOP" onclick="rrScegliTipo('SOP')">&#128993; Sopralluogo</button>
                 <button type="button" data-valore="MONT" onclick="rrScegliTipo('MONT')">&#128309; Montaggio</button>
+                <button type="button" data-valore="TEL" onclick="rrScegliTipo('TEL')">&#128222; Telefonata</button>
             </div>
+            <small class="int-nota rr-nota-tel">TEL = il tecnico deve <strong>telefonare</strong> al cliente: via e paese non sono obbligatori.</small>
 
             <label for="rr-f-urgenza">Urgenza <small style="font-weight: 400; color: var(--gray);">(U1 = in giornata, Un = entro n giorni lavorativi)</small></label>
             <div class="rr-urgenza-riga">
@@ -2982,6 +2987,7 @@
                 <button type="button" data-valore="INT" onclick="intSelezionaScelta('int-edit-tipo', 'INT')">INT</button>
                 <button type="button" data-valore="SOP" onclick="intSelezionaScelta('int-edit-tipo', 'SOP')">SOP</button>
                 <button type="button" data-valore="MONT" onclick="intSelezionaScelta('int-edit-tipo', 'MONT')">MONT</button>
+                <button type="button" data-valore="TEL" onclick="intSelezionaScelta('int-edit-tipo', 'TEL')" title="Telefonare al cliente">&#128222; TEL</button>
             </div>
 
             <label>Esito <small style="font-weight: 400; color: var(--gray);">(NO = intervento annullato)</small></label>
@@ -3014,11 +3020,62 @@
 
             <div id="int-edit-promemoria" class="int-pm-finestra hidden"></div>
 
+            <button type="button" id="int-edit-telefonata" class="int-btn-telefonata hidden">&#128222; Registra la telefonata (OK / NR)</button>
+
             <button type="button" id="int-edit-svuota" class="int-btn-svuota hidden" onclick="intSvuotaRiga()">&#128465;&#65039; Svuota riga</button>
 
             <div class="modal-buttons">
                 <button type="button" id="int-edit-salva" class="btn-primary" onclick="intSalvaModifica()">Salva</button>
                 <button type="button" class="btn-secondary" onclick="intChiudiModifica()">Annulla</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- INTERVENTI ESTERNI: dati della richiesta (data, cliente, note) - v7.1.0 -->
+    <div id="int-info-modal" class="modal hidden">
+        <div class="modal-content int-info-content">
+            <div class="modal-header">
+                <h3>&#128203; Richiesta del cliente</h3>
+                <button type="button" class="modal-close" onclick="intChiudiInfo()">&times;</button>
+            </div>
+            <div id="int-info-dove" class="int-dove"></div>
+            <div id="int-info-corpo"></div>
+            <div class="modal-buttons" style="grid-template-columns: 1fr;">
+                <button type="button" class="btn-secondary" onclick="intChiudiInfo()">Chiudi</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- INTERVENTI ESTERNI: telefonata (tipo TEL) - v7.1.0 -->
+    <div id="int-tel-modal" class="modal hidden">
+        <div class="modal-content int-info-content">
+            <div class="modal-header">
+                <h3>&#128222; Telefonata</h3>
+                <button type="button" class="modal-close" onclick="intChiudiChiamata()">&times;</button>
+            </div>
+            <div id="int-tel-dove" class="int-dove"></div>
+            <div id="int-tel-info"></div>
+
+            <div id="int-tel-scelte" class="int-tel-scelte">
+                <button type="button" data-valore="OK" class="int-tel-ok" onclick="intChiamataScegli('OK')">&#9989; Ha risposto<small>OK</small></button>
+                <button type="button" data-valore="NR" class="int-tel-nr" onclick="intChiamataScegli('NR')">&#128245; Non risponde<small>NR</small></button>
+            </div>
+
+            <div id="int-tel-ok-box" class="hidden">
+                <label for="int-tel-note">Cosa ci siamo detti io e il cliente *</label>
+                <textarea id="int-tel-note" rows="4" maxlength="2000" placeholder="es. IL ROBOT SI FERMA SUL BORDO: PASSA LUNED&Igrave; IL TECNICO"></textarea>
+                <small class="int-nota">Salvando, il messaggio &quot;Chiamata eseguita&quot; arriva da solo nel gruppo Telegram.</small>
+            </div>
+
+            <div id="int-tel-nr-box" class="hidden">
+                <label for="int-tel-quando">Data e ora della chiamata</label>
+                <input type="datetime-local" id="int-tel-quando">
+                <small class="int-nota">Resta da richiamare: ogni tentativo viene segnato.</small>
+            </div>
+
+            <div id="int-tel-pulsanti" class="modal-buttons int-tel-pulsanti solo-chiudi">
+                <button type="button" id="int-tel-salva" class="btn-primary hidden" onclick="intSalvaChiamata()">Salva</button>
+                <button type="button" class="btn-secondary" onclick="intChiudiChiamata()">Chiudi</button>
             </div>
         </div>
     </div>

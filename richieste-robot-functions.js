@@ -35,7 +35,7 @@
 // script supabase/richieste-robot-operatori.sql): tutti, tecnici compresi (2/11/2026).
 const RR_RUOLI_MODIFICA = ['admin', 'operatore', 'tecnico'];
 
-const RR_TIPI = { INT: 'Assistenza', SOP: 'Sopralluogo', MONT: 'Montaggio' };
+const RR_TIPI = { INT: 'Assistenza', SOP: 'Sopralluogo', MONT: 'Montaggio', TEL: 'Telefonata' };   // TEL dal 6/11/2026
 const RR_ESITI = {
     '': { etichetta: 'Da organizzare', classe: 'rr-es-vuoto' },
     '-': { etichetta: 'Organizzato', classe: 'rr-es-org' },
@@ -47,7 +47,8 @@ const RR_ESITI = {
 const RR_COLORI = {
     INT:  ['#991b1b', '#dc2626', '#f05252', '#f87171', '#fca5a5', '#fecaca'],
     MONT: ['#1e3a8a', '#1d4ed8', '#3b82f6', '#60a5fa', '#93c5fd', '#bfdbfe'],
-    SOP:  ['#a16207', '#ca8a04', '#eab308', '#facc15', '#fde047', '#fef08a']
+    SOP:  ['#a16207', '#ca8a04', '#eab308', '#facc15', '#fde047', '#fef08a'],
+    TEL:  ['#581c87', '#7e22ce', '#9333ea', '#a855f7', '#c084fc', '#e9d5ff']
 };
 const RR_COLORE_ORGANIZZATO = '#16a34a';
 const RR_COLORE_NR = '#ffffff';
@@ -70,6 +71,7 @@ const RR_LEAFLET_JS = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
 let rrRichieste = [];
 let rrCaricate = false;
 let rrFiltro = 'TUTTE';
+let rrNascondiOk = true;        // richieste OK nascoste (restano salvate): attivo ogni volta che si apre la sezione
 let rrCercaTesto = '';
 let rrCercaTimer = null;
 let rrModifica = null;          // richiesta aperta nella finestra (null = nuova)
@@ -316,6 +318,7 @@ function rrTipoDaNote(note) {
     const t = rrNorm(note);
     if (/^SOPRALLUOG/.test(t)) return 'SOP';
     if (/^(MONTAGGI|INSTALLAZION)/.test(t)) return 'MONT';
+    if (/^(TELEFON|RICHIAM|CHIAMAR)/.test(t)) return 'TEL';
     return 'INT';
 }
 
@@ -391,6 +394,9 @@ function rrMostraCollegamenti() {
 
 async function openRichiesteRobot() {
     rrMostraCollegamenti();
+    rrNascondiOk = true;
+    const casella = document.getElementById('rr-nascondi-ok');
+    if (casella) casella.checked = true;
     rrAvviaTempoReale();
     const nuova = document.getElementById('rr-btn-nuova');
     if (nuova) nuova.classList.toggle('hidden', !rrPuoModificare());
@@ -419,6 +425,21 @@ function rrRenderRichieste() {
 function rrOrdina() {
     rrRichieste.sort((a, b) => (a.data < b.data ? -1 : a.data > b.data ? 1 : a.id - b.id));
 }
+
+// Intestazioni sempre visibili (6/11/2026): la tabella scorre DENTRO il suo riquadro, che arriva
+// esattamente al fondo dello schermo. Cosi' la pagina non scorre e la riga gialla resta in alto.
+function rrAdattaAltezza() {
+    const box = document.getElementById('rr-tabella-box');
+    if (!box || box.offsetParent === null) return;
+    const alto = box.getBoundingClientRect().top + window.scrollY;
+    const disponibile = Math.floor(window.innerHeight - alto - 34);
+    box.style.maxHeight = Math.max(300, disponibile) + 'px';
+}
+
+window.addEventListener('resize', () => {
+    clearTimeout(window._rrAltezzaTimer);
+    window._rrAltezzaTimer = setTimeout(rrAdattaAltezza, 120);
+});
 
 function rrScorriInFondo() {
     const box = document.getElementById('rr-tabella-box');
@@ -460,8 +481,20 @@ function rrCambiaCerca(valore) {
     }, 200);
 }
 
+// Richieste OK nascoste: non quando si sceglie proprio il filtro "Confermate (OK)"
+function rrOkNascoste() {
+    return rrNascondiOk && rrFiltro !== 'OK';
+}
+
+function rrCambiaNascondiOk(valore) {
+    rrNascondiOk = !!valore;
+    rrRenderTabella();
+    if (!rrNascondiOk) rrScorriInFondo();
+}
+
 function rrRigheFiltrate() {
     return rrRichieste.filter(r => {
+        if (rrOkNascoste() && r.esito === 'OK') return false;
         switch (rrFiltro) {
             case 'APERTE': if (!rrAperta(r)) return false; break;
             case 'VUOTO': if (r.esito) return false; break;
@@ -482,8 +515,10 @@ function rrRenderTabella() {
     if (!box) return;
     const righe = rrRigheFiltrate();
     const conta = document.getElementById('rr-conta');
+    const nascosteOk = rrOkNascoste() ? rrRichieste.filter(r => r.esito === 'OK').length : 0;
     if (conta) conta.innerHTML = righe.length + (righe.length === 1 ? ' richiesta' : ' richieste') +
-        (righe.length !== rrRichieste.length ? ' su ' + rrRichieste.length : '');
+        (righe.length !== rrRichieste.length ? ' su ' + rrRichieste.length : '') +
+        (nascosteOk ? ' &middot; <span class="rr-conta-ok">' + nascosteOk + ' OK nascost' + (nascosteOk === 1 ? 'a' : 'e') + '</span>' : '');
     if (righe.length === 0) {
         box.innerHTML = '<div class="rr-vuoto">' + (rrRichieste.length ? 'Nessuna richiesta con questi filtri.' :
             'Nessuna richiesta.' + (rrPuoModificare() ? ' Usa <strong>&#10133; Nuova richiesta</strong> per aggiungerne una.' : '')) + '</div>';
@@ -526,6 +561,7 @@ function rrRenderTabella() {
     });
     html += '</tbody></table>';
     box.innerHTML = html;
+    rrAdattaAltezza();
 }
 
 // ========================================
@@ -577,13 +613,21 @@ async function rrRenderInfoFinestra(r) {
     box.classList.toggle('hidden', !html);
     // Caselle del planning agganciate
     try {
-        const { data, error } = await supabaseClient.from('interventi').select('data, turno, esito, tecnico_id').eq('richiesta_id', r.id).order('data');
+        // select('*'): funziona anche prima di telefonate-setup.sql (colonne chiamata_...)
+        const { data, error } = await supabaseClient.from('interventi').select('*').eq('richiesta_id', r.id).order('data');
         if (error || !data || !data.length || rrModifica !== r) return;
         const { data: tec } = await supabaseClient.from('tecnici').select('id, nome');
         const nomi = {};
         (tec || []).forEach(t => { nomi[t.id] = t.nome; });
         html += '<div>&#128656; Nel planning: ' + data.map(i => '<strong>' + rrDataBreve(i.data) + ' ' + (i.turno === 'M' ? 'mattina' : 'pomeriggio') + '</strong> ' +
             rrEsc(nomi[i.tecnico_id] || '') + (i.esito ? ' (' + rrEsc(i.esito) + ')' : '')).join(' &middot; ') + '</div>';
+        // Telefonate: tentativi senza risposta e cosa si sono detti
+        data.filter(i => i.tipo === 'TEL' && (i.chiamata_tentativi || i.chiamata_note)).forEach(i => {
+            const tent = String(i.chiamata_tentativi || '').split('\n').filter(Boolean);
+            if (tent.length) html += '<div>&#128245; Non ha risposto: ' + tent.map(rrEsc).join(' &middot; ') + '</div>';
+            if (i.chiamata_note) html += '<div>&#128222; <strong>Telefonata fatta</strong>' +
+                (i.chiamata_at ? ' il ' + rrDataIt(String(i.chiamata_at).slice(0, 10)) : '') + ': ' + rrEsc(i.chiamata_note) + '</div>';
+        });
         box.innerHTML = html;
         box.classList.remove('hidden');
     } catch (e) { /* niente */ }
@@ -887,8 +931,11 @@ async function rrSalva() {
     };
     const errori = [];
     if (!valori.cliente) errori.push('Scrivi <strong>cognome e nome</strong> del cliente');
-    if (!valori.indirizzo) errori.push('Scrivi <strong>via e civico</strong>');
-    if (!valori.paese) errori.push('Scrivi il <strong>paese</strong> (serve per la mappa, il planning e il meteo)');
+    // Telefonata (TEL): basta il telefono, via e paese non servono
+    if (valori.tipo !== 'TEL') {
+        if (!valori.indirizzo) errori.push('Scrivi <strong>via e civico</strong>');
+        if (!valori.paese) errori.push('Scrivi il <strong>paese</strong> (serve per la mappa, il planning e il meteo)');
+    }
     if (!valori.telefono) errori.push('Scrivi il <strong>telefono</strong>');
     if (String(document.getElementById('rr-f-urgenza').value || '').trim() && !valori.urgenza) errori.push('Urgenza: scrivi un numero da 1 a 99 (es. 2 = U2)');
     if (errori.length) {
@@ -1225,8 +1272,13 @@ function rrPopupHtml(r) {
         '</div>';
 }
 
+// Le telefonate (TEL) non vanno sulla mappa: hanno il loro contenitore "Da telefonare"
 function rrVisibileInMappa(r) {
-    return rrStatoMappa(r) !== 'NASCOSTA' && !rrNascondiTipi[r.tipo];
+    return rrStatoMappa(r) !== 'NASCOSTA' && r.tipo !== 'TEL' && !rrNascondiTipi[r.tipo];
+}
+
+function rrTelefonateAperte() {
+    return rrRichieste.filter(r => r.tipo === 'TEL' && rrStatoMappa(r) !== 'NASCOSTA');
 }
 
 function rrRenderMappaPallini() {
@@ -1296,14 +1348,20 @@ function rrRenderContenitori() {
     if (!box) return;
     const sede = rrPosizioneSede();
     const lista = rrRichieste.filter(rrVisibileInMappa);
+    const telefonate = rrTelefonateAperte();
     const conta = document.getElementById('org-conta');
     if (conta) {
         const daOrg = lista.filter(r => rrStatoMappa(r) === 'DA_ORGANIZZARE').length;
         conta.innerHTML = '<strong>' + daOrg + '</strong> da organizzare &middot; ' +
             lista.filter(r => rrStatoMappa(r) === 'ORGANIZZATA').length + ' organizzate &middot; ' +
-            lista.filter(r => rrStatoMappa(r) === 'NR').length + ' NR';
+            lista.filter(r => rrStatoMappa(r) === 'NR').length + ' NR' +
+            (telefonate.length ? ' &middot; &#128222; ' + telefonate.length + ' da telefonare' : '');
     }
+    // Telefonate: contenitore a parte, prima di quelli per distanza
+    const htmlTel = telefonate.length
+        ? rrHtmlContenitore('&#128222; Da telefonare', telefonate.map(r => ({ r: r, km: null })), true, 'telefonate') : '';
     if (!lista.length) {
+        if (htmlTel) { box.innerHTML = htmlTel; return; }
         box.innerHTML = '<div class="rr-vuoto">Nessuna richiesta aperta. &#127881;</div>';
         return;
     }
@@ -1316,12 +1374,13 @@ function rrRenderContenitori() {
         g.voci.push({ r: r, km: km });
     });
 
-    const html = gruppi.map(g => rrHtmlContenitore(g.fascia.titolo, g.voci, false)).join('') +
+    const html = htmlTel + gruppi.map(g => rrHtmlContenitore(g.fascia.titolo, g.voci, false)).join('') +
         (senzaPos.length ? rrHtmlContenitore('&#128205; Posizione sconosciuta', senzaPos, true) : '');
     box.innerHTML = html;
 }
 
-function rrHtmlContenitore(titolo, voci, senzaPosizione) {
+// classe = 'telefonate' per il contenitore delle TEL (senza la nota "paese non trovato")
+function rrHtmlContenitore(titolo, voci, senzaPosizione, classe) {
     const daOrg = voci.filter(v => rrStatoMappa(v.r) === 'DA_ORGANIZZARE').length;
     let corpo = '';
     if (!voci.length) {
@@ -1344,9 +1403,10 @@ function rrHtmlContenitore(titolo, voci, senzaPosizione) {
                 ' <span>(' + elenco.length + ')</span></div>' + elenco.map(v => rrHtmlVoce(v, senzaPosizione)).join('') + '</div>';
         });
     }
-    return '<div class="org-box' + (senzaPosizione ? ' senza-pos' : '') + '">' +
+    return '<div class="org-box' + (classe ? ' ' + classe : (senzaPosizione ? ' senza-pos' : '')) + '">' +
         '<div class="org-box-titolo"><span>' + titolo + '</span><span class="org-box-conta">' + daOrg + (voci.length !== daOrg ? ' / ' + voci.length : '') + '</span></div>' +
-        (senzaPosizione ? '<div class="org-nota">Paese non trovato (o in ricerca): controlla il paese nella richiesta.</div>' : '') +
+        (classe === 'telefonate' ? '<div class="org-nota">Da mettere nel planning con tipo TEL: il tecnico segna OK o NR.</div>'
+            : senzaPosizione ? '<div class="org-nota">Paese non trovato (o in ricerca): controlla il paese nella richiesta.</div>' : '') +
         corpo + '</div>';
 }
 
@@ -1363,7 +1423,7 @@ function rrHtmlVoce(v, senzaPosizione) {
         '<div class="org-voce-testo">' +
             '<div class="org-voce-nome">' + rrEsc(r.cliente) + '</div>' +
             '<div class="org-voce-info">' + rrEsc(rrPaese(r)) + (v.km !== null ? ' &middot; ' + v.km.toFixed(1).replace('.', ',') + ' km' : '') +
-                ' &middot; <span class="rr-tipo rr-tipo-' + rrEsc(r.tipo) + '">' + rrEsc(r.tipo) + '</span>' +
+                (rrPaese(r) || v.km !== null ? ' &middot; ' : '') + '<span class="rr-tipo rr-tipo-' + rrEsc(r.tipo) + '">' + rrEsc(r.tipo) + '</span>' +
                 (stato === 'ORGANIZZATA' ? ' <span class="org-stato">ORGANIZZATO</span>' : '') +
                 (stato === 'NR' ? ' <span class="org-stato nr">NR</span>' : '') +
                 (scad === 'SCADUTA' ? ' <span class="rr-scad scaduta">SCADUTA</span>' : scad === 'OGGI' ? ' <span class="rr-scad oggi">OGGI</span>' : '') +
@@ -1497,6 +1557,7 @@ window.rrChiudiFinestra = rrChiudiFinestra;
 window.rrSalva = rrSalva;
 window.rrElimina = rrElimina;
 window.rrScegliTipo = rrScegliTipo;
+window.rrCambiaNascondiOk = rrCambiaNascondiOk;
 window.rrNoteCambiate = rrNoteCambiate;
 window.rrScegliUrgenza = rrScegliUrgenza;
 window.rrAggiornaScadenzaForm = rrAggiornaScadenzaForm;

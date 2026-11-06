@@ -2682,3 +2682,105 @@ function showInstallInstructions() {
     
     modal.classList.remove('hidden');
 }
+
+// ========================================
+// AGGIORNAMENTO AUTOMATICO (v7.1.0)
+// ----------------------------------------
+// Dopo un ./push-all.sh Vercel pubblica la versione nuova, ma una pagina gia' aperta
+// (soprattutto l'app sul telefono) continua a usare quella vecchia finche' non si ricarica.
+// Ogni 5 minuti, e ogni volta che si torna sull'app, leggo la versione pubblicata
+// (il badge "vX.Y.Z" di index.html) e la confronto con CURRENT_VERSION:
+//   - app in secondo piano, o appena riaperta, e nessuna finestra aperta: ricarica da sola
+//     (sezione e scheda vengono ripristinate, come con un refresh)
+//   - mentre si lavora (finestra aperta, campo in scrittura): barra in alto "Aggiorna"
+// ========================================
+const AGG_OGNI_MS = 5 * 60 * 1000;
+let aggVersioneNuova = null;
+let aggUltimoControllo = 0;
+
+function aggConfrontaVersioni(a, b) {
+    const pa = String(a || '').split('.').map(n => parseInt(n, 10) || 0);
+    const pb = String(b || '').split('.').map(n => parseInt(n, 10) || 0);
+    for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+        if ((pa[i] || 0) !== (pb[i] || 0)) return (pa[i] || 0) > (pb[i] || 0) ? 1 : -1;
+    }
+    return 0;
+}
+
+async function aggLeggiVersionePubblicata() {
+    const indirizzo = location.href.split('#')[0].split('?')[0];
+    const risposta = await fetch(indirizzo + '?controllo-versione=' + Date.now(), { cache: 'no-store' });
+    if (!risposta.ok) return null;
+    const testo = await risposta.text();
+    const m = testo.match(/class="version-badge">v([0-9.]+)</);
+    return m ? m[1] : null;
+}
+
+// Si sta lavorando? (finestra aperta, campo in scrittura, scanner acceso): niente ricarica improvvisa
+function aggStaLavorando() {
+    const finestra = Array.from(document.querySelectorAll('.modal')).some(m =>
+        !m.classList.contains('hidden') && m.id !== 'agg-barra' && m.offsetParent !== null);
+    const el = document.activeElement;
+    const scrive = el && (el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' ||
+        (el.tagName === 'INPUT' && !['button', 'checkbox', 'radio', 'submit'].includes(el.type)));
+    let scanner = false;
+    try { scanner = !!(html5QrCode && html5QrCode.isScanning); } catch (e) { scanner = false; }
+    return finestra || scrive || scanner;
+}
+
+function aggRicarica() {
+    try { sessionStorage.setItem('aggiornataDa', CURRENT_VERSION); } catch (e) { /* niente */ }
+    location.reload();
+}
+
+function aggMostraBarra(versione) {
+    let barra = document.getElementById('agg-barra');
+    if (!barra) {
+        barra = document.createElement('div');
+        barra.id = 'agg-barra';
+        barra.className = 'agg-barra';
+        document.body.appendChild(barra);
+    }
+    barra.innerHTML = '<span>&#128260; &Egrave; disponibile la versione <strong>v' + versione + '</strong> dell\'app.</span>' +
+        '<button type="button" class="agg-btn" onclick="aggRicarica()">Aggiorna ora</button>' +
+        '<button type="button" class="agg-chiudi" onclick="document.getElementById(\'agg-barra\').classList.add(\'hidden\')" title="Dopo">&times;</button>';
+    barra.classList.remove('hidden');
+}
+
+// appenaTornato = l'utente e' appena tornato sull'app (telefono sbloccato, scheda riaperta)
+async function aggControlla(appenaTornato) {
+    if (Date.now() - aggUltimoControllo < 20000 && !aggVersioneNuova) return;
+    aggUltimoControllo = Date.now();
+    let pubblicata = aggVersioneNuova;
+    if (!pubblicata) {
+        try {
+            pubblicata = await aggLeggiVersionePubblicata();
+        } catch (e) {
+            return;   // offline o rete lenta: riprovo al prossimo giro
+        }
+        if (!pubblicata || aggConfrontaVersioni(pubblicata, CURRENT_VERSION) <= 0) return;
+        aggVersioneNuova = pubblicata;
+    }
+    const nascosta = document.visibilityState === 'hidden';
+    // Gia' ricaricata una volta e ancora vecchia (file non ancora aggiornati sul server): solo la barra, niente giri a vuoto
+    let giaProvato = false;
+    try { giaProvato = sessionStorage.getItem('aggiornataDa') === CURRENT_VERSION; } catch (e) { giaProvato = false; }
+    if ((nascosta || appenaTornato) && !giaProvato && !aggStaLavorando()) {
+        aggRicarica();
+        return;
+    }
+    aggMostraBarra(pubblicata);
+}
+
+function aggAvvia() {
+    setInterval(() => aggControlla(false), AGG_OGNI_MS);
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') aggControlla(true);
+        else if (aggVersioneNuova) aggControlla(false);   // gia' trovata: ricarico in secondo piano
+    });
+    window.addEventListener('focus', () => aggControlla(true));
+    setTimeout(() => aggControlla(false), 15000);
+}
+
+window.aggRicarica = aggRicarica;
+aggAvvia();
