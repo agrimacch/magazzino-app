@@ -1,5 +1,8 @@
 # Changelog App Magazzino
 
+## v7.1.3 - 2026-11-07 (PRODUZIONE)
+prova aggiornamento
+
 ## v7.1.2 - 2026-11-07 (PRODUZIONE)
 aggiornamento app pop up
 
