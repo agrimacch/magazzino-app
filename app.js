@@ -11,7 +11,7 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 // ========================================
 // VARIABILI GLOBALI
 // ========================================
-const CURRENT_VERSION = '7.1.1';
+const CURRENT_VERSION = '7.1.2';
 const SHOW_WHATS_NEW_POPUP = false;
 
 let currentUser = null;
@@ -2688,13 +2688,13 @@ function showInstallInstructions() {
 // ----------------------------------------
 // Dopo un ./push-all.sh Vercel pubblica la versione nuova, ma una pagina gia' aperta
 // (soprattutto l'app sul telefono) continua a usare quella vecchia finche' non si ricarica.
-// Ogni 5 minuti, e ogni volta che si torna sull'app, leggo la versione pubblicata
+// Ogni 2 minuti, e ogni volta che si torna sull'app, leggo la versione pubblicata
 // (il badge "vX.Y.Z" di index.html) e la confronto con CURRENT_VERSION:
 //   - app in secondo piano, o appena riaperta, e nessuna finestra aperta: ricarica da sola
 //     (sezione e scheda vengono ripristinate, come con un refresh)
 //   - mentre si lavora (finestra aperta, campo in scrittura): barra in alto "Aggiorna"
 // ========================================
-const AGG_OGNI_MS = 5 * 60 * 1000;
+const AGG_OGNI_MS = 2 * 60 * 1000;   // ogni 2 minuti (6/11/2026: 5 minuti erano troppi)
 let aggVersioneNuova = null;
 let aggUltimoControllo = 0;
 
