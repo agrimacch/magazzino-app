@@ -1,7 +1,7 @@
 # &#128230; AGRIMAG - Manuale d'uso e di manutenzione
 
-**Versione app:** 6.0.0
-**Ultimo aggiornamento manuale:** Ottobre 2026
+**Versione app:** 7.1.3
+**Ultimo aggiornamento manuale:** 7 novembre 2026
 **Tecnologie:** HTML + CSS + JavaScript (senza framework), Supabase (database e login), Vercel (pubblicazione), GitHub (codice)
 
 ---
@@ -58,13 +58,21 @@ Dashboard
   |     |-- Inventario Ricambi Stock
   |     |-- Scanner (solo smartphone/tablet)
   |
+  |     |-- Inventario Macchine (quaderno, carico, carico a raffica, report)
+  |
   |-- Vendite
   |     |-- Listino Vendite
+  |     |-- Listino STIHL        (admin e operatori)
   |     |-- Listini Fornitori    (PDF su Google Drive)
+  |     |-- Ordini Clienti
+  |     |-- Buoni Regalo
   |
-  |-- Tecnici
+  |-- Assistenza (ex Tecnici)
   |     |-- Interventi Esterni   (planning settimanale dei tecnici)
+  |     |-- Richieste interventi robot
+  |     |-- Organizzazione interventi robot (solo admin, pulsante mappamondo)
   |
+  |-- Dati aziendali             (solo admin)
   |-- Gestione Utenti            (solo admin)
 ```
 
@@ -89,7 +97,7 @@ In ogni sezione c'&egrave; un pulsante per tornare indietro (es. "Torna a Magazz
 |-------|---------------------|
 | **Admin** | Tutto: modificare ed eliminare articoli/ricambi, import Excel, gestire utenti |
 | **Operatore** | Consultare, caricare e scaricare, usare scanner e report. Non pu&ograve; modificare/eliminare n&eacute; gestire utenti |
-| **Tecnico** | Vede **solo** Tecnici &rarr; Interventi Esterni, in sola lettura (tutte le settimane, tutti i tecnici). Entra direttamente nel planning; niente pop-up novit&agrave; n&eacute; campanella. Bloccato anche nel database fuori da questa sezione |
+| **Tecnico** | Vede **solo** Assistenza: Interventi Esterni in sola lettura (tutte le settimane, tutti i tecnici; pu&ograve; registrare l'esito delle telefonate TEL) e Richieste interventi robot (le modifica). Entra direttamente nel planning; niente pop-up novit&agrave; n&eacute; campanella. Bloccato anche nel database fuori da questa sezione |
 
 La sezione **Vendite** &egrave; visibile ad admin e operatori. La sezione **Tecnici** ad admin, operatori e tecnici (admin e operatori possono modificare).
 
@@ -289,7 +297,7 @@ Nei file Excel (listino e Carico Excel) c'&egrave; la colonna **CODICE A BARRE**
 
 **Nel Listino Vendite** (admin e operatori) accanto al modello compare in piccolo &#127968; N (disponibili in casa, pi&ugrave; quelle gi&agrave; assegnate) oppure &#129513; N set componibili.
 
-**Configurazione**: eseguire una volta `supabase/inventario-macchine-setup.sql` (Supabase &rarr; SQL Editor). **Per ora le sezioni Inventario Macchine e Ordini Clienti sono visibili solo all'admin** (sono in prova): `MACCHINE_PER_OPERATORI = false` in `macchine-functions.js`. Per aprirle anche agli **operatori** (stessi permessi dell'admin; i tecnici no) basta mettere `MACCHINE_PER_OPERATORI = true` e su Supabase `supabase/macchine-operatori.sql` (funzione `puo_gestire_macchine()` con `role in ('admin', 'operatore')`).
+**Configurazione**: eseguire una volta `supabase/inventario-macchine-setup.sql` (Supabase &rarr; SQL Editor). Dal 2/11/2026 Inventario Macchine e Ordini Clienti sono aperti anche agli **operatori** (stessi permessi dell'admin, tranne Correzioni ed Elimina ordine; i tecnici no): `MACCHINE_PER_OPERATORI = true` in `macchine-functions.js` e su Supabase `supabase/macchine-operatori.sql` (funzione `puo_gestire_macchine()` con `role in ('admin', 'operatore')`).
 
 ### 8.5 Ordini Clienti (admin e operatori)
 Si apre da **Vendite &rarr; Ordini Clienti**. Sostituisce il blocchetto delle commissioni (niente preventivi: solo ordini).
@@ -314,7 +322,7 @@ Si apre da **Vendite &rarr; Ordini Clienti**. Sostituisce il blocchetto delle co
 - **Consegnato al cliente**: le macchine in casa diventano consegnate (croce nel quaderno).
 - **Modifica dati cliente / firma**: le righe restano bloccate; cambiando il nome si aggiorna anche nel quaderno.
 - **Annulla ordine**: le macchine in casa tornano disponibili, le righe da ordinare spariscono, quelle gi&agrave; ordinate al fornitore restano ordinate senza cliente. Il numero resta usato (l'ordine si vede barrato, il PDF viene rifatto con la scritta ANNULLATO).
-- **Pagamento (acconto e pagato)**: nel modulo dell'ordine (nuovo o "Modifica dati cliente / firma / pagamento") ci sono **Acconto versato** (euro, non pi&ugrave; del totale) e la casellina **Pagato**. Con l'acconto il PDF mostra sotto il TOTALE "Acconto versato" e "DA SALDARE" (totale - acconto). Con Pagato il PDF ha il **timbro PAGATO** grande al centro della tabella articoli (immagine `timbro-pagato.png` nella cartella dell'app; se manca, un timbro scritto verde). **Metodo di pagamento** (CONTANTI, CARTA DI CREDITO, BONIFICO, BONIFICO ANTICIPATO, ASSEGNO): quello complessivo e, se c'&egrave; un acconto, quello dell'acconto e del saldo (colonne `metodo_pagamento`, `metodo_acconto`, `metodo_saldo`); nel PDF compaiono nel riquadro Pagamento e sotto &quot;Acconto versato&quot; / &quot;DA SALDARE&quot;. Nei totali del PDF le caselle Disponibile / Da ordinare stanno in basso a sinistra in un'unica cella. Dal dettaglio dell'ordine c'&egrave; anche il pulsante **Segna come pagato / Togli "Pagato"** (il PDF su Drive viene rifatto). Colonne `acconto` e `pagato` di `macchine_ordini`: eseguire una volta `supabase/ordini-pagamento.sql`.
+- **Pagamento (acconto e pagato)**: nel modulo dell'ordine (nuovo o "Modifica dati cliente / firma / pagamento") ci sono **Acconto versato** (euro, non pi&ugrave; del totale) e la casellina **Pagato**. Con l'acconto il PDF mostra sotto il TOTALE "Acconto versato" e "DA SALDARE" (totale - acconto). Con Pagato il PDF ha il **timbro PAGATO** (largo 150 px, inclinato) al centro della tabella articoli (immagine `timbro-pagato.png` nella cartella dell'app; se manca, un timbro scritto verde). **Metodo di pagamento** (CONTANTI, CARTA DI CREDITO, BONIFICO, BONIFICO ANTICIPATO, ASSEGNO): quello complessivo e, se c'&egrave; un acconto, quello dell'acconto e del saldo (colonne `metodo_pagamento`, `metodo_acconto`, `metodo_saldo`); nel PDF compaiono nel riquadro Pagamento e sotto &quot;Acconto versato&quot; / &quot;DA SALDARE&quot;. Nei totali del PDF le caselle Disponibile / Da ordinare stanno in basso a sinistra in un'unica cella. Dal dettaglio dell'ordine c'&egrave; anche il pulsante **Segna come pagato / Togli "Pagato"** (il PDF su Drive viene rifatto). Colonne `acconto` e `pagato` di `macchine_ordini`: eseguire una volta `supabase/ordini-pagamento.sql`.
 - **Documenti (ordini, report, valore)**: logo grande il doppio (68 px nei report, 88 px negli ordini) e data pi&ugrave; grande.
 - **Elimina ordine (solo admin, `ORD_RUOLI_ELIMINA` in `ordini-functions.js`)**: come l'annullo, ma l'ordine sparisce del tutto, il PDF va nel cestino di Drive e vengono tolti anche tutti i movimenti con quel numero d'ordine (funzione Supabase `ordine_elimina_tracce`, script `supabase/ordini-elimina-admin.sql` da eseguire una volta): non resta traccia. Le macchine vere restano (in casa = tornano disponibili, ordinate = restano ordinate senza cliente, consegnate = restano consegnate). Se era l'ultimo dell'anno il numero viene riusato, altrimenti resta un buco nella numerazione (l'app avvisa prima). Gli operatori non vedono il pulsante: possono solo annullare.
 - **PDF su Google Drive**: salvato da solo a ogni nuovo ordine (e rifatto dopo modifica o annullo) in `ORDINI CLIENTI / ORDINI CLIENTI <anno>`; le cartelle si creano da sole. Nel dettaglio: Apri / Salva di nuovo / Riprova. Pulsante **Prova Drive** sopra l'elenco (solo admin, come tutti i pulsanti di prova). Configurazione: `GUIDA_ORDINI_DRIVE.md`.
@@ -397,8 +405,8 @@ Percorso: Dashboard &rarr; Assistenza &rarr; Interventi Esterni. Modificano **ad
 Nell'elenco settimane: **Archivia anno** scarica `INTERVENTI_ESTERNI_anno.xlsx` (tutte le righe con colori e filtri), chiede di controllare il file e, solo dopo aver scritto l'anno per conferma, svuota il server. Farlo da PC.
 
 ### 8bis.6 Configurazione (gi&agrave; fatta)
-- Script SQL eseguiti su Supabase: `interventi-esterni-setup.sql`, `tecnici-ruolo-setup.sql`, `interventi-telegram-setup.sql`, `assenze-tecnici-setup.sql`.
-- Funzioni Supabase (Verify JWT spento): `notifica-interventi` (file `supabase/notifica-interventi.ts`) e `assenze-tecnici` (file `supabase/assenze-tecnici.ts`). Ogni volta che cambia il file va reincollato e ripubblicato (Deploy).
+- Script SQL eseguiti su Supabase: `interventi-esterni-setup.sql`, `tecnici-ruolo-setup.sql`, `interventi-telegram-setup.sql`, `assenze-tecnici-setup.sql`, `organizzazione-setup.sql`, `promemoria-setup.sql`; dalla v7.1.0 `telefonate-setup.sql` (telefonate TEL).
+- Funzioni Supabase (Verify JWT spento): `notifica-interventi` (file `supabase/notifica-interventi.ts`, v7.1.0 con le telefonate), `organizzazione-interventi` (file `supabase/organizzazione-interventi.ts`, messaggio delle 17) e `assenze-tecnici` (file `supabase/assenze-tecnici.ts`). Ogni volta che cambia il file va reincollato e ripubblicato (Deploy).
 - Secrets: `TELEGRAM_BOT_TOKEN_INTERVENTI`, `TELEGRAM_CHAT_ID_INTERVENTI`, `ASSENZE_CHAT_ID`, `ASSENZE_SCRIPT_KEY`, `ASSENZE_WEBHOOK_SECRET`, `ASSENZE_SERVICE_KEY`.
 - Il bot @interventiesterni_bot ha il webhook verso `assenze-tecnici`: `getUpdates` non funziona pi&ugrave;; per sapere il chat id di una chat scrivere `/id` al bot.
 - Eliminare un tecnico (SQL Editor):
@@ -492,7 +500,7 @@ Percorso: Dashboard &rarr; Gestione Utenti.
 - **Persistenza sessione:** l'app ricorda sezione e scheda quando cambi finestra, fino a refresh manuale o logout.
 - **Pop-up novit&agrave;:** quando esce una nuova versione compare una finestra con le novit&agrave;, **una sola volta per utente**. Il "gi&agrave; visto" &egrave; salvato sul dispositivo e nel profilo utente su Supabase, cos&igrave; non ricompare ad ogni login (anche su mobile).
 - **Filtri:** tornando in una sezione i filtri ripartono dai valori predefiniti.
-- **Aggiornamento automatico (v7.1.0):** ogni 5 minuti, e ogni volta che si torna sull'app, l'app controlla se su Vercel c'&egrave; una versione nuova (il numero vX.Y.Z di `index.html`, cambiato da `./update-version.sh`). Se l'app era in secondo piano o si sta riaprendo, si ricarica da sola (sezione e scheda restano); se si sta lavorando (finestra aperta o campo in scrittura) compare in alto la barra blu *&Egrave; disponibile la versione... Aggiorna ora*. Funziona solo se la versione &egrave; stata cambiata con `./update-version.sh` prima di `./push-all.sh`.
+- **Aggiornamento automatico (v7.1.0, ogni 2 minuti dalla v7.1.2):** ogni 2 minuti, e ogni volta che si torna sull'app, l'app controlla se su Vercel c'&egrave; una versione nuova (il numero vX.Y.Z di `index.html`, cambiato da `./update-version.sh`). Se l'app era in secondo piano o si sta riaprendo, si ricarica da sola (sezione e scheda restano); se si sta lavorando (finestra aperta o campo in scrittura) compare in alto la barra blu *&Egrave; disponibile la versione... Aggiorna ora*. Funziona solo se la versione &egrave; stata cambiata con `./update-version.sh` prima di `./push-all.sh`.
 - **Documenti PDF (tutti nello stesso stile):** ordini clienti, report vendite e valore macchine, report consumabili e ricambi, storico netti del listino. Il PDF si apre in una nuova scheda con in alto il nome del file, **Scarica PDF** (salva il file con il nome giusto, es. &quot;ORDINE 0012-2026 ROSSI MARIO.pdf&quot;, &quot;REPORT RICAMBI NGK.pdf&quot;) e **Stampa**. Su iPhone/iPad ci sono &quot;Scarica PDF&quot; e &quot;Apri il PDF&quot; (da l&igrave; si stampa o si condivide). Niente scritte del browser in alto e in fondo alla pagina. Il fax non compare in nessuna intestazione.
 
 ---
@@ -514,7 +522,11 @@ Percorso: Dashboard &rarr; Gestione Utenti.
 | `GUIDA_BUONI_DRIVE.md` | Guida di configurazione del salvataggio buoni su Drive |
 | `richieste-robot-functions.js`, `richieste.css` | Assistenza &rarr; Richieste e Organizzazione interventi robot (tabella, mappa, contenitori, PDF e pulizia di fine anno) |
 | `supabase/richieste-robot-setup.sql` | Tabella richieste_robot, aggancio al planning, trigger degli esiti, richieste dagli ordini |
-| `macchine-functions.js`, `macchine.css` | Magazzino &rarr; Inventario Macchine (inventario, quaderno, carico, carico Excel, set, movimenti) |
+| `supabase/telefonate-setup.sql` | Telefonate TEL: colonne della chiamata, tipo TEL nelle richieste, funzione `intervento_chiamata` |
+| `macchine-functions.js`, `macchine.css` | Magazzino &rarr; Inventario Macchine (inventario, quaderno, carico, carico Excel, set, movimenti, correzioni) |
+| `macchine-raffica.js` | Inventario Macchine &rarr; Carico a raffica con il lettore, carico iniziale, foglio Codici del lettore, guida |
+| `stihl-functions.js`, `stihl.css` | Vendite &rarr; Listino STIHL (import OPG/OPM, EAN, Collega/Crea) |
+| `timbro-pagato.png` | Timbro PAGATO stampato sui PDF degli ordini |
 | `macchine-report.js` | Inventario Macchine &rarr; schede Report (vendite) e Valore (magazzino), Excel e PDF |
 | `ordini-functions.js`, `ordini.css` | Vendite &rarr; Ordini Clienti (commissioni con firma, stampa) |
 | `supabase/` | Script SQL e codice delle funzioni Supabase (notifica-telegram, listini-drive, notifica-interventi, assenze-tecnici) |
@@ -540,7 +552,7 @@ Lo script mostra i file modificati, chiede conferma, carica su GitHub; Vercel ri
 cd ~/Desktop/magazzino-app
 ./update-version.sh
 ```
-Serve per far comparire il pop-up novit&agrave; agli utenti.
+Cambia il numero vX.Y.Z e il `?v=` dei file. Va fatto **prima** di `./push-all.sh`: serve per far arrivare la versione nuova ai telefoni (aggiornamento automatico, vedi sezione 10) e, se attivo, per il pop-up novit&agrave;.
 
 ### 11.4 Provare l'app in locale (HTTPS)
 ```
@@ -585,7 +597,7 @@ git rm --cached localhost.pem localhost-key.pem
 
 | Problema | Soluzione |
 |----------|-----------|
-| Non vedo le ultime modifiche | Attendi 1-2 minuti dopo il push, poi aggiorna la pagina (su iPhone chiudi e riapri l'app) |
+| Non vedo le ultime modifiche | Dalla v7.1.0 l'app si aggiorna da sola: entro 2-3 minuti dal push compare la barra blu "Aggiorna ora" (o si ricarica tornando sull'app). Se non succede: controlla di aver fatto `./update-version.sh` prima di `./push-all.sh`, poi aggiorna la pagina a mano |
 | Il pop-up novit&agrave; ricompare | Aggiorna all'ultima versione; se persiste, controlla di aver caricato `app.js` e `index.html` aggiornati |
 | Login non funziona | Verifica email/password; controlla su Supabase che l'utente esista e sia confermato |
 | Scanner non parte | Consenti la fotocamera nelle impostazioni del browser; usa HTTPS |
@@ -606,8 +618,10 @@ git rm --cached localhost.pem localhost-key.pem
 
 ## 15. STORICO MODIFICHE PRINCIPALI
 
+- **v7.1.1 - v7.1.3 (nov 2026)** - Controllo della versione nuova ogni 2 minuti (prima 5); scritta &quot;Cosa ci siamo detti io e il cliente&quot; nella finestra della telefonata; prove dell'aggiornamento automatico.
 - **v7.1.0 (nov 2026)** - Aggiornamento automatico dell'app dopo una pubblicazione. Planning: esito NR non va pi&ugrave; su Telegram (resta in attesa come "?"), finestra con data/cliente/note della richiesta per i tecnici, nuovo tipo **TEL** (telefonata con OK + note e Telegram automatico, o NR con data e ora). Richieste robot: intestazioni davvero bloccate, richieste OK nascoste di default, tipo TEL con contenitore "Da telefonare" nell'Organizzazione.
-
+- **v7.0.0 - v7.0.4 (nov 2026)** - Inventario Macchine: **Carico a raffica** con il lettore (pi&ugrave; modelli insieme, memoria del lettore, carico iniziale, foglio Codici del lettore, guida &quot;i&quot;), articoli creati direttamente dal carico. Nuovo **Listino STIHL** (file OPG/OPM, ricarico 30%, prezzo cliente arrotondato, EAN dal Superlistino, Collega/Crea solo admin, operatori in consultazione). Ordini clienti: **Elimina ordine** (solo admin, senza tracce), **acconto, pagato e metodi di pagamento** con timbro PAGATO nel PDF, logo e data pi&ugrave; grandi nei documenti, tolta la scritta sulla fattura.
+- **v6.4.1 - v6.4.3 (nov 2026)** - Mappa spostata in Organizzazione interventi, tasti rapidi, scadenze promo, scheda **Correzioni** dell'Inventario Macchine (solo admin).
 - **v6.4.0 (nov 2026)** - Richieste robot: indirizzo a mano, paese obbligatorio, mappa per paese. **Codice a barre per modello** nel Listino Vendite (non visibile in tabella, usato da ricerca e carico), colonna CODICE A BARRE negli Excel del listino e del Carico Excel, **carico macchine con il lettore di codici a barre** collegato al PC.
 - **v6.3.0 (nov 2026)** - La card Tecnici diventa **ASSISTENZA**. Nuove sezioni **Richieste interventi robot** (tabella come il foglio Excel, urgenze con scadenze, suggerimenti indirizzo, PDF e pulizia di fine anno) e **Organizzazione interventi robot** (mappa OpenStreetMap con pallini colorati, contenitori per distanza e urgenza). Planning agganciato alle richieste (esiti automatici), telefono e paese cliccabili. Ordini di robot/antizanzare con installazione = richiesta di montaggio automatica. Planning: festivi e santo patrono (3 ottobre) in rosso. Aperte agli operatori anche Inventario Macchine e Ordini Clienti.
 - **v6.0.0 (ott 2026)** - Nuova sezione **Tecnici &rarr; Interventi Esterni**: planning settimanale (4 righe mattina + 4 pomeriggio per tecnico), colori con pennello, tecnici per settimana, tempo reale; ruolo utente **Tecnico** (sola lettura, solo questa sezione); riepilogo Telegram con il pulsante "Invia a Telegram"; assenze lette da Google Calendar con conferma su Telegram e colorazione automatica; archivio di fine anno in Excel.
