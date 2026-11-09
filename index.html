@@ -2796,6 +2796,12 @@
             </div>
             <p id="om-riga-info" class="mac-info"></p>
             <div id="om-riga-corpo" class="om-riga-corpo"></div>
+            <div id="om-riga-piu-box" class="om-riga-piu">
+                <label>&#10133; Aggiungi a questa riga</label>
+                <input type="number" id="om-riga-piu" min="1" max="50" value="1" inputmode="numeric">
+                <span>in arrivo libere (per il magazzino)</span>
+                <button type="button" id="om-riga-aggiungi" class="btn-back mac-btn-piccolo">Aggiungi</button>
+            </div>
             <label id="om-riga-tieni-box" class="mac-check"><input type="checkbox" id="om-riga-tieni" checked> La macchina resta ordinata al fornitore (arriver&agrave; libera e la prende il prossimo cliente)</label>
             <p id="om-riga-aiuto" class="mac-aiuto"></p>
             <div class="modal-buttons">
@@ -2825,6 +2831,33 @@
         </div>
     </div>
 
+    <!-- Ordini Macchine: carica Excel in una sezione (prestagionali con le consegne per mese) -->
+    <div id="om-xls-modal" class="modal hidden">
+        <div class="modal-content mac-modal-content om-xls-content">
+            <div class="modal-header">
+                <h3 id="om-xls-titolo">&#128229; Carica Excel</h3>
+                <button type="button" class="modal-close" id="om-xls-close">&times;</button>
+            </div>
+            <p class="mac-aiuto">File del fornitore con codice, descrizione e le <strong>quantit&agrave; per mese di consegna</strong> (es. OPM STIHL). Viene creato <strong>un ordine per ogni mese</strong> con quantit&agrave;: data di oggi, le tue iniziali, consegna = il mese. Le macchine arrivano libere.</p>
+            <input type="file" id="om-xls-file" accept=".xlsx,.xls,.xlsm" style="display: none;">
+            <button type="button" id="om-xls-btn-file" class="btn-primary">&#128194; Seleziona file Excel</button>
+            <div id="om-xls-file-nome" class="sti-file-nome"></div>
+            <div id="om-xls-impostazioni" class="hidden">
+                <div class="om-xls-griglia">
+                    <div><label>Foglio</label><select id="om-xls-foglio"></select></div>
+                    <div><label>Riga dei titoli (quella con &quot;Codice&quot;)</label><input type="number" id="om-xls-riga" min="1" inputmode="numeric"></div>
+                </div>
+                <div id="om-xls-colonne"></div>
+                <button type="button" id="om-xls-btn-anteprima" class="btn-back">&#128269; Anteprima</button>
+            </div>
+            <div id="om-xls-anteprima"></div>
+            <div class="modal-buttons">
+                <button type="button" id="om-xls-conferma" class="btn-primary hidden">&#10004; Crea ordini</button>
+                <button type="button" id="om-xls-annulla" class="btn-secondary">Annulla</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Ordini Macchine: guida rapida -->
     <div id="om-guida-modal" class="modal hidden">
         <div class="modal-content mac-modal-content mac-raf-guida-content">
@@ -2839,8 +2872,9 @@
                 <h4>2. Macchine da ordinare</h4>
                 <ol>
                     <li>Quando in un ordine cliente una macchina &egrave; <strong>Da ordinare</strong>, compare da sola in <strong>ORDINI NORMALE</strong> del suo marchio, con il nome del cliente e il numero d'ordine.</li>
-                    <li>Quando fai l'ordine al fornitore spunta le righe (con <strong>quante</strong> puoi ordinarne meno: vanno a chi ha ordinato per primo).</li>
-                    <li>Premi <strong>Segna come ordinate</strong>: data (oggi), le tue iniziali, la <strong>sezione</strong> (normale o un prestagionale) e, se serve, la consegna prevista.</li>
+                    <li>Quando fai l'ordine al fornitore spunta le righe. Con <strong>quante</strong> puoi ordinarne meno (vanno a chi ha ordinato per primo) o <strong>di pi&ugrave;</strong>: es. 2 FSA 120 R per due clienti, scrivi 3 e la terza arriva libera per il magazzino.</li>
+                    <li>Premi <strong>Segna come ordinate</strong>: data (oggi), le tue iniziali, la <strong>sezione</strong> (normale o un prestagionale) e, se serve, la consegna prevista. In fondo puoi <strong>aggiungere altri modelli</strong> per il magazzino nello stesso ordine.</li>
+                    <li>Per un ordine solo per il magazzino (nessun cliente): in ORDINI NORMALE premi <strong>&#10133; Nuovo ordine</strong> e cerca i modelli.</li>
                     <li>Le macchine diventano <strong>ordinate</strong>: nel quaderno quadratino bianco con l'<strong>angolino <span class="cw-n">verde</span><span class="cw-d">blu</span></strong>, nell'ordine cliente compare la data dell'ordine (e la consegna).</li>
                 </ol>
 
@@ -2848,10 +2882,14 @@
                 <ol>
                     <li>Scegli il marchio (anche da <strong>Vai al marchio</strong>) e premi <strong>&#10133; Sezione</strong>: es. OPG, con le note delle condizioni.</li>
                     <li>Nella sezione premi <strong>Nuovo ordine</strong>: data, iniziali, <strong>consegna</strong> (es. CONSEGNA GENNAIO 2027) e i modelli con le quantit&agrave;. Ogni consegna diversa = un ordine diverso.</li>
+                    <li>Oppure premi <strong>&#128229; Carica Excel</strong> e scegli il file del fornitore (es. OPM STIHL): l'app trova da sola codice, descrizione e le colonne dei <strong>mesi di consegna</strong> (le colonne in euro le scarta). Crea <strong>un ordine per ogni mese</strong> con quantit&agrave;, data di oggi e le tue iniziali; i mesi vuoti li salta. I modelli li riconosce dal <strong>codice articolo</strong>: quelli che non trova li scegli tu dalla tendina (o li salti), e il codice viene scritto nell'articolo. Ricaricare il file <strong>aggiunge</strong> ordini: per sostituire elimina prima i vecchi.</li>
                     <li>Queste macchine sono <strong>in arrivo libere</strong>: quando un cliente ordina quel modello e in casa non c'&egrave;, l'ordine propone da solo <strong>In arrivo</strong> e mostra la consegna. Se al cliente non va bene, scegli <strong>Da ordinare</strong>.</li>
                 </ol>
 
-                <h4>4. Il cliente ha fretta</h4>
+                <h4>4. Aggiungere macchine a un ordine fatto</h4>
+                <p>Tocca la riga nell'ordine fatto: in <strong>Aggiungi a questa riga</strong> scrivi quante e premi <strong>Aggiungi</strong>: arrivano libere per il magazzino. Per altri modelli usa <strong>modifica</strong> sotto l'ordine.</p>
+
+                <h4>4bis. Il cliente ha fretta</h4>
                 <p>Tocca la riga nell'ordine fatto, spunta la macchina del cliente e premi <strong>Riporta da ordinare</strong>: il cliente torna tra quelle da fare in ORDINI NORMALE e, con la spunta <strong>resta ordinata al fornitore</strong>, la macchina del prestagionale resta in arrivo libera per un altro cliente. Lo stesso si pu&ograve; fare dall'ordine cliente con <strong>Correggi lo stato</strong> (togli la spunta se l'ordine era stato segnato per sbaglio).</p>
 
                 <h4>5. Arrivo della merce</h4>
@@ -2869,7 +2907,7 @@
 
                 <h4>9. Correggere</h4>
                 <ul>
-                    <li><strong>modifica</strong> sotto un ordine: cambia data, iniziali, consegna, note o sezione; nei prestagionali puoi aggiungere righe.</li>
+                    <li><strong>modifica</strong> sotto un ordine: cambia data, iniziali, consegna, note o sezione, e aggiungi righe per il magazzino.</li>
                     <li><strong>Elimina questo ordine</strong>: i clienti tornano da ordinare, le righe libere si tolgono.</li>
                     <li>Una sezione finita si chiude (Sezione &rarr; Sezione chiusa): va in fondo, in grigio.</li>
                 </ul>

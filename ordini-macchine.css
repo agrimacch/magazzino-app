@@ -505,3 +505,123 @@
     margin: 0;
     padding-left: 20px;
 }
+
+/* ---------- Macchine in piu' per il magazzino ---------- */
+.om-extra {
+    display: block;
+    font-size: 11px;
+    color: var(--mac-verde-scuro, #166534);
+    font-weight: 700;
+}
+
+.om-riga-piu {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin: 10px 0;
+    padding: 8px 10px;
+    border: 1px dashed #cbd5e1;
+    border-radius: 8px;
+}
+
+.om-riga-piu label {
+    margin: 0;
+    font-weight: 700;
+}
+
+.om-riga-piu input {
+    width: 70px;
+    margin: 0;
+}
+
+.om-riga-piu span {
+    font-size: 13px;
+    color: var(--gray);
+}
+
+.om-riga-piu .btn-back {
+    width: auto;
+    margin: 0;
+}
+
+/* ---------- Carica Excel nelle sezioni ---------- */
+.om-xls-content {
+    max-width: 760px;
+}
+
+.om-xls-griglia {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 10px;
+    margin: 10px 0;
+}
+
+.om-xls-griglia select,
+.om-xls-griglia input {
+    width: 100%;
+    margin: 0;
+}
+
+.om-xls-mesi {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 16px;
+    margin: 6px 0 12px;
+}
+
+.om-xls-avviso {
+    background: #fef3c7;
+    border: 1px solid #f59e0b;
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 13px;
+}
+
+.om-xls-mancano {
+    border: 1px solid #fcd34d;
+    background: #fffbeb;
+    border-radius: 8px;
+    padding: 8px 12px;
+    margin: 10px 0;
+    font-size: 13px;
+}
+
+.om-xls-manca {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px 10px;
+    padding: 6px 0;
+    border-top: 1px dashed #fde68a;
+}
+
+.om-xls-manca select {
+    flex: 1 1 240px;
+    max-width: 360px;
+    margin: 0;
+}
+
+.om-xls-mese {
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 8px 12px;
+    margin: 8px 0;
+    background: white;
+}
+
+.om-xls-mese-titolo {
+    font-weight: 700;
+}
+
+.om-xls-mese ul {
+    margin: 6px 0 0;
+    padding-left: 18px;
+    font-size: 13px;
+}
+
+.om-xls-saltata {
+    color: #94a3b8;
+    text-decoration: line-through;
+}

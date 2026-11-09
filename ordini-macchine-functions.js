@@ -12,6 +12,11 @@
 // - Ogni ordine fatto e' un blocco: righe con quantita', codice, descrizione, clienti, e in fondo
 //   data + iniziali (+ consegna). Riga arrivata = spunta verde.
 // Righe da ordinare = macchine DA ORDINARE (senza data e iniziali).
+// Macchine in piu' per il magazzino (v7.5): in "quante" si puo' scrivere piu' delle richieste dei clienti
+// (le altre arrivano libere), "Nuovo ordine" anche in ORDINI NORMALE, righe libere in ogni ordine,
+// e nella finestra di una riga "Aggiungi in arrivo libere".
+// Sezioni: "Carica Excel" (file del fornitore con le quantita' per mese di consegna): un ordine per mese
+// con data = oggi, iniziali di chi carica, consegna = mese. Funzioni omXls*.
 // Usa: macchine-functions.js (macPezzi, macOrdiniFornitore, macOfSezioni, macSegnaOrdinate...)
 // Tabelle: macchine_of_ordini, macchine_of_sezioni, macchine_pezzi.ordine_fornitore_id
 // (supabase/ordini-macchine-setup.sql)
@@ -213,6 +218,9 @@ function omHtmlMarchio(marchio) {
     '</div>';
 
     if (sezione === OM_NORMALE) {
+        html += '<div class="om-sez-testa"><div class="mac-aiuto">Ordini senza consegna programmata. Le macchine da ordinare dei clienti arrivano da sole; ' +
+            'per ordinare macchine <strong>per il magazzino</strong> usa <strong>Nuovo ordine</strong> o scrivi in <strong>quante</strong> pi&ugrave; di quelle richieste.</div>' +
+            '<div class="om-sez-azioni">' + (macOfPronto ? '<button type="button" class="btn-primary mac-btn-piccolo" data-om-azione="nuovo-of">&#10133; Nuovo ordine</button>' : '') + '</div></div>';
         html += omHtmlDaOrdinare(daOrdinare);
         html += omHtmlOrdiniFatti(marchio, null);
     } else {
@@ -220,7 +228,8 @@ function omHtmlMarchio(marchio) {
             '<div><strong>' + macEsc(sezScelta.nome) + '</strong>' + (sezScelta.chiusa ? ' <span class="om-tag-chiusa">chiusa</span>' : '') +
                 (sezScelta.note ? '<div class="om-sez-note">' + macEsc(sezScelta.note) + '</div>' : '') + '</div>' +
             '<div class="om-sez-azioni">' +
-                (!sezScelta.chiusa ? '<button type="button" class="btn-primary mac-btn-piccolo" data-om-azione="nuovo-of">&#10133; Nuovo ordine</button>' : '') +
+                (!sezScelta.chiusa ? '<button type="button" class="btn-primary mac-btn-piccolo" data-om-azione="nuovo-of">&#10133; Nuovo ordine</button>' +
+                    '<button type="button" class="btn-back mac-btn-piccolo" data-om-azione="carica-xls">&#128229; Carica Excel</button>' : '') +
                 '<button type="button" class="btn-back mac-btn-piccolo" data-om-azione="modifica-sezione">&#9997;&#65039; Sezione</button>' +
             '</div>' +
         '</div>';
@@ -248,20 +257,22 @@ function omHtmlDaOrdinare(pezzi) {
         const a = g.art;
         const id = a ? a.id : 0;
         const sel = a && omSelezione[id];
+        const extra = sel ? Math.max(0, omSelezione[id] - lista.length) : 0;
         html += '<div class="om-riga' + (sel ? ' om-riga-sel' : '') + '">' +
             '<label class="om-riga-check">' + (a ? '<input type="checkbox" data-om-sel="' + id + '"' + (sel ? ' checked' : '') + '>' : '') +
                 '<span class="mac-quadro st-daordinare"></span></label>' +
             '<div class="om-riga-testo"><strong class="om-qta">' + lista.length + '</strong> ' +
                 omDescrizioneHtml(a) +
                 '<div class="om-clienti">' + omClienteTesto(lista) + '</div></div>' +
-            (sel && lista.length > 1 ? '<label class="om-quante">quante <input type="number" min="1" max="' + lista.length + '" value="' + omSelezione[id] +
-                '" data-om-quante="' + id + '" inputmode="numeric"></label>' : '') +
+            (sel ? '<label class="om-quante" title="Puoi scriverne pi&ugrave; di quelle richieste: le altre arrivano libere (per il magazzino)">quante <input type="number" min="1" max="' +
+                MAC_MAX_QTA + '" value="' + omSelezione[id] + '" data-om-quante="' + id + '" inputmode="numeric">' +
+                (extra ? '<small class="om-extra">+' + extra + ' per il magazzino</small>' : '') + '</label>' : '') +
         '</div>';
     });
     html += '<div class="om-blocco-piede">' +
         '<button type="button" class="btn-primary" data-om-azione="segna-ordinate"' + (totSel && macOfPronto ? '' : ' disabled') + '>&#9745;&#65039; Segna come ordinate' +
             (totSel ? ' (' + totSel + ')' : '') + '</button>' +
-        '<small>Se ne ordini meno di quelle richieste vanno a chi ha ordinato per primo.</small>' +
+        '<small>Se ne ordini meno di quelle richieste vanno a chi ha ordinato per primo; se ne scrivi di pi&ugrave;, le altre arrivano libere per il magazzino.</small>' +
     '</div></div>';
     return html;
 }
@@ -367,19 +378,22 @@ function omApriFinestraOf(modo, marchio, pezzi) {
     // Riepilogo delle macchine (modo segna)
     const riep = document.getElementById('om-of-riepilogo');
     if (modo === 'segna') {
-        riep.innerHTML = '<strong>Vengono ordinate:</strong><ul>' + omPerArticolo(omFinestraPezzi).map(g =>
-            '<li><strong>' + g.pezzi.length + '</strong> ' + macEsc(g.art ? macNome(g.art) : '-') +
-                (g.art && g.art.codice_articolo ? ' <small>(' + macEsc(g.art.codice_articolo) + ')</small>' : '') + ' &mdash; ' + omClienteTesto(g.pezzi.slice().sort(macConfrontaAttesa)) + '</li>'
-        ).join('') + '</ul>';
+        const extra = omExtraSelezione(marchio);
+        riep.innerHTML = '<strong>Vengono ordinate:</strong><ul>' + omPerArticolo(omFinestraPezzi).map(g => {
+            const x = g.art ? extra.find(e => e.art.id === g.art.id) : null;
+            return '<li><strong>' + (g.pezzi.length + (x ? x.n : 0)) + '</strong> ' + macEsc(g.art ? macNome(g.art) : '-') +
+                (g.art && g.art.codice_articolo ? ' <small>(' + macEsc(g.art.codice_articolo) + ')</small>' : '') + ' &mdash; ' + omClienteTesto(g.pezzi.slice().sort(macConfrontaAttesa)) +
+                (x ? ' &middot; <em>' + x.n + ' per il magazzino (in arrivo ' + (x.n === 1 ? 'libera' : 'libere') + ')</em>' : '') + '</li>';
+        }).join('') + '</ul>';
         riep.classList.remove('hidden');
     } else {
         riep.innerHTML = '';
         riep.classList.add('hidden');
     }
-    // Righe senza cliente (nuovo ordine in sezione, o aggiunta in un ordine di sezione)
-    const conRighe = modo === 'nuovo' || (modo === 'modifica' && of && of.sezione_id);
-    document.getElementById('om-of-righe-box').classList.toggle('hidden', !conRighe);
-    document.getElementById('om-of-righe-titolo').innerHTML = modo === 'modifica' ? 'Aggiungi righe (macchine in arrivo libere)' : 'Righe dell\'ordine (macchine in arrivo libere)';
+    // Righe senza cliente (macchine per il magazzino, in arrivo libere): in ogni modo
+    document.getElementById('om-of-righe-box').classList.remove('hidden');
+    document.getElementById('om-of-righe-titolo').innerHTML = modo === 'nuovo' ? 'Righe dell\'ordine (macchine in arrivo libere)'
+        : 'Aggiungi altri modelli per il magazzino <small>(in arrivo liberi)</small>';
     document.getElementById('om-of-art-search').value = '';
     omRenderOfRighe();
     document.getElementById('om-of-elimina').classList.toggle('hidden', modo !== 'modifica');
@@ -441,17 +455,26 @@ async function omSalvaFinestraOf() {
         if (omFinestraModo === 'segna') {
             // ricontrollo: devono essere ancora da ordinare
             const ancora = omFinestraPezzi.filter(p => p.stato === 'DA_ORDINARE');
-            await macSegnaOrdinate(ancora, { data: data, operatore: operatore, sezione_id: sezioneId, consegna: consegna, note: note });
+            // macchine in piu' (quante > richieste) + altri modelli aggiunti: stesse righe libere dell'ordine
+            const libere = omExtraSelezione(marchio);
+            omOfRighe.forEach(r => {
+                const x = libere.find(e => e.art.id === r.art.id);
+                if (x) x.n += r.n; else libere.push({ art: r.art, n: r.n });
+            });
+            let of = null;
+            if (ancora.length) {
+                const creati = await macSegnaOrdinate(ancora, { data: data, operatore: operatore, sezione_id: sezioneId, consegna: consegna, note: note });
+                of = creati.find(o => o.marchio === marchio) || creati[0] || null;
+            }
+            if (libere.length) {
+                if (!of) of = await omCreaOf(marchio, sezioneId, data, operatore, consegna, note);
+                await omAggiungiRigheLibere(of, libere);
+            }
             omSelezione = {};
         } else {
             let of = omOfInModifica;
             if (!of) {
-                const { data: nuovo, error } = await supabaseClient.from('macchine_of_ordini').insert([{
-                    marchio: marchio, sezione_id: sezioneId, data: data, operatore: operatore, consegna: consegna, note: note,
-                    created_by: utente, updated_by: utente
-                }]).select('*').single();
-                if (error) throw error;
-                of = nuovo;
+                of = await omCreaOf(marchio, sezioneId, data, operatore, consegna, note);
             } else {
                 const agg = { data: data, operatore: operatore, consegna: consegna, note: note, sezione_id: sezioneId, updated_at: adesso, updated_by: utente };
                 const { error } = await supabaseClient.from('macchine_of_ordini').update(agg).eq('id', of.id);
@@ -469,6 +492,29 @@ async function omSalvaFinestraOf() {
     }
     omChiudiFinestraOf();
     await omRicarica();
+}
+
+// Macchine in piu' scritte in "quante" (oltre quelle richieste dai clienti): [{ art, n }]
+function omExtraSelezione(marchio) {
+    const out = [];
+    Object.keys(omSelezione).forEach(id => {
+        const richieste = omDaOrdinare(marchio).filter(p => p.articolo_id === Number(id)).length;
+        const extra = omSelezione[id] - richieste;
+        const a = macArticolo(Number(id));
+        if (a && extra > 0) out.push({ art: a, n: extra });
+    });
+    return out;
+}
+
+async function omCreaOf(marchio, sezioneId, data, operatore, consegna, note) {
+    const utente = macUtente();
+    const { data: nuovo, error } = await supabaseClient.from('macchine_of_ordini').insert([{
+        marchio: marchio, sezione_id: sezioneId || null, data: data, operatore: operatore, consegna: consegna || null, note: note || null,
+        created_by: utente, updated_by: utente
+    }]).select('*').single();
+    if (error) throw error;
+    macOrdiniFornitore.push(nuovo);
+    return nuovo;
 }
 
 // Righe senza cliente in un ordine al fornitore: macchine ORDINATE libere (un set = i suoi componenti)
@@ -552,6 +598,8 @@ function omApriRiga(ofId, articoloId) {
                 ' &middot; ' + macEsc(st.etichetta) + (p.matricola ? ' <small>matr. ' + macEsc(p.matricola) + '</small>' : '') + '</span>' +
         '</label>';
     }).join('') || '<p class="mac-aiuto">Nessuna macchina.</p>';
+    document.getElementById('om-riga-piu').value = '1';
+    document.getElementById('om-riga-piu-box').classList.toggle('hidden', !a || !macOfPronto);
     document.getElementById('om-riga-tieni').checked = true;
     document.getElementById('om-riga-tieni-box').classList.toggle('hidden', !pezzi.some(p => p.cliente && p.stato === 'ORDINATA'));
     document.getElementById('om-riga-aiuto').innerHTML =
@@ -563,6 +611,25 @@ function omApriRiga(ofId, articoloId) {
 function omChiudiRiga() {
     document.getElementById('om-riga-modal').classList.add('hidden');
     omRigaAperta = null;
+}
+
+// "Aggiungi N in arrivo libere" a questa riga (es. 2 per i clienti + 1 per il magazzino)
+async function omRigaAggiungi() {
+    if (!omRigaAperta) return;
+    const of = macOf(omRigaAperta.ofId);
+    const a = macArticolo(omRigaAperta.articoloId);
+    const n = parseInt(document.getElementById('om-riga-piu').value, 10);
+    if (!of || !a) return;
+    if (!(n >= 1 && n <= MAC_MAX_QTA)) { await showCustomAlert('Scrivi quante macchine aggiungere (da 1 a ' + MAC_MAX_QTA + ')', 'Riga', '&#9888;&#65039;'); return; }
+    if (!window.confirm('Aggiungere ' + n + ' ' + macNome(a) + ' a questo ordine?\n\nArrivano libere (per il magazzino): se nel frattempo un cliente ordina questo modello, la prende lui.')) return;
+    try {
+        await omAggiungiRigheLibere(of, [{ art: a, n: n }]);
+    } catch (error) {
+        console.error('Errore aggiunta righe libere:', error);
+        await showCustomAlert('Errore:<br>' + macEsc(error.message), 'Errore', '&#10060;');
+    }
+    omChiudiRiga();
+    await omRicarica();
 }
 
 async function omRigaRiporta() {
@@ -673,6 +740,371 @@ function omScegliMarchio(m) {
 }
 
 // ========================================
+// SEZIONI: CARICA EXCEL (file del fornitore con le quantita' per mese di consegna)
+// ----------------------------------------
+// Es. STIHL OPM: foglio "OPM", riga dei titoli con "Codice" e "Descrizione Prod.", qualche riga sopra
+// i mesi (Jul-26, Aug-26, Sep-26...) sulle colonne delle quantita'. Le colonne dei valori in euro
+// (stessi mesi ma importi) vengono scartate da sole.
+// Per ogni mese con almeno una quantita': un ordine nella sezione, data = oggi, iniziali di chi carica,
+// consegna = "CONSEGNA SETTEMBRE 2026", righe = macchine in arrivo libere.
+// Modello: riconosciuto dal codice articolo del Listino Agrimacch, poi da Listini Fornitori (articoli collegati).
+// Se non lo trova si sceglie dalla tendina (e il codice viene scritto nell'articolo, se non ne ha uno).
+// ========================================
+const OM_MESI = ['GENNAIO', 'FEBBRAIO', 'MARZO', 'APRILE', 'MAGGIO', 'GIUGNO', 'LUGLIO', 'AGOSTO', 'SETTEMBRE', 'OTTOBRE', 'NOVEMBRE', 'DICEMBRE'];
+function omXlsData(v) {
+    return Object.prototype.toString.call(v) === '[object Date]' && !isNaN(v.getTime());
+}
+
+const OM_MESI_BREVI = {
+    GEN: 0, JAN: 0, FEB: 1, MAR: 2, APR: 3, MAG: 4, MAY: 4, GIU: 5, JUN: 5, LUG: 6, JUL: 6, AGO: 7, AUG: 7,
+    SET: 8, SEP: 8, OTT: 9, OCT: 9, NOV: 10, DIC: 11, DEC: 11
+};
+
+let omXlsWb = null;
+let omXlsFile = '';
+let omXlsPiano = null;
+
+function omXlsCella(ws, r, c) {
+    return ws[XLSX.utils.encode_cell({ r: r, c: c })] || null;
+}
+
+function omXlsTesto(ws, r, c) {
+    const cell = omXlsCella(ws, r, c);
+    if (!cell || cell.v === null || cell.v === undefined) return '';
+    if (omXlsData(cell.v)) return cell.w || '';
+    return String(cell.w !== undefined && typeof cell.v !== 'string' ? cell.w : cell.v).replace(/\s+/g, ' ').trim();
+}
+
+function omXlsNorm(t) {
+    return String(t || '').toUpperCase().replace(/[.()]/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function omCodiceNorm(c) {
+    return String(c || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+}
+
+// Mese di una cella: data (Jul-26) o testo (LUGLIO, SETTEMBRE 2026, SEP-26) -> { m: 0..11, anno }
+function omXlsMese(cell) {
+    if (!cell || cell.v === null || cell.v === undefined || cell.v === '') return null;
+    if (omXlsData(cell.v)) {
+        const d = new Date(cell.v.getTime() + 12 * 3600 * 1000);   // il file e' in ora italiana: mezzanotte del 1 = 22:00 del giorno prima
+        return { m: d.getUTCMonth(), anno: d.getUTCFullYear() };
+    }
+    if (typeof cell.v !== 'string') return null;
+    const t = omXlsNorm(cell.v);
+    const annoM = t.match(/(20\d\d)|[-\/ ]'?(\d\d)$/);
+    const anno = annoM ? (annoM[1] ? Number(annoM[1]) : 2000 + Number(annoM[2])) : null;
+    for (let i = 0; i < 12; i++) if (t.indexOf(OM_MESI[i]) === 0) return { m: i, anno: anno };
+    const b = t.match(/^([A-Z]{3})(?:[A-Z]*)?[\s\-\/']*\d{0,4}$/);
+    if (b && b[1] in OM_MESI_BREVI) return { m: OM_MESI_BREVI[b[1]], anno: anno };
+    return null;
+}
+
+function omXlsMeseTesto(x) {
+    return OM_MESI[x.m] + (x.anno ? ' ' + x.anno : '');
+}
+
+function omXlsRange(ws) {
+    return ws && ws['!ref'] ? XLSX.utils.decode_range(ws['!ref']) : null;
+}
+
+function omXlsNascosto(wb, nome) {
+    try {
+        const s = ((wb.Workbook && wb.Workbook.Sheets) || []).find(x => x.name === nome);
+        return !!(s && s.Hidden);
+    } catch (e) { return false; }
+}
+
+// Riga dei titoli: quella con "CODICE" e almeno una colonna di mesi sopra (o nella stessa riga)
+function omXlsTrovaTitoli(ws) {
+    const rg = omXlsRange(ws);
+    if (!rg) return -1;
+    for (let r = rg.s.r; r <= Math.min(rg.e.r, rg.s.r + 100); r++) {
+        let codice = false;
+        for (let c = rg.s.c; c <= Math.min(rg.e.c, 80); c++) {
+            const h = omXlsNorm(omXlsTesto(ws, r, c));
+            if (h === 'CODICE' || h === 'CODICE ARTICOLO' || h === 'COD ARTICOLO' || h === 'MATERIAL' || h === 'ARTICOLO') { codice = true; break; }
+        }
+        if (codice && omXlsColonneMesi(ws, r).length) return r;
+    }
+    return -1;
+}
+
+// Colonne con un mese nelle 6 righe sopra i titoli (o nei titoli) e quantita' (non importi in euro) sotto
+function omXlsColonneMesi(ws, rTitoli) {
+    const rg = omXlsRange(ws);
+    if (!rg) return [];
+    const out = [];
+    for (let c = rg.s.c; c <= rg.e.c; c++) {
+        let mese = null, rMese = -1;
+        for (let r = rTitoli; r >= Math.max(rg.s.r, rTitoli - 6); r--) {
+            const m = omXlsMese(omXlsCella(ws, r, c));
+            if (m) { mese = m; rMese = r; break; }
+        }
+        if (!mese) continue;
+        // sotto: niente euro, solo numeri interi (o vuoto / trattino)
+        let euro = false, numeri = 0, decimali = 0;
+        for (let r = rTitoli + 1; r <= Math.min(rg.e.r, rTitoli + 400); r++) {
+            const cell = omXlsCella(ws, r, c);
+            if (!cell || cell.v === null || cell.v === '' ) continue;
+            if (String(cell.w || '').indexOf('\u20ac') !== -1 || String(cell.z || '').indexOf('\u20ac') !== -1) { euro = true; break; }
+            if (typeof cell.v === 'number') {
+                numeri++;
+                if (Math.abs(cell.v - Math.round(cell.v)) > 0.0001) decimali++;
+            }
+        }
+        if (euro || decimali > 0) continue;
+        out.push({ col: c, mese: mese, rMese: rMese, numeri: numeri });
+    }
+    return out;
+}
+
+function omXlsApri() {
+    const marchio = omSessione('omMarchio');
+    const sez = macOfSezione(Number(omSessione('omSezione')));
+    if (!sez || sez.chiusa) return;
+    omXlsWb = null;
+    omXlsPiano = null;
+    omXlsFile = '';
+    document.getElementById('om-xls-titolo').innerHTML = '&#128229; Carica Excel - ' + macEsc(marchio) + ' &middot; ' + macEsc(sez.nome);
+    document.getElementById('om-xls-file-nome').innerHTML = '';
+    document.getElementById('om-xls-impostazioni').classList.add('hidden');
+    document.getElementById('om-xls-anteprima').innerHTML = '';
+    document.getElementById('om-xls-conferma').classList.add('hidden');
+    document.getElementById('om-xls-modal').classList.remove('hidden');
+}
+
+function omXlsChiudi() {
+    document.getElementById('om-xls-modal').classList.add('hidden');
+    omXlsWb = null;
+    omXlsPiano = null;
+}
+
+function omXlsFileScelto(e) {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    omXlsFile = file.name;
+    const box = document.getElementById('om-xls-file-nome');
+    box.innerHTML = '&#8987; Lettura del file...';
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+        try {
+            omXlsWb = XLSX.read(new Uint8Array(ev.target.result), { type: 'array', cellDates: true });
+        } catch (err) {
+            box.innerHTML = '';
+            showCustomAlert('Non riesco a leggere il file:<br>' + macEsc(err.message), 'Errore', '&#10060;');
+            return;
+        }
+        const conTitoli = omXlsWb.SheetNames.filter(n => omXlsTrovaTitoli(omXlsWb.Sheets[n]) !== -1);
+        const scelto = conTitoli.find(n => !omXlsNascosto(omXlsWb, n)) || conTitoli[0] || omXlsWb.SheetNames[0];
+        const sel = document.getElementById('om-xls-foglio');
+        sel.innerHTML = omXlsWb.SheetNames.map(n => '<option value="' + macEsc(n) + '">' + macEsc(n) + (omXlsNascosto(omXlsWb, n) ? ' (nascosto)' : '') + '</option>').join('');
+        sel.value = scelto;
+        box.innerHTML = '&#128196; <strong>' + macEsc(file.name) + '</strong>';
+        document.getElementById('om-xls-impostazioni').classList.remove('hidden');
+        omXlsFoglioCambiato();
+    };
+    reader.readAsArrayBuffer(file);
+}
+
+function omXlsFoglioCambiato() {
+    const ws = omXlsWb.Sheets[document.getElementById('om-xls-foglio').value];
+    const r = omXlsTrovaTitoli(ws);
+    document.getElementById('om-xls-riga').value = r === -1 ? '' : String(r + 1);
+    omXlsRigaCambiata();
+}
+
+function omXlsRigaCambiata() {
+    omXlsPiano = null;
+    document.getElementById('om-xls-anteprima').innerHTML = '';
+    document.getElementById('om-xls-conferma').classList.add('hidden');
+    const ws = omXlsWb.Sheets[document.getElementById('om-xls-foglio').value];
+    const riga = parseInt(document.getElementById('om-xls-riga').value, 10) - 1;
+    const rg = omXlsRange(ws);
+    const box = document.getElementById('om-xls-colonne');
+    const intest = [];
+    if (rg && riga >= 0) {
+        for (let c = rg.s.c; c <= rg.e.c; c++) {
+            const t = omXlsTesto(ws, riga, c);
+            if (t) intest.push({ col: c, testo: t, norm: omXlsNorm(t) });
+        }
+    }
+    if (!intest.length) {
+        box.innerHTML = '<p class="mac-aiuto">&#9888;&#65039; Scrivi il numero della riga con i titoli delle colonne (quella con &quot;Codice&quot;).</p>';
+        return;
+    }
+    const campi = [
+        { campo: 'codice', titolo: 'Codice articolo *', indovina: h => h === 'CODICE' || h === 'CODICE ARTICOLO' || h === 'COD ARTICOLO' || h === 'MATERIAL' },
+        { campo: 'descrizione', titolo: 'Descrizione', indovina: h => h.indexOf('DESCRIZ') === 0 || h === 'DESCRIPTION' }
+    ];
+    const opz = (scelta) => intest.map(h => '<option value="' + h.col + '"' + (scelta && scelta.col === h.col ? ' selected' : '') + '>' +
+        XLSX.utils.encode_col(h.col) + ' &middot; ' + macEsc(h.testo) + '</option>').join('');
+    let html = '<div class="om-xls-griglia">' + campi.map(f => {
+        const scelta = intest.find(h => f.indovina(h.norm));
+        return '<div><label>' + f.titolo + '</label><select data-om-xls="' + f.campo + '"><option value="">- scegli -</option>' + opz(scelta) + '</select></div>';
+    }).join('') + '</div>';
+    const mesi = omXlsColonneMesi(ws, riga);
+    html += '<label>Quantit&agrave; per mese di consegna <small>(colonne trovate: togli la spunta a quelle da non usare)</small></label>';
+    html += mesi.length ? '<div class="om-xls-mesi">' + mesi.map(m =>
+        '<label class="mac-check"><input type="checkbox" data-om-xls-mese="' + m.col + '" data-mese="' + m.mese.m + '" data-anno="' + (m.mese.anno || '') + '" checked> ' +
+            '<strong>' + macEsc(omXlsMeseTesto(m.mese)) + '</strong> <small>(colonna ' + XLSX.utils.encode_col(m.col) + ')</small></label>').join('') + '</div>'
+        : '<p class="mac-aiuto">&#9888;&#65039; Non trovo colonne di mesi sopra la riga dei titoli: controlla foglio e riga.</p>';
+    box.innerHTML = html;
+}
+
+// Articolo del Listino Agrimacch per un codice del fornitore
+function omXlsArticoloDaCodice(codice) {
+    const n = omCodiceNorm(codice);
+    if (!n) return null;
+    const diretto = listinoArticoli.find(a => a.attivo && a.codice_articolo && omCodiceNorm(a.codice_articolo) === n);
+    if (diretto) return diretto;
+    if (typeof lfArticoli !== 'undefined' && Array.isArray(lfArticoli)) {
+        const lf = lfArticoli.find(x => x.articolo_id && omCodiceNorm(x.codice) === n);
+        if (lf) return listinoArticoli.find(a => a.attivo && a.id === lf.articolo_id) || null;
+    }
+    return null;
+}
+
+async function omXlsAnteprima() {
+    if (!omXlsWb) return;
+    const ws = omXlsWb.Sheets[document.getElementById('om-xls-foglio').value];
+    const riga = parseInt(document.getElementById('om-xls-riga').value, 10) - 1;
+    const colCod = document.querySelector('#om-xls-colonne select[data-om-xls="codice"]');
+    const colDes = document.querySelector('#om-xls-colonne select[data-om-xls="descrizione"]');
+    const mesi = Array.from(document.querySelectorAll('#om-xls-colonne [data-om-xls-mese]:checked')).map(el => ({
+        col: parseInt(el.dataset.omXlsMese, 10), m: parseInt(el.dataset.mese, 10), anno: el.dataset.anno ? parseInt(el.dataset.anno, 10) : null
+    }));
+    if (!(riga >= 0) || !colCod || colCod.value === '' || !mesi.length) {
+        await showCustomAlert('Scegli la riga dei titoli, la colonna del codice e almeno un mese.', 'Controlla', '&#9888;&#65039;');
+        return;
+    }
+    // Listini Fornitori: servono per riconoscere i codici degli articoli collegati
+    if (typeof lfCaricaDati === 'function' && typeof lfPuoVedere === 'function' && lfPuoVedere() && typeof lfCaricato !== 'undefined' && !lfCaricato) {
+        try { await lfCaricaDati(); } catch (e) { console.warn('Listini Fornitori non disponibili:', e.message); }
+    }
+    const cC = parseInt(colCod.value, 10);
+    const cD = colDes && colDes.value !== '' ? parseInt(colDes.value, 10) : null;
+    const rg = omXlsRange(ws);
+    const righe = [];
+    for (let r = riga + 1; r <= rg.e.r; r++) {
+        const codice = listinoPulisciTesto(omXlsTesto(ws, r, cC));
+        if (!codice || codice === '0' || codice === '-' || omCodiceNorm(codice).length < 3) continue;
+        const qta = {};
+        let tot = 0;
+        mesi.forEach(m => {
+            const cell = omXlsCella(ws, r, m.col);
+            let v = cell ? cell.v : null;
+            if (typeof v === 'string') v = parseFloat(v.replace(',', '.'));
+            const n = typeof v === 'number' && isFinite(v) ? Math.round(v) : 0;
+            if (n > 0) { qta[m.col] = n; tot += n; }
+        });
+        if (!tot) continue;
+        righe.push({ riga: r + 1, codice: codice, descrizione: cD !== null ? listinoPulisciTesto(omXlsTesto(ws, r, cD)) : '', qta: qta, tot: tot,
+            art: omXlsArticoloDaCodice(codice), scelto: null });
+    }
+    omXlsPiano = { mesi: mesi, righe: righe };
+    omXlsRenderAnteprima();
+}
+
+function omXlsArticoloRiga(x) {
+    return x.art || (x.scelto ? macArticolo(x.scelto) : null);
+}
+
+function omXlsRenderAnteprima() {
+    const p = omXlsPiano;
+    const box = document.getElementById('om-xls-anteprima');
+    const conferma = document.getElementById('om-xls-conferma');
+    if (!p) { box.innerHTML = ''; conferma.classList.add('hidden'); return; }
+    if (!p.righe.length) {
+        box.innerHTML = '<p class="mac-aiuto">&#9888;&#65039; Nessuna quantit&agrave; nei mesi scelti.</p>';
+        conferma.classList.add('hidden');
+        return;
+    }
+    const marchio = omSessione('omMarchio');
+    const sez = macOfSezione(Number(omSessione('omSezione')));
+    const gia = macOrdiniFornitore.filter(of => sez && of.sezione_id === sez.id).length;
+    const opzioni = listinoOrdina(listinoArticoli.filter(a => a.attivo && a.marchio === marchio))
+        .map(a => '<option value="' + a.id + '">' + macEsc(macNome(a)) + '</option>').join('');
+    const nonTrovati = p.righe.filter(x => !x.art);
+    let html = '';
+    if (gia) html += '<p class="om-xls-avviso">&#9888;&#65039; In questa sezione ci sono gi&agrave; ' + gia + ' ordini: il file ne <strong>aggiunge</strong> altri, non sostituisce. ' +
+        'Se lo stai ricaricando corretto, elimina prima gli ordini vecchi (&#9997;&#65039; modifica &rarr; Elimina).</p>';
+    if (nonTrovati.length) {
+        html += '<div class="om-xls-mancano"><strong>&#10067; ' + nonTrovati.length + ' codici non trovati nel Listino Agrimacch</strong> ' +
+            '<small>(scegli il modello oppure lascia &quot;salta&quot;; il codice viene scritto nell\'articolo scelto, se non ne ha uno)</small>' +
+            nonTrovati.map(x => '<div class="om-xls-manca"><span><strong>' + macEsc(x.codice) + '</strong> ' + macEsc(x.descrizione || '') + ' <small>(' + x.tot + ' pz)</small></span>' +
+                '<select data-om-xls-scegli="' + x.riga + '"><option value="">- salta -</option>' + opzioni + '</select></div>').join('') + '</div>';
+    }
+    p.mesi.forEach(m => {
+        const lista = p.righe.filter(x => x.qta[m.col]);
+        const pezzi = lista.reduce((t, x) => t + x.qta[m.col], 0);
+        html += '<div class="om-xls-mese"><div class="om-xls-mese-titolo">&#128666; ' + macEsc(omXlsMeseTesto(m)) +
+            (lista.length ? ' &middot; <strong>' + pezzi + ' pz</strong>' : ' &middot; <em>nessuna consegna</em>') + '</div>' +
+            (lista.length ? '<ul>' + lista.map(x => {
+                const a = omXlsArticoloRiga(x);
+                return '<li' + (a ? '' : ' class="om-xls-saltata"') + '><strong>' + x.qta[m.col] + '</strong> ' +
+                    (a ? macEsc(macNome(a)) : macEsc(x.descrizione || '') + ' <em>(salta)</em>') + ' <small>' + macEsc(x.codice) + '</small></li>';
+            }).join('') + '</ul>' : '') + '</div>';
+    });
+    box.innerHTML = html;
+    p.righe.forEach(x => {
+        const s = box.querySelector('[data-om-xls-scegli="' + x.riga + '"]');
+        if (s && x.scelto) s.value = String(x.scelto);
+    });
+    const ordini = p.mesi.filter(m => p.righe.some(x => x.qta[m.col] && omXlsArticoloRiga(x))).length;
+    conferma.innerHTML = '&#10004; Crea ' + ordini + (ordini === 1 ? ' ordine' : ' ordini');
+    conferma.disabled = !ordini;
+    conferma.classList.remove('hidden');
+}
+
+async function omXlsConferma() {
+    const p = omXlsPiano;
+    if (!p) return;
+    const marchio = omSessione('omMarchio');
+    const sez = macOfSezione(Number(omSessione('omSezione')));
+    if (!sez) return;
+    const data = omOggiISO();
+    const operatore = macIniziali();
+    const perMese = p.mesi.map(m => ({
+        m: m,
+        righe: p.righe.filter(x => x.qta[m.col] && omXlsArticoloRiga(x)).map(x => ({ art: omXlsArticoloRiga(x), n: x.qta[m.col] }))
+    })).filter(x => x.righe.length);
+    if (!perMese.length) return;
+    const pezzi = perMese.reduce((t, x) => t + x.righe.reduce((s, r) => s + r.n, 0), 0);
+    if (!window.confirm('Creare ' + perMese.length + ' ordini in ' + sez.nome + ' (' + pezzi + ' macchine in arrivo libere)?\n\n' +
+        perMese.map(x => '- CONSEGNA ' + omXlsMeseTesto(x.m) + ': ' + x.righe.reduce((s, r) => s + r.n, 0) + ' pz').join('\n') +
+        '\n\nData ' + macDataCorta(data) + ', iniziali ' + operatore + '.')) return;
+    const btn = document.getElementById('om-xls-conferma');
+    btn.disabled = true;
+    btn.innerHTML = '&#8987; Salvataggio...';
+    try {
+        // Codici scelti a mano: li scrivo nell'articolo (solo se non ne ha gia' uno), cosi' la prossima volta lo riconosce
+        for (const x of p.righe) {
+            if (x.art || !x.scelto) continue;
+            const a = macArticolo(x.scelto);
+            if (a && !a.codice_articolo && typeof listinoHaCodiceArticolo === 'function' && listinoHaCodiceArticolo()) {
+                const { error } = await supabaseClient.from('listino_articoli').update({ codice_articolo: x.codice }).eq('id', a.id);
+                if (!error) a.codice_articolo = x.codice;
+            }
+        }
+        for (const x of perMese) {
+            const of = await omCreaOf(marchio, sez.id, data, operatore, 'CONSEGNA ' + omXlsMeseTesto(x.m), 'DA EXCEL: ' + omXlsFile.toUpperCase().slice(0, 80));
+            await omAggiungiRigheLibere(of, x.righe);
+        }
+    } catch (error) {
+        console.error('Errore caricamento Excel ordini:', error);
+        await showCustomAlert('Errore durante il salvataggio:<br>' + macEsc(error.message) + '<br><br>Controlla la sezione: gli ordini creati fino all\'errore restano.', 'Errore', '&#10060;');
+        omXlsChiudi();
+        await omRicarica();
+        return;
+    }
+    omXlsChiudi();
+    await omRicarica();
+    await showCustomAlert(perMese.length + ' ordini creati in <strong>' + macEsc(sez.nome) + '</strong> (' + pezzi + ' macchine in arrivo libere).', 'Fatto', '&#10004;');
+}
+
+// ========================================
 // EVENT LISTENERS
 // ========================================
 document.addEventListener('DOMContentLoaded', () => {
@@ -705,6 +1137,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (az === 'segna-ordinate') omApriSegna();
         else if (az === 'nuova-sezione') omApriSezione(null);
         else if (az === 'modifica-sezione') omApriSezione(macOfSezione(Number(omSessione('omSezione'))));
+        else if (az === 'carica-xls') omXlsApri();
         else if (az === 'nuovo-of') {
             omOfInModifica = null;
             omOfRighe = [];
@@ -732,9 +1165,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         if (el.dataset.omQuante !== undefined) {
             const id = Number(el.dataset.omQuante);
-            const max = omDaOrdinare(omSessione('omMarchio')).filter(p => p.articolo_id === id).length;
             const q = parseInt(el.value, 10);
-            omSelezione[id] = Math.min(max, Math.max(1, q || 1));
+            omSelezione[id] = Math.min(MAC_MAX_QTA, Math.max(1, q || 1));
             omRender();
         }
     });
@@ -765,12 +1197,35 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('om-riga-close').addEventListener('click', omChiudiRiga);
     document.getElementById('om-riga-chiudi').addEventListener('click', omChiudiRiga);
     document.getElementById('om-riga-riporta').addEventListener('click', omRigaRiporta);
+    document.getElementById('om-riga-aggiungi').addEventListener('click', omRigaAggiungi);
 
     // Finestra sezione
     document.getElementById('om-sez-close').addEventListener('click', omChiudiSezione);
     document.getElementById('om-sez-annulla').addEventListener('click', omChiudiSezione);
     document.getElementById('om-sez-salva').addEventListener('click', omSalvaSezione);
     document.getElementById('om-sez-elimina').addEventListener('click', omEliminaSezione);
+
+    // Carica Excel (sezioni)
+    document.getElementById('om-xls-close').addEventListener('click', omXlsChiudi);
+    document.getElementById('om-xls-annulla').addEventListener('click', omXlsChiudi);
+    document.getElementById('om-xls-btn-file').addEventListener('click', () => document.getElementById('om-xls-file').click());
+    document.getElementById('om-xls-file').addEventListener('change', omXlsFileScelto);
+    document.getElementById('om-xls-foglio').addEventListener('change', omXlsFoglioCambiato);
+    document.getElementById('om-xls-riga').addEventListener('change', omXlsRigaCambiata);
+    document.getElementById('om-xls-colonne').addEventListener('change', () => {
+        omXlsPiano = null;
+        document.getElementById('om-xls-anteprima').innerHTML = '';
+        document.getElementById('om-xls-conferma').classList.add('hidden');
+    });
+    document.getElementById('om-xls-btn-anteprima').addEventListener('click', omXlsAnteprima);
+    document.getElementById('om-xls-conferma').addEventListener('click', omXlsConferma);
+    document.getElementById('om-xls-anteprima').addEventListener('change', (e) => {
+        const s = e.target.closest('[data-om-xls-scegli]');
+        if (!s || !omXlsPiano) return;
+        const x = omXlsPiano.righe.find(r => String(r.riga) === s.dataset.omXlsScegli);
+        if (x) x.scelto = s.value ? Number(s.value) : null;
+        omXlsRenderAnteprima();
+    });
 
     // Guida
     const apriGuida = () => document.getElementById('om-guida-modal').classList.remove('hidden');
