@@ -1,5 +1,11 @@
 # Changelog App Magazzino
 
+## v7.4.0 - 2026-11-09 (PRODUZIONE)
+Ordini Macchine, Listini Fornitori e novità
+
+## vOrdini Macchine, Listini Fornitori e novità - 2026-11-09 (PRODUZIONE)
+
+
 ## v7.1.3 - 2026-11-07 (PRODUZIONE)
 prova aggiornamento
 

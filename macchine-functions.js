@@ -1,7 +1,7 @@
 // ========================================
 // INVENTARIO MACCHINE - FUNZIONI DEDICATE (fase 1)
 // ----------------------------------------
-// Sezione dentro MAGAZZINO. Collegato al Listino Vendite: ogni macchina fisica e' una riga di
+// Sezione dentro MAGAZZINO. Collegato al Listino Agrimacch: ogni macchina fisica e' una riga di
 // macchine_pezzi legata a un articolo di listino_articoli.
 // - Inventario: stesse colonne/suddivisione del listino (senza prezzi e note prezzi)
 // - Quaderno: riproduce il quadernone cartaceo (divisori per marchio,
@@ -9,7 +9,7 @@
 // - Carico macchine: con assegnazione automatica ai clienti in attesa
 // - Set: composizione dei set (macchina + batteria + caricatore...)
 // - Movimenti: registro di tutte le operazioni
-// - Nel Listino Vendite compare in piccolo "in casa N" (solo per chi
+// - Nel Listino Agrimacch compare in piccolo "in casa N" (solo per chi
 //   puo' gestire l'inventario macchine)
 // Tabelle Supabase: macchine_pezzi, macchine_composizione, macchine_movimenti
 // Usa le funzioni di utilita' di listino-functions.js (listinoEsc, ...)
@@ -23,6 +23,20 @@
 const MACCHINE_PER_OPERATORI = true;   // dal 2/11/2026 (con supabase/macchine-operatori.sql eseguito)
 
 let macPezzi = [];              // tutti i pezzi
+// Ordini al fornitore (libro Ordini Macchine): tabelle macchine_of_ordini / macchine_of_sezioni
+let macOrdiniFornitore = [];    // { id, marchio, sezione_id, data, operatore, consegna, note }
+let macOfSezioni = [];          // { id, marchio, nome, note, chiusa }
+let macOfPronto = false;        // false = script ordini-macchine-setup.sql non ancora eseguito
+let macOrdiniDate = {};         // id ordine cliente -> data (per dare le macchine in arrivo al primo che le ha ordinate)
+let macOrdiniInfo = {};         // id ordine cliente -> { id, data, numero, anno, annullato_at }
+let macRigheMontaggio = {};     // id riga ordine cliente -> 'MONTATA' / 'SCATOLA' (vuoto = non indicato)
+let macArrivi = null;           // macchine arrivate nel carico in corso (per il report: da montare / in scatola / in casa)
+
+// Montata / in scatola nelle righe degli ordini e report del carico: admin e operatori (dal 9/11/2026).
+// Serve supabase/ordini-montaggio.sql
+const MAC_MONTAGGIO_RUOLI = ['admin', 'operatore'];
+// "Arrivata al posto di..." nel Carico macchine (modello diverso da quello ordinato): admin e operatori (dal 9/11/2026)
+const MAC_SOSTITUZIONE_RUOLI = ['admin', 'operatore'];
 let macComposizione = [];       // righe { set_id, componente_id, quantita }
 let macCaricato = false;
 let macMovimenti = [];
@@ -34,7 +48,7 @@ const macOrdiniDaAggiornare = new Set();
 // Stati (i colori del quadernone)
 const MAC_STATI = {
     DA_ORDINARE: { etichetta: 'Da ordinare', classe: 'st-daordinare', aiuto: 'quadrato bianco + nome' },
-    ORDINATA:    { etichetta: 'Ordinata',    classe: 'st-ordinata',   aiuto: 'quadrato blu + nome' },
+    ORDINATA:    { etichetta: 'Ordinata',    classe: 'st-ordinata',   aiuto: 'bianco con l\'angolino verde + nome (senza nome = in arrivo libera, es. prestagionale)' },
     IN_CASA:     { etichetta: 'In casa',     classe: 'st-incasa',     aiuto: 'verde: con nome assegnata, senza nome disponibile' },
     CONSEGNATA:  { etichetta: 'Consegnata',  classe: 'st-consegnata', aiuto: 'verde con la croce' }
 };
@@ -127,6 +141,293 @@ async function macCaricaDati() {
     macPezzi = pezzi;
     macComposizione = comp;
     macCaricato = true;
+    await macCaricaOrdiniFornitore();
+}
+
+// Ordini al fornitore + date degli ordini clienti (leggero: solo id e data, niente firme).
+// Se le tabelle non ci sono ancora (script non eseguito) l'app funziona come prima.
+async function macCaricaOrdiniFornitore() {
+    try {
+        let date = [];
+        let da = 0;
+        while (true) {
+            const { data, error } = await supabaseClient.from('macchine_ordini').select('id, data, numero, anno, annullato_at')
+                .order('id', { ascending: true }).range(da, da + 999);
+            if (error) throw error;
+            date = date.concat(data || []);
+            if (!data || data.length < 1000) break;
+            da += 1000;
+        }
+        const mappa = {};
+        const info = {};
+        date.forEach(o => { mappa[o.id] = o.data; info[o.id] = o; });
+        macOrdiniDate = mappa;
+        macOrdiniInfo = info;
+    } catch (e) {
+        console.warn('Date ordini clienti non lette:', e.message || e);
+    }
+    // Montata / in scatola delle righe degli ordini (se la colonna non c'e' ancora: niente)
+    try {
+        let righe = [];
+        let da = 0;
+        while (true) {
+            const { data, error } = await supabaseClient.from('macchine_ordini_righe').select('id, montaggio')
+                .not('montaggio', 'is', null).order('id', { ascending: true }).range(da, da + 999);
+            if (error) throw error;
+            righe = righe.concat(data || []);
+            if (!data || data.length < 1000) break;
+            da += 1000;
+        }
+        const m = {};
+        righe.forEach(r => { m[r.id] = r.montaggio; });
+        macRigheMontaggio = m;
+    } catch (e) {
+        macRigheMontaggio = {};
+    }
+    try {
+        macOrdiniFornitore = await macFetchAll('macchine_of_ordini', 'id');
+        macOfSezioni = await macFetchAll('macchine_of_sezioni', 'id');
+        macOfPronto = true;
+    } catch (e) {
+        macOrdiniFornitore = [];
+        macOfSezioni = [];
+        macOfPronto = false;
+    }
+}
+
+// ========================================
+// ORDINI AL FORNITORE (condivisi da quaderno, ordini clienti e libro Ordini Macchine)
+// ========================================
+function macOf(id) {
+    return id ? macOrdiniFornitore.find(o => o.id === id) || null : null;
+}
+
+function macOfSezione(id) {
+    return id ? macOfSezioni.find(s => s.id === id) || null : null;
+}
+
+function macOfNomeSezione(o) {
+    const s = o ? macOfSezione(o.sezione_id) : null;
+    return s ? s.nome : 'ORDINI NORMALE';
+}
+
+function macDataCorta(iso) {
+    if (!iso) return '';
+    const p = String(iso).slice(0, 10).split('-');
+    return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0].slice(2) : iso;
+}
+
+// "Ordinata il 07/11/26 DZ - OPG - CONSEGNA GENNAIO 2027" (vuoto se non c'e' l'ordine al fornitore)
+function macOfTesto(p, conSezione) {
+    const o = p ? macOf(p.ordine_fornitore_id) : null;
+    if (!o) return '';
+    const sez = macOfSezione(o.sezione_id);
+    return 'Ordinata il ' + macDataCorta(o.data) + ' ' + (o.operatore || '') +
+        (conSezione !== false && sez ? ' - ' + sez.nome : '') +
+        (o.consegna ? ' - ' + o.consegna : '');
+}
+
+// Data dell'ordine cliente di una macchina (per l'ordine di arrivo: chi ha ordinato prima)
+function macDataAttesa(p) {
+    const d = p.ordine_id ? macOrdiniDate[p.ordine_id] : null;
+    return String(d || p.created_at || '9999').slice(0, 10);
+}
+
+function macConfrontaAttesa(x, y) {
+    const a = macDataAttesa(x), b = macDataAttesa(y);
+    if (a !== b) return a < b ? -1 : 1;
+    return x.id - y.id;
+}
+
+// Data dell'ordine al fornitore (le macchine ordinate prima arrivano prima)
+function macDataOf(p) {
+    const o = macOf(p.ordine_fornitore_id);
+    return o ? String(o.data) : '0000';
+}
+
+function macConfrontaOf(x, y) {
+    const a = macDataOf(x), b = macDataOf(y);
+    if (a !== b) return a < b ? -1 : 1;
+    return x.id - y.id;
+}
+
+// Iniziali dell'utente collegato (per firmare gli ordini al fornitore)
+function macIniziali() {
+    return macChi(macUtente());
+}
+
+// Segna come ORDINATE al fornitore delle macchine (DA ORDINARE con cliente, o nuove senza cliente).
+// Crea un ordine al fornitore per ogni marchio. dati: { data, operatore, sezione_id, consegna, note, dettaglio }
+// Ritorna gli ordini al fornitore creati.
+async function macSegnaOrdinate(pezzi, dati) {
+    if (!macOfPronto) throw new Error('Manca lo script supabase/ordini-macchine-setup.sql su Supabase');
+    const adesso = new Date().toISOString();
+    const utente = macUtente();
+    const perMarchio = {};
+    pezzi.forEach(p => {
+        const a = macArticolo(p.articolo_id);
+        const m = (a && a.marchio) || 'SENZA MARCHIO';
+        (perMarchio[m] = perMarchio[m] || []).push(p);
+    });
+    const creati = [];
+    const log = [];
+    for (const marchio of Object.keys(perMarchio)) {
+        const riga = {
+            marchio: marchio, sezione_id: dati.sezione_id || null, data: dati.data, operatore: dati.operatore,
+            consegna: dati.consegna || null, note: dati.note || null, created_by: utente, updated_by: utente
+        };
+        const { data: of, error } = await supabaseClient.from('macchine_of_ordini').insert([riga]).select('*').single();
+        if (error) throw error;
+        macOrdiniFornitore.push(of);
+        creati.push(of);
+        const etichetta = 'ORDINE FORNITORE ' + macDataCorta(of.data) + ' ' + of.operatore + (dati.sezione_id ? ' - ' + macOfNomeSezione(of) : '') +
+            (of.consegna ? ' - ' + of.consegna : '');
+        for (const p of perMarchio[marchio]) {
+            const agg = { stato: 'ORDINATA', ordine_fornitore_id: of.id, updated_at: adesso, updated_by: utente };
+            const { error: e2 } = await supabaseClient.from('macchine_pezzi').update(agg).eq('id', p.id);
+            if (e2) throw e2;
+            const prima = p.stato;
+            Object.assign(p, agg);
+            log.push({ pezzo_id: p.id, articolo_id: p.articolo_id, tipo: 'ORDINE', stato_prima: prima, stato_dopo: 'ORDINATA',
+                cliente: p.cliente, matricola: p.matricola, netto: p.netto_carico,
+                dettaglio: (dati.dettaglio ? dati.dettaglio + ' - ' : '') + etichetta });
+        }
+    }
+    await macRegistra(log);
+    return creati;
+}
+
+// ========================================
+// MONTATA / IN SCATOLA E REPORT DEL CARICO
+// ========================================
+function macPuoMontaggio() {
+    return MAC_MONTAGGIO_RUOLI.includes(currentUserRole);
+}
+
+const MAC_MONTAGGIO = {
+    MONTATA: { breve: 'montata', testo: 'Montata pronta all\'uso' },
+    SCATOLA: { breve: 'in scatola', testo: 'In scatola' }
+};
+
+function macMontaggioDi(p) {
+    return p && p.ordine_riga_id ? (macRigheMontaggio[p.ordine_riga_id] || null) : null;
+}
+
+// Inizio di un carico: da qui macCaricaPezzi annota cosa arriva e a chi
+function macArriviInizia() {
+    macArrivi = { clienti: [], liberi: [] };
+}
+
+// Fine del carico: apre il report (solo per chi vede montata / in scatola)
+function macArriviMostra() {
+    const a = macArrivi;
+    macArrivi = null;
+    if (!a || !macPuoMontaggio() || (a.clienti.length === 0 && a.liberi.length === 0)) return;
+    macArriviUltimo = a;
+    const gruppi = macArriviGruppi(a);
+    const riga = x => '<tr><td>' + macEsc(x.pezzo.cliente || '') + (x.ordine ? ' <small>(' + x.ordine + ')</small>' : '') + '</td>' +
+        '<td>' + macNomeHtml(x.art) + (x.setArt ? ' <small>(' + macEsc(macNome(x.setArt)) + ')</small>' : '') + '</td>' +
+        '<td>' + macEsc(x.pezzo.matricola || '') + '</td></tr>';
+    const tabella = (lista) => '<div class="table-container"><table class="listino-table mac-arr-tab"><thead><tr><th>Cliente</th><th>Macchina</th><th>Matricola</th></tr></thead><tbody>' +
+        lista.map(riga).join('') + '</tbody></table></div>';
+    let html = '';
+    html += '<h4 class="mac-arr-titolo mac-arr-montare">&#128295; Da montare (' + gruppi.montare.length + ')</h4>' +
+        (gruppi.montare.length ? tabella(gruppi.montare) : '<p class="mac-aiuto">Nessuna.</p>');
+    html += '<h4 class="mac-arr-titolo mac-arr-scatola">&#128230; Da tenere in scatola (' + gruppi.scatola.length + ')</h4>' +
+        (gruppi.scatola.length ? tabella(gruppi.scatola) : '<p class="mac-aiuto">Nessuna.</p>');
+    if (gruppi.nonIndicato.length) {
+        html += '<h4 class="mac-arr-titolo">&#10067; Per un cliente, montaggio non indicato nell\'ordine (' + gruppi.nonIndicato.length + ')</h4>' + tabella(gruppi.nonIndicato);
+    }
+    html += '<h4 class="mac-arr-titolo mac-arr-casa">&#127968; In casa, disponibili (' + gruppi.totLiberi + ')</h4>' +
+        (gruppi.liberi.length ? '<ul class="mac-arr-liberi">' + gruppi.liberi.map(x => '<li><strong>' + x.n + '</strong> ' + macNomeHtml(x.art) +
+            (x.matricole.length ? ' <small>matr. ' + x.matricole.map(macEsc).join(', ') + '</small>' : '') + '</li>').join('') + '</ul>'
+            : '<p class="mac-aiuto">Nessuna: sono andate tutte ai clienti.</p>');
+    document.getElementById('mac-arr-corpo').innerHTML = html;
+    document.getElementById('mac-arr-modal').classList.remove('hidden');
+}
+let macArriviUltimo = null;
+
+function macArriviGruppi(a) {
+    const montare = [], scatola = [], nonIndicato = [];
+    a.clienti.forEach(x => {
+        const m = macMontaggioDi(x.pezzo);
+        const o = x.pezzo.ordine_id ? macOrdiniInfo[x.pezzo.ordine_id] : null;
+        x.ordine = o ? o.numero + '/' + o.anno : '';
+        if (m === 'MONTATA') montare.push(x);
+        else if (m === 'SCATOLA') scatola.push(x);
+        else nonIndicato.push(x);
+    });
+    const per = {};
+    a.liberi.forEach(x => {
+        if (!per[x.art.id]) per[x.art.id] = { art: x.art, n: 0, matricole: [] };
+        per[x.art.id].n += x.n;
+        x.matricole.forEach(m => { if (m) per[x.art.id].matricole.push(m); });
+    });
+    const liberi = listinoOrdina(Object.keys(per).map(id => per[id].art)).map(art => per[art.id]);
+    return { montare, scatola, nonIndicato, liberi, totLiberi: liberi.reduce((t, x) => t + x.n, 0) };
+}
+
+function macArriviStampa() {
+    const a = macArriviUltimo;
+    if (!a || typeof rptCreaPdfBlob !== 'function') return;
+    const g = macArriviGruppi(a);
+    const righe = lista => lista.map(x => [macEsc(x.pezzo.cliente || ''), x.ordine, macEsc(macNome(x.art)) + (x.setArt ? ' (' + macEsc(macNome(x.setArt)) + ')' : ''), macEsc(x.pezzo.matricola || '')]);
+    const col = [{ t: 'Cliente', w: '30%' }, { t: 'Ordine' }, { t: 'Macchina', w: '40%' }, { t: 'Matricola' }];
+    const sezioni = [
+        { titolo: 'Da montare (' + g.montare.length + ')', colonne: col, righe: righe(g.montare) },
+        { titolo: 'Da tenere in scatola (' + g.scatola.length + ')', colonne: col, righe: righe(g.scatola) }
+    ];
+    if (g.nonIndicato.length) sezioni.push({ titolo: 'Per un cliente, montaggio non indicato (' + g.nonIndicato.length + ')', colonne: col, righe: righe(g.nonIndicato) });
+    sezioni.push({ titolo: 'In casa, disponibili (' + g.totLiberi + ')', colonne: [{ t: 'Pezzi', num: true }, { t: 'Macchina', w: '55%' }, { t: 'Matricole' }],
+        righe: g.liberi.map(x => [x.n, macEsc(macNome(x.art)), x.matricole.map(macEsc).join(', ')]) });
+    const oggi = new Date();
+    const doc = {
+        titolo: 'Arrivo merce: cosa fare',
+        sottotitolo: 'Carico del ' + String(oggi.getDate()).padStart(2, '0') + '/' + String(oggi.getMonth() + 1).padStart(2, '0') + '/' + oggi.getFullYear(),
+        kpi: [{ e: 'Da montare', v: g.montare.length }, { e: 'In scatola', v: g.scatola.length }, { e: 'In casa', v: g.totLiberi }],
+        sezioni: sezioni
+    };
+    pdfApriInScheda(() => rptCreaPdfBlob(doc), 'ARRIVO MERCE ' + oggi.toISOString().slice(0, 10) + '.pdf');
+}
+
+// Riporta macchine ORDINATE a DA ORDINARE (es. il cliente ha fretta e il prestagionale arriva tardi).
+// Con cliente: la macchina torna tra quelle da ordinare. Senza cliente (prestagionale libero): la riga si toglie.
+// tieniPosto = true: la macchina resta ordinata al fornitore senza cliente (arrivera' libera,
+// la prende il prossimo cliente); false = l'ordine non c'era davvero (es. segnato per sbaglio).
+async function macRiportaDaOrdinare(pezzi, motivo, tieniPosto) {
+    const adesso = new Date().toISOString();
+    const utente = macUtente();
+    const log = [];
+    for (const p of pezzi) {
+        const prima = macOfTesto(p) || 'ORDINATA';
+        if (!p.cliente) {
+            const { error } = await supabaseClient.from('macchine_pezzi').delete().eq('id', p.id);
+            if (error) throw error;
+            macPezzi = macPezzi.filter(x => x.id !== p.id);
+            log.push({ pezzo_id: p.id, articolo_id: p.articolo_id, tipo: 'ORDINE', stato_prima: 'ORDINATA', stato_dopo: null,
+                cliente: null, matricola: null, netto: null, dettaglio: (motivo ? motivo + ' - ' : '') + 'ORDINE FORNITORE - RIGA TOLTA (' + prima + ')' });
+            continue;
+        }
+        const of = p.ordine_fornitore_id;
+        const agg = { stato: 'DA_ORDINARE', ordine_fornitore_id: null, updated_at: adesso, updated_by: utente };
+        const { error } = await supabaseClient.from('macchine_pezzi').update(agg).eq('id', p.id);
+        if (error) throw error;
+        Object.assign(p, agg);
+        log.push({ pezzo_id: p.id, articolo_id: p.articolo_id, tipo: 'ORDINE', stato_prima: 'ORDINATA', stato_dopo: 'DA_ORDINARE',
+            cliente: p.cliente, matricola: p.matricola, netto: p.netto_carico,
+            dettaglio: (motivo ? motivo + ' - ' : '') + 'RIPORTATA DA ORDINARE (era: ' + prima + ')' });
+        if (tieniPosto && of) {
+            const { data, error: e2 } = await supabaseClient.from('macchine_pezzi').insert([{
+                articolo_id: p.articolo_id, stato: 'ORDINATA', cliente: null, ordine_fornitore_id: of, updated_at: adesso, updated_by: utente
+            }]).select('*').single();
+            if (e2) throw e2;
+            macPezzi.push(data);
+            log.push({ pezzo_id: data.id, articolo_id: p.articolo_id, tipo: 'ORDINE', stato_prima: null, stato_dopo: 'ORDINATA',
+                cliente: null, matricola: null, netto: null,
+                dettaglio: (motivo ? motivo + ' - ' : '') + 'RESTA ORDINATA AL FORNITORE SENZA CLIENTE (ERA DI ' + p.cliente + ') - ' + prima });
+        }
+    }
+    await macRegistra(log);
 }
 
 // Chiamata da loadListino(): carica i conteggi per i badge "in casa"
@@ -144,16 +445,27 @@ async function macCaricaPerListino() {
 // ========================================
 // CONTEGGI E SET
 // ========================================
+// venduti = vendute nell'anno solare in corso: consegnate con data di consegna da 1/1 a oggi
+//           + in casa gia' assegnate a un cliente (non ancora consegnate, quindi senza data).
+//           Le macchine ordinate o da ordinare per un cliente NON contano (non sono ancora arrivate).
+function macAnnoCorrente() {
+    return String(new Date().getFullYear());
+}
+
 function macConteggi(articoloId) {
-    const c = { disponibili: 0, assegnate: 0, ordinate: 0, daOrdinare: 0, consegnate: 0, inCasa: 0 };
+    const c = { disponibili: 0, assegnate: 0, ordinate: 0, daOrdinare: 0, consegnate: 0, inCasa: 0, venduti: 0 };
+    const anno = macAnnoCorrente();
     macPezzi.forEach(p => {
         if (p.articolo_id !== articoloId) return;
         if (p.stato === 'IN_CASA') {
             c.inCasa++;
-            if (p.cliente) c.assegnate++; else c.disponibili++;
+            if (p.cliente) { c.assegnate++; c.venduti++; } else c.disponibili++;
         } else if (p.stato === 'ORDINATA') c.ordinate++;
         else if (p.stato === 'DA_ORDINARE') c.daOrdinare++;
-        else if (p.stato === 'CONSEGNATA') c.consegnate++;
+        else if (p.stato === 'CONSEGNATA') {
+            c.consegnate++;
+            if (p.data_consegna && String(new Date(p.data_consegna).getFullYear()) === anno) c.venduti++;
+        }
     });
     return c;
 }
@@ -188,7 +500,7 @@ function macDescrizioneComponenti(setId) {
     ).join(' + ');
 }
 
-// Badge in piccolo nel Listino Vendite
+// Badge in piccolo nel Listino Agrimacch
 function macBadgeListino(a) {
     if (!macCaricato || !a || !macPuoGestire()) return '';
     if (macIsSet(a.id)) {
@@ -306,7 +618,8 @@ function macCorrispondeFiltri(a, valori, escludi) {
 function macArticoloHaPezzi(a) {
     if (macIsSet(a.id)) return macSetComponibili(a.id) > 0;
     const c = macConteggi(a.id);
-    return (c.inCasa + c.ordinate + c.daOrdinare) > 0;
+    // anche gli articoli esauriti ma venduti quest'anno (si vede quanti ne hai venduti)
+    return (c.inCasa + c.ordinate + c.daOrdinare + c.venduti) > 0;
 }
 
 function macPopolaFiltri(base, ricerca, valori) {
@@ -409,10 +722,11 @@ function macRenderInventario() {
             let numeri;
             if (isSet) {
                 const n = macSetComponibili(a.id);
-                numeri = '<td colspan="4" class="mac-set-cella">&#129513; <strong>' + n + '</strong> set componibili <small>(' +
+                numeri = '<td colspan="5" class="mac-set-cella">&#129513; <strong>' + n + '</strong> set componibili <small>(' +
                     macEsc(macDescrizioneComponenti(a.id)) + ')</small></td>';
             } else {
                 numeri =
+                    '<td class="mac-col-num">' + num(c.venduti, 'mac-num-vend') + '</td>' +
                     '<td class="mac-col-num">' + num(c.disponibili, 'mac-num-disp') + '</td>' +
                     '<td class="mac-col-num">' + num(c.assegnate, 'mac-num-ass') + '</td>' +
                     '<td class="mac-col-num">' + num(c.ordinate, 'mac-num-ord') + '</td>' +
@@ -439,6 +753,7 @@ function macRenderInventario() {
                     (isSet
                         ? '<div class="mac-inv-card-set">&#129513; <strong>' + macSetComponibili(a.id) + '</strong> set componibili<br><small>' + macEsc(macDescrizioneComponenti(a.id)) + '</small></div>'
                         : '<div class="mac-inv-card-num">' +
+                            '<div><span>Venduti ' + macAnnoCorrente() + '</span>' + num(c.venduti, 'mac-num-vend') + '</div>' +
                             '<div><span>Disponibili</span>' + num(c.disponibili, 'mac-num-disp') + '</div>' +
                             '<div><span>Assegnate</span>' + num(c.assegnate, 'mac-num-ass') + '</div>' +
                             '<div><span>Ordinate</span>' + num(c.ordinate, 'mac-num-ord') + '</div>' +
@@ -456,6 +771,7 @@ function macRenderInventario() {
                 '<div class="listino-desktop"><div class="table-container">' +
                     '<table class="listino-table mac-inv-table">' +
                         '<thead><tr><th>Marchio</th><th>Alim.</th><th>Tipologia</th><th>Modello</th><th>Note</th>' +
+                        '<th class="mac-col-num" title="Vendute dal 1 gennaio: consegnate quest\'anno + in casa gi&agrave; assegnate a un cliente">Venduti<br><small>' + macAnnoCorrente() + '</small></th>' +
                         '<th class="mac-col-num">Disponibili</th><th class="mac-col-num">Assegnate</th><th class="mac-col-num">Ordinate</th><th class="mac-col-num">Da ordinare</th><th></th></tr></thead>' +
                         '<tbody>' + righe + '</tbody>' +
                     '</table>' +
@@ -597,8 +913,10 @@ function macRenderQuaderno() {
 function macSlotHtml(p) {
     const st = MAC_STATI[p.stato] || MAC_STATI.IN_CASA;
     const disponibile = p.stato === 'IN_CASA' && !p.cliente;
+    const inArrivoLibera = p.stato === 'ORDINATA' && !p.cliente;
     const titolo = [
-        st.etichetta + (disponibile ? ' - disponibile' : ''),
+        st.etichetta + (disponibile ? ' - disponibile' : '') + (inArrivoLibera ? ' - in arrivo, libera' : ''),
+        (p.stato === 'ORDINATA' && macOfTesto(p)) ? macOfTesto(p) : '',
         p.cliente ? 'Cliente: ' + p.cliente : '',
         p.matricola ? 'Matricola: ' + p.matricola : '',
         p.set_id ? 'Venduta nel ' + macNome(macArticolo(p.set_id)) : '',
@@ -607,8 +925,8 @@ function macSlotHtml(p) {
     ].filter(Boolean).join('\n');
     return '<button type="button" class="mac-slot" data-pezzo="' + p.id + '" title="' + macEsc(titolo) + '">' +
         '<span class="mac-quadro ' + st.classe + '">' + (p.stato === 'CONSEGNATA' ? '&#10005;' : '') + '</span>' +
-        '<span class="mac-nome' + (disponibile ? ' mac-nome-libera' : '') + '">' +
-            (disponibile ? 'disponibile' : macEsc(p.cliente || '')) +
+        '<span class="mac-nome' + (disponibile || inArrivoLibera ? ' mac-nome-libera' : '') + '">' +
+            (disponibile ? 'disponibile' : inArrivoLibera ? 'in arrivo' : macEsc(p.cliente || '')) +
             (p.set_id ? '<span class="mac-tag-set">SET</span>' : '') +
             (p.matricola ? '<span class="mac-tag-matr" title="Matricola ' + macEsc(p.matricola) + '">&#35;</span>' : '') +
         '</span></button>';
@@ -916,7 +1234,8 @@ async function macSalvaPezzo(e) {
     let netto = listinoParseNumero(document.getElementById('mac-pezzo-netto').value);
     if (typeof netto === 'number' && isNaN(netto)) { errori.push('Il netto non &egrave; un numero valido'); netto = null; }
     const stato = macPezzoStato;
-    if (stato !== 'IN_CASA' && !cliente) errori.push('Per lo stato &quot;' + MAC_STATI[stato].etichetta + '&quot; serve il nome del cliente');
+    const liberaOrdinata = stato === 'ORDINATA' && p && p.ordine_fornitore_id && !p.cliente;
+    if (stato !== 'IN_CASA' && !cliente && !liberaOrdinata) errori.push('Per lo stato &quot;' + MAC_STATI[stato].etichetta + '&quot; serve il nome del cliente');
 
     let qta = 1;
     if (!p) {
@@ -977,6 +1296,8 @@ async function macSalvaPezzo(e) {
             if (stato === 'CONSEGNATA' && p.stato !== 'CONSEGNATA') agg.data_consegna = adesso;
             if (stato !== 'CONSEGNATA') agg.data_consegna = null;
             if (oraInCasa && agg.netto_carico === null && a) agg.netto_carico = a.netto_1;
+            // Tornata da ordinare: non e' piu' legata all'ordine al fornitore
+            if (stato === 'DA_ORDINARE' && p.ordine_fornitore_id) agg.ordine_fornitore_id = null;
 
             const { error } = await supabaseClient.from('macchine_pezzi').update(agg).eq('id', p.id);
             if (error) throw error;
@@ -1037,6 +1358,10 @@ function macApriCarico(articoloId) {
     document.getElementById('mac-carico-netto').value = '';
     document.getElementById('mac-carico-assegna').checked = true;
     document.getElementById('mac-carico-art-search').value = '';
+    macSostScelti = [];
+    document.getElementById('mac-carico-sost').checked = false;
+    document.getElementById('mac-carico-sost-cerca').value = '';
+    document.getElementById('mac-carico-sost-tutti').checked = false;
     macCaricoCodiceInSospeso = null;
     macCaricoLetture = 0;
     macCaricoMostraSospeso();
@@ -1054,12 +1379,54 @@ function macChiudiCarico() {
     macLettoreReset();
 }
 
-// Pezzi in attesa (clienti che aspettano quella macchina): prima le ORDINATE, poi le DA ORDINARE
+// Pezzi in attesa di un articolo: prima i clienti (ordinate o da ordinare) in ordine di data
+// dell'ordine cliente (chi ha ordinato prima riceve prima), poi le ordinate senza cliente
+// (prestagionali liberi), dalla piu' vecchia come ordine al fornitore.
 function macInAttesa(articoloId) {
-    const ordina = (x, y) => x.id - y.id;
-    const ordinate = macPezzi.filter(p => p.articolo_id === articoloId && p.stato === 'ORDINATA').sort(ordina);
-    const daOrdinare = macPezzi.filter(p => p.articolo_id === articoloId && p.stato === 'DA_ORDINARE').sort(ordina);
-    return ordinate.concat(daOrdinare);
+    const clienti = macPezzi.filter(p => p.articolo_id === articoloId && p.cliente &&
+        (p.stato === 'ORDINATA' || p.stato === 'DA_ORDINARE')).sort(macConfrontaAttesa);
+    const libere = macPezzi.filter(p => p.articolo_id === articoloId && !p.cliente && p.stato === 'ORDINATA').sort(macConfrontaOf);
+    return clienti.concat(libere);
+}
+
+// Nome da mostrare per un pezzo in attesa
+function macNomeAttesa(p) {
+    return p.cliente || 'ordinata senza cliente';
+}
+
+// Cosa succede caricando N pezzi di un articolo (assegnando ai clienti in attesa).
+// Le macchine ordinate al fornitore sono "posti": se la macchina arrivata va a un cliente
+// che era ancora DA ORDINARE, un posto ordinato in piu' non serve piu':
+//  - prima si toglie una ordinata senza cliente (prestagionale libero, la piu' vecchia)
+//  - poi la ordinata del cliente arrivato per ultimo torna DA ORDINARE
+// L'ordine al fornitore del posto tolto passa alla macchina arrivata (nel libro risulta arrivata).
+function macPianoCarico(articoloId, n) {
+    const attesa = macInAttesa(articoloId);
+    const arrivati = attesa.slice(0, n);
+    const rimasti = attesa.slice(arrivati.length);
+    const ordinateTot = attesa.filter(p => p.stato === 'ORDINATA').length;
+    const restoOrdinate = Math.max(0, ordinateTot - n);
+    let eccesso = rimasti.filter(p => p.stato === 'ORDINATA').length - restoOrdinate;
+    const togliLibere = [];
+    const declassa = [];
+    const libereRimaste = rimasti.filter(p => !p.cliente);
+    while (eccesso > 0 && libereRimaste.length) { togliLibere.push(libereRimaste.shift()); eccesso--; }
+    const clientiOrdinati = rimasti.filter(p => p.cliente && p.stato === 'ORDINATA');
+    while (eccesso > 0 && clientiOrdinati.length) { declassa.push(clientiOrdinati.pop()); eccesso--; }
+    const arrivatiNonOrdinati = arrivati.filter(p => p.stato === 'DA_ORDINARE' && !p.ordine_fornitore_id);
+    const passaggi = [];
+    togliLibere.concat(declassa).forEach((q, i) => {
+        if (arrivatiNonOrdinati[i] && q.ordine_fornitore_id) passaggi.push({ pezzo: arrivatiNonOrdinati[i], of: q.ordine_fornitore_id });
+    });
+    return {
+        arrivati: arrivati,
+        clienti: arrivati.filter(p => p.cliente),
+        libereArrivate: arrivati.filter(p => !p.cliente),
+        nuovi: Math.max(0, n - arrivati.length),
+        togliLibere: togliLibere,
+        declassa: declassa,
+        passaggi: passaggi
+    };
 }
 
 // Elenco di cosa caricare: [{ art, n, netto }]
@@ -1108,7 +1475,150 @@ function macCaricoAggiorna() {
         setInfo.classList.add('hidden');
     }
     macCaricoMatricole();
+    macSostRender();
     macCaricoAnteprima();
+}
+
+// ---------- "Arrivata al posto di..." (modello diverso da quello ordinato) ----------
+// Es. ordinata una HLA 135 per ROSSI, arriva una HLA 140: si carica la 140 e si sceglie la riga
+// HLA 135 di ROSSI. ROSSI prende la 140 (in casa), la 135 si toglie dal quaderno, la riga dell'ordine
+// cliente diventa HLA 140 (se la riga aveva piu' pezzi si divide) e il PDF viene rifatto.
+// L'ordine al fornitore passa alla macchina arrivata (nel libro risulta arrivata).
+let macSostScelti = [];   // id dei pezzi sostituiti (al massimo la quantita' caricata)
+
+function macSostPuo() {
+    return MAC_SOSTITUZIONE_RUOLI.includes(currentUserRole);
+}
+
+// Macchine che aspettano un altro modello (ordinate o da ordinare), non dentro un set
+function macSostCandidate() {
+    const a = macCaricoArticolo;
+    if (!a) return [];
+    const tutti = document.getElementById('mac-carico-sost-tutti').checked;
+    const cerca = listinoPulisciTesto(document.getElementById('mac-carico-sost-cerca').value) || '';
+    return macPezzi.filter(p => {
+        if (p.articolo_id === a.id || p.set_id) return false;
+        if (p.stato !== 'ORDINATA' && p.stato !== 'DA_ORDINARE') return false;
+        const art = macArticolo(p.articolo_id);
+        if (!tutti && (!art || art.marchio !== a.marchio)) return false;
+        if (cerca) {
+            const testo = [art ? macNome(art) : '', p.cliente || '', omOrdineClienteTesto(p)].join(' ').toUpperCase();
+            if (!cerca.split(' ').every(w => testo.indexOf(w) !== -1)) return false;
+        }
+        return true;
+    }).sort((x, y) => {
+        const ax = macArticolo(x.articolo_id), ay = macArticolo(y.articolo_id);
+        return listinoConfronta(ax ? macNome(ax) : '', ay ? macNome(ay) : '') || macConfrontaAttesa(x, y);
+    });
+}
+
+function omOrdineClienteTesto(p) {
+    const o = p.ordine_id ? macOrdiniInfo[p.ordine_id] : null;
+    return o ? o.numero + '/' + o.anno : '';
+}
+
+function macSostRender() {
+    const box = document.getElementById('mac-carico-sost-box');
+    const lista = document.getElementById('mac-carico-sost-lista');
+    const a = macCaricoArticolo;
+    const ok = a && macSostPuo() && !macIsSet(a.id);
+    box.classList.toggle('hidden', !ok);
+    if (!ok) { macSostScelti = []; return; }
+    const attivo = document.getElementById('mac-carico-sost').checked;
+    document.getElementById('mac-carico-sost-pannello').classList.toggle('hidden', !attivo);
+    if (!attivo) { macSostScelti = []; return; }
+    const qta = parseInt(document.getElementById('mac-carico-qta').value, 10) || 0;
+    if (macSostScelti.length > qta) macSostScelti = macSostScelti.slice(0, qta);
+    const cand = macSostCandidate();
+    // le scelte restano anche se la ricerca le nasconde
+    const scelti = macSostScelti.map(id => macPezzi.find(p => p.id === id)).filter(Boolean);
+    const visibili = scelti.concat(cand.filter(p => macSostScelti.indexOf(p.id) === -1));
+    lista.innerHTML = '<div class="mac-sost-conta">Scelte <strong>' + macSostScelti.length + '</strong> su ' + qta +
+        ' (le altre ' + Math.max(0, qta - macSostScelti.length) + ' si caricano normalmente)</div>' +
+        (visibili.length === 0 ? '<p class="mac-aiuto">Nessuna macchina ordinata o da ordinare ' +
+            (document.getElementById('mac-carico-sost-tutti').checked ? '' : 'di ' + macEsc(a.marchio || '') + ' ') + 'da sostituire.</p>' :
+        visibili.slice(0, 60).map(p => {
+            const art = macArticolo(p.articolo_id);
+            const on = macSostScelti.indexOf(p.id) !== -1;
+            const num = omOrdineClienteTesto(p);
+            const of = p.stato === 'ORDINATA' ? macOfTesto(p) : '';
+            return '<label class="mac-sost-voce' + (on ? ' scelta' : '') + '">' +
+                '<input type="checkbox" data-sost="' + p.id + '"' + (on ? ' checked' : '') + '>' +
+                '<span class="mac-quadro mac-quadro-mini ' + MAC_STATI[p.stato].classe + '"></span>' +
+                '<span><strong>' + macEsc(art ? macNome(art) : '-') + '</strong> &mdash; ' +
+                    (p.cliente ? macEsc(p.cliente) + (num ? ' <small>(' + num + ')</small>' : '') : '<em>ordinata senza cliente</em>') +
+                    (of ? '<br><small>' + macEsc(of) + '</small>' : (p.stato === 'DA_ORDINARE' ? '<br><small>da ordinare</small>' : '')) + '</span>' +
+            '</label>';
+        }).join(''));
+}
+
+// Riga dell'ordine cliente: diventa il nuovo modello (o si divide se aveva piu' pezzi). Ritorna l'id della riga per il pezzo nuovo.
+async function macSostAggiornaRiga(p, nuovoArt, adesso, utente) {
+    if (!p.ordine_riga_id) return null;
+    const { data: riga, error } = await supabaseClient.from('macchine_ordini_righe').select('*').eq('id', p.ordine_riga_id).single();
+    if (error) throw error;
+    const descr = (typeof ordDescrizioneArticolo === 'function') ? ordDescrizioneArticolo(nuovoArt)
+        : [nuovoArt.attrezzo, nuovoArt.marchio, nuovoArt.modello, nuovoArt.note].filter(Boolean).join(' ');
+    if (!riga || riga.quantita <= 1) {
+        const { error: e2 } = await supabaseClient.from('macchine_ordini_righe')
+            .update({ articolo_id: nuovoArt.id, descrizione: descr, codice: nuovoArt.modello || null }).eq('id', p.ordine_riga_id);
+        if (e2) throw e2;
+        return p.ordine_riga_id;
+    }
+    // La riga aveva piu' pezzi: un pezzo in meno sulla vecchia, una riga nuova con il modello arrivato
+    const prezzoUno = (riga.prezzo_totale !== null && riga.prezzo_totale !== undefined)
+        ? Math.round(Number(riga.prezzo_totale) / riga.quantita * 100) / 100 : null;
+    const { error: e3 } = await supabaseClient.from('macchine_ordini_righe').update({
+        quantita: riga.quantita - 1,
+        prezzo_totale: prezzoUno === null ? riga.prezzo_totale : Math.round((Number(riga.prezzo_totale) - prezzoUno) * 100) / 100
+    }).eq('id', riga.id);
+    if (e3) throw e3;
+    const { data: altre } = await supabaseClient.from('macchine_ordini_righe').select('posizione').eq('ordine_id', riga.ordine_id);
+    const posizione = Math.max(0, ...(altre || []).map(r => r.posizione || 0)) + 1;
+    const nuova = {
+        ordine_id: riga.ordine_id, posizione: posizione, articolo_id: nuovoArt.id, descrizione: descr, codice: nuovoArt.modello || null,
+        quantita: 1, prezzo_totale: prezzoUno, disponibilita: riga.disponibilita
+    };
+    if (Object.prototype.hasOwnProperty.call(riga, 'montaggio')) nuova.montaggio = riga.montaggio;
+    const { data: ins, error: e4 } = await supabaseClient.from('macchine_ordini_righe').insert([nuova]).select('id').single();
+    if (e4) throw e4;
+    return ins.id;
+}
+
+// Una macchina arrivata al posto di un'altra: p = pezzo che aspettava il modello vecchio
+async function macSostituisci(p, nuovoArt, netto, matricola) {
+    const adesso = new Date().toISOString();
+    const utente = macUtente();
+    const vecchioArt = macArticolo(p.articolo_id);
+    const num = omOrdineClienteTesto(p);
+    const pre = num ? 'ORDINE ' + num + ' - ' : '';
+    const rigaId = await macSostAggiornaRiga(p, nuovoArt, adesso, utente);
+    const nuovo = {
+        articolo_id: nuovoArt.id, stato: 'IN_CASA', cliente: p.cliente || null, ordine_id: p.ordine_id || null,
+        ordine_riga_id: rigaId, matricola: matricola || null, netto_carico: netto, data_carico: adesso,
+        ordine_fornitore_id: p.ordine_fornitore_id || null, updated_at: adesso, updated_by: utente
+    };
+    const { data, error } = await supabaseClient.from('macchine_pezzi').insert([nuovo]).select('*').single();
+    if (error) throw error;
+    const { error: e2 } = await supabaseClient.from('macchine_pezzi').delete().eq('id', p.id);
+    if (e2) throw e2;
+    macPezzi = macPezzi.filter(x => x.id !== p.id);
+    macPezzi.push(data);
+    if (data.ordine_riga_id && macRigheMontaggio[p.ordine_riga_id]) macRigheMontaggio[data.ordine_riga_id] = macRigheMontaggio[p.ordine_riga_id];
+    if (p.ordine_id) macOrdiniDaAggiornare.add(p.ordine_id);
+    await macRegistra([
+        { pezzo_id: p.id, articolo_id: p.articolo_id, tipo: 'CARICO', stato_prima: p.stato, stato_dopo: null,
+            cliente: p.cliente, matricola: null, netto: null,
+            dettaglio: pre + 'SOSTITUITA: AL SUO POSTO E\' ARRIVATA ' + macNome(nuovoArt) },
+        { pezzo_id: data.id, articolo_id: nuovoArt.id, tipo: 'CARICO', stato_prima: null, stato_dopo: 'IN_CASA',
+            cliente: data.cliente, matricola: data.matricola, netto: netto,
+            dettaglio: pre + 'ARRIVATA AL POSTO DI ' + (vecchioArt ? macNome(vecchioArt) : '-') + (p.cliente ? ' PER ' + p.cliente : ' (SENZA CLIENTE)') }
+    ]);
+    if (macArrivi) {
+        if (data.cliente) macArrivi.clienti.push({ pezzo: data, art: nuovoArt, setArt: null });
+        else macArrivi.liberi.push({ art: nuovoArt, n: 1, matricole: data.matricola ? [data.matricola] : [] });
+    }
+    return data;
 }
 
 // Campi matricola facoltativi (uno per macchina), non per i set
@@ -1138,17 +1648,30 @@ function macCaricoAnteprima() {
     const elenco = macCaricoElenco();
     if (elenco.length === 0 || elenco.every(x => x.n < 1)) { box.innerHTML = ''; return; }
     let html = '<strong>Cosa succede:</strong><ul>';
+    const sost = macSostScelti.map(id => macPezzi.find(p => p.id === id)).filter(Boolean);
+    sost.forEach(p => {
+        const art = macArticolo(p.articolo_id);
+        const num = omOrdineClienteTesto(p);
+        html += '<li>&#128260; al posto di <strong>' + macEsc(art ? macNome(art) : '-') + '</strong> ' +
+            (p.cliente ? 'di <strong>' + macEsc(p.cliente) + '</strong>' + (num ? ' (l\'ordine ' + num + ' passa al modello arrivato)' : '') : '(ordinata senza cliente)') + '</li>';
+    });
     elenco.forEach(x => {
-        const attesa = assegna ? macInAttesa(x.art.id) : [];
-        const usati = attesa.slice(0, x.n);
+        x = Object.assign({}, x, { n: x.n - (elenco.length === 1 ? sost.length : 0) });
+        if (x.n < 1) return;
+        const piano = assegna ? macPianoCarico(x.art.id, x.n) : null;
+        const usati = piano ? piano.clienti : [];
         const liberi = x.n - usati.length;
         html += '<li><strong>' + macEsc(macNome(x.art)) + '</strong>: ' + x.n + ' pezz' + (x.n === 1 ? 'o' : 'i');
         if (usati.length) {
-            html += '<br>&#128100; vanno ai clienti che aspettano: ' + usati.map(p =>
+            html += '<br>&#128100; vanno ai clienti che aspettano (chi ha ordinato prima): ' + usati.map(p =>
                 '<span class="mac-anteprima-cliente"><span class="mac-quadro mac-quadro-mini ' + MAC_STATI[p.stato].classe + '"></span>' + macEsc(p.cliente || '-') + '</span>'
             ).join(' ');
         }
         if (liberi > 0) html += '<br>&#9989; ' + liberi + ' disponibil' + (liberi === 1 ? 'e' : 'i') + ' alla vendita';
+        if (piano && piano.declassa.length) {
+            html += '<br><small>&#8617;&#65039; tornano DA ORDINARE (la loro macchina &egrave; andata a chi aveva ordinato prima): ' +
+                piano.declassa.map(p => macEsc(p.cliente)).join(', ') + '</small>';
+        }
         if (!assegna && macInAttesa(x.art.id).length) {
             html += '<br><small>&#9888;&#65039; ' + macInAttesa(x.art.id).length + ' clienti in attesa NON verranno assegnati</small>';
         }
@@ -1158,7 +1681,8 @@ function macCaricoAnteprima() {
     box.innerHTML = html;
 }
 
-// Carica N pezzi di UN articolo: prima ai clienti in attesa (se richiesto), il resto disponibili.
+// Carica N pezzi di UN articolo: prima ai clienti in attesa (se richiesto, chi ha ordinato prima),
+// poi alle ordinate senza cliente (prestagionali liberi), il resto disponibili. Vedi macPianoCarico.
 // Aggiorna anche macPezzi in memoria, cosi' piu' carichi di fila non assegnano due volte lo stesso cliente.
 // opz: { art, n, netto, matricole: [], assegna, setArt, dettaglio }
 async function macCaricaPezzi(opz) {
@@ -1166,15 +1690,18 @@ async function macCaricaPezzi(opz) {
     const utente = macUtente();
     const matricole = opz.matricole || [];
     const extra = (opz.setArt ? ' (' + macNome(opz.setArt) + ')' : '') + (opz.dettaglio ? ' - ' + opz.dettaglio : '');
-    const attesa = opz.assegna ? macInAttesa(opz.art.id).slice(0, opz.n) : [];
+    const piano = opz.assegna ? macPianoCarico(opz.art.id, opz.n) : { arrivati: [], clienti: [], nuovi: opz.n, togliLibere: [], declassa: [], passaggi: [] };
+    const attesa = piano.arrivati;
     const log = [];
 
-    // 1. Clienti in attesa: diventano IN CASA (assegnate)
+    // 1. In attesa: diventano IN CASA (con cliente = assegnate, senza cliente = disponibili)
     for (let i = 0; i < attesa.length; i++) {
         const p = attesa[i];
         const statoPrima = p.stato;
         const agg = { stato: 'IN_CASA', data_carico: adesso, netto_carico: opz.netto, updated_at: adesso, updated_by: utente };
         if (matricole[i]) agg.matricola = matricole[i];
+        const passa = piano.passaggi.find(x => x.pezzo === p);
+        if (passa) agg.ordine_fornitore_id = passa.of;
         if (p.ordine_id && agg.matricola) macOrdiniDaAggiornare.add(p.ordine_id);
         const { error } = await supabaseClient.from('macchine_pezzi').update(agg).eq('id', p.id);
         if (error) throw error;
@@ -1182,11 +1709,30 @@ async function macCaricaPezzi(opz) {
         log.push({
             pezzo_id: p.id, articolo_id: opz.art.id, tipo: 'CARICO', stato_prima: statoPrima, stato_dopo: 'IN_CASA',
             cliente: p.cliente, matricola: p.matricola, netto: opz.netto,
-            dettaglio: 'ARRIVATA PER ' + (p.cliente || '-') + extra
+            dettaglio: (p.cliente ? 'ARRIVATA PER ' + p.cliente : 'ARRIVATA (ORDINATA AL FORNITORE) - DISPONIBILE') + extra
         });
     }
 
-    // 2. Il resto: disponibili alla vendita
+    // 2. Posti ordinati che non servono piu' (la macchina e' andata a chi aveva ordinato prima)
+    for (const p of piano.togliLibere) {
+        const { error } = await supabaseClient.from('macchine_pezzi').delete().eq('id', p.id);
+        if (error) throw error;
+        macPezzi = macPezzi.filter(x => x.id !== p.id);
+        log.push({ pezzo_id: p.id, articolo_id: opz.art.id, tipo: 'CARICO', stato_prima: 'ORDINATA', stato_dopo: null,
+            cliente: null, matricola: null, netto: null,
+            dettaglio: 'ORDINATA SENZA CLIENTE - ARRIVATA E DATA A UN CLIENTE IN ATTESA (RIGA TOLTA)' + extra });
+    }
+    for (const p of piano.declassa) {
+        const agg = { stato: 'DA_ORDINARE', ordine_fornitore_id: null, updated_at: adesso, updated_by: utente };
+        const { error } = await supabaseClient.from('macchine_pezzi').update(agg).eq('id', p.id);
+        if (error) throw error;
+        Object.assign(p, agg);
+        log.push({ pezzo_id: p.id, articolo_id: opz.art.id, tipo: 'CARICO', stato_prima: 'ORDINATA', stato_dopo: 'DA_ORDINARE',
+            cliente: p.cliente, matricola: null, netto: null,
+            dettaglio: 'TORNA DA ORDINARE: LA MACCHINA ARRIVATA E\' ANDATA A CHI AVEVA ORDINATO PRIMA' + extra });
+    }
+
+    // 3. Il resto: disponibili alla vendita
     const nuovi = [];
     for (let i = attesa.length; i < opz.n; i++) {
         nuovi.push({
@@ -1207,7 +1753,20 @@ async function macCaricaPezzi(opz) {
         });
     }
     await macRegistra(log);
-    return { clienti: attesa.map(p => p.cliente || '-'), disponibili: nuovi.length };
+    // Report del carico (montata / in scatola / in casa)
+    if (macArrivi) {
+        piano.clienti.forEach(p => macArrivi.clienti.push({ pezzo: p, art: opz.art, setArt: opz.setArt || null }));
+        const liberi = piano.libereArrivate.length + nuovi.length;
+        if (liberi) {
+            macArrivi.liberi.push({ art: opz.art, n: liberi,
+                matricole: piano.libereArrivate.map(p => p.matricola).concat(nuovi.map(r => r.matricola)).filter(Boolean) });
+        }
+    }
+    return {
+        clienti: piano.clienti.map(p => p.cliente),
+        disponibili: piano.libereArrivate.length + nuovi.length,
+        declassati: piano.declassa.map(p => p.cliente)
+    };
 }
 
 async function macSalvaCarico(e) {
@@ -1242,17 +1801,31 @@ async function macSalvaCarico(e) {
     }
 
     const elenco = macCaricoElenco();
+    // Arrivate al posto di altre macchine (solo modello singolo): vanno per prime, con le prime matricole
+    const sost = isSet ? [] : macSostScelti.map(id => macPezzi.find(p => p.id === id))
+        .filter(p => p && (p.stato === 'ORDINATA' || p.stato === 'DA_ORDINARE')).slice(0, qta);
     const btn = document.getElementById('mac-carico-salva');
     btn.disabled = true;
     const riepilogo = [];
+    macArriviInizia();
     try {
+        for (let j = 0; j < sost.length; j++) {
+            const p = sost[j];
+            const vecchio = macArticolo(p.articolo_id);
+            await macSostituisci(p, a, elenco[0].netto, matricole[j]);
+            riepilogo.push('&#128260; <strong>' + macEsc(macNome(a)) + '</strong> al posto di ' + macEsc(vecchio ? macNome(vecchio) : '-') +
+                (p.cliente ? ' per <strong>' + macEsc(p.cliente) + '</strong>' : ''));
+        }
         for (const x of elenco) {
+            const n = x.n - (isSet ? 0 : sost.length);
+            if (n < 1) continue;
             const res = await macCaricaPezzi({
-                art: x.art, n: x.n, netto: x.netto, matricole: isSet ? [] : matricole,
+                art: x.art, n: n, netto: x.netto, matricole: isSet ? [] : matricole.slice(sost.length),
                 assegna: assegna, setArt: isSet ? a : null
             });
-            riepilogo.push('<strong>' + macEsc(macNome(x.art)) + '</strong>: ' + x.n + ' caricat' + (x.n === 1 ? 'o' : 'i') +
-                (res.clienti.length ? ' (' + res.clienti.length + ' ai clienti in attesa)' : ''));
+            riepilogo.push('<strong>' + macEsc(macNome(x.art)) + '</strong>: ' + n + ' caricat' + (n === 1 ? 'o' : 'i') +
+                (res.clienti.length ? ' (' + res.clienti.length + ' ai clienti in attesa)' : '') +
+                (res.declassati.length ? '<br><small>&#8617;&#65039; tornano da ordinare: ' + res.declassati.map(macEsc).join(', ') + '</small>' : ''));
         }
     } catch (error) {
         console.error('Errore carico macchine:', error);
@@ -1260,15 +1833,17 @@ async function macSalvaCarico(e) {
         await macRicarica();
         await showCustomAlert('Errore durante il carico:<br>' + macEsc(error.message) +
             '<br><br>Controlla nel quaderno cosa &egrave; stato salvato prima di riprovare.', 'Errore', '&#10060;');
+        macArriviMostra();
         return;
     }
     btn.disabled = false;
     macChiudiCarico();
     await macRicarica();
     await showCustomAlert(riepilogo.join('<br>'), 'Carico registrato', '&#10004;');
+    macArriviMostra();
 }
 
-// Articolo non presente nel listino: si crea dal Listino Vendite (stessa finestra)
+// Articolo non presente nel listino: si crea dal Listino Agrimacch (stessa finestra)
 function macCreaArticoloListino() {
     if (typeof openListinoEdit !== 'function') return;
     macAttesaNuovoArticolo = true;
@@ -1499,7 +2074,7 @@ async function macCaricoCodiceLetto(codiceGrezzo, campo) {
         if (!art.attivo) {
             macLettoreSuono(false);
             macLettoreMessaggio('&#10060; Il codice ' + macEsc(codice) + ' &egrave; di <strong>' + macEsc(macNome(art)) +
-                '</strong>, che &egrave; tra gli articoli cancellati del listino. Ripristinalo dal Listino Vendite e rileggi la scatola.', 'err');
+                '</strong>, che &egrave; tra gli articoli cancellati del listino. Ripristinalo dal Listino Agrimacch e rileggi la scatola.', 'err');
             return;
         }
         if (!scelto) {
@@ -1643,7 +2218,7 @@ function macExcelScaricaModello() {
     const istruzioni = [
         ['CARICO MACCHINE DA EXCEL - ISTRUZIONI'],
         [''],
-        ['Si compila il foglio CARICO: una riga per articolo (stesse colonne del Listino Vendite + QUANTITA + MATRICOLE + CODICE A BARRE).'],
+        ['Si compila il foglio CARICO: una riga per articolo (stesse colonne del Listino Agrimacch + QUANTITA + MATRICOLE + CODICE A BARRE).'],
         ['L\'articolo viene riconosciuto dal CODICE A BARRE (se c\'e\' ed e\' gia\' nel listino), altrimenti da MARCHIO + MODELLO + NOTE.'],
         ['CODICE A BARRE: facoltativo. Se lo scrivi viene salvato sull\'articolo. La cella vuota non cancella quello gia\' salvato.'],
         ['                Due articoli non possono avere lo stesso codice.'],
@@ -1965,7 +2540,7 @@ function macExcelCostruisciPiano(righeFile, aggiornaListino, assegna) {
                 ? macComponenti(art.id).map(c => ({ art: macArticolo(c.componente_id), n: c.quantita * r.qta })).filter(x => x.art)
                 : [{ art: art, n: r.qta }];
             elenco.forEach(x => {
-                const attesa = (assegna && x.art) ? macInAttesa(x.art.id).slice(0, x.n) : [];
+                const attesa = (assegna && x.art) ? macPianoCarico(x.art.id, x.n).clienti : [];
                 r.destinazioni.push({ art: x.art, n: x.n, clienti: attesa, liberi: x.n - attesa.length });
             });
         }
@@ -2103,6 +2678,7 @@ async function macExcelConferma() {
     const notifiche = [];
     const riepilogo = { pezzi: 0, clienti: 0, nuovi: 0, listino: 0, righe: 0 };
     let fatte = 0;
+    macArriviInizia();
 
     try {
         for (const r of valide) {
@@ -2171,6 +2747,7 @@ async function macExcelConferma() {
         await showCustomAlert('Il carico si &egrave; interrotto per un errore:<br><strong>' + macEsc(error.message) + '</strong><br><br>' +
             'Righe completate: ' + fatte + ' di ' + valide.length + '.<br>Controlla nel quaderno e nei movimenti cosa &egrave; stato salvato prima di ricaricare il file.',
             'Errore', '&#10060;');
+        macArriviMostra();
         return;
     }
 
@@ -2181,6 +2758,7 @@ async function macExcelConferma() {
         'Articoli del listino aggiornati: <strong>' + riepilogo.listino + '</strong>',
         'Carico completato', '&#10004;'
     );
+    macArriviMostra();
 }
 
 // Dopo la conferma (anche se interrotta): notifica unica, ricarica listino e inventario
@@ -2513,6 +3091,24 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('mac-carico-qta').addEventListener('input', () => { macCaricoMatricole(); macCaricoAnteprima(); });
     document.getElementById('mac-carico-netto').addEventListener('input', macCaricoAnteprima);
     document.getElementById('mac-carico-assegna').addEventListener('change', macCaricoAnteprima);
+    // Arrivata al posto di...
+    document.getElementById('mac-carico-qta').addEventListener('input', macSostRender);
+    document.getElementById('mac-carico-sost').addEventListener('change', () => { macSostScelti = []; macSostRender(); macCaricoAnteprima(); });
+    document.getElementById('mac-carico-sost-tutti').addEventListener('change', macSostRender);
+    document.getElementById('mac-carico-sost-cerca').addEventListener('input', macSostRender);
+    document.getElementById('mac-carico-sost-lista').addEventListener('change', (e) => {
+        const el = e.target;
+        if (el.dataset.sost === undefined) return;
+        const id = parseInt(el.dataset.sost, 10);
+        const qta = parseInt(document.getElementById('mac-carico-qta').value, 10) || 0;
+        macSostScelti = macSostScelti.filter(x => x !== id);
+        if (el.checked) {
+            if (macSostScelti.length >= qta) macSostScelti.shift();   // la nuova scelta sostituisce la piu' vecchia
+            macSostScelti.push(id);
+        }
+        macSostRender();
+        macCaricoAnteprima();
+    });
     document.getElementById('mac-carico-form').addEventListener('submit', macSalvaCarico);
     document.getElementById('mac-carico-annulla').addEventListener('click', macChiudiCarico);
     document.getElementById('mac-carico-close').addEventListener('click', macChiudiCarico);

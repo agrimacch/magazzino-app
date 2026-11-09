@@ -1,0 +1,507 @@
+/* ============================================ */
+/* ORDINI > ORDINI MACCHINE (libro degli ordini) */
+/* ============================================ */
+/* Usa la pagina e i divisori del quaderno (macchine.css: .mac-quaderno, .mac-q-pagina,
+   .mac-q-divisori, .mac-divisorio). Le finestre sono .modal (z-index 10000) come tutte le
+   altre e stanno nella pagina PRIMA di "Nuovo articolo" del listino e del pop-up di avviso,
+   cosi' quelli restano sopra. Il badge rosso dei divisori sta dentro il pulsante (z-index 1). */
+
+.om-riepilogo {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 10px;
+    line-height: 2;
+}
+
+.om-riep-marchio {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: white;
+    border: 2px solid #fecaca;
+    border-radius: 999px;
+    padding: 2px 10px;
+    font: inherit;
+    font-size: 13px;
+    cursor: pointer;
+    margin: 0 2px;
+}
+
+.om-riep-marchio span {
+    background: #dc2626;
+    color: white;
+    border-radius: 999px;
+    min-width: 20px;
+    padding: 0 6px;
+    font-size: 12px;
+    text-align: center;
+}
+
+.om-barra {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 10px;
+}
+
+.om-barra select {
+    flex: 0 1 280px;
+    margin: 0;
+}
+
+/* Badge rosso con il numero di macchine da ordinare */
+.om-badge {
+    position: relative;
+    z-index: 1;
+    display: inline-block;
+    background: #dc2626;
+    color: white;
+    border-radius: 999px;
+    min-width: 18px;
+    padding: 1px 5px;
+    font-size: 11px;
+    line-height: 1.4;
+    text-align: center;
+    margin-left: 6px;
+    font-family: inherit;
+}
+
+.mac-divisorio .om-badge {
+    writing-mode: horizontal-tb;
+}
+
+@media (min-width: 768px) {
+    .om-libro .mac-divisorio .om-badge {
+        margin: 6px 0 0;
+    }
+}
+
+.om-testa h3 {
+    margin: 0 0 10px;
+    display: inline-block;
+}
+
+/* Pagine del marchio (ORDINI NORMALE + sezioni) */
+.om-pagine {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 14px;
+    border-bottom: 2px solid #e2e8f0;
+    padding-bottom: 8px;
+}
+
+.om-pagina-btn {
+    background: #f8fafc;
+    border: 2px solid #cbd5e1;
+    border-radius: 8px;
+    padding: 6px 12px;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    color: #1f2937;
+}
+
+.om-pagina-btn.active {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: white;
+}
+
+.om-pagina-btn.om-chiusa {
+    opacity: 0.55;
+}
+
+.om-pagina-nuova {
+    border-style: dashed;
+    background: white;
+    color: var(--primary);
+}
+
+.om-sez-testa {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+
+.om-sez-note {
+    font-size: 12px;
+    color: var(--gray);
+    margin-top: 2px;
+}
+
+.om-sez-azioni {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.om-sez-azioni .btn-primary,
+.om-sez-azioni .btn-back {
+    width: auto;
+    margin: 0;
+}
+
+.om-tag-chiusa {
+    background: #e5e7eb;
+    color: #4b5563;
+    border-radius: 6px;
+    padding: 1px 6px;
+    font-size: 11px;
+}
+
+/* Blocchi (un ordine al fornitore) */
+.om-blocco {
+    border-bottom: 1px dashed var(--mac-righe);
+    padding: 6px 0 10px;
+    margin-bottom: 10px;
+}
+
+.om-blocco-daord {
+    background: #fffbeb;
+    border: 2px solid #fde68a;
+    border-radius: 8px;
+    padding: 8px 10px 10px;
+    margin-bottom: 16px;
+}
+
+.om-blocco-arrivato {
+    opacity: 0.6;
+}
+
+.om-blocco-titolo {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    font-weight: 700;
+    margin-bottom: 6px;
+}
+
+.om-blocco-titolo small {
+    font-weight: 400;
+    color: var(--gray);
+}
+
+.om-tutte {
+    font-size: 12px;
+}
+
+.om-fatti-titolo {
+    font-weight: 700;
+    color: var(--primary-dark);
+    margin: 4px 0 8px;
+}
+
+.om-fatti-titolo small {
+    font-weight: 400;
+    color: var(--gray);
+}
+
+/* Riga del libro: quadratino + quantita' + codice + descrizione + clienti */
+.om-riga {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    width: 100%;
+    padding: 4px 2px;
+    background: none;
+    border: none;
+    border-bottom: 1px solid #f1f5f9;
+    text-align: left;
+    font: inherit;
+    color: inherit;
+}
+
+.om-riga-of {
+    cursor: pointer;
+}
+
+.om-riga-of:hover {
+    background: #f0f9ff;
+}
+
+.om-riga-sel {
+    background: #fef3c7;
+}
+
+.om-riga-check {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex: 0 0 auto;
+    margin: 0;
+    cursor: pointer;
+}
+
+.om-riga-check input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    margin: 0;
+}
+
+.om-riga-check .mac-quadro {
+    width: 20px;
+    height: 20px;
+    flex-basis: 20px;
+}
+
+.om-quadro-ok {
+    background: var(--mac-verde);
+    border-color: var(--mac-verde-scuro);
+    color: #14532d;
+    font-size: 14px;
+}
+
+.om-riga-testo {
+    flex: 1;
+    min-width: 0;
+    font-family: 'Roboto Mono', monospace;
+    font-size: 13px;
+    color: #1f2937;
+    line-height: 1.45;
+}
+
+/* Codice articolo del fornitore */
+.om-codart {
+    display: inline-block;
+    background: #f1f5f9;
+    border: 1px solid #cbd5e1;
+    border-radius: 4px;
+    padding: 0 5px;
+    font-size: 12px;
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.om-codart-manca {
+    background: #fff7ed;
+    border-color: #fdba74;
+    color: #c2410c;
+    font-weight: 400;
+}
+
+.om-qta {
+    display: inline-block;
+    min-width: 20px;
+}
+
+.om-codice {
+    font-weight: 700;
+}
+
+.om-clienti {
+    display: block;
+    font-family: 'Roboto Mono', monospace;
+    font-size: 12px;
+    color: #374151;
+}
+
+.om-clienti small {
+    color: var(--gray);
+}
+
+.om-arrivate {
+    font-size: 12px;
+    color: var(--mac-verde-scuro);
+}
+
+.om-quante {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    margin: 0;
+}
+
+.om-quante input {
+    width: 60px;
+    margin: 0;
+    padding: 6px;
+    text-align: center;
+}
+
+.om-blocco-piede {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.om-blocco-piede .btn-primary {
+    width: auto;
+    margin: 0;
+}
+
+.om-blocco-piede small {
+    color: var(--gray);
+    font-size: 12px;
+}
+
+/* Firma dell'ordine: data + iniziali (come "22/10/26 DZ" su OneNote) */
+.om-firma {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-top: 4px;
+    font-size: 13px;
+}
+
+.om-firma-data {
+    font-family: 'Roboto Mono', monospace;
+    font-size: 13px;
+    font-weight: 700;
+    color: #1f2937;
+}
+
+.om-consegna {
+    background: #dbeafe;
+    color: #1e3a8a;
+    border-radius: 6px;
+    padding: 1px 8px;
+    font-weight: 700;
+}
+
+.om-of-note {
+    color: var(--gray);
+}
+
+.om-of-modifica {
+    margin-left: auto;
+    font-size: 12px;
+}
+
+/* Finestra riga */
+.om-riga-corpo {
+    margin-bottom: 10px;
+}
+
+.om-riga-pezzo {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 4px;
+    border-bottom: 1px solid #f1f5f9;
+    font-size: 13px;
+    font-weight: 400;
+    margin: 0;
+    cursor: pointer;
+}
+
+.om-riga-pezzo input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    margin: 0;
+}
+
+.om-riga-pezzo-arrivato {
+    color: var(--gray);
+    cursor: default;
+}
+
+.om-spazio {
+    display: inline-block;
+    width: 18px;
+}
+
+/* Ordini clienti: data dell'ordine al fornitore sotto la macchina e "in arrivo" nel modulo */
+.ord-det-of {
+    color: #15803d !important;
+}
+
+.ord-riga-arrivo {
+    color: #1e3a8a;
+}
+
+/* Correggi lo stato */
+.ord-corr-corpo {
+    margin-bottom: 10px;
+}
+
+.ord-corr-riga {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 8px 0;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.ord-corr-nome {
+    flex: 1 1 220px;
+    font-size: 13px;
+}
+
+.ord-corr-nome small {
+    color: var(--gray);
+}
+
+.ord-corr-riga select {
+    flex: 0 0 170px;
+    margin: 0;
+}
+
+/* Tutto il libro in Roboto Mono */
+#section-ordini-macchine .mac-q-pagina,
+#section-ordini-macchine .mac-evidenziatore,
+#section-ordini-macchine .om-pagina-btn,
+#om-riga-modal .om-riga-corpo {
+    font-family: 'Roboto Mono', monospace;
+}
+
+@media (max-width: 600px) {
+    .om-riga-testo {
+        font-size: 12px;
+    }
+
+    .ord-corr-riga select {
+        flex: 1 1 100%;
+    }
+}
+
+/* Montata / in scatola accanto al cliente */
+.om-mont {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 700;
+    border-radius: 5px;
+    padding: 0 5px;
+}
+
+.om-mont-montata { background: #fef3c7; color: #92400e; }
+.om-mont-scatola { background: #e0e7ff; color: #3730a3; }
+
+/* Report arrivo merce */
+.mac-arr-content {
+    max-width: 760px;
+}
+
+.mac-arr-titolo {
+    margin: 14px 0 6px;
+    padding: 4px 8px;
+    border-radius: 6px;
+    background: #f1f5f9;
+}
+
+.mac-arr-montare { background: #fef3c7; }
+.mac-arr-scatola { background: #e0e7ff; }
+.mac-arr-casa { background: #dcfce7; }
+
+.mac-arr-tab td small {
+    color: var(--gray);
+}
+
+.mac-arr-liberi {
+    margin: 0;
+    padding-left: 20px;
+}

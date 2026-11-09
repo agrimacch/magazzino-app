@@ -11,8 +11,8 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 // ========================================
 // VARIABILI GLOBALI
 // ========================================
-const CURRENT_VERSION = '7.1.3';
-const SHOW_WHATS_NEW_POPUP = false;
+const CURRENT_VERSION = '7.4.0';
+const SHOW_WHATS_NEW_POPUP = true;
 
 let currentUser = null;
 let currentUserRole = null;
@@ -70,8 +70,12 @@ function sezioneConsentita(sectionName) {
     if (sectionName === 'tecnici') sectionName = 'assistenza';
     if (SEZIONI_ASSISTENZA_RUOLI[sectionName]) return SEZIONI_ASSISTENZA_RUOLI[sectionName].includes(currentUserRole);
     if (sectionName === 'buoni-regalo') return BUONI_RUOLI.includes(currentUserRole);
-    // Vendite > Listino STIHL: STIHL_RUOLI_VEDERE in stihl-functions.js (per ora solo admin)
-    if (sectionName === 'listino-stihl') return typeof stiPuoVedere === 'function' && stiPuoVedere();
+    // Listini Vendite > Listini Fornitori (prezzi): LF_RUOLI_VEDERE in listini-fornitori-functions.js (admin e operatori)
+    if (sectionName === 'listini-prezzi') return typeof lfPuoVedere === 'function' && lfPuoVedere();
+    // Ordini > Ordini Macchine: ORDINI_RUOLI in ordini-macchine-functions.js (admin e operatori)
+    if (sectionName === 'ordini-macchine') return typeof omPuoVedere === 'function' && omPuoVedere();
+    // Menu Ordini: visibile se si vede almeno una sezione dentro (Buoni Regalo, Ordini Clienti, Ordini Macchine)
+    if (sectionName === 'ordini') return ['buoni-regalo', 'ordini-clienti', 'ordini-macchine'].some(sezioneConsentita);
     if (currentUserRole === 'tecnico') return SEZIONI_TECNICI.includes(sectionName);
     if (SEZIONI_MACCHINE.includes(sectionName)) return typeof macPuoGestire === 'function' && macPuoGestire();
     if (ADMIN_ONLY_SECTIONS.includes(sectionName)) return currentUserRole === 'admin';
@@ -519,25 +523,38 @@ function applyRolePermissions() {
         venditeCard.style.display = isTecnico ? 'none' : 'flex';
     }
 
+    ordinaCardAlfabetico();
+
+    // Card ORDINI: se si vede almeno una sezione dentro; dentro, Ordini Macchine secondo ORDINI_RUOLI
+    const ordiniFornCard = document.getElementById('dashboard-ordini-card');
+    if (ordiniFornCard) {
+        ordiniFornCard.style.display = sezioneConsentita('ordini') ? 'flex' : 'none';
+    }
+    const ordiniMacchineCard = document.getElementById('ordini-macchine-card');
+    if (ordiniMacchineCard) {
+        ordiniMacchineCard.style.display = sezioneConsentita('ordini-macchine') ? 'flex' : 'none';
+    }
+
     // Card Inventario Macchine (dentro Magazzino): admin e operatori
     const macchineCard = document.getElementById('magazzino-macchine-card');
     if (macchineCard) {
         macchineCard.style.display = sezioneConsentita('inventario-macchine') ? 'flex' : 'none';
     }
 
-    // Card Ordini Clienti (dentro Vendite): admin e operatori
+    // Card Ordini Clienti (dentro Ordini): admin e operatori
     const ordiniCard = document.getElementById('vendite-ordini-card');
     if (ordiniCard) {
         ordiniCard.style.display = sezioneConsentita('ordini-clienti') ? 'flex' : 'none';
     }
 
-    // Card Listino STIHL (dentro Vendite): STIHL_RUOLI_VEDERE (per ora solo admin)
-    const stihlCard = document.getElementById('vendite-stihl-card');
-    if (stihlCard) {
-        stihlCard.style.display = sezioneConsentita('listino-stihl') ? 'flex' : 'none';
+
+    // Card Listini Fornitori con i prezzi (dentro Listini Vendite): LF_RUOLI_VEDERE
+    const lfCard = document.getElementById('vendite-lf-card');
+    if (lfCard) {
+        lfCard.style.display = sezioneConsentita('listini-prezzi') ? 'flex' : 'none';
     }
 
-    // Card Buoni Regalo (dentro Vendite): BUONI_RUOLI (per ora solo admin)
+    // Card Buoni Regalo (dentro Ordini): BUONI_RUOLI
     const buoniCard = document.getElementById('vendite-buoni-card');
     if (buoniCard) {
         buoniCard.style.display = sezioneConsentita('buoni-regalo') ? 'flex' : 'none';
@@ -553,6 +570,9 @@ function applyRolePermissions() {
     if (tabRicambiReportBtn) {
         tabRicambiReportBtn.style.display = isAdmin ? 'inline-flex' : 'none';
     }
+
+    // Avvisi listini fornitori scaduti o in scadenza (dopo il login, anche se si riapre una sezione salvata)
+    if (typeof lfControllaScadenze === 'function') lfControllaScadenze(true);
 }
 
 // ========================================
@@ -628,6 +648,7 @@ async function showMainScreen() {
 // ========================================
 function showDashboard() {
     currentSection = 'dashboard';
+    ordinaCardAlfabetico();
     
     // Salva stato in sessionStorage
     sessionStorage.setItem('currentSection', 'dashboard');
@@ -641,11 +662,16 @@ function showDashboard() {
     
     // Ferma scanner se attivo
     stopScanner();
+
+    // Avvisi listini fornitori scaduti o in scadenza (listini-fornitori-functions.js)
+    if (typeof lfControllaScadenze === 'function') lfControllaScadenze();
 }
 
 function openSection(sectionName) {
     // Vecchio nome della sezione Assistenza (es. salvato nella sessione)
     if (sectionName === 'tecnici') sectionName = 'assistenza';
+    // Vecchio Listino STIHL (tolto): si apre Listini Fornitori
+    if (sectionName === 'listino-stihl') sectionName = 'listini-prezzi';
 
     // Blocco sezioni non consentite al ruolo (Gestione Utenti solo admin,
     // tecnico solo Tecnici/Interventi Esterni...). Anche se ci arrivasse
@@ -699,11 +725,12 @@ function openSection(sectionName) {
         // Entrando dal menu Magazzino l'inventario macchine riparte dalla scheda "Inventario"
         sessionStorage.removeItem('macchineTab');
     } else if (sectionName === 'vendite') {
-        // Entrando dal menu Vendite il listino riparte dalla scheda "Listino"
-        // (e gli ordini dall'elenco)
+        // Entrando dal menu Listini Vendite il listino riparte dalla scheda "Listino"
         sessionStorage.removeItem('listinoTab');
+        sessionStorage.removeItem('lfTab');
+    } else if (sectionName === 'ordini') {
+        // Entrando dal menu Ordini gli ordini clienti ripartono dall'elenco
         sessionStorage.removeItem('ordiniTab');
-        sessionStorage.removeItem('stihlTab');
     } else if (sectionName === 'listini-fornitori') {
         if (typeof openListiniFornitori === 'function') {
             openListiniFornitori();
@@ -712,9 +739,9 @@ function openSection(sectionName) {
         if (typeof openListinoVendite === 'function') {
             openListinoVendite();
         }
-    } else if (sectionName === 'listino-stihl') {
-        if (typeof openListinoStihl === 'function') {
-            openListinoStihl();
+    } else if (sectionName === 'listini-prezzi') {
+        if (typeof openListiniFornitoriPrezzi === 'function') {
+            openListiniFornitoriPrezzi();
         }
     } else if (sectionName === 'inventario-macchine') {
         if (typeof openInventarioMacchine === 'function') {
@@ -723,6 +750,10 @@ function openSection(sectionName) {
     } else if (sectionName === 'ordini-clienti') {
         if (typeof openOrdiniClienti === 'function') {
             openOrdiniClienti();
+        }
+    } else if (sectionName === 'ordini-macchine') {
+        if (typeof openOrdiniMacchine === 'function') {
+            openOrdiniMacchine();
         }
     } else if (sectionName === 'buoni-regalo') {
         if (typeof openBuoniRegalo === 'function') {
@@ -746,6 +777,18 @@ function openSection(sectionName) {
         }
     }
 }
+
+// Card della dashboard e dei menu (Magazzino, Listini Vendite, Ordini, Assistenza) in ordine alfabetico
+// del titolo: vale anche per le card che si aggiungeranno in futuro
+function ordinaCardAlfabetico() {
+    document.querySelectorAll('.dashboard-grid').forEach(griglia => {
+        const card = Array.from(griglia.children).filter(el => el.classList.contains('dashboard-card'));
+        const titolo = el => (el.querySelector('h3') ? el.querySelector('h3').textContent : '').trim();
+        card.sort((a, b) => titolo(a).localeCompare(titolo(b), 'it', { sensitivity: 'base' }))
+            .forEach(el => griglia.appendChild(el));
+    });
+}
+document.addEventListener('DOMContentLoaded', ordinaCardAlfabetico);
 
 function backToDashboard() {
     showDashboard();
@@ -866,6 +909,11 @@ async function handleLogout() {
     sessionStorage.removeItem('listinoTab');
     sessionStorage.removeItem('macchineTab');
     sessionStorage.removeItem('macchineMarchio');
+    sessionStorage.removeItem('omMarchio');
+    sessionStorage.removeItem('lfFornitore');
+    sessionStorage.removeItem('lfTab');
+    sessionStorage.removeItem('lfAvvisoChiuso');
+    sessionStorage.removeItem('omSezione');
     sessionStorage.removeItem('ordiniTab');
     sessionStorage.removeItem('interventiSettimana');
     sessionStorage.removeItem('interventiGiorno');

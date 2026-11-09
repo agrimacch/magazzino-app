@@ -140,7 +140,8 @@
 }
 
 .mac-quadro.st-daordinare { background: white; }
-.mac-quadro.st-ordinata   { background: var(--mac-blu); border-color: #1e40af; }
+/* Ordinata al fornitore: bianco con l'angolino verde in alto a destra (come sul quaderno) */
+.mac-quadro.st-ordinata   { background: linear-gradient(to bottom left, var(--mac-verde-scuro) 0, var(--mac-verde-scuro) 34%, white 34%); }
 .mac-quadro.st-incasa     { background: var(--mac-verde); border-color: var(--mac-verde-scuro); }
 .mac-quadro.st-consegnata { background: var(--mac-verde); border-color: var(--mac-verde-scuro); color: #14532d; }
 
@@ -246,6 +247,7 @@
     text-align: center;
 }
 
+.mac-num-vend  { background: #ede9fe; color: #5b21b6; }
 .mac-num-disp  { background: #dcfce7; color: var(--mac-verde-scuro); }
 .mac-num-ass   { background: #fef3c7; color: #92400e; }
 .mac-num-ord   { background: #dbeafe; color: #1e40af; }
@@ -307,7 +309,7 @@
 
 .mac-inv-card-num {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(5, 1fr);
     gap: 4px;
     margin-top: 8px;
     text-align: center;
@@ -494,7 +496,7 @@
 
 .mac-chip-disp  { background: #dcfce7; color: var(--mac-verde-scuro); }
 .mac-chip-ass   { background: #fef3c7; color: #92400e; }
-.mac-chip-ord   { background: #dbeafe; color: #1e40af; }
+.mac-chip-ord   { background: #dcfce7; color: #15803d; }
 .mac-chip-daord { background: #f3f4f6; color: #374151; }
 
 /* La tabella a quadratini */
@@ -542,6 +544,10 @@
 
 .mac-slot .mac-quadro.st-daordinare {
     background: white;
+}
+
+.mac-slot .mac-quadro.st-ordinata {
+    background: linear-gradient(to bottom left, var(--mac-verde-scuro) 0, var(--mac-verde-scuro) 34%, white 34%);
 }
 
 .mac-nome {
@@ -2145,4 +2151,61 @@
         max-height: 92vh;
         max-height: 92dvh;
     }
+}
+
+/* Carico: arrivata al posto di un'altra macchina ordinata */
+.mac-sost {
+    border: 2px dashed #cbd5e1;
+    border-radius: 8px;
+    padding: 8px 10px;
+    margin: 8px 0;
+}
+
+.mac-sost-barra {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 6px;
+}
+
+.mac-sost-barra input[type="text"] {
+    flex: 1 1 220px;
+    margin: 0;
+}
+
+.mac-sost-lista {
+    max-height: 260px;
+    overflow-y: auto;
+}
+
+.mac-sost-conta {
+    font-size: 12px;
+    margin-bottom: 4px;
+}
+
+.mac-sost-voce {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 6px 4px;
+    border-bottom: 1px solid #f1f5f9;
+    font-size: 13px;
+    font-weight: 400;
+    margin: 0;
+    cursor: pointer;
+}
+
+.mac-sost-voce input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    margin: 2px 0 0;
+}
+
+.mac-sost-voce.scelta {
+    background: #f0fdf4;
+}
+
+.mac-sost-voce small {
+    color: var(--gray);
 }

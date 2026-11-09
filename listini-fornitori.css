@@ -1,0 +1,471 @@
+/* ========================================
+   LISTINI FORNITORI (listini-fornitori-functions.js)
+   Usa le classi del Listino Agrimacch (listino.css): listino-table, listino-gruppo...
+   Le classi sti-* vengono dal vecchio Listino STIHL (stihl.css, tolto) e sono qui sotto.
+   ======================================== */
+
+/* ---------- Classi sti-* (tabelle, caricamento file, anteprima) ---------- */
+
+.sti-legenda {
+    margin: 6px 0 12px;
+}
+
+.sti-table td {
+    vertical-align: middle;
+}
+
+.sti-col-codice {
+    white-space: nowrap;
+    font-family: monospace;
+    font-size: 13px;
+}
+
+.sti-col-cliente {
+    font-size: 15px;
+    color: var(--primary-dark);
+}
+
+.sti-col-ric,
+.sti-col-fonte {
+    white-space: nowrap;
+    font-size: 12px;
+}
+
+.sti-col-azioni {
+    white-space: nowrap;
+}
+
+.sti-col-azioni .mac-btn-piccolo,
+.sti-card-azioni .mac-btn-piccolo {
+    margin: 2px;
+}
+
+.sti-btn-collegato {
+    background: #dcfce7;
+    color: #166534;
+    border: 1px solid #86efac;
+    border-radius: 8px;
+    padding: 5px 10px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.sti-btn-scollega {
+    background: none;
+    border: none;
+    color: #94a3b8;
+    cursor: pointer;
+    font-size: 13px;
+    margin-left: 4px;
+}
+
+.sti-btn-scollega:hover {
+    color: var(--danger);
+}
+
+.sti-card-azioni {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 6px;
+    margin-top: 8px;
+}
+
+/* Caricamento file */
+.sti-file-nome {
+    margin: 10px 0;
+    font-size: 14px;
+}
+
+.sti-impostazioni-griglia {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+    gap: 10px 14px;
+    margin-bottom: 12px;
+}
+
+.sti-colonna label {
+    display: block;
+    font-weight: 600;
+    font-size: 13px;
+    margin-bottom: 4px;
+}
+
+.sti-colonna select,
+.sti-colonna input {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.sti-sottotitolo {
+    margin: 8px 0;
+    color: var(--primary-dark);
+}
+
+.sti-riepilogo {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin: 16px 0 8px;
+}
+
+.sti-riepilogo > div {
+    background: var(--light);
+    border-radius: 8px;
+    padding: 8px 14px;
+    font-size: 14px;
+}
+
+.sti-riepilogo .sti-ok { background: #dcfce7; }
+.sti-riepilogo .sti-mod { background: #fef3c7; }
+.sti-riepilogo .sti-err { background: #fee2e2; }
+
+.sti-scartate {
+    font-size: 12px;
+    max-height: 260px;
+    overflow-y: auto;
+    margin: 0;
+    padding-left: 20px;
+}
+
+.sti-ric-input {
+    width: 60px !important;
+    padding: 4px 6px;
+}
+
+.sti-col-ric-mod {
+    white-space: nowrap;
+}
+
+.sti-ean {
+    color: #64748b;
+    font-size: 11px;
+}
+
+/* Netti e ricarico oscurati (occhio in alto) */
+#section-listini-prezzi.netti-nascosti .netto-val {
+    filter: blur(6px);
+    user-select: none;
+    -webkit-user-select: none;
+    pointer-events: none;
+}
+
+/* Schede dei fornitori */
+.lf-fornitori {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin: 4px 0 10px;
+}
+
+.lf-forn-btn {
+    background: white;
+    border: 2px solid var(--border, #e2e8f0);
+    border-radius: 10px;
+    padding: 8px 16px;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    color: var(--dark, #1e293b);
+}
+
+.lf-forn-btn.active {
+    background: var(--primary, #2d7a3e);
+    border-color: var(--primary, #2d7a3e);
+    color: white;
+}
+
+.lf-forn-nuovo {
+    border-style: dashed;
+    font-weight: 600;
+    color: var(--primary-dark, #1e5a2b);
+}
+
+.lf-forn-modifica {
+    font-size: 13px;
+}
+
+.lf-pallino {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-left: 4px;
+    vertical-align: middle;
+    border: 1px solid white;
+}
+
+.lf-pallino.lf-scaduto { background: #dc2626; }
+.lf-pallino.lf-presto { background: #f59e0b; }
+
+/* Barra delle scadenze */
+.lf-scadenze {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 0 0 12px;
+}
+
+.lf-scad {
+    display: inline-block;
+    border-radius: 8px;
+    padding: 5px 12px;
+    font-size: 13px;
+    border: 1px solid #cbd5e1;
+    background: #f1f5f9;
+    color: #334155;
+}
+
+.lf-scad.lf-ok { background: #dcfce7; border-color: #86efac; color: #166534; }
+.lf-scad.lf-presto { background: #fef3c7; border-color: #f59e0b; color: #92400e; font-weight: 700; }
+.lf-scad.lf-scaduto { background: #fee2e2; border-color: #dc2626; color: #991b1b; font-weight: 700; border-width: 2px; }
+
+/* Prezzi per listino (una riga per listino) */
+.lf-col-prezzi {
+    min-width: 330px;
+}
+
+.lf-pr {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 10px;
+    padding: 4px 8px;
+    border-radius: 8px;
+    border: 1px solid transparent;
+    margin: 2px 0;
+    position: relative;
+}
+
+.lf-pr + .lf-pr {
+    border-top: 1px dashed #e2e8f0;
+}
+
+.lf-pr-migliore {
+    background: #f0fdf4;
+    border-color: #86efac;
+}
+
+/* Listino scaduto: riquadro rosso, si consulta lo stesso */
+.lf-pr-scaduto {
+    border: 2px solid #dc2626;
+    background: #fef2f2;
+    opacity: 0.85;
+}
+
+.lf-pr-presto {
+    border-color: #f59e0b;
+}
+
+.lf-pr-listino {
+    display: inline-block;
+    min-width: 70px;
+    font-size: 12px;
+    font-weight: 700;
+    border-radius: 6px;
+    padding: 2px 8px;
+    background: #e2e8f0;
+    color: #334155;
+}
+
+.lf-pr-listino.lf-ok { background: #dcfce7; color: #166534; }
+.lf-pr-listino.lf-presto { background: #fef3c7; color: #92400e; }
+.lf-pr-listino.lf-scaduto { background: #dc2626; color: white; }
+
+.lf-pr-listino small {
+    font-weight: 400;
+}
+
+.lf-pr-cliente {
+    font-size: 16px;
+    font-weight: 800;
+    color: var(--primary-dark, #1e5a2b);
+    min-width: 64px;
+}
+
+.lf-pr-scaduto .lf-pr-cliente {
+    color: #991b1b;
+    text-decoration: line-through;
+}
+
+.lf-pr-dett {
+    font-size: 12px;
+    color: #64748b;
+}
+
+.lf-pr-stella {
+    color: #16a34a;
+    font-size: 15px;
+}
+
+.lf-card-prezzi {
+    margin-top: 6px;
+}
+
+/* Scheda Listini e scadenze */
+.lf-riga-scaduto td {
+    background: #fef2f2;
+}
+
+.lf-riga-presto td {
+    background: #fffbeb;
+}
+
+.lf-col-scad {
+    white-space: nowrap;
+}
+
+/* Scadenza / ricarico + pulsante sulla stessa riga, dentro la propria colonna */
+.lf-scad-riga {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 6px;
+    flex-wrap: nowrap;
+}
+
+.lf-scad-riga .lf-scad-input {
+    width: 150px !important;
+    min-width: 0;
+    flex: 0 1 150px;
+    padding: 4px 6px;
+    font-size: 13px;
+    margin: 0;
+}
+
+.lf-scad-riga .btn-back {
+    flex: 0 0 auto;
+    margin: 0;
+}
+
+@media (max-width: 768px) {
+    .lf-scad-riga {
+        flex-wrap: wrap;
+    }
+}
+
+.lf-avviso-sostituisci {
+    background: #fef3c7;
+    border: 1px solid #f59e0b;
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 13px;
+    margin: 0 0 12px;
+}
+
+#lf-anteprima details,
+#lf-ean-anteprima details {
+    margin: 10px 0;
+}
+
+#lf-anteprima summary,
+#lf-ean-anteprima summary {
+    cursor: pointer;
+    font-weight: 700;
+    margin-bottom: 6px;
+}
+
+@media (max-width: 768px) {
+    .lf-forn-btn {
+        padding: 7px 12px;
+        font-size: 14px;
+    }
+    .lf-col-prezzi {
+        min-width: 0;
+    }
+}
+
+/* ---------- Avviso listini scaduti / in scadenza (dashboard e Listini Vendite) ---------- */
+.lf-avviso-box {
+    position: relative;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    max-width: 900px;
+    margin: 0 auto 18px;
+    padding: 12px 44px 12px 16px;
+    border-radius: 12px;
+    background: #fffbeb;
+    border: 2px solid #f59e0b;
+    color: #92400e;
+    cursor: pointer;
+    text-align: left;
+}
+
+.lf-avviso-box.hidden {
+    display: none;
+}
+
+.lf-avviso-box.lf-avviso-rosso {
+    background: #fef2f2;
+    border-color: #dc2626;
+    color: #991b1b;
+}
+
+.lf-avviso-box ul {
+    margin: 6px 0 4px;
+    padding-left: 20px;
+}
+
+.lf-avviso-box li {
+    font-size: 14px;
+}
+
+.lf-avviso-box li.lf-avviso-scaduto {
+    color: #b91c1c;
+}
+
+.lf-avviso-box li.lf-avviso-presto {
+    color: #b45309;
+}
+
+.lf-avviso-box small {
+    opacity: 0.8;
+}
+
+.lf-avviso-chiudi {
+    position: absolute;
+    top: 6px;
+    right: 8px;
+    background: none;
+    border: none;
+    font-size: 22px;
+    line-height: 1;
+    cursor: pointer;
+    color: inherit;
+    padding: 4px 8px;
+}
+
+/* Pallino sulle card Listini Vendite / Listini Fornitori (sotto a modali e intestazione) */
+#dashboard-vendite-card,
+#vendite-lf-card {
+    position: relative;
+}
+
+.lf-card-pallino {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    z-index: 1;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    border: 2px solid white;
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.1);
+}
+
+.lf-card-pallino.lf-scaduto { background: #dc2626; }
+.lf-card-pallino.lf-presto { background: #f59e0b; }
+
+/* Articolo collegato ma non piu' in nessun listino */
+.lf-fuori {
+    display: inline-block;
+    font-size: 13px;
+    font-weight: 600;
+    color: #92400e;
+    background: #fef3c7;
+    border-radius: 6px;
+    padding: 4px 8px;
+}

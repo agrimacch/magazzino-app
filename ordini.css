@@ -78,8 +78,8 @@
 }
 
 .ord-card-cliente {
-    font-family: 'Kalam', 'Comic Sans MS', cursive;
-    font-size: 19px;
+    font-family: 'Roboto Mono', monospace;
+    font-size: 16px;
     font-weight: 700;
     color: var(--mac-penna);
     margin: 2px 0;
@@ -285,8 +285,8 @@
 }
 
 .ord-det-cliente {
-    font-family: 'Kalam', 'Comic Sans MS', cursive;
-    font-size: 22px;
+    font-family: 'Roboto Mono', monospace;
+    font-size: 18px;
     font-weight: 700;
     color: var(--mac-penna);
 }
@@ -1119,3 +1119,56 @@
     border-radius: 8px;
     transform: rotate(-10deg);
 }
+
+/* Riga gia' salvata di un ordine in modifica: cosa c'e' gia' nell'ordine */
+.ord-riga-gia {
+    color: #1e3a8a;
+    background: #eff6ff;
+    border-radius: 6px;
+    padding: 4px 8px;
+}
+
+/* Montata pronta all'uso / In scatola (riquadrini sotto la riga del modulo) */
+.ord-montaggio {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 0 0 6px;
+}
+
+.ord-mont {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border: 2px solid #cbd5e1;
+    border-radius: 8px;
+    padding: 4px 10px;
+    font-size: 12px;
+    font-weight: 600;
+    margin: 0;
+    cursor: pointer;
+    background: white;
+}
+
+.ord-mont input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    margin: 0;
+}
+
+.ord-mont.scelta {
+    border-color: var(--primary);
+    background: #f0fdf4;
+}
+
+.ord-tag-mont {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 700;
+    border-radius: 6px;
+    padding: 1px 6px;
+    margin-left: 4px;
+}
+
+.ord-tag-montata { background: #fef3c7; color: #92400e; }
+.ord-tag-scatola { background: #e0e7ff; color: #3730a3; }

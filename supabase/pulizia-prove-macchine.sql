@@ -8,6 +8,7 @@
 --   - le macchine del quaderno (macchine_pezzi)
 --   - il registro movimenti macchine (macchine_movimenti)
 --   - gli ordini clienti e le loro righe
+--   - il libro Ordini Macchine (ordini al fornitore e sezioni)
 -- e fa ripartire i numeri da capo (il prossimo ordine sara' il n. 1).
 --
 -- Richieste interventi robot (v6.3.0): le richieste di MONTAGGIO create
@@ -32,6 +33,9 @@ delete from public.macchine_movimenti;
 delete from public.macchine_pezzi;
 delete from public.macchine_ordini_righe;
 delete from public.macchine_ordini;
+-- Libro Ordini Macchine (ordini al fornitore e sezioni; serve ordini-macchine-setup.sql gia' eseguito)
+delete from public.macchine_of_ordini;
+delete from public.macchine_of_sezioni;
 
 -- Contatori interni da capo (il numero d'ordine riparte comunque da 1)
 select setval(pg_get_serial_sequence('public.macchine_movimenti', 'id'), 1, false);

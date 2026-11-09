@@ -31,8 +31,8 @@
 // - alla fine si vedono le macchine del quaderno (in casa) di quel modello che non sono state lette
 //
 // ARTICOLO NON NEL LISTINO: si crea dal carico
-// - codice letto che e' l'EAN di un articolo del Listino STIHL (stiArticoli): la scatola mostra
-//   "STIHL ... non e' nel tuo listino" e "Crea nel listino" apre Nuovo articolo gia' compilato
+// - codice letto che e' l'EAN di un articolo di Listini Fornitori (lfArticoli, solo per chi li vede): la scatola mostra
+//   "<FORNITORE> ... non e' nel tuo listino" e "Crea nel listino" apre Nuovo articolo gia' compilato
 //   (marchio, modello, netto, prezzo, listino, codice a barre = EAN)
 // - altri codici: "Crea nuovo articolo" apre Nuovo articolo con il codice a barre gia' messo
 //   (se il codice e' del modello); netto e prezzi si possono lasciare vuoti e mettere dopo
@@ -140,15 +140,33 @@ function rafModelloDi(codice) {
     return a && a.attivo ? a : null;
 }
 
-// Articolo del Listino STIHL con questo EAN (solo se il listino STIHL e' caricato e visibile)
-function rafStihlDi(codice) {
-    if (typeof stiArticoli === 'undefined' || !Array.isArray(stiArticoli) || !stiArticoli.length) return null;
-    return stiArticoli.find(a => a.ean && listinoStessoCodiceBarre(a.ean, codice)) || null;
+// EAN riconosciuti da Listini Fornitori, solo per chi li vede
+function rafUsaLf() {
+    return typeof lfPuoVedere === 'function' && lfPuoVedere() && typeof lfArticoloDaEan === 'function';
 }
 
-// "Crea nel listino" con i dati STIHL: solo chi puo' collegare/creare dal Listino STIHL (admin)
-function rafPuoCreareDaStihl() {
-    return typeof stiPuoCollegare === 'function' && stiPuoCollegare();
+// Articolo di un listino fornitore con questo EAN (solo se il listino e' caricato e visibile).
+// Restituisce { id, fonte: 'lf' } oppure null
+function rafStihlDi(codice) {
+    if (!rafUsaLf()) return null;
+    const a = lfArticoloDaEan(codice);
+    return a ? { id: a.id, fonte: 'lf' } : null;
+}
+
+// Dati da mostrare sulla scatola: { fornitore, descrizione, codice, cliente (prezzo cliente IVA incl.) }
+function rafFornInfo(s) {
+    // stihlFonte diverso da 'lf' = scatola salvata con il vecchio Listino STIHL (tolto): non piu' riconosciuta
+    if (!s || !s.stihlId || s.stihlFonte !== 'lf') return null;
+    const a = typeof lfArticolo === 'function' ? lfArticolo(s.stihlId) : null;
+    if (!a) return null;
+    const p = lfPrezzoMigliore(a);
+    return { fornitore: lfNomeFornitore(a), descrizione: a.descrizione, codice: a.codice, cliente: p ? lfPrezzoCliente(p) : null };
+}
+
+// "Crea nel listino" con i dati del fornitore: solo chi puo' collegare/creare da quel listino
+function rafPuoCreareDaStihl(s) {
+    if (s && s.stihlFonte !== 'lf') return false;
+    return rafUsaLf() && typeof lfPuoCollegare === 'function' && lfPuoCollegare();
 }
 
 // Codice letto della scatola (codice del modello STIHL oppure la matricola/codice sconosciuto)
@@ -194,10 +212,11 @@ function rafCostruisciCon(ordine) {
         if (stihl) {
             if (ordine === 'matricola' && ultima && !ultima.artId && !ultima.stihlId && ultima.matricola && !ultima.probabileModello) {
                 ultima.stihlId = stihl.id;
+                ultima.stihlFonte = stihl.fonte;
                 ultima.codiceModello = listinoPulisciCodiceBarre(l.codice);
                 ultima.letture.push(l.id);
             } else {
-                scatole.push({ artId: null, stihlId: stihl.id, codiceModello: listinoPulisciCodiceBarre(l.codice), matricola: null,
+                scatole.push({ artId: null, stihlId: stihl.id, stihlFonte: stihl.fonte, codiceModello: listinoPulisciCodiceBarre(l.codice), matricola: null,
                     letture: [l.id], idMatricola: null, probabileModello: false });
             }
             return;
@@ -258,9 +277,9 @@ async function rafApri() {
             return;
         }
     }
-    // Listino STIHL (per riconoscere gli EAN degli articoli che non sono ancora nel listino)
-    if (typeof stiCaricaDati === 'function' && typeof stiPuoVedere === 'function' && stiPuoVedere() && !stiCaricato) {
-        try { await stiCaricaDati(); } catch (e) { console.warn('Listino STIHL non disponibile nel carico:', e.message); }
+    // Listini Fornitori (per riconoscere gli EAN degli articoli che non sono ancora nel listino)
+    if (rafUsaLf() && !lfCaricato) {
+        try { await lfCaricaDati(); } catch (e) { console.warn('Listini Fornitori non disponibili nel carico:', e.message); }
     }
     rafCaricaSessione();
     rafStorico = [];
@@ -295,7 +314,7 @@ function rafLeggi(grezzo) {
     if (tutti && !tutti.attivo) {
         rafSuono(false);
         rafMessaggio('&#10060; Il codice ' + macEsc(codice) + ' &egrave; di <strong>' + macEsc(macNome(tutti)) +
-            '</strong>, che &egrave; tra gli articoli cancellati del listino. Ripristinalo dal Listino Vendite e rileggi la scatola.', 'err');
+            '</strong>, che &egrave; tra gli articoli cancellati del listino. Ripristinalo dal Listino Agrimacch e rileggi la scatola.', 'err');
         return;
     }
     if (!tutti) {
@@ -335,9 +354,9 @@ function rafLeggi(grezzo) {
                 (macIsSet(a.id) ? ' (set: le matricole dei componenti si inseriscono dopo, nel quaderno)' :
                     (ultimaDellaScatola && rafOrdineUsato === 'modello' ? '. Se c\'&egrave;, leggi ora la matricola.' : ''))), 'ok');
     } else if (s && s.stihlId) {
-        const st = stiArticoli.find(x => x.id === s.stihlId);
-        rafMessaggio('&#127381; Scatola ' + s.n + ': <strong>STIHL ' + macEsc(st ? st.descrizione : '') + '</strong> non &egrave; nel tuo listino. ' +
-            (rafPuoCreareDaStihl() ? 'Tocca <strong>Crea nel listino</strong> sulla scatola (dati gi&agrave; compilati), anche alla fine.' :
+        const st = rafFornInfo(s);
+        rafMessaggio('&#127381; Scatola ' + s.n + ': <strong>' + macEsc(st ? st.fornitore + ' ' + (st.descrizione || '') : '') + '</strong> non &egrave; nel tuo listino. ' +
+            (rafPuoCreareDaStihl(s) ? 'Tocca <strong>Crea nel listino</strong> sulla scatola (dati gi&agrave; compilati), anche alla fine.' :
                 'Tocca <strong>Crea nuovo</strong> sulla scatola, anche alla fine.'), 'info');
     } else if (s && s.probabileModello) {
         const quante = rafScatole.filter(x => x.probabileModello && rafNorm(x.matricola) === rafNorm(s.matricola)).length;
@@ -468,7 +487,7 @@ function rafRender() {
             } else if (isSet) {
                 cosa = '&#129513; set: carica ' + macEsc(macDescrizioneComponenti(g.art.id));
             } else {
-                const attesa = assegna ? macInAttesa(g.art.id).slice(0, n) : [];
+                const attesa = assegna ? macPianoCarico(g.art.id, n).clienti : [];
                 const liberi = n - attesa.length;
                 cosa = (attesa.length ? '&#128100; ' + attesa.map(p => macEsc(p.cliente || '-')).join(', ') : '') +
                     (attesa.length && liberi ? '<br>' : '') +
@@ -488,10 +507,11 @@ function rafRender() {
             const a = s.artId ? macArticolo(s.artId) : null;
             const id = s.letture[0];
             let nome;
-            const st = !a && s.stihlId ? stiArticoli.find(x => x.id === s.stihlId) : null;
+            const st = !a && s.stihlId ? rafFornInfo(s) : null;
             if (a) nome = macNomeHtml(a);
-            else if (st) nome = '<span class="mac-raf-allarme">&#127381; STIHL <strong>' + macEsc(st.descrizione || st.codice) + '</strong>: non &egrave; nel tuo listino</span>' +
-                (typeof stiPrezzoCliente === 'function' ? '<br><small>' + macEsc(st.codice) + ' &middot; prezzo cliente ' + stiEuroIntero(stiPrezzoCliente(st)) + '</small>' : '');
+            else if (st) nome = '<span class="mac-raf-allarme">&#127381; ' + macEsc(st.fornitore) + ' <strong>' + macEsc(st.descrizione || st.codice) + '</strong>: non &egrave; nel tuo listino</span>' +
+                '<br><small>' + macEsc(st.codice) + (st.cliente !== null && st.cliente !== undefined ? ' &middot; prezzo cliente &#8364;&nbsp;' +
+                    Number(st.cliente).toLocaleString('it-IT', { maximumFractionDigits: 0 }) : '') + '</small>';
             else if (s.probabileModello) nome = '<span class="mac-raf-allarme">&#10067; Codice ripetuto: probabile codice di un modello nuovo</span>';
             else nome = '<span class="mac-raf-allarme">&#10067; Modello da scegliere</span>';
             let sotto = '';
@@ -509,8 +529,8 @@ function rafRender() {
                 '<span class="mac-raf-n">' + s.n + '</span>' +
                 '<span class="mac-raf-nome">' + nome + sotto + '</span>' +
                 '<span class="mac-raf-azioni">' +
-                (st && rafPuoCreareDaStihl() ? '<button type="button" class="btn-primary mac-btn-piccolo" data-raf-crea="' + id + '">&#10133; Crea nel listino</button>' : '') +
-                (!a && !(st && rafPuoCreareDaStihl()) ? '<button type="button" class="btn-back mac-btn-piccolo" data-raf-crea="' + id + '">&#10133; Crea nuovo</button>' : '') +
+                (st && rafPuoCreareDaStihl(s) ? '<button type="button" class="btn-primary mac-btn-piccolo" data-raf-crea="' + id + '">&#10133; Crea nel listino</button>' : '') +
+                (!a && !(st && rafPuoCreareDaStihl(s)) ? '<button type="button" class="btn-back mac-btn-piccolo" data-raf-crea="' + id + '">&#10133; Crea nuovo</button>' : '') +
                 '<button type="button" class="btn-back mac-btn-piccolo" data-raf-modello="' + id + '">' + (a ? 'Cambia' : 'Scegli modello') + '</button>' +
                 (s.matricola && a ? '<button type="button" class="mac-azione" data-raf-togli-matr="' + id + '" title="Togli la matricola">&#10006;</button>' : '') +
                 '<button type="button" class="mac-azione" data-raf-elimina="' + id + '" title="Elimina la scatola">&#128465;</button>' +
@@ -605,8 +625,8 @@ function rafCreaArticolo(idLettura) {
     if (pannello) rafChiudiScelta();
     document.getElementById('mac-raf-input').blur();
     rafCreazione = { idLettura: idLettura, codice: codice, codiceModello: codiceModello };
-    if (s.stihlId && rafPuoCreareDaStihl() && typeof stiCreaInListino === 'function') {
-        stiCreaInListino(s.stihlId);       // compila marchio, modello, netto, prezzi e codice a barre (EAN)
+    if (s.stihlId && rafPuoCreareDaStihl(s) && typeof lfCreaInListino === 'function') {
+        lfCreaInListino(s.stihlId);   // compila marchio, modello, netto, prezzi, codice articolo e codice a barre (EAN)
         const cb = document.getElementById('listino-edit-codice-barre');
         if (cb && !cb.value && codice && !listinoArticoloDaCodiceBarre(codice)) cb.value = codice;
     } else {
@@ -619,7 +639,7 @@ function rafCreaArticolo(idLettura) {
     }
 }
 
-// Chiamata da saveListinoEdit() dopo il salvataggio di un articolo del Listino Vendite
+// Chiamata da saveListinoEdit() dopo il salvataggio di un articolo del Listino Agrimacch
 function rafDopoSalvataggioListino(articoloId, nuovo) {
     const c = rafCreazione;
     rafCreazione = null;
@@ -632,8 +652,8 @@ function rafDopoSalvataggioListino(articoloId, nuovo) {
     rafSalvaSessione();
     const a = macArticolo(articoloId);
     const quante = rafScatole.filter(x => x.artId === articoloId).length;
-    rafMessaggio('&#10004; Creato <strong>' + macEsc(macNome(a)) + '</strong> nel Listino Vendite' +
-        (quante > 1 ? ': ' + quante + ' scatole sistemate' : '') + '. Netti e prezzi li puoi completare quando vuoi dal Listino Vendite.', 'ok');
+    rafMessaggio('&#10004; Creato <strong>' + macEsc(macNome(a)) + '</strong> nel Listino Agrimacch' +
+        (quante > 1 ? ': ' + quante + ' scatole sistemate' : '') + '. Netti e prezzi li puoi completare quando vuoi dal Listino Agrimacch.', 'ok');
     rafRender();
 }
 
@@ -737,6 +757,7 @@ async function rafConferma() {
     btn.disabled = true;
     btn.innerHTML = '&#8987; Carico in corso...';
     const riepilogo = [];
+    macArriviInizia();
     try {
         for (const g of gruppi) {
             const a = g.art;
@@ -779,6 +800,7 @@ async function rafConferma() {
         await showCustomAlert('Errore durante il carico:<br>' + macEsc(error.message) +
             (riepilogo.length ? '<br><br>Gi&agrave; caricati (tolti dall\'elenco):<br>' + riepilogo.join('<br>') : '') +
             '<br><br>Le scatole rimaste sono ancora nell\'elenco: controlla e riprova.', 'Errore', '&#10060;');
+        macArriviMostra();
         return;
     }
     rafInSalvataggio = false;
@@ -793,6 +815,7 @@ async function rafConferma() {
     await showCustomAlert(riepilogo.join('<br>') +
         '<br><br>&#128161; Se hai letto dalla memoria del lettore, ora svuotala leggendo <strong>Clear stored barcode</strong> (pagina 6 del manuale).',
         'Carico a raffica registrato', '&#10004;');
+    macArriviMostra();
 }
 
 // Carico iniziale: completa il quaderno con le macchine gia' in magazzino

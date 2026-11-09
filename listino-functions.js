@@ -53,7 +53,13 @@ const LISTINO_COLONNE_EXCEL = {
     'CODICE EAN': 'codice_barre',
     'EAN': 'codice_barre',
     'EAN13': 'codice_barre',
-    'EAN 13': 'codice_barre'
+    'EAN 13': 'codice_barre',
+    'CODICE ARTICOLO': 'codice_articolo',
+    'COD ARTICOLO': 'codice_articolo',
+    'CODICE ART': 'codice_articolo',
+    'COD ART': 'codice_articolo',
+    'CODICE FORNITORE': 'codice_articolo',
+    'COD FORNITORE': 'codice_articolo'
 };
 
 // Ordine e intestazioni usati anche per il download Excel
@@ -75,11 +81,12 @@ const LISTINO_CAMPI = [
     { campo: 'vendita_scatola', titolo: 'VENDITA IN SCATOLA' },
     { campo: 'vendita_no_promo', titolo: 'VENDITA NO PROMO' },
     { campo: 'listino', titolo: 'LISTINO' },
-    { campo: 'codice_barre', titolo: 'CODICE A BARRE' }
+    { campo: 'codice_barre', titolo: 'CODICE A BARRE' },
+    { campo: 'codice_articolo', titolo: 'CODICE ARTICOLO' }
 ];
 
 // Colonne che possono mancare nel file (i file vecchi non le hanno)
-const LISTINO_CAMPI_FACOLTATIVI = ['codice_barre'];
+const LISTINO_CAMPI_FACOLTATIVI = ['codice_barre', 'codice_articolo'];
 
 const LISTINO_CAMPI_NUMERICI = ['netto_1', 'netto_2', 'netto_3', 'listino'];
 const LISTINO_CAMPI_VENDITA_TESTO = ['vendita_promo', 'vendita_scatola', 'vendita_no_promo'];
@@ -144,6 +151,27 @@ function listinoCodiceBarreDaCella(cell) {
         return String(Math.round(cell.v));
     }
     return listinoPulisciCodiceBarre(cell.v);
+}
+
+// La colonna codice_articolo c'e' su Supabase? (script supabase/listino-codice-articolo.sql)
+// Finche' non c'e' il campo non viene mandato, cosi' import e salvataggi funzionano come prima.
+function listinoHaCodiceArticolo() {
+    return listinoArticoli.length === 0 || listinoArticoli.some(a => Object.prototype.hasOwnProperty.call(a, 'codice_articolo'));
+}
+
+function listinoTogliCodiceArticoloSeManca(riga) {
+    if (!listinoHaCodiceArticolo()) delete riga.codice_articolo;
+    return riga;
+}
+
+// Codice articolo del fornitore dal file Excel: sempre testo (11371200650 resta cosi', non 1,14E+10)
+function listinoCodiceArticoloDaCella(cell) {
+    if (!cell) return null;
+    if (cell.t === 'n') {
+        if (cell.w && /^[\d\s.\-\/]+$/.test(String(cell.w).trim()) && !/E\+/i.test(cell.w)) return listinoPulisciTesto(cell.w);
+        return String(Math.round(cell.v));
+    }
+    return listinoPulisciTesto(cell.v);
 }
 
 // Articolo (attivo o cancellato) che ha questo codice a barre
@@ -443,7 +471,8 @@ function listinoCorrispondeRicerca(articolo, ricerca) {
     const testo = [
         articolo.attrezzo, articolo.marchio, articolo.alimentazione, articolo.tipologia_alimentazione,
         articolo.modello, articolo.note, articolo.scadenza_promo, articolo.vendita_promo,
-        articolo.vendita_scatola, articolo.vendita_no_promo, listinoCodiceBarrePerRicerca(articolo.codice_barre)
+        articolo.vendita_scatola, articolo.vendita_no_promo, listinoCodiceBarrePerRicerca(articolo.codice_barre),
+        articolo.codice_articolo
     ].filter(Boolean).join(' ').toUpperCase();
     return ricerca.split(' ').every(parola => testo.indexOf(parola) !== -1);
 }
@@ -781,6 +810,8 @@ function listinoAnalizzaWorkbook(workbook) {
 
             if (campo === 'codice_barre') {
                 riga[campo] = listinoCodiceBarreDaCella(cell);
+            } else if (campo === 'codice_articolo') {
+                riga[campo] = listinoCodiceArticoloDaCella(cell);
             } else if (LISTINO_CAMPI_NUMERICI.indexOf(campo) !== -1) {
                 let valore = null;
                 if (cell) {
@@ -888,8 +919,9 @@ function listinoCostruisciPiano(righeFile, articoliDb) {
         const aggiornato = { chiave: r.chiave, attivo: true, data_cancellazione: null };
         LISTINO_CAMPI_FILE.forEach(campo => { aggiornato[campo] = r[campo]; });
         LISTINO_CAMPI_NETTI.forEach(campo => { aggiornato[campo] = esistente[campo]; });
-        // Codice a barre: la cella vuota non cancella quello gia' salvato
+        // Codice a barre e codice articolo: la cella vuota non cancella quello gia' salvato
         aggiornato.codice_barre = r.codice_barre || esistente.codice_barre || null;
+        aggiornato.codice_articolo = r.codice_articolo || esistente.codice_articolo || null;
         if (r.codice_barre && !listinoStessoCodiceBarre(esistente.codice_barre, r.codice_barre)) {
             piano.codiciBarre.push({ riga: r, vecchio: esistente.codice_barre || null, nuovo: r.codice_barre });
         }
@@ -1145,7 +1177,7 @@ async function confirmListinoImport() {
     try {
         // 1. Inserisce i nuovi e aggiorna gli esistenti (a blocchi)
         for (let i = 0; i < piano.upserts.length; i += 200) {
-            const blocco = piano.upserts.slice(i, i + 200);
+            const blocco = piano.upserts.slice(i, i + 200).map(listinoTogliCodiceArticoloSeManca);
             const { data, error } = await supabaseClient
                 .from('listino_articoli')
                 .upsert(blocco, { onConflict: 'chiave' })
@@ -1238,7 +1270,7 @@ function listinoRigheExport() {
         LISTINO_CAMPI.map(({ campo }) => {
             const v = a[campo];
             if (v === null || v === undefined || v === '') return null;
-            if (campo === 'codice_barre') return String(v); // testo: Excel non lo trasforma in 8,01E+12
+            if (campo === 'codice_barre' || campo === 'codice_articolo') return String(v); // testo: Excel non lo trasforma in 8,01E+12
             if (LISTINO_CAMPI_NUMERICI.indexOf(campo) !== -1) return Number(v);
             if (LISTINO_CAMPI_VENDITA_TESTO.indexOf(campo) !== -1 && /^-?\d+(\.\d+)?$/.test(String(v))) return Number(v);
             return v;
@@ -1261,7 +1293,7 @@ async function listinoCreaExcelFormattato(ExcelJS, righe) {
     ws.columns = LISTINO_CAMPI.map(({ campo, titolo }) => ({
         header: titolo,
         key: campo,
-        width: LISTINO_COLONNE_LARGHE.indexOf(campo) !== -1 ? 26 : (campo === 'attrezzo' || campo === 'modello' || campo === 'codice_barre' ? 20 : 15)
+        width: LISTINO_COLONNE_LARGHE.indexOf(campo) !== -1 ? 26 : (campo === 'attrezzo' || campo === 'modello' || campo === 'codice_barre' || campo === 'codice_articolo' ? 20 : 15)
     }));
 
     righe.forEach(r => ws.addRow(r));
@@ -1278,6 +1310,8 @@ async function listinoCreaExcelFormattato(ExcelJS, righe) {
     // Codice a barre: colonna in formato testo (anche per i codici scritti dopo in Excel)
     const iCodice = LISTINO_CAMPI.findIndex(c => c.campo === 'codice_barre');
     if (iCodice !== -1) ws.getColumn(iCodice + 1).numFmt = '@';
+    const iCodArt = LISTINO_CAMPI.findIndex(c => c.campo === 'codice_articolo');
+    if (iCodArt !== -1) ws.getColumn(iCodArt + 1).numFmt = '@';
 
     // Prezzi in formato euro
     const formatoEuro = '#,##0.00 "€"';
@@ -1355,7 +1389,7 @@ let listinoArticoloInModifica = null; // null = nuovo articolo
 const LISTINO_CAMPI_FORM = [
     'attrezzo', 'marchio', 'alimentazione', 'tipologia_alimentazione', 'modello', 'note',
     'netto_1', 'note_1', 'vendita_promo', 'scadenza_promo', 'vendita_scatola', 'vendita_no_promo', 'listino',
-    'codice_barre'
+    'codice_barre', 'codice_articolo'
 ];
 
 function listinoFormEl(campo) {
@@ -1454,6 +1488,7 @@ async function saveListinoEdit(e) {
         }
     });
 
+    listinoTogliCodiceArticoloSeManca(dati);
     if (!dati.attrezzo) errori.push('Inserisci l\'attrezzo');
     if (!dati.modello && !dati.note) errori.push('Inserisci almeno il modello (o le note)');
 
@@ -1545,8 +1580,8 @@ async function saveListinoEdit(e) {
     await loadListino();
     // Se l'articolo e' stato creato dal carico dell'inventario macchine, lo seleziona li'
     if (typeof macDopoSalvataggioListino === 'function') macDopoSalvataggioListino(idSalvato, !a);
-    // Se l'articolo e' stato creato dal Listino STIHL ("Crea"), lo collega li'
-    if (typeof stihlDopoSalvataggioListino === 'function') stihlDopoSalvataggioListino(idSalvato, !a);
+    // Se l'articolo e' stato creato da Listini Fornitori ("Crea"), lo collega li'
+    if (typeof lfDopoSalvataggioListino === 'function') lfDopoSalvataggioListino(idSalvato, !a);
     // Se l'articolo e' stato creato dal Carico a raffica, sistema le scatole li'
     if (typeof rafDopoSalvataggioListino === 'function') rafDopoSalvataggioListino(idSalvato, !a);
     await showCustomAlert(
@@ -1967,7 +2002,7 @@ function listinoNotDifferenze(vecchio, nuovo) {
     }
     LISTINO_CAMPI.forEach(({ campo, titolo }) => {
         if (LISTINO_CAMPI_NETTI.indexOf(campo) !== -1) return;
-        if (campo === 'codice_barre') return; // il codice a barre non genera notifiche
+        if (campo === 'codice_barre' || campo === 'codice_articolo') return; // codice a barre e codice articolo non generano notifiche
         if (!(campo in nuovo)) return;
         const uguale = LISTINO_CAMPI_NUMERICI.indexOf(campo) !== -1
             ? listinoStessoNumero(vecchio[campo], nuovo[campo])

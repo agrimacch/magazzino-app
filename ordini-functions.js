@@ -5,7 +5,7 @@
 // - Numero progressivo che riparte ogni anno (es. 12/2026)
 // - Dati cliente scritti ogni volta (Sig., indirizzo, tel, e-mail, C.F., P.IVA, note)
 // - Pagamento: testo libero
-// - Righe: articolo del Listino Vendite (collegato alle macchine del quaderno)
+// - Righe: articolo del Listino Agrimacch (collegato alle macchine del quaderno)
 //   oppure riga libera (accessori, olio... non tocca il magazzino)
 //   Per ogni riga del listino: DISPONIBILE (prende una macchina in casa e la
 //   assegna al cliente) oppure DA ORDINARE (crea la riga bianca nel quaderno)
@@ -83,7 +83,8 @@ let ordSearchTimeout = null;
 
 // Ordine in compilazione
 let ordFormRighe = [];          // [{ articolo_id, descrizione, codice, quantita, prezzo_totale, disponibilita, prezzoManuale }]
-let ordInModifica = null;       // ordine esistente (solo dati cliente, pagamento, note, firma)
+let ordInModifica = null;       // ordine esistente in modifica (dati, firma, pagamento e righe)
+let ordModuloPronto = false;    // il modulo e' stato preparato dopo l'apertura della pagina
 
 // ========================================
 // UTILITA'
@@ -139,23 +140,86 @@ function ordPrezzoUnitario(a) {
     return num(a.listino);
 }
 
+// Montata / in scatola sulla riga: la colonna c'e' su Supabase? (supabase/ordini-montaggio.sql)
+function ordColonnaMontaggio() {
+    return ordRighe.some(r => Object.prototype.hasOwnProperty.call(r, 'montaggio'));
+}
+
+// Campo montaggio da salvare con la riga (niente se la colonna non c'e' e la riga non lo usa)
+function ordCampoMontaggio(r) {
+    if (!r.articolo_id) return ordColonnaMontaggio() ? { montaggio: null } : {};
+    if (r.montaggio) return { montaggio: r.montaggio };
+    return ordColonnaMontaggio() ? { montaggio: null } : {};
+}
+
 function ordDescrizioneArticolo(a) {
     return [a.attrezzo, a.marchio, a.modello, a.note].filter(Boolean).join(' ');
 }
 
+// Quante macchine NUOVE servono per una riga: tutta la quantita' per le righe nuove,
+// solo quelle in piu' per le righe gia' salvate di un ordine in modifica
+function ordQtaNuove(riga) {
+    return riga.rigaId ? Math.max(0, riga.quantita - riga.quantitaOrig) : riga.quantita;
+}
+
 // Cosa serve dal magazzino per una riga: [{ art, n }] (un set = i suoi componenti)
-function ordFabbisogno(riga) {
+function ordFabbisogno(riga, quantita) {
     const a = macArticolo(riga.articolo_id);
     if (!a) return [];
+    const q = quantita === undefined ? ordQtaNuove(riga) : quantita;
+    if (q <= 0) return [];
     if (macIsSet(a.id)) {
-        return macComponenti(a.id).map(c => ({ art: macArticolo(c.componente_id), n: c.quantita * riga.quantita })).filter(x => x.art);
+        return macComponenti(a.id).map(c => ({ art: macArticolo(c.componente_id), n: c.quantita * q })).filter(x => x.art);
     }
-    return [{ art: a, n: riga.quantita }];
+    return [{ art: a, n: q }];
+}
+
+// Righe gia' salvate: macchine collegate e quante sono gia' consegnate (minimo della quantita')
+function ordPezziRiga(rigaId) {
+    return macPezzi.filter(p => p.ordine_riga_id === rigaId);
+}
+
+function ordQtaMinima(r) {
+    if (!r.rigaId || !r.articolo_id) return 1;
+    const a = macArticolo(r.articolo_id);
+    const consegnate = ordPezziRiga(r.rigaId).filter(p => p.stato === 'CONSEGNATA');
+    if (!consegnate.length) return 1;
+    if (a && macIsSet(a.id)) {
+        let min = 1;
+        macComponenti(a.id).forEach(c => {
+            const n = consegnate.filter(p => p.articolo_id === c.componente_id).length;
+            min = Math.max(min, Math.ceil(n / c.quantita));
+        });
+        return min;
+    }
+    return Math.max(1, consegnate.length);
 }
 
 function ordDisponibiliArticolo(articoloId) {
     return macPezzi.filter(p => p.articolo_id === articoloId && p.stato === 'IN_CASA' && !p.cliente)
         .sort((x, y) => x.id - y.id);
+}
+
+// Macchine ordinate al fornitore senza cliente (es. prestagionale): "in arrivo, libere".
+// Si prende per prima quella ordinata prima (arriva prima).
+function ordInArrivoArticolo(articoloId) {
+    return macPezzi.filter(p => p.articolo_id === articoloId && p.stato === 'ORDINATA' && !p.cliente && !p.ordine_id)
+        .sort(macConfrontaOf);
+}
+
+// Proposta per una riga: in casa se ci sono, altrimenti in arrivo (prestagionale libero), altrimenti da ordinare
+function ordDisponibilitaProposta(r) {
+    const fab = ordFabbisogno(r);
+    if (fab.every(f => ordDisponibiliArticolo(f.art.id).length >= f.n)) return 'DISPONIBILE';
+    if (fab.length && fab.every(f => ordInArrivoArticolo(f.art.id).length >= f.n)) return 'IN_ARRIVO';
+    return 'DA_ORDINARE';
+}
+
+// Testo "consegna" delle prime N macchine in arrivo di un articolo (dagli ordini al fornitore)
+function ordTestoInArrivo(articoloId, n) {
+    const lista = ordInArrivoArticolo(articoloId).slice(0, Math.max(1, n));
+    const testi = [...new Set(lista.map(p => macOfTesto(p)).filter(Boolean))];
+    return testi.join(' / ');
 }
 
 // ========================================
@@ -193,7 +257,9 @@ async function openOrdiniClienti() {
         }
         return;
     }
-    if (!document.getElementById('ord-data').value) ordNuovoModulo();
+    // Modulo pulito alla prima apertura (il browser a volte rimette i dati scritti prima del ricaricamento)
+    // e quando si rientra lasciando a meta' una modifica
+    if (!ordModuloPronto || ordInModifica) { ordNuovoModulo(); ordModuloPronto = true; }
     ordRenderElenco();
     ordRenderFormRighe();
     ordFirmaAdatta();
@@ -361,9 +427,8 @@ function ordAggiungiArticolo(a) {
         disponibilita: 'DISPONIBILE',
         prezzoManuale: false
     };
-    // Se non ce n'e' in casa, propone "da ordinare"
-    const mancano = ordFabbisogno(riga).some(f => ordDisponibiliArticolo(f.art.id).length < f.n);
-    if (mancano) riga.disponibilita = 'DA_ORDINARE';
+    // Se non ce n'e' in casa: "in arrivo" se c'e' un prestagionale libero, altrimenti "da ordinare"
+    riga.disponibilita = ordDisponibilitaProposta(riga);
     ordFormRighe.push(riga);
     ordRenderFormRighe();
 }
@@ -380,6 +445,16 @@ function ordRichiesteDisponibili() {
     const tot = {};
     ordFormRighe.forEach(r => {
         if (!r.articolo_id || r.disponibilita !== 'DISPONIBILE') return;
+        ordFabbisogno(r).forEach(f => { tot[f.art.id] = (tot[f.art.id] || 0) + f.n; });
+    });
+    return tot;
+}
+
+// Quante macchine "in arrivo" servono per articolo, sommando tutte le righe del modulo
+function ordRichiesteInArrivo() {
+    const tot = {};
+    ordFormRighe.forEach(r => {
+        if (!r.articolo_id || r.disponibilita !== 'IN_ARRIVO') return;
         ordFabbisogno(r).forEach(f => { tot[f.art.id] = (tot[f.art.id] || 0) + f.n; });
     });
     return tot;
@@ -472,10 +547,18 @@ async function ordAggiungiPezzo(p) {
     ordRenderFormRighe();
 }
 
+// Riquadrini "Montata pronta all'uso" / "In scatola" (solo righe con articolo, MAC_MONTAGGIO_RUOLI)
+function ordHtmlMontaggio(r, i) {
+    if (!r.articolo_id || !macPuoMontaggio()) return '';
+    const casella = (val) => '<label class="ord-mont' + (r.montaggio === val ? ' scelta' : '') + '">' +
+        '<input type="checkbox" data-montaggio="' + val + '" data-i="' + i + '"' + (r.montaggio === val ? ' checked' : '') + '> ' +
+        MAC_MONTAGGIO[val].testo + '</label>';
+    return '<div class="ord-montaggio">' + casella('MONTATA') + casella('SCATOLA') + '</div>';
+}
+
 function ordRenderFormRighe() {
     const box = document.getElementById('ord-righe');
     if (!box) return;
-    const bloccate = !!ordInModifica;
     if (ordFormRighe.length === 0) {
         box.innerHTML = '<p class="mac-aiuto">Nessun articolo. Cerca qui sotto nel listino oppure aggiungi una riga libera.</p>';
         ordAggiornaTotale();
@@ -484,40 +567,76 @@ function ordRenderFormRighe() {
     const richieste = ordRichiesteDisponibili();
     box.innerHTML = ordFormRighe.map((r, i) => {
         const a = r.articolo_id ? macArticolo(r.articolo_id) : null;
+        const nuove = ordQtaNuove(r);
+        // Riga gia' salvata (ordine in modifica): cosa c'e' gia' nell'ordine
+        let giaHtml = '';
+        if (r.rigaId && a) {
+            const pz = ordPezziRiga(r.rigaId);
+            const conta = {};
+            pz.forEach(p => { conta[p.stato] = (conta[p.stato] || 0) + 1; });
+            const consegnate = conta.CONSEGNATA || 0;
+            giaHtml = '<div class="ord-riga-info ord-riga-gia">&#128203; Gi&agrave; nell\'ordine (' + r.quantitaOrig + '): ' +
+                (MAC_ORDINE_STATI.filter(st => conta[st]).map(st => conta[st] + ' ' + MAC_STATI[st].etichetta.toLowerCase()).join(', ') || 'nessuna macchina') +
+                (r.quantita < r.quantitaOrig ? '<br>&#8617;&#65039; Ne togli ' + (r.quantitaOrig - r.quantita) + ': prima le da ordinare, poi le ordinate (restano ordinate senza cliente), poi quelle in casa (tornano disponibili)' : '') +
+                (consegnate ? '<br>&#9888;&#65039; ' + consegnate + ' gi&agrave; consegnat' + (consegnate === 1 ? 'a' : 'e') + ': non si possono togliere' : '') +
+                (nuove > 0 ? '<br>&#10133; Ne aggiungi ' + nuove + ': scegli qui sotto da dove arrivano' : '') +
+                '</div>';
+        }
         let info = '';
-        if (a && !bloccate) {
+        if (a && nuove > 0) {
             const fab = ordFabbisogno(r);
             const isSet = macIsSet(a.id);
             const disp = isSet ? macSetComponibili(a.id) : ordDisponibiliArticolo(a.id).length;
             const pochi = r.disponibilita === 'DISPONIBILE' && fab.some(f => ordDisponibiliArticolo(f.art.id).length < (richieste[f.art.id] || 0));
             const unit = ordPrezzoUnitario(a);
-            info = '<div class="ord-riga-info' + (pochi ? ' ord-riga-poche' : '') + '">' +
+            // In arrivo libere (ordinate al fornitore senza cliente, es. prestagionale)
+            const inArrivo = fab.map(f => ({ f: f, n: ordInArrivoArticolo(f.art.id).length }));
+            const totArrivo = inArrivo.reduce((t, x) => t + x.n, 0);
+            const richArrivo = r.disponibilita === 'IN_ARRIVO' ? ordRichiesteInArrivo() : {};
+            const pochiArrivo = r.disponibilita === 'IN_ARRIVO' && fab.some(f => ordInArrivoArticolo(f.art.id).length < (richArrivo[f.art.id] || 0));
+            let rigaArrivo = '';
+            if (totArrivo || r.disponibilita === 'IN_ARRIVO') {
+                rigaArrivo = '<br>&#128666; In arrivo libere: <strong>' +
+                    (isSet ? inArrivo.map(x => macEsc(macNome(x.f.art)) + ' ' + x.n).join(', ') : inArrivo[0].n) + '</strong>';
+                const testo = fab.map(f => ordTestoInArrivo(f.art.id, f.n)).filter(Boolean).join(' / ');
+                if (testo) rigaArrivo += ' <span class="ord-riga-arrivo">(' + macEsc(testo) + ')</span>';
+                if (r.disponibilita === 'IN_ARRIVO') {
+                    rigaArrivo += pochiArrivo ? ' &mdash; &#9888;&#65039; non bastano: metti &quot;Da ordinare&quot; o dividi la riga'
+                        : '<br><small>Se al cliente la consegna non va bene, metti &quot;Da ordinare&quot;: finisce negli ordini da fare.</small>';
+                }
+            }
+            info = '<div class="ord-riga-info' + (pochi || pochiArrivo ? ' ord-riga-poche' : '') + '">' +
                 (isSet ? '&#129513; Set: ' + macEsc(macDescrizioneComponenti(a.id)) + '<br>' : '') +
                 '&#127968; In casa disponibili: <strong>' + disp + (isSet ? ' set' : '') + '</strong>' +
                 (pochi ? ' &mdash; &#9888;&#65039; non bastano: metti &quot;Da ordinare&quot; o dividi la riga' : '') +
                 (unit !== null ? ' &middot; prezzo proposto ' + macEuro(unit) + ' cad.' : '') +
+                rigaArrivo +
                 '</div>';
             if (r.disponibilita === 'DISPONIBILE') info += ordHtmlSceltaMatricole(r, i);
         }
-        const sceltaDisp = a
-            ? '<select data-campo="disponibilita" data-i="' + i + '"' + (bloccate ? ' disabled' : '') + '>' +
+        const sceltaDisp = a && r.rigaId && nuove === 0
+            ? '<span class="ord-libera">Gi&agrave; nell\'ordine</span>'
+            : a
+            ? '<select data-campo="disponibilita" data-i="' + i + '">' +
                 '<option value="DISPONIBILE"' + (r.disponibilita === 'DISPONIBILE' ? ' selected' : '') + '>Disponibile</option>' +
+                (r.disponibilita === 'IN_ARRIVO' || ordFabbisogno(r).some(f => ordInArrivoArticolo(f.art.id).length)
+                    ? '<option value="IN_ARRIVO"' + (r.disponibilita === 'IN_ARRIVO' ? ' selected' : '') + '>In arrivo (gi&agrave; ordinata)</option>' : '') +
                 '<option value="DA_ORDINARE"' + (r.disponibilita === 'DA_ORDINARE' ? ' selected' : '') + '>Da ordinare</option>' +
               '</select>'
             : '<span class="ord-libera">Riga libera</span>';
         return '<div class="ord-riga-form' + (a ? '' : ' ord-riga-libera') + '">' +
             '<div class="ord-riga-campi">' +
                 '<div class="ord-campo ord-campo-descr"><label>Articolo</label>' +
-                    '<input type="text" data-campo="descrizione" data-i="' + i + '" value="' + macEsc(r.descrizione) + '"' + (bloccate ? ' disabled' : '') + ' placeholder="Descrizione"></div>' +
+                    '<input type="text" data-campo="descrizione" data-i="' + i + '" value="' + macEsc(r.descrizione) + '" placeholder="Descrizione" autocomplete="off"></div>' +
                 '<div class="ord-campo ord-campo-codice"><label>Codice</label>' +
-                    '<input type="text" data-campo="codice" data-i="' + i + '" value="' + macEsc(r.codice || '') + '"' + (bloccate ? ' disabled' : '') + '></div>' +
+                    '<input type="text" data-campo="codice" data-i="' + i + '" value="' + macEsc(r.codice || '') + '" autocomplete="off"></div>' +
                 '<div class="ord-campo ord-campo-qta"><label>Q.t&agrave;</label>' +
-                    '<input type="number" min="1" max="999" inputmode="numeric" data-campo="quantita" data-i="' + i + '" value="' + r.quantita + '"' + (bloccate ? ' disabled' : '') + '></div>' +
+                    '<input type="number" min="' + ordQtaMinima(r) + '" max="999" inputmode="numeric" data-campo="quantita" data-i="' + i + '" value="' + r.quantita + '" autocomplete="off"></div>' +
                 '<div class="ord-campo ord-campo-prezzo"><label>P. totale &#8364;</label>' +
-                    '<input type="text" inputmode="decimal" data-campo="prezzo_totale" data-i="' + i + '" value="' + listinoNumeroPerForm(r.prezzo_totale) + '"' + (bloccate ? ' disabled' : '') + '></div>' +
+                    '<input type="text" inputmode="decimal" data-campo="prezzo_totale" data-i="' + i + '" value="' + listinoNumeroPerForm(r.prezzo_totale) + '" autocomplete="off"></div>' +
                 '<div class="ord-campo ord-campo-disp"><label>Magazzino</label>' + sceltaDisp + '</div>' +
-                (bloccate ? '' : '<button type="button" class="mac-set-togli ord-togli" data-togli="' + i + '" title="Togli riga">&times;</button>') +
-            '</div>' + info +
+                '<button type="button" class="mac-set-togli ord-togli" data-togli="' + i + '" title="Togli riga">&times;</button>' +
+            '</div>' + ordHtmlMontaggio(r, i) + giaHtml + info +
         '</div>';
     }).join('');
     ordAggiornaTotale();
@@ -644,6 +763,15 @@ function ordRidisegnaRighe() {
 // Modifiche ai campi delle righe
 function ordCampoRigaCambiato(e) {
     const el = e.target;
+    // Riquadrini montata / in scatola (uno solo dei due)
+    if (el.dataset && el.dataset.montaggio !== undefined) {
+        if (e.type !== 'change') return;
+        const r = ordFormRighe[parseInt(el.dataset.i, 10)];
+        if (!r) return;
+        r.montaggio = el.checked ? el.dataset.montaggio : null;
+        ordRidisegnaRighe();
+        return;
+    }
     // Casellina di una matricola
     if (el.dataset && el.dataset.scegli !== undefined) {
         if (e.type !== 'change') return;
@@ -683,10 +811,15 @@ function ordCampoRigaCambiato(e) {
     if (campo === 'quantita') {
         const q = parseInt(el.value, 10);
         r.quantita = (q >= 1 && q <= 999) ? q : 1;
+        // Riga gia' salvata: per le macchine in piu' propongo da dove arrivano (in casa / in arrivo / da ordinare)
+        if (r.rigaId && r.articolo_id && !r.dispScelta && ordQtaNuove(r) > 0) r.disponibilita = ordDisponibilitaProposta(r);
         ordSistemaScelte(r);
         if (!r.prezzoManuale && r.articolo_id) {
             const unit = ordPrezzoUnitario(macArticolo(r.articolo_id));
             r.prezzo_totale = unit !== null ? Math.round(unit * r.quantita * 100) / 100 : null;
+        } else if (r.rigaId && !r.prezzoToccato && r.prezzoOrig !== null && r.prezzoOrig !== undefined && r.quantitaOrig > 0) {
+            // Riga gia' salvata: il prezzo segue la quantita' (stesso prezzo a pezzo), finche' non lo cambi a mano
+            r.prezzo_totale = Math.round(Number(r.prezzoOrig) / r.quantitaOrig * r.quantita * 100) / 100;
         }
         if (e.type === 'change') ordRidisegnaRighe();
         else { ordAggiornaTotale(); ordAggiornaPrezzoVisibile(i); }
@@ -694,9 +827,11 @@ function ordCampoRigaCambiato(e) {
         const n = listinoParseNumero(el.value);
         r.prezzo_totale = (typeof n === 'number' && !isNaN(n)) ? n : null;
         r.prezzoManuale = true;
+        r.prezzoToccato = true;
         ordAggiornaTotale();
     } else if (campo === 'disponibilita') {
         r.disponibilita = el.value;
+        r.dispScelta = true;
         ordSistemaScelte(r);
         ordRidisegnaRighe();
     } else {
@@ -851,19 +986,8 @@ async function ordProssimoNumero(anno) {
     return (data && data.length ? data[0].numero : 0) + 1;
 }
 
-async function ordSalva() {
-    if (ordInModifica) return ordSalvaModifica();
-    const testa = ordLeggiTesta();
-    const errori = [];
-    if (!testa.cliente) errori.push('Scrivi il nome del cliente (Sig./Sig.ra)');
-    if (ordFormRighe.length === 0) errori.push('Aggiungi almeno un articolo');
-    if (ordLeggiSconto().errore) errori.push(ordLeggiSconto().errore);
-    if (ordErroreAcconto()) errori.push(ordErroreAcconto());
-    ordFormRighe.forEach((r, i) => {
-        r.descrizione = listinoPulisciTesto(r.descrizione);
-        r.codice = listinoPulisciTesto(r.codice);
-        if (!r.descrizione) errori.push('Riga ' + (i + 1) + ': manca la descrizione');
-    });
+// Controlli sulle macchine NUOVE delle righe (nuovo ordine o quantita' in piu' in modifica)
+function ordControllaMacchine(errori) {
     // Macchine da consegnare: le sceglie sempre l'operatore, tante quante servono
     ordFormRighe.forEach((r, i) => {
         if (r.disponibilita !== 'DISPONIBILE' || !r.articolo_id) return;
@@ -885,6 +1009,31 @@ async function ordSalva() {
                 ' disponibili ma in casa ce ne sono ' + disp + '. Metti &quot;Da ordinare&quot; (o dividi la riga).');
         }
     });
+    // Abbastanza macchine in arrivo libere per le righe "In arrivo"?
+    const richArrivo = ordRichiesteInArrivo();
+    Object.keys(richArrivo).forEach(id => {
+        const n = ordInArrivoArticolo(Number(id)).length;
+        if (n < richArrivo[id]) {
+            errori.push('<strong>' + macEsc(macNome(macArticolo(Number(id)))) + '</strong>: ne servono ' + richArrivo[id] +
+                ' in arrivo ma libere ce ne sono ' + n + '. Metti &quot;Da ordinare&quot; (o dividi la riga).');
+        }
+    });
+}
+
+async function ordSalva() {
+    if (ordInModifica) return ordSalvaModifica();
+    const testa = ordLeggiTesta();
+    const errori = [];
+    if (!testa.cliente) errori.push('Scrivi il nome del cliente (Sig./Sig.ra)');
+    if (ordFormRighe.length === 0) errori.push('Aggiungi almeno un articolo');
+    if (ordLeggiSconto().errore) errori.push(ordLeggiSconto().errore);
+    if (ordErroreAcconto()) errori.push(ordErroreAcconto());
+    ordFormRighe.forEach((r, i) => {
+        r.descrizione = listinoPulisciTesto(r.descrizione);
+        r.codice = listinoPulisciTesto(r.codice);
+        if (!r.descrizione) errori.push('Riga ' + (i + 1) + ': manca la descrizione');
+    });
+    ordControllaMacchine(errori);
     if (errori.length) {
         await showCustomAlert(errori.join('<br>'), 'Controlla l\'ordine', '&#9888;&#65039;');
         return;
@@ -917,7 +1066,10 @@ async function ordSalva() {
         const righeDb = ordFormRighe.map((r, i) => ({
             ordine_id: ordine.id, posizione: i + 1, articolo_id: r.articolo_id || null,
             descrizione: r.descrizione, codice: r.codice, quantita: r.quantita,
-            prezzo_totale: r.prezzo_totale, disponibilita: r.articolo_id ? r.disponibilita : 'LIBERA'
+            prezzo_totale: r.prezzo_totale,
+            // "In arrivo" sul documento e' come "da ordinare" (la macchina non e' ancora in casa)
+            disponibilita: r.articolo_id ? (r.disponibilita === 'IN_ARRIVO' ? 'DA_ORDINARE' : r.disponibilita) : 'LIBERA',
+            ...ordCampoMontaggio(r)
         }));
         const { data: righeSalvate, error: errRighe } = await supabaseClient.from('macchine_ordini_righe').insert(righeDb).select('*');
         if (errRighe) throw errRighe;
@@ -929,44 +1081,7 @@ async function ordSalva() {
         for (let i = 0; i < ordFormRighe.length; i++) {
             const r = ordFormRighe[i];
             if (!r.articolo_id) continue;
-            const rigaDb = perPosizione[i + 1];
-            const a = macArticolo(r.articolo_id);
-            const setArt = macIsSet(a.id) ? a : null;
-            for (const f of ordFabbisogno(r)) {
-                if (r.disponibilita === 'DISPONIBILE') {
-                    // Solo le macchine scelte dall'operatore (ancora libere in casa)
-                    const scelti = ordSceltiDi(r, f.art.id).map(id => macPezzi.find(p => p.id === id))
-                        .filter(p => p && p.stato === 'IN_CASA' && !p.cliente);
-                    if (scelti.length < f.n) throw new Error('Una macchina scelta per ' + macNome(f.art) + ' non &egrave; pi&ugrave; disponibile (qualcuno l&#39;ha appena presa?): riapri l&#39;ordine e scegline un&#39;altra');
-                    for (const p of scelti) {
-                        const agg = {
-                            cliente: testa.cliente, ordine_id: ordine.id, ordine_riga_id: rigaDb ? rigaDb.id : null,
-                            set_id: setArt ? setArt.id : null, updated_at: adesso, updated_by: utente
-                        };
-                        const { error } = await supabaseClient.from('macchine_pezzi').update(agg).eq('id', p.id);
-                        if (error) throw error;
-                        Object.assign(p, agg);
-                        log.push({ pezzo_id: p.id, articolo_id: f.art.id, tipo: 'ORDINE', stato_prima: 'IN_CASA', stato_dopo: 'IN_CASA',
-                            cliente: testa.cliente, matricola: p.matricola, netto: p.netto_carico,
-                            dettaglio: numeroTesto + ' - ASSEGNATA A ' + testa.cliente + (setArt ? ' (' + macNome(setArt) + ')' : '') });
-                    }
-                } else {
-                    const nuovi = [];
-                    for (let k = 0; k < f.n; k++) {
-                        nuovi.push({ articolo_id: f.art.id, stato: 'DA_ORDINARE', cliente: testa.cliente,
-                            ordine_id: ordine.id, ordine_riga_id: rigaDb ? rigaDb.id : null, set_id: setArt ? setArt.id : null,
-                            updated_at: adesso, updated_by: utente });
-                    }
-                    const { data, error } = await supabaseClient.from('macchine_pezzi').insert(nuovi).select('*');
-                    if (error) throw error;
-                    (data || []).forEach(p => {
-                        macPezzi.push(p);
-                        log.push({ pezzo_id: p.id, articolo_id: f.art.id, tipo: 'ORDINE', stato_prima: null, stato_dopo: 'DA_ORDINARE',
-                            cliente: testa.cliente, matricola: null, netto: null,
-                            dettaglio: numeroTesto + ' - DA ORDINARE PER ' + testa.cliente + (setArt ? ' (' + macNome(setArt) + ')' : '') });
-                    });
-                }
-            }
+            await ordCreaPezziRiga(r, perPosizione[i + 1], ordine, testa.cliente, numeroTesto, adesso, utente, log);
         }
         await macRegistra(log);
     } catch (error) {
@@ -988,15 +1103,78 @@ async function ordSalva() {
     if (typeof rrSincronizzaOrdine === 'function') rrSincronizzaOrdine(ordine.id);
 }
 
-// Modifica: solo dati del cliente, pagamento, note e firma (le righe sono bloccate)
+// Crea / prende le macchine del quaderno per una riga (solo quelle NUOVE: ordFabbisogno).
+// rigaDb = riga salvata di macchine_ordini_righe (serve l'id)
+async function ordCreaPezziRiga(r, rigaDb, ordine, cliente, numeroTesto, adesso, utente, log) {
+    const a = macArticolo(r.articolo_id);
+    const setArt = macIsSet(a.id) ? a : null;
+    for (const f of ordFabbisogno(r)) {
+        if (r.disponibilita === 'DISPONIBILE') {
+            // Solo le macchine scelte dall'operatore (ancora libere in casa)
+            const scelti = ordSceltiDi(r, f.art.id).map(id => macPezzi.find(p => p.id === id))
+                .filter(p => p && p.stato === 'IN_CASA' && !p.cliente);
+            if (scelti.length < f.n) throw new Error('Una macchina scelta per ' + macNome(f.art) + ' non &egrave; pi&ugrave; disponibile (qualcuno l&#39;ha appena presa?): riapri l&#39;ordine e scegline un&#39;altra');
+            for (const p of scelti) {
+                const agg = {
+                    cliente: cliente, ordine_id: ordine.id, ordine_riga_id: rigaDb ? rigaDb.id : null,
+                    set_id: setArt ? setArt.id : null, updated_at: adesso, updated_by: utente
+                };
+                const { error } = await supabaseClient.from('macchine_pezzi').update(agg).eq('id', p.id);
+                if (error) throw error;
+                Object.assign(p, agg);
+                log.push({ pezzo_id: p.id, articolo_id: f.art.id, tipo: 'ORDINE', stato_prima: 'IN_CASA', stato_dopo: 'IN_CASA',
+                    cliente: cliente, matricola: p.matricola, netto: p.netto_carico,
+                    dettaglio: numeroTesto + ' - ASSEGNATA A ' + cliente + (setArt ? ' (' + macNome(setArt) + ')' : '') });
+            }
+        } else if (r.disponibilita === 'IN_ARRIVO') {
+            // Prende le macchine gia' ordinate al fornitore senza cliente (es. prestagionale), le prime che arrivano
+            const prese = ordInArrivoArticolo(f.art.id).slice(0, f.n);
+            if (prese.length < f.n) throw new Error('Le macchine in arrivo per ' + macNome(f.art) + ' non bastano pi&ugrave; (qualcuno le ha appena prese?): riapri l&#39;ordine e metti Da ordinare');
+            for (const p of prese) {
+                const agg = {
+                    cliente: cliente, ordine_id: ordine.id, ordine_riga_id: rigaDb ? rigaDb.id : null,
+                    set_id: setArt ? setArt.id : null, updated_at: adesso, updated_by: utente
+                };
+                const { error } = await supabaseClient.from('macchine_pezzi').update(agg).eq('id', p.id);
+                if (error) throw error;
+                Object.assign(p, agg);
+                log.push({ pezzo_id: p.id, articolo_id: f.art.id, tipo: 'ORDINE', stato_prima: 'ORDINATA', stato_dopo: 'ORDINATA',
+                    cliente: cliente, matricola: null, netto: null,
+                    dettaglio: numeroTesto + ' - IN ARRIVO PER ' + cliente + ' (' + (macOfTesto(p) || 'GIA\' ORDINATA') + ')' + (setArt ? ' (' + macNome(setArt) + ')' : '') });
+            }
+        } else {
+            const nuovi = [];
+            for (let k = 0; k < f.n; k++) {
+                nuovi.push({ articolo_id: f.art.id, stato: 'DA_ORDINARE', cliente: cliente,
+                    ordine_id: ordine.id, ordine_riga_id: rigaDb ? rigaDb.id : null, set_id: setArt ? setArt.id : null,
+                    updated_at: adesso, updated_by: utente });
+            }
+            const { data, error } = await supabaseClient.from('macchine_pezzi').insert(nuovi).select('*');
+            if (error) throw error;
+            (data || []).forEach(p => {
+                macPezzi.push(p);
+                log.push({ pezzo_id: p.id, articolo_id: f.art.id, tipo: 'ORDINE', stato_prima: null, stato_dopo: 'DA_ORDINARE',
+                    cliente: cliente, matricola: null, netto: null,
+                    dettaglio: numeroTesto + ' - DA ORDINARE PER ' + cliente + (setArt ? ' (' + macNome(setArt) + ')' : '') });
+            });
+        }
+    }
+}
+
+// Modifica: dati del cliente, pagamento, note, firma e righe (articoli e quantita')
 function ordApriModifica(id) {
     const o = ordOrdini.find(x => x.id === id);
     if (!o) return;
     ordChiudiDettaglio();
     ordInModifica = o;
+    // Righe gia' salvate: si possono togliere, cambiare quantita' (+ / -), prezzo, descrizione e codice.
+    // Per cambiare articolo: togli la riga e aggiungi quello giusto.
     ordFormRighe = ordRigheOrdine(o).map(r => ({
+        rigaId: r.id, quantitaOrig: r.quantita,
         articolo_id: r.articolo_id, descrizione: r.descrizione, codice: r.codice, quantita: r.quantita,
-        prezzo_totale: r.prezzo_totale, disponibilita: r.disponibilita, prezzoManuale: true
+        prezzo_totale: r.prezzo_totale, disponibilita: r.disponibilita === 'LIBERA' ? 'LIBERA' : (r.disponibilita || 'DA_ORDINARE'),
+        disponibilitaDb: r.disponibilita, prezzoManuale: true, prezzoOrig: r.prezzo_totale,
+        montaggio: r.montaggio || null
     }));
     document.getElementById('ord-data').value = o.data || '';
     document.getElementById('ord-operatore').value = o.operatore || '';
@@ -1011,7 +1189,7 @@ function ordApriModifica(id) {
     document.getElementById('ord-form-titolo').innerHTML = '&#9997;&#65039; Modifica ordine N. ' + ordNumero(o);
     document.getElementById('ord-salva').innerHTML = '&#128190; Salva modifiche';
     document.getElementById('ord-annulla-form').innerHTML = 'Annulla modifica';
-    document.getElementById('ord-aggiungi-box').classList.add('hidden');
+    document.getElementById('ord-aggiungi-box').classList.remove('hidden');
     ordFirmaImposta(ordFirme.vendita, o.firma);
     ordFirmaImposta(ordFirme.installazione, o.firma_installazione);
     document.getElementById('ord-senza-installazione').checked = !!o.senza_installazione;
@@ -1024,18 +1202,86 @@ function ordApriModifica(id) {
     ordSwitchTab('nuovo');
 }
 
+// Macchine da togliere quando la quantita' di una riga salvata scende:
+// prima le da ordinare, poi le ordinate, poi quelle in casa (mai le consegnate), dalle ultime
+function ordPezziDaTogliere(r) {
+    const tolte = r.quantitaOrig - r.quantita;
+    if (tolte <= 0 || !r.articolo_id) return [];
+    const priorita = { DA_ORDINARE: 0, ORDINATA: 1, IN_CASA: 2 };
+    const pz = ordPezziRiga(r.rigaId).filter(p => p.stato !== 'CONSEGNATA')
+        .sort((x, y) => (priorita[x.stato] - priorita[y.stato]) || (y.id - x.id));
+    const lista = [];
+    ordFabbisogno(r, tolte).forEach(f => {
+        pz.filter(p => p.articolo_id === f.art.id).slice(0, f.n).forEach(p => lista.push(p));
+    });
+    return lista;
+}
+
+// Toglie macchine da un ordine (come l'annullo): da ordinare = tolte, in casa = tornano disponibili,
+// ordinate = restano ordinate al fornitore senza cliente (in arrivo libere). Le consegnate non si toccano.
+async function ordLiberaPezzi(pezzi, numeroTesto, motivo, adesso, utente, log) {
+    for (const p of pezzi) {
+        if (p.stato === 'CONSEGNATA') continue;
+        if (p.stato === 'DA_ORDINARE') {
+            const { error } = await supabaseClient.from('macchine_pezzi').delete().eq('id', p.id);
+            if (error) throw error;
+            macPezzi = macPezzi.filter(x => x.id !== p.id);
+            log.push({ pezzo_id: p.id, articolo_id: p.articolo_id, tipo: 'ORDINE', stato_prima: 'DA_ORDINARE', stato_dopo: null,
+                cliente: p.cliente, matricola: null, netto: null, dettaglio: numeroTesto + ' - ' + motivo + ' - RIGA TOLTA DAL QUADERNO' });
+            continue;
+        }
+        const agg = { cliente: null, ordine_id: null, ordine_riga_id: null, set_id: null, updated_at: adesso, updated_by: utente };
+        const { error } = await supabaseClient.from('macchine_pezzi').update(agg).eq('id', p.id);
+        if (error) throw error;
+        const era = p.cliente;
+        Object.assign(p, agg);
+        log.push({ pezzo_id: p.id, articolo_id: p.articolo_id, tipo: 'ORDINE', stato_prima: p.stato, stato_dopo: p.stato,
+            cliente: null, matricola: p.matricola, netto: p.netto_carico,
+            dettaglio: numeroTesto + ' - ' + motivo + ' - ' + (p.stato === 'IN_CASA' ? 'TORNA DISPONIBILE' : 'RESTA ORDINATA SENZA CLIENTE') + ' (ERA DI ' + (era || '-') + ')' });
+    }
+}
+
 async function ordSalvaModifica() {
     const o = ordInModifica;
     const testa = ordLeggiTesta();
-    if (!testa.cliente || ordLeggiSconto().errore || ordErroreAcconto()) {
-        await showCustomAlert(!testa.cliente ? 'Scrivi il nome del cliente (Sig./Sig.ra)' : (ordLeggiSconto().errore || ordErroreAcconto()), 'Controlla l\'ordine', '&#9888;&#65039;');
+    const errori = [];
+    if (!testa.cliente) errori.push('Scrivi il nome del cliente (Sig./Sig.ra)');
+    if (ordLeggiSconto().errore) errori.push(ordLeggiSconto().errore);
+    if (ordErroreAcconto()) errori.push(ordErroreAcconto());
+    if (ordFormRighe.length === 0) errori.push('Lascia almeno un articolo (per togliere tutto usa &quot;Annulla ordine&quot;)');
+    ordFormRighe.forEach((r, i) => {
+        r.descrizione = listinoPulisciTesto(r.descrizione);
+        r.codice = listinoPulisciTesto(r.codice);
+        if (!r.descrizione) errori.push('Riga ' + (i + 1) + ': manca la descrizione');
+        if (r.rigaId && r.quantita < ordQtaMinima(r)) {
+            errori.push('Riga ' + (i + 1) + ': ci sono gi&agrave; ' + ordQtaMinima(r) + ' macchine consegnate, la quantit&agrave; non pu&ograve; scendere sotto');
+        }
+    });
+    const righeOrig = ordRigheOrdine(o);
+    const tolte = righeOrig.filter(x => !ordFormRighe.some(r => r.rigaId === x.id));
+    tolte.forEach(x => {
+        if (ordPezziRiga(x.id).some(p => p.stato === 'CONSEGNATA')) {
+            errori.push('<strong>' + macEsc(x.descrizione) + '</strong> ha macchine gi&agrave; consegnate: la riga non si pu&ograve; togliere');
+        }
+    });
+    ordControllaMacchine(errori);
+    if (errori.length) {
+        await showCustomAlert(errori.join('<br>'), 'Controlla l\'ordine', '&#9888;&#65039;');
         return;
     }
+    const cambiaRighe = tolte.length || ordFormRighe.some(r => !r.rigaId || r.quantita !== r.quantitaOrig);
+    if (cambiaRighe && !window.confirm('Salvare le modifiche alle righe dell\'ordine N. ' + ordNumero(o) + '?\n\n' +
+        '- Le macchine tolte: le da ordinare spariscono dal quaderno, quelle in casa tornano disponibili, le ordinate restano ordinate senza cliente\n' +
+        '- Le macchine aggiunte: prese in casa, in arrivo o da ordinare come hai scelto')) return;
+
     const btn = document.getElementById('ord-salva');
     btn.disabled = true;
     const adesso = new Date().toISOString();
+    const utente = macUtente();
+    const numeroTesto = 'ORDINE ' + ordNumero(o);
+    const log = [];
     try {
-        const agg = Object.assign({}, testa, { firma: ordFirmaDati(), totale: ordAggiornaTotale(), updated_at: adesso, updated_by: macUtente() },
+        const agg = Object.assign({}, testa, { firma: ordFirmaDati(), totale: ordAggiornaTotale(), updated_at: adesso, updated_by: utente },
             ordCampiInstallazione(o), ordCampiSconto(o), ordCampiPagamento(o));
         const { error } = await supabaseClient.from('macchine_ordini').update(agg).eq('id', o.id);
         if (error) throw error;
@@ -1043,27 +1289,64 @@ async function ordSalvaModifica() {
         if ((o.cliente || '') !== testa.cliente) {
             const pezzi = ordPezziOrdine(o);
             if (pezzi.length) {
-                const { error: e2 } = await supabaseClient.from('macchine_pezzi').update({ cliente: testa.cliente, updated_at: adesso, updated_by: macUtente() }).eq('ordine_id', o.id);
+                const { error: e2 } = await supabaseClient.from('macchine_pezzi').update({ cliente: testa.cliente, updated_at: adesso, updated_by: utente }).eq('ordine_id', o.id);
                 if (e2) throw e2;
-                await macRegistra(pezzi.map(p => ({ pezzo_id: p.id, articolo_id: p.articolo_id, tipo: 'ORDINE', stato_prima: p.stato, stato_dopo: p.stato,
+                pezzi.forEach(p => { p.cliente = testa.cliente; });
+                pezzi.forEach(p => log.push({ pezzo_id: p.id, articolo_id: p.articolo_id, tipo: 'ORDINE', stato_prima: p.stato, stato_dopo: p.stato,
                     cliente: testa.cliente, matricola: p.matricola, netto: p.netto_carico,
-                    dettaglio: 'ORDINE ' + ordNumero(o) + ' - CLIENTE ' + (o.cliente || '-') + ' \u2192 ' + testa.cliente })));
+                    dettaglio: numeroTesto + ' - CLIENTE ' + (o.cliente || '-') + ' \u2192 ' + testa.cliente }));
             }
+        }
+        // Righe tolte
+        for (const x of tolte) {
+            await ordLiberaPezzi(ordPezziRiga(x.id), numeroTesto, 'MODIFICA ORDINE', adesso, utente, log);
+            const { error: e3 } = await supabaseClient.from('macchine_ordini_righe').delete().eq('id', x.id);
+            if (e3) throw e3;
+        }
+        // Righe rimaste e nuove
+        for (let i = 0; i < ordFormRighe.length; i++) {
+            const r = ordFormRighe[i];
+            const nuove = ordQtaNuove(r);
+            const dispDb = r.articolo_id ? (r.disponibilita === 'IN_ARRIVO' ? 'DA_ORDINARE' : r.disponibilita) : 'LIBERA';
+            const riga = {
+                ordine_id: o.id, posizione: i + 1, articolo_id: r.articolo_id || null,
+                descrizione: r.descrizione, codice: r.codice, quantita: r.quantita, prezzo_totale: r.prezzo_totale,
+                // riga salvata: "da ordinare" sul documento se c'e' qualcosa da ordinare o in arrivo
+                disponibilita: r.rigaId && nuove === 0 ? (r.disponibilitaDb || dispDb)
+                    : (r.rigaId && r.disponibilitaDb === 'DA_ORDINARE' ? 'DA_ORDINARE' : dispDb),
+                ...ordCampoMontaggio(r)
+            };
+            let rigaDb = null;
+            if (r.rigaId) {
+                const { error: e4 } = await supabaseClient.from('macchine_ordini_righe').update(riga).eq('id', r.rigaId);
+                if (e4) throw e4;
+                rigaDb = { id: r.rigaId };
+                if (r.quantita < r.quantitaOrig) await ordLiberaPezzi(ordPezziDaTogliere(r), numeroTesto, 'MODIFICA ORDINE (QUANTITA\' ' + r.quantitaOrig + ' \u2192 ' + r.quantita + ')', adesso, utente, log);
+            } else {
+                const { data, error: e5 } = await supabaseClient.from('macchine_ordini_righe').insert([riga]).select('*').single();
+                if (e5) throw e5;
+                rigaDb = data;
+            }
+            if (r.articolo_id && nuove > 0) await ordCreaPezziRiga(r, rigaDb, o, testa.cliente, numeroTesto + ' (MODIFICA)', adesso, utente, log);
         }
     } catch (error) {
         console.error('Errore modifica ordine:', error);
         btn.disabled = false;
-        await showCustomAlert('Errore durante il salvataggio:<br>' + macEsc(error.message), 'Errore', '&#10060;');
+        await macRegistra(log);
+        await ordRicarica();
+        await showCustomAlert('Errore durante il salvataggio:<br>' + macEsc(error.message) +
+            '<br><br>Controlla l\'ordine nell\'elenco: una parte delle modifiche potrebbe essere stata salvata.', 'Errore', '&#10060;');
         return;
     }
+    await macRegistra(log);
     btn.disabled = false;
     const id = o.id;
     ordNuovoModulo();
     await ordRicarica();
     ordSwitchTab('elenco');
     ordApriDettaglio(id);
-    ordSalvaSuDrive(id);   // PDF aggiornato (dati / firma)
-    // Dati cliente o "senza installazione" cambiati: aggiorna / togli la richiesta di montaggio
+    ordSalvaSuDrive(id);   // PDF aggiornato (dati / firma / righe)
+    // Dati cliente, righe o "senza installazione" cambiati: aggiorna / togli la richiesta di montaggio
     if (typeof rrSincronizzaOrdine === 'function') rrSincronizzaOrdine(id);
 }
 
@@ -1106,12 +1389,15 @@ function ordApriDettaglio(id) {
             const pz = pezzi.filter(p => p.ordine_riga_id === r.id).sort((x, y) => x.id - y.id);
             const quadri = pz.map(p => {
                 const s = MAC_STATI[p.stato];
-                return '<span class="ord-det-pezzo" title="' + macEsc(macNome(macArticolo(p.articolo_id)) + ' - ' + s.etichetta + (p.matricola ? ' - MATR. ' + p.matricola : '')) + '">' +
+                const of = p.stato === 'ORDINATA' ? macOfTesto(p) : '';
+                return '<span class="ord-det-pezzo" title="' + macEsc(macNome(macArticolo(p.articolo_id)) + ' - ' + s.etichetta + (p.matricola ? ' - MATR. ' + p.matricola : '') + (of ? ' - ' + of : '')) + '">' +
                     '<span class="mac-quadro mac-quadro-mini ' + s.classe + '">' + (p.stato === 'CONSEGNATA' ? '&#10005;' : '') + '</span>' +
-                    macEsc(s.etichetta) + (p.matricola ? ' <small>' + macEsc(p.matricola) + '</small>' : '') + '</span>';
+                    macEsc(s.etichetta) + (p.matricola ? ' <small>' + macEsc(p.matricola) + '</small>' : '') +
+                    (of ? ' <small class="ord-det-of">' + macEsc(of.replace(/^Ordinata /, '')) + '</small>' : '') + '</span>';
             }).join('');
             return '<div class="ord-det-riga">' +
                 '<div class="ord-det-riga-testa"><span>' + (r.quantita > 1 ? '<strong>' + r.quantita + ' x</strong> ' : '') + macEsc(r.descrizione) +
+                    (r.montaggio && MAC_MONTAGGIO[r.montaggio] ? ' <span class="ord-tag-mont ord-tag-' + r.montaggio.toLowerCase() + '">' + MAC_MONTAGGIO[r.montaggio].testo + '</span>' : '') +
                     (r.codice ? ' <small>' + macEsc(r.codice) + '</small>' : '') + '</span><strong>' + macEuro(r.prezzo_totale) + '</strong></div>' +
                 (r.disponibilita === 'LIBERA' ? '<div class="ord-det-libera">Riga libera (non tocca il magazzino)</div>'
                     : '<div class="ord-det-pezzi">' + (quadri || '<em>nessuna macchina collegata</em>') + '</div>') +
@@ -1132,15 +1418,15 @@ function ordApriDettaglio(id) {
     document.getElementById('ord-dettaglio-titolo').innerHTML = '&#128221; Ordine N. ' + ordNumero(o);
     document.getElementById('ord-dettaglio-corpo').innerHTML = html;
 
-    // Azioni possibili
-    const daOrdinare = pezzi.filter(p => p.stato === 'DA_ORDINARE').length;
+    // Azioni possibili (le macchine da ordinare si segnano ordinate dal libro Ordini > Ordini Macchine;
+    // per correggere a mano c'e' "Correggi lo stato")
     const inCasa = pezzi.filter(p => p.stato === 'IN_CASA').length;
     const annullato = !!o.annullato_at;
     let azioni = '<button type="button" class="btn-primary" data-ord-azione="stampa">&#128424; Stampa / PDF</button>';
     if (!annullato) {
-        if (daOrdinare) azioni += '<button type="button" class="btn-back" data-ord-azione="ordinato">&#128998; Ordinato al fornitore (' + daOrdinare + ')</button>';
         if (inCasa || (pezzi.length === 0 && !o.consegnato_at)) azioni += '<button type="button" class="btn-back" data-ord-azione="consegna">&#9989; Consegnato al cliente' + (inCasa ? ' (' + inCasa + ')' : '') + '</button>';
         azioni += '<button type="button" class="btn-back" data-ord-azione="pagato">' + (o.pagato ? '&#8617;&#65039; Togli &quot;Pagato&quot;' : '&#128182; Segna come pagato') + '</button>';
+        azioni += '<button type="button" class="btn-back" data-ord-azione="correggi">&#128260; Correggi lo stato</button>';
         azioni += '<button type="button" class="btn-back" data-ord-azione="modifica">&#9997;&#65039; Modifica dati cliente / firma / pagamento</button>';
         azioni += '<button type="button" class="btn-danger" data-ord-azione="annulla">&#10006; Annulla ordine</button>';
     }
@@ -1162,6 +1448,7 @@ async function ordAzione(azione) {
     if (azione === 'drive') return ordSalvaSuDrive(o.id);
     if (azione === 'elimina') return ordElimina(o);
     if (azione === 'pagato') return ordSegnaPagato(o);
+    if (azione === 'correggi') return ordApriCorreggiStato(o);
 
     const pezzi = ordPezziOrdine(o);
     const adesso = new Date().toISOString();
@@ -1169,16 +1456,7 @@ async function ordAzione(azione) {
     const numeroTesto = 'ORDINE ' + ordNumero(o);
     const log = [];
     try {
-        if (azione === 'ordinato') {
-            const lista = pezzi.filter(p => p.stato === 'DA_ORDINARE');
-            if (!window.confirm('Segnare ' + lista.length + ' macchin' + (lista.length === 1 ? 'a' : 'e') + ' come ORDINATE al fornitore?\n(nel quaderno il quadratino diventa blu)')) return;
-            for (const p of lista) {
-                const { error } = await supabaseClient.from('macchine_pezzi').update({ stato: 'ORDINATA', updated_at: adesso, updated_by: utente }).eq('id', p.id);
-                if (error) throw error;
-                log.push({ pezzo_id: p.id, articolo_id: p.articolo_id, tipo: 'ORDINE', stato_prima: 'DA_ORDINARE', stato_dopo: 'ORDINATA',
-                    cliente: p.cliente, matricola: p.matricola, netto: p.netto_carico, dettaglio: numeroTesto + ' - ORDINATA AL FORNITORE' });
-            }
-        } else if (azione === 'consegna') {
+        if (azione === 'consegna') {
             const lista = pezzi.filter(p => p.stato === 'IN_CASA');
             const nonPronte = pezzi.filter(p => p.stato === 'DA_ORDINARE' || p.stato === 'ORDINATA').length;
             let msg = lista.length
@@ -1239,6 +1517,147 @@ async function ordAzione(azione) {
     if (azione === 'annulla' && o.drive_file_id) ordSalvaSuDrive(o.id);
     // Annullato: la richiesta di montaggio non ancora organizzata viene tolta (se gia' organizzata diventa NO)
     if (azione === 'annulla' && typeof rrSincronizzaOrdine === 'function') rrSincronizzaOrdine(o.id);
+}
+
+// ========================================
+// CORREGGI LO STATO (admin e operatori): es. "consegnato" premuto per sbaglio
+// ----------------------------------------
+// Per ogni macchina dell'ordine si sceglie lo stato giusto, solo tra i passaggi possibili:
+//   Da ordinare <-> Ordinata      (ordinata = ordine al fornitore di oggi con le proprie iniziali)
+//   In casa     <-> Consegnata
+// Una macchina in casa non puo' tornare "da ordinare" (c'e' fisicamente): per quello c'e'
+// Inventario Macchine > Correzioni (solo admin).
+// ========================================
+const ORD_CORREGGI_SCELTE = {
+    DA_ORDINARE: ['DA_ORDINARE', 'ORDINATA'],
+    ORDINATA:    ['ORDINATA', 'DA_ORDINARE'],
+    IN_CASA:     ['IN_CASA', 'CONSEGNATA'],
+    CONSEGNATA:  ['CONSEGNATA', 'IN_CASA']
+};
+let ordCorreggiId = null;
+
+function ordApriCorreggiStato(o) {
+    const pezzi = ordPezziOrdine(o).sort((x, y) => x.id - y.id);
+    const righe = ordRigheOrdine(o);
+    ordCorreggiId = o.id;
+    let html = '';
+    if (pezzi.length === 0) {
+        html = '<div class="ord-corr-riga"><div class="ord-corr-nome">Ordine con sole righe libere</div>' +
+            '<select id="ord-corr-consegnato">' +
+                '<option value="NO"' + (o.consegnato_at ? '' : ' selected') + '>Non ancora consegnato</option>' +
+                '<option value="SI"' + (o.consegnato_at ? ' selected' : '') + '>Consegnato</option>' +
+            '</select></div>';
+    } else {
+        html = pezzi.map(p => {
+            const riga = righe.find(r => r.id === p.ordine_riga_id);
+            const scelte = ORD_CORREGGI_SCELTE[p.stato] || [p.stato];
+            const of = p.stato === 'ORDINATA' ? macOfTesto(p) : '';
+            return '<div class="ord-corr-riga">' +
+                '<div class="ord-corr-nome"><span class="mac-quadro mac-quadro-mini ' + MAC_STATI[p.stato].classe + '">' + (p.stato === 'CONSEGNATA' ? '&#10005;' : '') + '</span>' +
+                    '<strong>' + macEsc(macNome(macArticolo(p.articolo_id))) + '</strong>' +
+                    (p.matricola ? ' <small>matr. ' + macEsc(p.matricola) + '</small>' : '') +
+                    (riga && riga.quantita > 1 ? ' <small>(riga ' + riga.posizione + ')</small>' : '') +
+                    (of ? '<br><small>' + macEsc(of) + '</small>' : '') +
+                '</div>' +
+                '<select data-corr-pezzo="' + p.id + '">' + scelte.map(st =>
+                    '<option value="' + st + '"' + (st === p.stato ? ' selected' : '') + '>' + MAC_STATI[st].etichetta + (st === p.stato ? ' (adesso)' : '') + '</option>'
+                ).join('') + '</select>' +
+            '</div>';
+        }).join('');
+    }
+    document.getElementById('ord-corr-titolo').innerHTML = '&#128260; Correggi lo stato - Ordine N. ' + ordNumero(o);
+    document.getElementById('ord-corr-corpo').innerHTML = html;
+    // Spunta "resta ordinata al fornitore": solo se c'e' una ordinata con l'ordine al fornitore registrato
+    document.getElementById('ord-corr-tieni').checked = true;
+    document.getElementById('ord-corr-tieni-box').classList.toggle('hidden', !pezzi.some(p => p.stato === 'ORDINATA' && p.ordine_fornitore_id));
+    ordChiudiDettaglio();
+    document.getElementById('ord-corr-modal').classList.remove('hidden');
+}
+
+function ordChiudiCorreggiStato(riapri) {
+    document.getElementById('ord-corr-modal').classList.add('hidden');
+    const id = ordCorreggiId;
+    ordCorreggiId = null;
+    if (riapri && id) ordApriDettaglio(id);
+}
+
+async function ordSalvaCorreggiStato() {
+    const o = ordOrdini.find(x => x.id === ordCorreggiId);
+    if (!o) return ordChiudiCorreggiStato(false);
+    const pezzi = ordPezziOrdine(o);
+    const adesso = new Date().toISOString();
+    const utente = macUtente();
+    const numeroTesto = 'ORDINE ' + ordNumero(o);
+    const btn = document.getElementById('ord-corr-salva');
+    btn.disabled = true;
+    const log = [];
+    try {
+        if (pezzi.length === 0) {
+            const sel = document.getElementById('ord-corr-consegnato');
+            const consegnato = sel && sel.value === 'SI';
+            if (consegnato !== !!o.consegnato_at) {
+                const { error } = await supabaseClient.from('macchine_ordini')
+                    .update({ consegnato_at: consegnato ? adesso : null, updated_at: adesso, updated_by: utente }).eq('id', o.id);
+                if (error) throw error;
+            }
+        } else {
+            const cambi = [];
+            document.querySelectorAll('#ord-corr-corpo [data-corr-pezzo]').forEach(sel => {
+                const p = pezzi.find(x => x.id === parseInt(sel.dataset.corrPezzo, 10));
+                if (p && sel.value !== p.stato) cambi.push({ p: p, nuovo: sel.value });
+            });
+            if (cambi.length === 0) { btn.disabled = false; return ordChiudiCorreggiStato(true); }
+            // Da ordinare -> Ordinata: ordine al fornitore di oggi (con le proprie iniziali)
+            const daOrdinare = cambi.filter(c => c.nuovo === 'ORDINATA').map(c => c.p);
+            if (daOrdinare.length) {
+                if (macOfPronto) {
+                    await macSegnaOrdinate(daOrdinare, { data: ordOggiISO(), operatore: macIniziali(), dettaglio: numeroTesto + ' - CORREZIONE STATO' });
+                } else {
+                    for (const p of daOrdinare) {
+                        const { error } = await supabaseClient.from('macchine_pezzi').update({ stato: 'ORDINATA', updated_at: adesso, updated_by: utente }).eq('id', p.id);
+                        if (error) throw error;
+                        log.push({ pezzo_id: p.id, articolo_id: p.articolo_id, tipo: 'ORDINE', stato_prima: 'DA_ORDINARE', stato_dopo: 'ORDINATA',
+                            cliente: p.cliente, matricola: p.matricola, netto: p.netto_carico, dettaglio: numeroTesto + ' - CORREZIONE STATO' });
+                    }
+                }
+            }
+            // Ordinata -> Da ordinare
+            const tornano = cambi.filter(c => c.nuovo === 'DA_ORDINARE').map(c => c.p);
+            if (tornano.length) await macRiportaDaOrdinare(tornano, numeroTesto + ' - CORREZIONE STATO', document.getElementById('ord-corr-tieni').checked);
+            // In casa <-> Consegnata
+            for (const c of cambi.filter(x => x.nuovo === 'CONSEGNATA' || x.nuovo === 'IN_CASA')) {
+                const p = c.p;
+                const agg = c.nuovo === 'CONSEGNATA'
+                    ? { stato: 'CONSEGNATA', data_consegna: adesso, updated_at: adesso, updated_by: utente }
+                    : { stato: 'IN_CASA', data_consegna: null, updated_at: adesso, updated_by: utente };
+                const { error } = await supabaseClient.from('macchine_pezzi').update(agg).eq('id', p.id);
+                if (error) throw error;
+                log.push({ pezzo_id: p.id, articolo_id: p.articolo_id, tipo: 'ORDINE', stato_prima: p.stato, stato_dopo: c.nuovo,
+                    cliente: p.cliente, matricola: p.matricola, netto: p.netto_carico,
+                    dettaglio: numeroTesto + ' - CORREZIONE STATO: ' + macStatoTesto(p.stato) + ' \u2192 ' + macStatoTesto(c.nuovo) });
+                Object.assign(p, agg);
+            }
+            // Ordine "consegnato" solo se tutte le macchine sono consegnate
+            const tutteConsegnate = pezzi.every(p => p.stato === 'CONSEGNATA');
+            if (tutteConsegnate !== !!o.consegnato_at) {
+                const { error } = await supabaseClient.from('macchine_ordini')
+                    .update({ consegnato_at: tutteConsegnate ? adesso : null, updated_at: adesso, updated_by: utente }).eq('id', o.id);
+                if (error) throw error;
+            }
+        }
+    } catch (error) {
+        console.error('Errore correzione stato:', error);
+        btn.disabled = false;
+        await macRegistra(log);
+        await ordRicarica();
+        ordChiudiCorreggiStato(true);
+        await showCustomAlert('Errore:<br>' + macEsc(error.message), 'Errore', '&#10060;');
+        return;
+    }
+    await macRegistra(log);
+    btn.disabled = false;
+    await ordRicarica();
+    ordChiudiCorreggiStato(true);
 }
 
 // Segna / toglie "Pagato" dal dettaglio (il PDF su Drive viene rifatto con il timbro)
@@ -1383,6 +1802,7 @@ function ordHtmlStampa(o, righeTotali) {
         const matricole = pezzi.filter(p => p.ordine_riga_id === r.id && p.matricola).map(p => p.matricola);
         const magazzino = r.disponibilita === 'DA_ORDINARE' ? 'Da ordinare' : (r.disponibilita === 'DISPONIBILE' ? 'Disponibile' : '');
         return '<tr><td>' + macEsc(r.descrizione) +
+                (r.montaggio && MAC_MONTAGGIO[r.montaggio] ? '<div class="ordd-matr">' + MAC_MONTAGGIO[r.montaggio].testo + '</div>' : '') +
                 (matricole.length ? '<div class="ordd-matr">Matr. ' + matricole.map(macEsc).join(', ') + '</div>' : '') + '</td>' +
             '<td>' + macEsc(r.codice || '') + '</td>' +
             '<td class="rpt-n">' + r.quantita + '</td>' +
@@ -1904,9 +2324,8 @@ async function ordBozzaUsa() {
         r.quantita = x.quantita || 1;
         const unit = ordPrezzoUnitario(a);
         r.prezzo_totale = unit !== null ? Math.round(unit * r.quantita * 100) / 100 : null;
-        // con la quantita' giusta ricontrolla se ce ne sono abbastanza in casa
-        const mancano = ordFabbisogno(r).some(f => ordDisponibiliArticolo(f.art.id).length < f.n);
-        r.disponibilita = mancano ? 'DA_ORDINARE' : 'DISPONIBILE';
+        // con la quantita' giusta ricontrolla se ce ne sono abbastanza in casa (o in arrivo)
+        r.disponibilita = ordDisponibilitaProposta(r);
     });
     ordBozzaSalva([]);
     ordSwitchTab('nuovo');
@@ -1984,6 +2403,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (b.dataset.bozza === 'svuota') ordBozzaSvuota(true);
         else if (b.dataset.bozza === 'usa') { if (inListino) ordBozzaApriOrdine(); else ordBozzaUsa(); }
     });
+
+    // Correggi lo stato
+    document.getElementById('ord-corr-close').addEventListener('click', () => ordChiudiCorreggiStato(true));
+    document.getElementById('ord-corr-annulla').addEventListener('click', () => ordChiudiCorreggiStato(true));
+    document.getElementById('ord-corr-salva').addEventListener('click', ordSalvaCorreggiStato);
 
     // Dettaglio
     document.getElementById('ord-dettaglio-close').addEventListener('click', ordChiudiDettaglio);

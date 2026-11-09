@@ -17,16 +17,17 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Kalam:wght@400;700&family=Roboto+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=7.1.3">
-    <link rel="stylesheet" href="listino.css?v=7.1.3">
-    <link rel="stylesheet" href="stihl.css?v=7.1.3">
-    <link rel="stylesheet" href="fornitori.css?v=7.1.3">
-    <link rel="stylesheet" href="interventi.css?v=7.1.3">
-    <link rel="stylesheet" href="macchine.css?v=7.1.3">
-    <link rel="stylesheet" href="ordini.css?v=7.1.3">
-    <link rel="stylesheet" href="azienda.css?v=7.1.3">
-    <link rel="stylesheet" href="richieste.css?v=7.1.3">
-    <link rel="stylesheet" href="buoni.css?v=7.1.3">
+    <link rel="stylesheet" href="style.css?v=Ordini Macchine, Listini Fornitori e novità">
+    <link rel="stylesheet" href="listino.css?v=Ordini Macchine, Listini Fornitori e novità">
+    <link rel="stylesheet" href="listini-fornitori.css?v=Ordini Macchine, Listini Fornitori e novità">
+    <link rel="stylesheet" href="fornitori.css?v=Ordini Macchine, Listini Fornitori e novità">
+    <link rel="stylesheet" href="interventi.css?v=Ordini Macchine, Listini Fornitori e novità">
+    <link rel="stylesheet" href="macchine.css?v=Ordini Macchine, Listini Fornitori e novità">
+    <link rel="stylesheet" href="ordini.css?v=Ordini Macchine, Listini Fornitori e novità">
+    <link rel="stylesheet" href="ordini-macchine.css?v=Ordini Macchine, Listini Fornitori e novità">
+    <link rel="stylesheet" href="azienda.css?v=Ordini Macchine, Listini Fornitori e novità">
+    <link rel="stylesheet" href="richieste.css?v=Ordini Macchine, Listini Fornitori e novità">
+    <link rel="stylesheet" href="buoni.css?v=Ordini Macchine, Listini Fornitori e novità">
 
     <!-- SheetJS per import Excel -->
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
@@ -52,7 +53,7 @@
             transition: opacity 0.3s ease;
         }
 
-        /* ===== Menu categorie (Magazzino / Vendite) ===== */
+        /* ===== Menu categorie (Magazzino / Listini Vendite / Ordini) ===== */
         /* Centra le card anche quando sono meno di 3 (es. scanner nascosto su PC) */
         @media (min-width: 769px) {
             .dashboard-grid.hub-grid {
@@ -87,7 +88,7 @@
 
 <body class="loading">
     <!-- Version badge -->
-    <div class="version-badge">v7.1.3</div>
+    <div class="version-badge">vOrdini Macchine, Listini Fornitori e novità</div>
 
     <!-- SCHERMATA LOGIN -->
     <div id="login-screen" class="screen">
@@ -159,6 +160,8 @@
                 <h2>&#127968; Dashboard</h2>
                 <p>Seleziona una sezione per iniziare</p>
             </div>
+            <!-- Avviso listini fornitori scaduti / in scadenza (listini-fornitori-functions.js) -->
+            <div class="lf-avviso-box hidden" role="button" tabindex="0"></div>
             <div class="dashboard-grid">
                 <!-- Card Magazzino (contiene: Consumabili, Ricambi Stock, Scanner) -->
                 <div class="dashboard-card" id="dashboard-magazzino-card" onclick="openSection('magazzino')">
@@ -167,11 +170,18 @@
                     <p>Consumabili, ricambi stock, macchine e scanner</p>
                 </div>
 
-                <!-- Card Vendite (contiene: Listino Vendite, Listini Fornitori, Ordini Clienti) -->
+                <!-- Card LISTINI VENDITE (contiene: Cataloghi Fornitori, Listini Fornitori, Listino Agrimacch) -->
                 <div class="dashboard-card" id="dashboard-vendite-card" onclick="openSection('vendite')">
                     <span class="card-icon">&#128176;</span>
-                    <h3>Vendite</h3>
-                    <p>Listino vendite e listini fornitori</p>
+                    <h3>Listini Vendite</h3>
+                    <p>Listino Agrimacch, listini e cataloghi dei fornitori</p>
+                </div>
+
+                <!-- Card ORDINI (contiene: Buoni Regalo, Ordini Clienti, Ordini Macchine) - visibile se si vede almeno una delle tre -->
+                <div class="dashboard-card" id="dashboard-ordini-card" onclick="openSection('ordini')" style="display: none;">
+                    <span class="card-icon">&#128722;</span>
+                    <h3>Ordini</h3>
+                    <p>Ordini clienti, ordini macchine ai fornitori e buoni regalo</p>
                 </div>
 
                 <!-- Card ASSISTENZA (ex Tecnici: Interventi Esterni, Richieste e Organizzazione interventi robot,
@@ -246,39 +256,66 @@
         </div>
 
         <!-- ========================================== -->
-        <!-- CATEGORIA VENDITE (menu con 3 sottocategorie: Listino, Listini Fornitori, Ordini Clienti) -->
+        <!-- CATEGORIA LISTINI VENDITE (menu: Cataloghi Fornitori, Listini Fornitori, Listino Agrimacch) -->
         <!-- ========================================== -->
         <div id="section-vendite" class="section-container hidden">
             <div class="back-to-dashboard">
                 <button onclick="backToDashboard()" class="btn-back">
                     &#8592; Torna alla Dashboard
                 </button>
-                <h2 class="section-title">&#128176; Vendite</h2>
+                <h2 class="section-title">&#128176; Listini Vendite</h2>
             </div>
             <div class="dashboard-container">
                 <div class="dashboard-header">
-                    <p>Seleziona una sezione delle vendite</p>
+                    <p>Seleziona un listino</p>
                 </div>
+                <!-- Avviso listini fornitori scaduti / in scadenza -->
+                <div class="lf-avviso-box hidden" role="button" tabindex="0"></div>
                 <div class="dashboard-grid hub-grid">
-                    <!-- Card Listino Vendite -->
+                    <!-- Card Listino Agrimacch -->
                     <div class="dashboard-card" onclick="openSection('listino-vendite')">
                         <span class="card-icon">&#127991;</span>
-                        <h3>Listino Vendite</h3>
+                        <h3>Listino Agrimacch</h3>
                         <p>Prezzi di vendita al cliente</p>
                     </div>
 
-                    <!-- Card Listini Fornitori -->
+                    <!-- Card Cataloghi Fornitori (PDF su Google Drive, sezione "listini-fornitori") -->
                     <div class="dashboard-card" onclick="openSection('listini-fornitori')">
                         <span class="card-icon">&#128209;</span>
-                        <h3>Listini Fornitori</h3>
-                        <p>Prezzi e condizioni dei fornitori</p>
+                        <h3>Cataloghi Fornitori</h3>
+                        <p>Cataloghi e listini PDF dei fornitori</p>
                     </div>
 
-                    <!-- Card Listino STIHL (STIHL_RUOLI_VEDERE in stihl-functions.js: admin e operatori) -->
-                    <div class="dashboard-card" id="vendite-stihl-card" onclick="openSection('listino-stihl')" style="display: none;">
-                        <span class="card-icon">&#129690;</span>
-                        <h3>Listino STIHL</h3>
-                        <p>Tutti gli articoli STIHL con il prezzo al cliente</p>
+                    <!-- Card Listini Fornitori con i prezzi (LF_RUOLI_VEDERE in listini-fornitori-functions.js) -->
+                    <div class="dashboard-card" id="vendite-lf-card" onclick="openSection('listini-prezzi')" style="display: none;">
+                        <span class="card-icon">&#128181;</span>
+                        <h3>Listini Fornitori</h3>
+                        <p>Prezzi dei fornitori per listino, con le scadenze</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- CATEGORIA ORDINI (menu: Ordini Macchine) -->
+        <!-- ========================================== -->
+        <div id="section-ordini" class="section-container hidden">
+            <div class="back-to-dashboard">
+                <button onclick="backToDashboard()" class="btn-back">
+                    &#8592; Torna alla Dashboard
+                </button>
+                <h2 class="section-title">&#128722; Ordini</h2>
+            </div>
+            <div class="dashboard-container">
+                <div class="dashboard-header">
+                    <p>Seleziona una sezione degli ordini</p>
+                </div>
+                <div class="dashboard-grid hub-grid">
+                    <!-- Card Buoni Regalo (admin e operatori: BUONI_RUOLI in app.js) -->
+                    <div class="dashboard-card" id="vendite-buoni-card" onclick="openSection('buoni-regalo')" style="display: none;">
+                        <span class="card-icon">&#127873;</span>
+                        <h3>Buoni Regalo</h3>
+                        <p>Buoni numerati da stampare su mezzo foglio A4</p>
                     </div>
 
                     <!-- Card Ordini Clienti (admin e operatori) -->
@@ -288,43 +325,82 @@
                         <p>Commissioni con firma, collegate al quaderno macchine</p>
                     </div>
 
-                    <!-- Card Buoni Regalo (admin e operatori: BUONI_RUOLI in app.js) -->
-                    <div class="dashboard-card" id="vendite-buoni-card" onclick="openSection('buoni-regalo')" style="display: none;">
-                        <span class="card-icon">&#127873;</span>
-                        <h3>Buoni Regalo</h3>
-                        <p>Buoni numerati da stampare su mezzo foglio A4</p>
+                    <!-- Card Ordini Macchine (ORDINI_RUOLI in ordini-macchine-functions.js) -->
+                    <div class="dashboard-card" id="ordini-macchine-card" onclick="openSection('ordini-macchine')" style="display: none;">
+                        <span class="card-icon">&#128666;</span>
+                        <h3>Ordini Macchine</h3>
+                        <p>Il libro degli ordini ai fornitori, diviso per marchio</p>
                     </div>
-
                 </div>
             </div>
         </div>
 
         <!-- ========================================== -->
-        <!-- SEZIONE LISTINO STIHL (stihl-functions.js) -->
+        <!-- SEZIONE ORDINI MACCHINE (ordini-macchine-functions.js) -->
         <!-- ========================================== -->
-        <div id="section-listino-stihl" class="section-container hidden netti-nascosti">
+        <div id="section-ordini-macchine" class="section-container hidden">
             <div class="back-to-dashboard">
                 <div class="back-buttons">
-                    <button onclick="openSection('vendite')" class="btn-back">
-                        &#8592; Torna a Vendite
+                    <button onclick="openSection('ordini')" class="btn-back">
+                        &#8592; Torna a Ordini
                     </button>
                     <button onclick="backToDashboard()" class="btn-back btn-dashboard">
                         &#127968; Dashboard
                     </button>
                 </div>
-                <h2 class="section-title">&#129690; Listino STIHL <button type="button" class="mac-raf-info-btn sti-solo-carica hidden" id="sti-guida-btn" title="Guida rapida ai caricamenti">i</button></h2>
+                <h2 class="section-title">&#128666; Ordini Macchine <button type="button" class="mac-raf-info-btn" id="om-guida-btn" title="Guida rapida">i</button></h2>
+            </div>
+            <div class="container">
+                <div id="om-avviso-sql" class="mac-info hidden">&#9888;&#65039; Per segnare gli ordini e creare le sezioni va eseguito su Supabase lo script <strong>supabase/ordini-macchine-setup.sql</strong>. Per ora vedi solo le macchine da ordinare.</div>
+                <div id="om-riepilogo" class="om-riepilogo"></div>
+                <div class="om-barra">
+                    <select id="om-vai-marchio"></select>
+                    <label class="mac-check"><input type="checkbox" id="om-mostra-arrivati"> Mostra ordini gi&agrave; arrivati</label>
+                </div>
+                <div class="mac-legenda">
+                    <span><span class="mac-quadro st-daordinare"></span> = da ordinare</span>
+                    <span><span class="mac-quadro st-ordinata"></span> = ordinata, da arrivare</span>
+                    <span><span class="mac-quadro om-quadro-ok">&#10003;</span> = arrivata</span>
+                </div>
+                <div class="mac-quaderno om-libro">
+                    <div id="om-pagina" class="mac-q-pagina"></div>
+                    <div id="om-divisori" class="mac-q-divisori"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- SEZIONE LISTINI FORNITORI con i prezzi (listini-fornitori-functions.js) -->
+        <!-- Una scheda per fornitore; ogni fornitore ha piu' listini (es. OPG, OPM) con la loro scadenza -->
+        <!-- ========================================== -->
+        <div id="section-listini-prezzi" class="section-container hidden netti-nascosti">
+            <div class="back-to-dashboard">
+                <div class="back-buttons">
+                    <button onclick="openSection('vendite')" class="btn-back">
+                        &#8592; Torna a Listini Vendite
+                    </button>
+                    <button onclick="backToDashboard()" class="btn-back btn-dashboard">
+                        &#127968; Dashboard
+                    </button>
+                </div>
+                <h2 class="section-title">&#128181; Listini Fornitori <button type="button" class="mac-raf-info-btn" id="lf-guida-btn" title="Guida rapida">i</button></h2>
             </div>
 
-            <nav class="tabs" id="tabs-stihl">
-                <button class="tab-btn active" data-stihl-tab="elenco">&#128203; Listino</button>
-                <button class="tab-btn sti-solo-carica" data-stihl-tab="carica">&#128193; Carica file</button>
-                <button class="tab-btn sti-solo-carica" data-stihl-tab="fonti">&#128337; Caricamenti</button>
+            <div class="container">
+                <div id="lf-fornitori" class="lf-fornitori"></div>
+                <div id="lf-scadenze" class="lf-scadenze"></div>
+            </div>
+
+            <nav class="tabs" id="tabs-lf">
+                <button class="tab-btn active" data-lf-tab="elenco">&#128203; Listino</button>
+                <button class="tab-btn" data-lf-tab="listini">&#128197; Listini e scadenze</button>
+                <button class="tab-btn lf-solo-carica hidden" data-lf-tab="carica">&#128193; Carica file</button>
             </nav>
 
-            <div class="container listino-toolbar" id="sti-toolbar">
+            <div class="container listino-toolbar" id="lf-toolbar">
                 <div class="toggle-container listino-toggle-box">
-                    <input type="checkbox" id="sti-toggle-netti" class="toggle-checkbox">
-                    <label for="sti-toggle-netti" class="toggle-label">
+                    <input type="checkbox" id="lf-toggle-netti" class="toggle-checkbox">
+                    <label for="lf-toggle-netti" class="toggle-label">
                         <span class="toggle-text">&#128065; Mostra netti e ricarico</span>
                         <span class="toggle-switch"></span>
                     </label>
@@ -332,117 +408,128 @@
             </div>
 
             <!-- TAB: LISTINO -->
-            <div id="tab-stihl-elenco" class="tab-content active">
+            <div id="tab-lf-elenco" class="tab-content active">
                 <div class="container">
                     <div class="search-bar">
-                        <input type="text" id="sti-search" placeholder="&#128269; Cerca descrizione o codice articolo...">
+                        <input type="text" id="lf-search" placeholder="&#128269; Cerca descrizione, codice articolo o EAN..." autocomplete="off">
                     </div>
                     <div class="listino-filtri">
-                        <select id="sti-filtro-categoria"><option value="">Tutte le categorie</option></select>
-                        <select id="sti-filtro-collegati">
+                        <select id="lf-filtro-listino"><option value="">Tutti i listini</option></select>
+                        <select id="lf-filtro-categoria"><option value="">Tutte le categorie</option></select>
+                        <select id="lf-filtro-collegati">
                             <option value="">Tutti gli articoli</option>
-                            <option value="si">Solo quelli nel mio Listino Vendite</option>
-                            <option value="no">Solo quelli che non ho nel Listino Vendite</option>
+                            <option value="si">Solo quelli nel mio Listino Agrimacch</option>
+                            <option value="no">Solo quelli che non ho nel Listino Agrimacch</option>
+                            <option value="fuori">Collegati ma non pi&ugrave; in nessun listino (fuori produzione)</option>
                         </select>
                     </div>
                     <div class="listino-filtri-footer">
-                        <span id="sti-count"></span>
+                        <span id="lf-count"></span>
                         <div class="listino-filtri-pulsanti">
-                            <button type="button" id="sti-reset" class="btn-back">&#10006; Azzera filtri</button>
+                            <button type="button" id="lf-reset" class="btn-back">&#10006; Azzera filtri</button>
                         </div>
                     </div>
-                    <p class="mac-aiuto sti-legenda">Prezzi IVA inclusa. <strong>Prezzo cliente</strong> = netto + ricarico, poi IVA 22%, arrotondato all'euro.
-                        <span class="sti-solo-collega hidden"><strong>Collega</strong> = l'articolo c'&egrave; gi&agrave; nel tuo Listino Vendite; <strong>Crea</strong> = lo aggiunge al Listino Vendite (e quindi al quaderno) gi&agrave; compilato.</span></p>
-                    <div id="sti-container"></div>
+                    <p class="mac-aiuto sti-legenda">Prezzi IVA inclusa. Ogni riga mostra il prezzo in <strong>ogni listino</strong> in cui c'&egrave; l'articolo;
+                        &#9733; = prezzo cliente pi&ugrave; basso tra i listini validi. <strong>Riquadro rosso</strong> = listino scaduto (si consulta lo stesso).
+                        <span class="lf-solo-collega hidden"><strong>Collega</strong> = l'articolo c'&egrave; gi&agrave; nel tuo Listino Agrimacch; <strong>Crea</strong> = lo aggiunge al Listino Agrimacch gi&agrave; compilato.</span></p>
+                    <div id="lf-container"></div>
+                </div>
+            </div>
+
+            <!-- TAB: LISTINI E SCADENZE -->
+            <div id="tab-lf-listini" class="tab-content">
+                <div class="container">
+                    <div class="card">
+                        <h2>&#128197; Listini e scadenze</h2>
+                        <div id="lf-listini"></div>
+                    </div>
                 </div>
             </div>
 
             <!-- TAB: CARICA FILE (solo admin) -->
-            <div id="tab-stihl-carica" class="tab-content">
+            <div id="tab-lf-carica" class="tab-content">
                 <div class="container">
                     <div class="card">
-                        <h2>&#128193; Carica un file del fornitore</h2>
+                        <h2>&#128193; Carica un listino di <span id="lf-carica-fornitore"></span></h2>
                         <p class="listino-help">
-                            Carica il file Excel di STIHL (es. OPG, OPM). Scegli il foglio, la riga con i titoli delle colonne e quali colonne usare:
-                            l'app propone da sola le scelte e si ricorda quelle dell'ultima volta. Prima di salvare vedi l'anteprima con articoli nuovi,
-                            aggiornati e righe scartate.<br><br>
-                            <strong>Se un articolo c'&egrave; gi&agrave;</strong> (stesso codice) vengono aggiornati descrizione e prezzi: vale l'ultimo file caricato.
-                            Gli articoli che non sono nel file restano come sono. Il collegamento con il Listino Vendite non si perde.
+                            Carica il file Excel del fornitore (es. OPG, OPM). Scegli dove va: <strong>Nuovo listino</strong> oppure <strong>Sostituisci</strong>
+                            un listino che c'&egrave; gi&agrave;. Imposta la <strong>scadenza</strong>, il ricarico e le colonne (l'app propone da sola le scelte
+                            e si ricorda quelle dell'ultima volta). Prima di salvare vedi l'anteprima.<br><br>
+                            <strong>Sostituisci</strong> = il file prende il posto del vecchio <strong>per intero</strong> (niente storico). Collegamenti con il
+                            Listino Agrimacch ed EAN restano, perch&eacute; sono legati al codice.
                         </p>
-                        <input type="file" id="sti-file" accept=".xlsx,.xls,.xlsm" style="display: none;">
+                        <input type="file" id="lf-file" accept=".xlsx,.xls,.xlsm" style="display: none;">
                         <div class="listino-import-pulsanti">
-                            <button type="button" id="sti-btn-file" class="btn-primary">&#128194; Seleziona file Excel</button>
+                            <button type="button" id="lf-btn-file" class="btn-primary">&#128194; Seleziona file Excel</button>
                         </div>
-                        <div id="sti-file-nome" class="sti-file-nome"></div>
+                        <div id="lf-file-nome" class="sti-file-nome"></div>
 
-                        <div id="sti-impostazioni" class="hidden">
+                        <div id="lf-impostazioni" class="hidden">
                             <div class="sti-impostazioni-griglia">
                                 <div class="sti-colonna">
-                                    <label>Foglio</label>
-                                    <select id="sti-foglio"></select>
+                                    <label>Dove va *</label>
+                                    <select id="lf-destinazione"></select>
                                 </div>
                                 <div class="sti-colonna">
-                                    <label>Riga dei titoli delle colonne</label>
-                                    <input type="number" id="sti-riga" min="1" inputmode="numeric">
+                                    <label>Nome del listino *</label>
+                                    <input type="text" id="lf-nome" placeholder="es. OPG 2026" autocomplete="off">
                                 </div>
                                 <div class="sti-colonna">
-                                    <label>Nome del caricamento *</label>
-                                    <input type="text" id="sti-nome" placeholder="es. OPG 2026">
+                                    <label>Scadenza (valido fino al)</label>
+                                    <input type="date" id="lf-scadenza">
                                 </div>
                                 <div class="sti-colonna">
                                     <label>Ricarico % *</label>
-                                    <input type="text" id="sti-ricarico" inputmode="decimal" value="30">
+                                    <input type="text" id="lf-ricarico" inputmode="decimal" value="30">
                                 </div>
-                            </div>
-                            <h4 class="sti-sottotitolo">Colonne da usare</h4>
-                            <div id="sti-colonne" class="sti-impostazioni-griglia"></div>
-                            <div class="listino-import-pulsanti">
-                                <button type="button" id="sti-btn-anteprima" class="btn-primary">&#128269; Anteprima</button>
-                            </div>
-                        </div>
-                        <div id="sti-anteprima"></div>
-                    </div>
-
-                    <div class="card">
-                        <h2>&#9646;&#9647;&#9646; Codici EAN da un catalogo</h2>
-                        <p class="listino-help">
-                            Carica un catalogo STIHL con codice articolo ed EAN (es. <strong>Superlistino</strong>, foglio &quot;Listino GENERALE&quot;).
-                            Anche se ha decine di migliaia di righe, vengono presi <strong>solo gli EAN degli articoli che sono nel listino STIHL</strong>:
-                            il resto non entra nel database. Agli articoli collegati del Listino Vendite l'EAN passa anche nel <strong>codice a barre</strong>
-                            (solo se &egrave; vuoto), cos&igrave; il lettore riconosce subito la scatola. Caricalo <strong>dopo</strong> i file delle promo.
-                        </p>
-                        <input type="file" id="sti-ean-file" accept=".xlsx,.xls,.xlsm" style="display: none;">
-                        <div class="listino-import-pulsanti">
-                            <button type="button" id="sti-ean-btn-file" class="btn-primary">&#128194; Seleziona catalogo EAN</button>
-                        </div>
-                        <div id="sti-ean-file-nome" class="sti-file-nome"></div>
-                        <div id="sti-ean-impostazioni" class="hidden">
-                            <div class="sti-impostazioni-griglia">
                                 <div class="sti-colonna">
                                     <label>Foglio</label>
-                                    <select id="sti-ean-foglio"></select>
+                                    <select id="lf-foglio"></select>
                                 </div>
                                 <div class="sti-colonna">
                                     <label>Riga dei titoli delle colonne</label>
-                                    <input type="number" id="sti-ean-riga" min="1" inputmode="numeric">
+                                    <input type="number" id="lf-riga" min="1" inputmode="numeric">
                                 </div>
                             </div>
-                            <div id="sti-ean-colonne" class="sti-impostazioni-griglia"></div>
+                            <p id="lf-sostituisci-avviso" class="lf-avviso-sostituisci hidden">&#9888;&#65039; Questo file <strong>sostituisce per intero</strong> il listino scelto: i prezzi vecchi di quel listino spariscono.</p>
+                            <h4 class="sti-sottotitolo">Colonne da usare</h4>
+                            <div id="lf-colonne" class="sti-impostazioni-griglia"></div>
                             <div class="listino-import-pulsanti">
-                                <button type="button" id="sti-ean-btn-anteprima" class="btn-primary">&#128269; Anteprima</button>
+                                <button type="button" id="lf-btn-anteprima" class="btn-primary">&#128269; Anteprima</button>
                             </div>
                         </div>
-                        <div id="sti-ean-anteprima"></div>
+                        <div id="lf-anteprima"></div>
                     </div>
-                </div>
-            </div>
 
-            <!-- TAB: CARICAMENTI (solo admin) -->
-            <div id="tab-stihl-fonti" class="tab-content">
-                <div class="container">
                     <div class="card">
-                        <h2>&#128337; File caricati</h2>
-                        <div id="sti-fonti"></div>
+                        <h2>&#9646;&#9647;&#9646; Codici EAN di <span id="lf-ean-fornitore"></span> da un catalogo</h2>
+                        <p class="listino-help">
+                            Carica un catalogo del fornitore con codice articolo ed EAN (per STIHL il <strong>Superlistino</strong>, foglio &quot;Listino GENERALE&quot;).
+                            Vengono presi <strong>solo gli EAN degli articoli che sono nei listini</strong> del fornitore. Agli articoli collegati del Listino Agrimacch
+                            l'EAN passa anche nel <strong>codice a barre</strong> (solo se &egrave; vuoto). Caricalo <strong>dopo</strong> i listini.
+                        </p>
+                        <input type="file" id="lf-ean-file" accept=".xlsx,.xls,.xlsm" style="display: none;">
+                        <div class="listino-import-pulsanti">
+                            <button type="button" id="lf-ean-btn-file" class="btn-primary">&#128194; Seleziona catalogo EAN</button>
+                        </div>
+                        <div id="lf-ean-file-nome" class="sti-file-nome"></div>
+                        <div id="lf-ean-impostazioni" class="hidden">
+                            <div class="sti-impostazioni-griglia">
+                                <div class="sti-colonna">
+                                    <label>Foglio</label>
+                                    <select id="lf-ean-foglio"></select>
+                                </div>
+                                <div class="sti-colonna">
+                                    <label>Riga dei titoli delle colonne</label>
+                                    <input type="number" id="lf-ean-riga" min="1" inputmode="numeric">
+                                </div>
+                            </div>
+                            <div id="lf-ean-colonne" class="sti-impostazioni-griglia"></div>
+                            <div class="listino-import-pulsanti">
+                                <button type="button" id="lf-ean-btn-anteprima" class="btn-primary">&#128269; Anteprima</button>
+                            </div>
+                        </div>
+                        <div id="lf-ean-anteprima"></div>
                     </div>
                 </div>
             </div>
@@ -455,13 +542,13 @@
             <div class="back-to-dashboard">
                 <div class="back-buttons">
                     <button onclick="openSection('vendite')" class="btn-back">
-                        &#8592; Torna a Vendite
+                        &#8592; Torna a Listini Vendite
                     </button>
                     <button onclick="backToDashboard()" class="btn-back btn-dashboard">
                         &#127968; Dashboard
                     </button>
                 </div>
-                <h2 class="section-title">&#127991; Listino Vendite</h2>
+                <h2 class="section-title">&#127991; Listino Agrimacch</h2>
             </div>
 
             <!-- Navigazione tab Listino -->
@@ -595,19 +682,19 @@
         </div>
 
         <!-- ========================================== -->
-        <!-- SEZIONE LISTINI FORNITORI (PDF su Google Drive) -->
+        <!-- SEZIONE CATALOGHI FORNITORI (PDF su Google Drive; id interno "listini-fornitori") -->
         <!-- ========================================== -->
         <div id="section-listini-fornitori" class="section-container hidden">
             <div class="back-to-dashboard">
                 <div class="back-buttons">
                     <button onclick="openSection('vendite')" class="btn-back">
-                        &#8592; Torna a Vendite
+                        &#8592; Torna a Listini Vendite
                     </button>
                     <button onclick="backToDashboard()" class="btn-back btn-dashboard">
                         &#127968; Dashboard
                     </button>
                 </div>
-                <h2 class="section-title">&#128209; Listini Fornitori</h2>
+                <h2 class="section-title">&#128209; Cataloghi Fornitori</h2>
             </div>
             <div class="container">
                 <!-- Guida: resta sempre scritta nell'app -->
@@ -676,7 +763,7 @@
         </div>
 
         <!-- ========================================== -->
-        <!-- SEZIONE INVENTARIO MACCHINE (collegata al Listino Vendite) -->
+        <!-- SEZIONE INVENTARIO MACCHINE (collegata al Listino Agrimacch) -->
         <!-- ========================================== -->
         <div id="section-inventario-macchine" class="section-container hidden">
             <div class="back-to-dashboard">
@@ -747,7 +834,7 @@
                     </div>
                     <div class="mac-legenda">
                         <span><span class="mac-quadro st-daordinare"></span> + nome = da ordinare</span>
-                        <span><span class="mac-quadro st-ordinata"></span> + nome = ordinata</span>
+                        <span><span class="mac-quadro st-ordinata"></span> + nome = ordinata (senza nome = in arrivo libera)</span>
                         <span><span class="mac-quadro st-incasa"></span> + nome = in casa per il cliente</span>
                         <span><span class="mac-quadro st-incasa"></span> senza nome = disponibile</span>
                         <span><span class="mac-quadro st-consegnata">&#10005;</span> = consegnata</span>
@@ -766,7 +853,7 @@
                         <h2>&#128193; Carico da Excel</h2>
                         <p class="mac-aiuto">
                             Un solo file per tutti i marchi: quando arriva la conferma d'ordine scrivi quantit&agrave;, netti e prezzi
-                            e l'app carica le macchine e aggiorna il listino. Le colonne sono quelle del Listino Vendite pi&ugrave;
+                            e l'app carica le macchine e aggiorna il listino. Le colonne sono quelle del Listino Agrimacch pi&ugrave;
                             <strong>QUANTITA</strong>, <strong>MATRICOLE</strong> e <strong>CODICE A BARRE</strong>. L'articolo viene riconosciuto dal <strong>CODICE A BARRE</strong> (se c'&egrave;) oppure da <strong>MARCHIO + MODELLO + NOTE</strong>.<br><br>
                             &bull; Codice a barre: facoltativo. Se lo scrivi viene salvato sull'articolo; la cella vuota non cancella quello gi&agrave; salvato.<br>
                             &bull; Matricole (es. 10 macchine uguali): nella cella MATRICOLE scrivi le 10 matricole separate da virgola, punto e virgola o a capo; oppure fai 10 righe uguali con QUANTITA 1 e una matricola ciascuna (vengono unite). Con QUANTITA vuota si caricano tante macchine quante matricole.<br>
@@ -977,8 +1064,8 @@
         <div id="section-buoni-regalo" class="section-container hidden">
             <div class="back-to-dashboard">
                 <div class="back-buttons">
-                    <button onclick="openSection('vendite')" class="btn-back">
-                        &#8592; Torna a Vendite
+                    <button onclick="openSection('ordini')" class="btn-back">
+                        &#8592; Torna a Ordini
                     </button>
                     <button onclick="backToDashboard()" class="btn-back btn-dashboard">
                         &#127968; Dashboard
@@ -1010,8 +1097,8 @@
         <div id="section-ordini-clienti" class="section-container hidden">
             <div class="back-to-dashboard">
                 <div class="back-buttons">
-                    <button onclick="openSection('vendite')" class="btn-back">
-                        &#8592; Torna a Vendite
+                    <button onclick="openSection('ordini')" class="btn-back">
+                        &#8592; Torna a Ordini
                     </button>
                     <button onclick="backToDashboard()" class="btn-back btn-dashboard">
                         &#127968; Dashboard
@@ -1032,7 +1119,7 @@
             <div id="tab-ord-elenco" class="tab-content active">
                 <div class="container">
                     <div class="search-bar">
-                        <input type="text" id="ord-search" placeholder="&#128269; Cerca cliente, numero, modello, matricola...">
+                        <input type="text" id="ord-search" placeholder="&#128269; Cerca cliente, numero, modello, matricola..." autocomplete="off">
                     </div>
                     <div class="ord-filtri">
                         <select id="ord-f-anno"></select>
@@ -1063,7 +1150,7 @@
                         <div class="form-row ord-due ord-riga-data">
                             <div class="form-col">
                                 <label>Data</label>
-                                <input type="date" id="ord-data">
+                                <input type="date" id="ord-data" autocomplete="off">
                             </div>
                             <div class="form-col">
                                 <label>Operatore <small>(chi fa il contratto)</small></label>
@@ -1096,9 +1183,9 @@
                             </div>
                         </div>
                         <label>Note</label>
-                        <textarea id="ord-note" rows="2"></textarea>
+                        <textarea autocomplete="off" id="ord-note" rows="2"></textarea>
                         <label>Pagamento</label>
-                        <textarea id="ord-pagamento" rows="2"></textarea>
+                        <textarea autocomplete="off" id="ord-pagamento" rows="2"></textarea>
 
                         <h3 class="ord-sottotitolo">Articoli</h3>
                         <div id="ord-righe"></div>
@@ -2337,6 +2424,21 @@
                         <input type="checkbox" id="mac-carico-assegna" checked>
                         Assegna in automatico ai clienti che aspettano questa macchina
                     </label>
+                    <!-- Arrivata al posto di un'altra macchina ordinata (MAC_SOSTITUZIONE_RUOLI) -->
+                    <div id="mac-carico-sost-box" class="mac-sost hidden">
+                        <label class="mac-check mac-check-blocco">
+                            <input type="checkbox" id="mac-carico-sost">
+                            &#128260; Arrivata al posto di un'altra macchina ordinata (modello diverso)
+                        </label>
+                        <div id="mac-carico-sost-pannello" class="hidden">
+                            <p class="mac-aiuto">Scegli quale macchina ordinata sostituisce: il cliente prende quella arrivata, la vecchia si toglie dal quaderno e l'ordine del cliente passa al nuovo modello (il PDF viene rifatto).</p>
+                            <div class="mac-sost-barra">
+                                <input type="text" id="mac-carico-sost-cerca" placeholder="&#128269; Cerca modello, cliente, numero d'ordine..." autocomplete="off">
+                                <label class="mac-check"><input type="checkbox" id="mac-carico-sost-tutti"> tutti i marchi</label>
+                            </div>
+                            <div id="mac-carico-sost-lista" class="mac-sost-lista"></div>
+                        </div>
+                    </div>
                     <div id="mac-carico-anteprima" class="mac-anteprima"></div>
                 </div>
 
@@ -2394,7 +2496,7 @@
                     <input type="text" id="mac-raf-art-search" placeholder="&#128269; Cerca modello, marchio..." autocomplete="off">
                     <div id="mac-raf-art-results" class="mac-picker-lista hidden"></div>
                 </div>
-                <p class="mac-aiuto">Non c'&egrave; nel listino? <button type="button" class="btn-back mac-btn-piccolo" id="mac-raf-scelta-crea">&#10133; Crea nuovo articolo</button> (netto e prezzi si possono mettere anche dopo, dal Listino Vendite)</p>
+                <p class="mac-aiuto">Non c'&egrave; nel listino? <button type="button" class="btn-back mac-btn-piccolo" id="mac-raf-scelta-crea">&#10133; Crea nuovo articolo</button> (netto e prezzi si possono mettere anche dopo, dal Listino Agrimacch)</p>
                 <button type="button" class="btn-back mac-btn-piccolo" id="mac-raf-scelta-annulla">Annulla</button>
             </div>
             <div id="mac-raf-riepilogo"></div>
@@ -2445,8 +2547,8 @@
                 <ul>
                     <li><strong>Modello da scegliere</strong>: il codice non &egrave; di nessun modello del listino. Tocca <strong>Scegli modello</strong> e cerca l'articolo.</li>
                     <li><strong>Codice ripetuto</strong>: &egrave; quasi certamente il codice a barre di un <strong>modello nuovo</strong>. Tocca <strong>Scegli modello</strong>, scegli l'articolo e lascia la spunta &quot;&egrave; il codice a barre del modello&quot;: il codice viene salvato sul listino, le scatole si riabbinano da sole e la prossima volta le riconosce subito.</li>
-                    <li><strong>STIHL ... non &egrave; nel tuo listino</strong>: l'app l'ha riconosciuto dall'EAN del Listino STIHL. Tocca <strong>Crea nel listino</strong>: la finestra &egrave; gi&agrave; compilata (netto, prezzo, listino, codice a barre). Scegli l'attrezzo, correggi quello che vuoi e salva.</li>
-                    <li>Articolo di un altro marchio che non c'&egrave; nel listino: tocca <strong>Crea nuovo</strong>, scrivi marchio, modello e attrezzo e salva. <strong>Netto e prezzi puoi lasciarli vuoti</strong> e completarli quando vuoi dal Listino Vendite.</li>
+                    <li><strong>STIHL ... non &egrave; nel tuo listino</strong> (o un altro fornitore): l'app l'ha riconosciuto dall'EAN di Listini Fornitori. Tocca <strong>Crea nel listino</strong>: la finestra &egrave; gi&agrave; compilata (netto, prezzo, listino, codice a barre). Scegli l'attrezzo, correggi quello che vuoi e salva.</li>
+                    <li>Articolo di un altro marchio che non c'&egrave; nel listino: tocca <strong>Crea nuovo</strong>, scrivi marchio, modello e attrezzo e salva. <strong>Netto e prezzi puoi lasciarli vuoti</strong> e completarli quando vuoi dal Listino Agrimacch.</li>
                     <li>Dopo il salvataggio la scatola (e quelle uguali) si sistema da sola con le sue matricole.</li>
                 </ul>
 
@@ -2485,78 +2587,102 @@
         </div>
     </div>
 
-    <!-- Listino STIHL: guida rapida ai caricamenti -->
-    <div id="sti-guida-modal" class="modal hidden">
-        <div class="modal-content mac-modal-content mac-raf-guida-content">
+    <!-- Listini Fornitori: nuovo / modifica fornitore (solo admin) -->
+    <div id="lf-forn-modal" class="modal hidden">
+        <div class="modal-content mac-modal-content">
             <div class="modal-header">
-                <h3>&#8505;&#65039; Guida rapida: Listino STIHL</h3>
-                <button type="button" class="modal-close" id="sti-guida-close">&times;</button>
+                <h3 id="lf-forn-titolo">&#10133; Nuovo fornitore</h3>
+                <button type="button" class="modal-close" id="lf-forn-close">&times;</button>
             </div>
-            <div class="mac-raf-guida">
-                <h4>1. Ordine dei caricamenti</h4>
-                <ol>
-                    <li>Prima i <strong>file delle promo</strong> (OPG, OPM...).</li>
-                    <li>Poi il <strong>catalogo EAN</strong> (Superlistino).</li>
-                    <li>Poi <strong>Collega</strong> o <strong>Crea</strong> gli articoli che ti servono nel Listino Vendite.</li>
-                </ol>
-                <p>Quando arriva una promo nuova: carica il file, poi ripassa il catalogo EAN per gli articoli nuovi.</p>
-
-                <h4>2. Caricare un file delle promo (OPG, OPM...)</h4>
-                <ol>
-                    <li>Scheda <strong>Carica file</strong> &#8594; <strong>Seleziona file Excel</strong>.</li>
-                    <li>Controlla le proposte: <strong>foglio</strong> (OPG: &quot;OPG&quot;; OPM: &quot;OPM&quot;, non il primo), <strong>riga dei titoli</strong> (OPG 19, OPM 28), <strong>nome</strong> (es. OPM 2026) e le colonne: <strong>Codice</strong>, <strong>Descrizione prodotto</strong>, <strong>Listino Escl. Iva</strong>, <strong>Prezzo Promo</strong> (= nostro netto), <strong>Categ. prod</strong>.</li>
-                    <li><strong>Ricarico</strong>: 30% se non lo cambi.</li>
-                    <li><strong>Anteprima</strong>: guarda nuovi, aggiornati e righe scartate.</li>
-                    <li><strong>Conferma caricamento</strong>.</li>
-                </ol>
-                <p>Stesso articolo in pi&ugrave; file: vale l'<strong>ultimo caricato</strong>. Gli articoli che non sono nel file restano come sono.</p>
-
-                <h4>3. Caricare gli EAN (Superlistino)</h4>
-                <ol>
-                    <li>Scheda <strong>Carica file</strong> &#8594; riquadro <strong>Codici EAN da un catalogo</strong> &#8594; <strong>Seleziona catalogo EAN</strong>.</li>
-                    <li>Foglio <strong>Listino GENERALE</strong>, riga <strong>1</strong>, colonne <strong>Codice</strong> ed <strong>EAN</strong> (le propone da solo).</li>
-                    <li><strong>Anteprima</strong> e <strong>Salva gli EAN</strong>.</li>
-                </ol>
-                <p>Vengono presi solo gli EAN degli articoli del listino STIHL. Agli articoli gi&agrave; collegati al Listino Vendite l'EAN passa nel codice a barre (solo se &egrave; vuoto).</p>
-
-                <h4>4. Portare un articolo nel tuo Listino Vendite</h4>
-                <ul>
-                    <li><strong>Collega</strong>: l'articolo c'&egrave; gi&agrave; nel Listino Vendite. Gli passa anche l'EAN come codice a barre, se manca.</li>
-                    <li><strong>Crea</strong>: si apre la finestra Nuovo articolo gi&agrave; compilata (netto, prezzo, listino, EAN). Scegli l'<strong>attrezzo</strong>, togli dal modello scritte tipo &quot;- NEW&quot; e salva: l'articolo &egrave; subito nel quaderno.</li>
-                </ul>
-
-                <h4>5. Prezzi</h4>
-                <p>Tutti IVA inclusa. <strong>Prezzo cliente</strong> = (netto + ricarico) &times; 1,22, arrotondato all'euro. Netti e ricarico si vedono con l'occhio in alto. Per cambiare il ricarico di un file: scheda <strong>Caricamenti</strong> &#8594; scrivi la percentuale &#8594; <strong>Applica</strong>.</p>
-
-                <h4>6. Se qualcosa non va</h4>
-                <ul>
-                    <li><strong>&quot;In questa riga non ci sono intestazioni&quot;</strong>: scrivi a mano il numero della riga con i titoli delle colonne.</li>
-                    <li><strong>Colonne sbagliate</strong>: cambiale dai menu prima dell'anteprima.</li>
-                    <li><strong>Tanti articoli &quot;non nel catalogo&quot;</strong>: il catalogo EAN &egrave; vecchio o di un altro tipo; per quelli l'EAN si impara dalla scatola con il lettore.</li>
-                </ul>
-            </div>
+            <label>Nome del fornitore *</label>
+            <input type="text" id="lf-forn-nome" placeholder="es. STIHL" autocomplete="off">
+            <label>Marchio nel Listino Agrimacch</label>
+            <input type="text" id="lf-forn-marchio" placeholder="es. STIHL" autocomplete="off">
+            <p class="mac-aiuto">Il marchio viene scritto da solo negli articoli che crei con <strong>Crea</strong>. Se lo lasci vuoto si usa il nome del fornitore.</p>
+            <label>Ricarico % proposto per i listini nuovi *</label>
+            <input type="text" id="lf-forn-ricarico" inputmode="decimal" value="30">
             <div class="modal-buttons">
-                <button type="button" id="sti-guida-chiudi" class="btn-secondary">Chiudi</button>
+                <button type="button" id="lf-forn-elimina" class="btn-danger hidden">&#128465; Elimina</button>
+                <button type="button" id="lf-forn-annulla" class="btn-secondary">Annulla</button>
+                <button type="button" id="lf-forn-salva" class="btn-primary">&#10004; Salva</button>
             </div>
         </div>
     </div>
 
-    <!-- Listino STIHL: collega un articolo al Listino Vendite -->
-    <div id="sti-collega-modal" class="modal hidden">
+    <!-- Listini Fornitori: collega un articolo al Listino Agrimacch -->
+    <div id="lf-collega-modal" class="modal hidden">
         <div class="modal-content mac-modal-content">
             <div class="modal-header">
-                <h3>&#128279; Collega al Listino Vendite</h3>
-                <button type="button" class="modal-close" id="sti-collega-close">&times;</button>
+                <h3>&#128279; Collega al Listino Agrimacch</h3>
+                <button type="button" class="modal-close" id="lf-collega-close">&times;</button>
             </div>
-            <div id="sti-collega-articolo" class="mac-info"></div>
-            <label>Articolo del Listino Vendite</label>
+            <div id="lf-collega-articolo" class="mac-info"></div>
+            <label>Articolo del Listino Agrimacch</label>
             <div class="mac-picker">
-                <input type="text" id="sti-collega-search" placeholder="&#128269; Cerca modello, marchio..." autocomplete="off">
-                <div id="sti-collega-results" class="mac-picker-lista hidden"></div>
+                <input type="text" id="lf-collega-search" placeholder="&#128269; Cerca modello, marchio..." autocomplete="off">
+                <div id="lf-collega-results" class="mac-picker-lista hidden"></div>
             </div>
-            <p class="mac-aiuto">Il collegamento serve a sapere quali articoli STIHL hai gi&agrave; nel tuo listino. Nel Listino Vendite non cambia niente.</p>
+            <p class="mac-aiuto">Il collegamento vale per il codice, quindi per tutti i listini del fornitore. Se l'articolo non ha il codice a barre gli passa l'EAN; il codice del fornitore passa nel codice articolo se &egrave; vuoto.</p>
             <div class="modal-buttons">
-                <button type="button" id="sti-collega-annulla" class="btn-secondary">Annulla</button>
+                <button type="button" id="lf-collega-annulla" class="btn-secondary">Annulla</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Listini Fornitori: guida rapida -->
+    <div id="lf-guida-modal" class="modal hidden">
+        <div class="modal-content mac-modal-content mac-raf-guida-content">
+            <div class="modal-header">
+                <h3>&#8505;&#65039; Guida rapida: Listini Fornitori</h3>
+                <button type="button" class="modal-close" id="lf-guida-close">&times;</button>
+            </div>
+            <div class="mac-raf-guida">
+                <h4>1. Come &egrave; fatta</h4>
+                <ul>
+                    <li>In alto c'&egrave; una <strong>scheda per ogni fornitore</strong> (es. STIHL).</li>
+                    <li>Ogni fornitore pu&ograve; avere <strong>pi&ugrave; listini</strong> attivi insieme (es. OPG e OPM), ognuno con la sua <strong>scadenza</strong>.</li>
+                    <li>Sotto i fornitori vedi le scadenze: <strong>verde</strong> = valido, <strong>arancione</strong> = scade entro 7 giorni, <strong>rosso</strong> = scaduto.</li>
+                    <li>Quando un listino scade entro 7 giorni (o &egrave; scaduto) compare un <strong>avviso in Dashboard</strong> e in Listini Vendite, con un pallino sulle card. La X lo nasconde fino al prossimo accesso.</li>
+                </ul>
+
+                <h4>2. Leggere i prezzi</h4>
+                <ul>
+                    <li>Se un codice &egrave; in pi&ugrave; listini, nella riga vedi <strong>un prezzo per listino</strong>, uno sotto l'altro.</li>
+                    <li>&#9733; = il <strong>prezzo cliente pi&ugrave; basso</strong> tra i listini non scaduti.</li>
+                    <li>Un listino <strong>scaduto</strong> ha il riquadro rosso: lo puoi consultare, ma il prezzo non vale pi&ugrave;.</li>
+                    <li>Tutti i prezzi sono IVA inclusa. <strong>Prezzo cliente</strong> = (netto + ricarico del listino) &times; 1,22, arrotondato all'euro. Netti e ricarico si vedono con l'occhio in alto.</li>
+                    <li>Con il menu <strong>Tutti i listini</strong> puoi guardarne uno solo.</li>
+                </ul>
+
+                <h4>3. Portare un articolo nel Listino Agrimacch</h4>
+                <ul>
+                    <li><strong>Collega</strong>: l'articolo c'&egrave; gi&agrave; nel Listino Agrimacch. Gli passa anche l'EAN come codice a barre, se manca.</li>
+                    <li><strong>Crea</strong>: si apre Nuovo articolo gi&agrave; compilato con i prezzi del listino migliore. Scegli l'<strong>attrezzo</strong>, correggi il modello e salva.</li>
+                    <li>Il collegamento vale per <strong>tutti i listini</strong> del fornitore (&egrave; legato al codice).</li>
+                    <li>Collega scrive nel tuo articolo il <strong>codice articolo</strong> e l'<strong>EAN</strong> solo se sono vuoti: quello che c'&egrave; gi&agrave; non viene mai cambiato. Se il codice articolo &egrave; diverso l'app ti avvisa: forse &egrave; un altro modello.</li>
+                    <li><strong>Modello nuovo</strong> (codice ed EAN nuovi) = usa <strong>Crea</strong>: nasce un articolo nuovo. Il vecchio resta per le macchine che hai ancora; quando le hai vendute lo sposti tra i cancellati.</li>
+                    <li>Filtro <strong>Collegati ma non pi&ugrave; in nessun listino</strong>: i tuoi articoli il cui codice &egrave; uscito dai listini del fornitore (fuori produzione).</li>
+                </ul>
+
+                <h4>4. Caricare un listino (solo admin)</h4>
+                <ol>
+                    <li>Scegli il fornitore in alto, poi scheda <strong>Carica file</strong> &#8594; <strong>Seleziona file Excel</strong>.</li>
+                    <li><strong>Dove va</strong>: <strong>Nuovo listino</strong>, oppure <strong>Sostituisci</strong> uno esistente (il file nuovo lo rimpiazza per intero, senza storico).</li>
+                    <li>Controlla <strong>nome</strong>, <strong>scadenza</strong>, <strong>ricarico</strong>, foglio, riga dei titoli e colonne (STIHL OPG: foglio &quot;OPG&quot;, riga 19; OPM: foglio &quot;OPM&quot;, riga 28; colonne Codice, Descrizione prodotto, Listino Escl. Iva, Prezzo Promo, Categ. prod).</li>
+                    <li><strong>Anteprima</strong> &#8594; <strong>Conferma caricamento</strong>.</li>
+                </ol>
+
+                <h4>5. Codici EAN (solo admin)</h4>
+                <p>Scheda <strong>Carica file</strong> &#8594; riquadro <strong>Codici EAN</strong>: carica il catalogo (per STIHL il Superlistino, foglio Listino GENERALE, riga 1). Si salvano solo gli EAN degli articoli dei listini.</p>
+
+                <h4>6. Fornitori, scadenze e ricarico (solo admin)</h4>
+                <ul>
+                    <li><strong>&#10133; Fornitore</strong> crea un fornitore nuovo; <strong>&#9997;&#65039; nome</strong> lo modifica o lo elimina.</li>
+                    <li>Scheda <strong>Listini e scadenze</strong>: cambi la scadenza, applichi un ricarico nuovo o elimini un listino.</li>
+                </ul>
+            </div>
+            <div class="modal-buttons">
+                <button type="button" id="lf-guida-chiudi" class="btn-secondary">Chiudi</button>
             </div>
         </div>
     </div>
@@ -2595,6 +2721,174 @@
             <div id="ord-dettaglio-azioni" class="ord-azioni"></div>
             <div class="modal-buttons" style="grid-template-columns: 1fr;">
                 <button type="button" id="ord-dettaglio-chiudi" class="btn-secondary">Chiudi</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Correggi lo stato di un ordine cliente (admin e operatori) -->
+    <div id="ord-corr-modal" class="modal hidden">
+        <div class="modal-content mac-modal-content">
+            <div class="modal-header">
+                <h3 id="ord-corr-titolo">&#128260; Correggi lo stato</h3>
+                <button type="button" class="modal-close" id="ord-corr-close">&times;</button>
+            </div>
+            <p class="mac-aiuto">Scegli lo stato giusto di ogni macchina (es. &quot;consegnata&quot; premuto per sbaglio &rarr; <strong>In casa</strong>).
+                Da ordinare &harr; Ordinata, In casa &harr; Consegnata. Una macchina in casa non pu&ograve; tornare da ordinare:
+                se &egrave; stata caricata per errore si toglie da Inventario Macchine &rarr; Correzioni (admin).</p>
+            <div id="ord-corr-corpo" class="ord-corr-corpo"></div>
+            <label id="ord-corr-tieni-box" class="mac-check hidden"><input type="checkbox" id="ord-corr-tieni" checked> Le ordinate che tornano &quot;da ordinare&quot; restano ordinate al fornitore senza cliente (es. il cliente ha fretta: il prestagionale arriva lo stesso). Togli la spunta se l'ordine era segnato per sbaglio.</label>
+            <div class="modal-buttons">
+                <button type="button" id="ord-corr-salva" class="btn-primary">Salva</button>
+                <button type="button" id="ord-corr-annulla" class="btn-secondary">Annulla</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Ordini Macchine: ordine al fornitore (segna come ordinate / nuovo / modifica) -->
+    <div id="om-of-modal" class="modal hidden">
+        <div class="modal-content mac-modal-content">
+            <div class="modal-header">
+                <h3 id="om-of-titolo">Ordine al fornitore</h3>
+                <button type="button" class="modal-close" id="om-of-close">&times;</button>
+            </div>
+            <div id="om-of-riepilogo" class="mac-info hidden"></div>
+            <div class="form-row">
+                <div class="form-col">
+                    <label>Data dell'ordine *</label>
+                    <input type="date" id="om-of-data">
+                </div>
+                <div class="form-col">
+                    <label>Iniziali di chi l'ha fatto *</label>
+                    <input type="text" id="om-of-operatore" maxlength="10" placeholder="es. DZ" autocomplete="off">
+                </div>
+            </div>
+            <label>Sezione</label>
+            <select id="om-of-sezione"></select>
+            <label>Consegna prevista <small>(prestagionali, testo libero)</small></label>
+            <input type="text" id="om-of-consegna" placeholder="es. CONSEGNA GENNAIO 2027" autocomplete="off">
+            <label>Note</label>
+            <input type="text" id="om-of-note" placeholder="es. condizioni, numero conferma d'ordine..." autocomplete="off">
+            <div id="om-of-righe-box" class="hidden">
+                <label id="om-of-righe-titolo">Righe dell'ordine</label>
+                <div id="om-of-righe" class="mac-set-righe"></div>
+                <div class="mac-picker">
+                    <input type="text" id="om-of-art-search" placeholder="&#128269; Cerca il modello (solo questo marchio)..." autocomplete="off">
+                    <div id="om-of-art-results" class="mac-picker-lista hidden"></div>
+                </div>
+            </div>
+            <div class="modal-buttons">
+                <button type="button" id="om-of-salva" class="btn-primary">Salva</button>
+                <button type="button" id="om-of-annulla" class="btn-secondary">Annulla</button>
+            </div>
+            <button type="button" id="om-of-elimina" class="btn-danger mac-btn-elimina hidden">&#128465; Elimina questo ordine</button>
+        </div>
+    </div>
+
+    <!-- Ordini Macchine: macchine di una riga -->
+    <div id="om-riga-modal" class="modal hidden">
+        <div class="modal-content mac-modal-content">
+            <div class="modal-header">
+                <h3 id="om-riga-titolo">Riga</h3>
+                <button type="button" class="modal-close" id="om-riga-close">&times;</button>
+            </div>
+            <p id="om-riga-info" class="mac-info"></p>
+            <div id="om-riga-corpo" class="om-riga-corpo"></div>
+            <label id="om-riga-tieni-box" class="mac-check"><input type="checkbox" id="om-riga-tieni" checked> La macchina resta ordinata al fornitore (arriver&agrave; libera e la prende il prossimo cliente)</label>
+            <p id="om-riga-aiuto" class="mac-aiuto"></p>
+            <div class="modal-buttons">
+                <button type="button" id="om-riga-riporta" class="btn-primary">&#8617;&#65039; Riporta da ordinare / togli</button>
+                <button type="button" id="om-riga-chiudi" class="btn-secondary">Chiudi</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Ordini Macchine: sezione (prestagionale) -->
+    <div id="om-sez-modal" class="modal hidden">
+        <div class="modal-content mac-modal-content">
+            <div class="modal-header">
+                <h3 id="om-sez-titolo">Sezione</h3>
+                <button type="button" class="modal-close" id="om-sez-close">&times;</button>
+            </div>
+            <label>Nome della sezione *</label>
+            <input type="text" id="om-sez-nome" placeholder="es. OPG, TRATTORINI 2026" autocomplete="off">
+            <label>Note <small>(condizioni, pagamento...)</small></label>
+            <input type="text" id="om-sez-note" placeholder="es. PREST.LE 2027, P. FRANCO, PAG. +30GG" autocomplete="off">
+            <label id="om-sez-chiusa-box" class="mac-check hidden"><input type="checkbox" id="om-sez-chiusa"> Sezione chiusa (finita: va in fondo, in grigio, e non si aggiungono ordini)</label>
+            <div class="modal-buttons">
+                <button type="button" id="om-sez-salva" class="btn-primary">Salva</button>
+                <button type="button" id="om-sez-annulla" class="btn-secondary">Annulla</button>
+            </div>
+            <button type="button" id="om-sez-elimina" class="btn-danger mac-btn-elimina hidden">&#128465; Elimina sezione</button>
+        </div>
+    </div>
+
+    <!-- Ordini Macchine: guida rapida -->
+    <div id="om-guida-modal" class="modal hidden">
+        <div class="modal-content mac-modal-content mac-raf-guida-content">
+            <div class="modal-header">
+                <h3>&#8505;&#65039; Guida rapida: Ordini Macchine</h3>
+                <button type="button" class="modal-close" id="om-guida-close">&times;</button>
+            </div>
+            <div class="mac-raf-guida">
+                <h4>1. Come &egrave; fatto</h4>
+                <p>&Egrave; il libro degli ordini ai fornitori: un <strong>divisorio per marchio</strong> (il numero rosso = macchine da ordinare). Dentro ogni marchio c'&egrave; la pagina <strong>ORDINI NORMALE</strong> e le <strong>sezioni</strong> che crei tu (prestagionali: OPG, TRATTORINI 2026...).</p>
+
+                <h4>2. Macchine da ordinare</h4>
+                <ol>
+                    <li>Quando in un ordine cliente una macchina &egrave; <strong>Da ordinare</strong>, compare da sola in <strong>ORDINI NORMALE</strong> del suo marchio, con il nome del cliente e il numero d'ordine.</li>
+                    <li>Quando fai l'ordine al fornitore spunta le righe (con <strong>quante</strong> puoi ordinarne meno: vanno a chi ha ordinato per primo).</li>
+                    <li>Premi <strong>Segna come ordinate</strong>: data (oggi), le tue iniziali, la <strong>sezione</strong> (normale o un prestagionale) e, se serve, la consegna prevista.</li>
+                    <li>Le macchine diventano <strong>ordinate</strong>: nel quaderno quadratino bianco con l'<strong>angolino verde</strong>, nell'ordine cliente compare la data dell'ordine (e la consegna).</li>
+                </ol>
+
+                <h4>3. Prestagionali</h4>
+                <ol>
+                    <li>Scegli il marchio (anche da <strong>Vai al marchio</strong>) e premi <strong>&#10133; Sezione</strong>: es. OPG, con le note delle condizioni.</li>
+                    <li>Nella sezione premi <strong>Nuovo ordine</strong>: data, iniziali, <strong>consegna</strong> (es. CONSEGNA GENNAIO 2027) e i modelli con le quantit&agrave;. Ogni consegna diversa = un ordine diverso.</li>
+                    <li>Queste macchine sono <strong>in arrivo libere</strong>: quando un cliente ordina quel modello e in casa non c'&egrave;, l'ordine propone da solo <strong>In arrivo</strong> e mostra la consegna. Se al cliente non va bene, scegli <strong>Da ordinare</strong>.</li>
+                </ol>
+
+                <h4>4. Il cliente ha fretta</h4>
+                <p>Tocca la riga nell'ordine fatto, spunta la macchina del cliente e premi <strong>Riporta da ordinare</strong>: il cliente torna tra quelle da fare in ORDINI NORMALE e, con la spunta <strong>resta ordinata al fornitore</strong>, la macchina del prestagionale resta in arrivo libera per un altro cliente. Lo stesso si pu&ograve; fare dall'ordine cliente con <strong>Correggi lo stato</strong> (togli la spunta se l'ordine era stato segnato per sbaglio).</p>
+
+                <h4>5. Arrivo della merce</h4>
+                <p>Se arriva un <strong>modello diverso</strong> da quello ordinato (es. HLA 140 al posto della HLA 135): Carico macchine &rarr; scegli il modello arrivato &rarr; spunta <strong>Arrivata al posto di...</strong> e scegli la macchina che sostituisce. Il cliente prende quella arrivata e il suo ordine passa al nuovo modello.</p>
+                <p>Si carica come sempre (Carico macchine, a raffica o da Excel). La macchina va a <strong>chi ha ordinato per primo</strong> (data dell'ordine cliente), qualunque sia l'ordine al fornitore da cui arriva. Nel libro la riga prende la <strong>spunta verde</strong>; gli ordini tutti arrivati si nascondono (spunta <strong>Mostra ordini gi&agrave; arrivati</strong> per rivederli).</p>
+
+                <h4>6. Montata o in scatola, e arrivo merce</h4>
+                <p>Nell'ordine cliente, sotto ogni articolo, spunta <strong>Montata pronta all'uso</strong> o <strong>In scatola</strong>: lo vedi qui accanto al cliente. Dopo ogni carico si apre <strong>Arrivo merce: cosa fare</strong> con le macchine da montare, da tenere in scatola e quelle che restano in casa (si pu&ograve; stampare).</p>
+
+                <h4>7. Telegram alle 19</h4>
+                <p>Dal luned&igrave; al sabato alle 19 nel gruppo <strong>Ordini Macchine</strong> arrivano i marchi con macchine da ordinare. Se non c'&egrave; niente da ordinare non arriva nulla.</p>
+
+                <h4>8. Codice articolo</h4>
+                <p>Accanto al modello compare il <strong>codice articolo del fornitore</strong>. Se c'&egrave; <strong>cod. ?</strong> in arancione, scrivilo nel Listino Agrimacch (Modifica articolo &rarr; Codice articolo del fornitore) o nella colonna CODICE ARTICOLO dell'Excel del listino. Gli articoli STIHL collegati lo prendono da soli.</p>
+
+                <h4>9. Correggere</h4>
+                <ul>
+                    <li><strong>modifica</strong> sotto un ordine: cambia data, iniziali, consegna, note o sezione; nei prestagionali puoi aggiungere righe.</li>
+                    <li><strong>Elimina questo ordine</strong>: i clienti tornano da ordinare, le righe libere si tolgono.</li>
+                    <li>Una sezione finita si chiude (Sezione &rarr; Sezione chiusa): va in fondo, in grigio.</li>
+                </ul>
+            </div>
+            <div class="modal-buttons">
+                <button type="button" id="om-guida-chiudi" class="btn-secondary">Chiudi</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Arrivo merce: report dopo il carico (da montare / in scatola / in casa) - MAC_MONTAGGIO_RUOLI -->
+    <div id="mac-arr-modal" class="modal hidden">
+        <div class="modal-content mac-modal-content mac-arr-content">
+            <div class="modal-header">
+                <h3>&#128666; Arrivo merce: cosa fare</h3>
+                <button type="button" class="modal-close" onclick="document.getElementById('mac-arr-modal').classList.add('hidden')">&times;</button>
+            </div>
+            <p class="mac-aiuto">Le macchine arrivate con questo carico, divise per cosa chiede il cliente nell'ordine (Montata pronta all'uso / In scatola).</p>
+            <div id="mac-arr-corpo"></div>
+            <div class="modal-buttons">
+                <button type="button" class="btn-primary" onclick="macArriviStampa()">&#128424; Stampa / PDF</button>
+                <button type="button" class="btn-secondary" onclick="document.getElementById('mac-arr-modal').classList.add('hidden')">Chiudi</button>
             </div>
         </div>
     </div>
@@ -2713,6 +3007,9 @@
                 <label>Codice a barre <small>(facoltativo: scrivilo o leggilo col lettore. Non compare nel listino)</small></label>
                 <input type="text" id="listino-edit-codice-barre" placeholder="es. 8012345678901" autocomplete="off" autocapitalize="characters">
 
+                <label>Codice articolo del fornitore <small>(facoltativo: compare negli Ordini Macchine. Si cerca anche nel listino)</small></label>
+                <input type="text" id="listino-edit-codice-articolo" placeholder="es. STIHA02-011-3515 / 11371200650" autocomplete="off" autocapitalize="characters">
+
                 <div class="modal-buttons">
                     <button type="submit" id="listino-edit-salva" class="btn-primary">Salva</button>
                     <button type="button" id="listino-edit-annulla" class="btn-secondary">Annulla</button>
@@ -2771,8 +3068,8 @@
     <div id="whats-new-modal" class="modal hidden">
         <div class="modal-content whats-new-content">
             <div class="whats-new-header">
-                <h3>&#127881; AGRIDESK v7.1.3 - Aggiornamento!</h3>
-                <p class="version-date">07 Novembre 2026</p>
+                <h3>&#127881; AGRIDESK vOrdini Macchine, Listini Fornitori e novità - Aggiornamento!</h3>
+                <p class="version-date">09 Novembre 2026</p>
             </div>
 
             <!-- INIZIO_FEATURES -->
@@ -2781,8 +3078,32 @@
                 <div class="new-feature">
                     <span class="feature-icon">&#11088;</span>
                     <div class="feature-content">
-                        <h4>LISTINO STIHL</h4>
-                        <p>Listini Stihl OPM e OPG visibili in app</p>
+                        <h4>ORDINI MACCHINE</h4>
+                        <p>Nuovo libro degli ordini ai fornitori (Ordini ; Ordini Macchine): marchi, prestagionali, consegne. Al carico la macchina va a chi l'ha ordinata per primo.</p>
+                    </div>
+                </div>
+
+                <div class="new-feature">
+                    <span class="feature-icon">&#128202;</span>
+                    <div class="feature-content">
+                        <h4>LISTINI FORNITORI</h4>
+                        <p>In Listini Vendite: prezzi STIHL OPG e OPM con le scadenze. Avviso in dashboard quando un listino scade. Collega e Crea per portare gli articoli nel Listino Agrimacch.</p>
+                    </div>
+                </div>
+
+                <div class="new-feature">
+                    <span class="feature-icon">&#128295;</span>
+                    <div class="feature-content">
+                        <h4>INVENTARIO E ORDINI CLIENTI</h4>
+                        <p>Colonna Venduti dell'anno nell'inventario. Negli ordini: macchina montata o in scatola. Al carico: &quot;arrivata al posto di&quot; un altro modello.</p>
+                    </div>
+                </div>
+
+                <div class="new-feature">
+                    <span class="feature-icon">&#127912;</span>
+                    <div class="feature-content">
+                        <h4>MENU RIORDINATI</h4>
+                        <p>Sezioni in ordine alfabetico. Buoni Regalo e Ordini Clienti sono dentro Ordini. Vendite si chiama Listini Vendite.</p>
                     </div>
                 </div>
 
@@ -2803,7 +3124,7 @@
                 <button type="button" class="modal-close" id="notifiche-close">&times;</button>
             </div>
             <p class="notifiche-help">
-                Le novit&agrave; che non hai ancora visto: modifiche al Listino Vendite e articoli di magazzino
+                Le novit&agrave; che non hai ancora visto: modifiche al Listino Agrimacch e articoli di magazzino
                 sotto soglia o esauriti (da ordinare). Quando chiudi questa finestra spariscono.
             </p>
             <div id="notifiche-lista"></div>
@@ -3165,18 +3486,19 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- Versione bloccata (la libreria non e' piu' mantenuta: cosi' non cambia mai da sola) -->
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-    <script src="ricambi-functions.js?v=7.1.3"></script>
-    <script src="listino-functions.js?v=7.1.3"></script>
-    <script src="fornitori-functions.js?v=7.1.3"></script>
-    <script src="interventi-functions.js?v=7.1.3"></script>
-    <script src="macchine-functions.js?v=7.1.3"></script>
-    <script src="macchine-report.js?v=7.1.3"></script>
-    <script src="macchine-raffica.js?v=7.1.3"></script>
-    <script src="stihl-functions.js?v=7.1.3"></script>
-    <script src="ordini-functions.js?v=7.1.3"></script>
-    <script src="azienda-functions.js?v=7.1.3"></script>
-    <script src="richieste-robot-functions.js?v=7.1.3"></script>
-    <script src="buoni-functions.js?v=7.1.3"></script>
-    <script src="app.js?v=7.1.3"></script>
+    <script src="ricambi-functions.js?v=Ordini Macchine, Listini Fornitori e novità"></script>
+    <script src="listino-functions.js?v=Ordini Macchine, Listini Fornitori e novità"></script>
+    <script src="fornitori-functions.js?v=Ordini Macchine, Listini Fornitori e novità"></script>
+    <script src="interventi-functions.js?v=Ordini Macchine, Listini Fornitori e novità"></script>
+    <script src="macchine-functions.js?v=Ordini Macchine, Listini Fornitori e novità"></script>
+    <script src="macchine-report.js?v=Ordini Macchine, Listini Fornitori e novità"></script>
+    <script src="macchine-raffica.js?v=Ordini Macchine, Listini Fornitori e novità"></script>
+    <script src="listini-fornitori-functions.js?v=Ordini Macchine, Listini Fornitori e novità"></script>
+    <script src="ordini-functions.js?v=Ordini Macchine, Listini Fornitori e novità"></script>
+    <script src="ordini-macchine-functions.js?v=Ordini Macchine, Listini Fornitori e novità"></script>
+    <script src="azienda-functions.js?v=Ordini Macchine, Listini Fornitori e novità"></script>
+    <script src="richieste-robot-functions.js?v=Ordini Macchine, Listini Fornitori e novità"></script>
+    <script src="buoni-functions.js?v=Ordini Macchine, Listini Fornitori e novità"></script>
+    <script src="app.js?v=Ordini Macchine, Listini Fornitori e novità"></script>
 </body>
 </html>
