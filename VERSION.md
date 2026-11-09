@@ -1,5 +1,8 @@
 # Changelog App Magazzino
 
+## v7.4.2 - 2026-11-09 (PRODUZIONE)
+modifica ordini macchine
+
 ## v7.4.1 - 2026-11-09 (PRODUZIONE)
 app per daltonici
 
