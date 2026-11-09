@@ -625,3 +625,21 @@
     color: #94a3b8;
     text-decoration: line-through;
 }
+
+/* ---------- Righe da ordinare per il magazzino ---------- */
+.om-dao-btn {
+    width: auto;
+    margin: 0 0 0 10px;
+    padding: 3px 10px;
+    font-size: 12px;
+    vertical-align: middle;
+}
+
+.om-magazzino {
+    color: #0369a1;
+}
+
+.om-dao-togli {
+    font-size: 12px;
+    margin-left: 4px;
+}

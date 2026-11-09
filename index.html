@@ -17,18 +17,18 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Kalam:wght@400;700&family=Roboto+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=7.4.2">
-    <link rel="stylesheet" href="listino.css?v=7.4.2">
-    <link rel="stylesheet" href="listini-fornitori.css?v=7.4.2">
-    <link rel="stylesheet" href="fornitori.css?v=7.4.2">
-    <link rel="stylesheet" href="interventi.css?v=7.4.2">
-    <link rel="stylesheet" href="macchine.css?v=7.4.2">
-    <link rel="stylesheet" href="ordini.css?v=7.4.2">
-    <link rel="stylesheet" href="ordini-macchine.css?v=7.4.2">
-    <link rel="stylesheet" href="azienda.css?v=7.4.2">
-    <link rel="stylesheet" href="richieste.css?v=7.4.2">
-    <link rel="stylesheet" href="buoni.css?v=7.4.2">
-    <link rel="stylesheet" href="daltonici.css?v=7.4.2">
+    <link rel="stylesheet" href="style.css?v=7.4.3">
+    <link rel="stylesheet" href="listino.css?v=7.4.3">
+    <link rel="stylesheet" href="listini-fornitori.css?v=7.4.3">
+    <link rel="stylesheet" href="fornitori.css?v=7.4.3">
+    <link rel="stylesheet" href="interventi.css?v=7.4.3">
+    <link rel="stylesheet" href="macchine.css?v=7.4.3">
+    <link rel="stylesheet" href="ordini.css?v=7.4.3">
+    <link rel="stylesheet" href="ordini-macchine.css?v=7.4.3">
+    <link rel="stylesheet" href="azienda.css?v=7.4.3">
+    <link rel="stylesheet" href="richieste.css?v=7.4.3">
+    <link rel="stylesheet" href="buoni.css?v=7.4.3">
+    <link rel="stylesheet" href="daltonici.css?v=7.4.3">
 
     <!-- SheetJS per import Excel -->
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
@@ -89,7 +89,7 @@
 
 <body class="loading">
     <!-- Version badge -->
-    <div class="version-badge">v7.4.2</div>
+    <div class="version-badge">v7.4.3</div>
 
     <!-- SCHERMATA LOGIN -->
     <div id="login-screen" class="screen">
@@ -2831,6 +2831,26 @@
         </div>
     </div>
 
+    <!-- Ordini Macchine: righe da ordinare per il magazzino (senza cliente) -->
+    <div id="om-dao-modal" class="modal hidden">
+        <div class="modal-content mac-modal-content">
+            <div class="modal-header">
+                <h3 id="om-dao-titolo">&#10133; Da ordinare per il magazzino</h3>
+                <button type="button" class="modal-close" id="om-dao-close">&times;</button>
+            </div>
+            <div id="om-dao-righe" class="mac-set-righe"></div>
+            <div class="mac-picker">
+                <input type="text" id="om-dao-search" placeholder="&#128269; Cerca il modello (solo questo marchio)..." autocomplete="off">
+                <div id="om-dao-results" class="mac-picker-lista hidden"></div>
+            </div>
+            <p class="mac-aiuto">Le righe vanno in <strong>Da ordinare</strong> insieme a quelle dei clienti (dopo di loro). Quando le segni come ordinate arrivano <strong>libere</strong>: se un cliente ordina quel modello la prende lui, altrimenti restano disponibili.</p>
+            <div class="modal-buttons">
+                <button type="button" id="om-dao-salva" class="btn-primary">&#10004; Aggiungi da ordinare</button>
+                <button type="button" id="om-dao-annulla" class="btn-secondary">Annulla</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Ordini Macchine: carica Excel in una sezione (prestagionali con le consegne per mese) -->
     <div id="om-xls-modal" class="modal hidden">
         <div class="modal-content mac-modal-content om-xls-content">
@@ -2874,7 +2894,7 @@
                     <li>Quando in un ordine cliente una macchina &egrave; <strong>Da ordinare</strong>, compare da sola in <strong>ORDINI NORMALE</strong> del suo marchio, con il nome del cliente e il numero d'ordine.</li>
                     <li>Quando fai l'ordine al fornitore spunta le righe. Con <strong>quante</strong> puoi ordinarne meno (vanno a chi ha ordinato per primo) o <strong>di pi&ugrave;</strong>: es. 2 FSA 120 R per due clienti, scrivi 3 e la terza arriva libera per il magazzino.</li>
                     <li>Premi <strong>Segna come ordinate</strong>: data (oggi), le tue iniziali, la <strong>sezione</strong> (normale o un prestagionale) e, se serve, la consegna prevista. In fondo puoi <strong>aggiungere altri modelli</strong> per il magazzino nello stesso ordine.</li>
-                    <li>Per un ordine solo per il magazzino (nessun cliente): in ORDINI NORMALE premi <strong>&#10133; Nuovo ordine</strong> e cerca i modelli.</li>
+                    <li>Per ordinare una macchina <strong>per il magazzino</strong> (nessun cliente): in <strong>Da ordinare</strong> premi <strong>&#10133; Aggiungi riga</strong>, scegli il modello e quante. La riga resta tra quelle da ordinare (&quot;per il magazzino&quot;, dopo i clienti) e la ordini insieme alle altre; <strong>togli</strong> la cancella. Se l'ordine l'hai gi&agrave; fatto, usa <strong>&#10133; Nuovo ordine</strong>.</li>
                     <li>Le macchine diventano <strong>ordinate</strong>: nel quaderno quadratino bianco con l'<strong>angolino <span class="cw-n">verde</span><span class="cw-d">blu</span></strong>, nell'ordine cliente compare la data dell'ordine (e la consegna).</li>
                 </ol>
 
@@ -3109,7 +3129,7 @@
     <div id="whats-new-modal" class="modal hidden">
         <div class="modal-content whats-new-content">
             <div class="whats-new-header">
-                <h3>&#127881; AGRIDESK v7.4.2 - Aggiornamento!</h3>
+                <h3>&#127881; AGRIDESK v7.4.3 - Aggiornamento!</h3>
                 <p class="version-date">09 Novembre 2026</p>
             </div>
 
@@ -3527,19 +3547,19 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- Versione bloccata (la libreria non e' piu' mantenuta: cosi' non cambia mai da sola) -->
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-    <script src="ricambi-functions.js?v=7.4.2"></script>
-    <script src="listino-functions.js?v=7.4.2"></script>
-    <script src="fornitori-functions.js?v=7.4.2"></script>
-    <script src="interventi-functions.js?v=7.4.2"></script>
-    <script src="macchine-functions.js?v=7.4.2"></script>
-    <script src="macchine-report.js?v=7.4.2"></script>
-    <script src="macchine-raffica.js?v=7.4.2"></script>
-    <script src="listini-fornitori-functions.js?v=7.4.2"></script>
-    <script src="ordini-functions.js?v=7.4.2"></script>
-    <script src="ordini-macchine-functions.js?v=7.4.2"></script>
-    <script src="azienda-functions.js?v=7.4.2"></script>
-    <script src="richieste-robot-functions.js?v=7.4.2"></script>
-    <script src="buoni-functions.js?v=7.4.2"></script>
-    <script src="app.js?v=7.4.2"></script>
+    <script src="ricambi-functions.js?v=7.4.3"></script>
+    <script src="listino-functions.js?v=7.4.3"></script>
+    <script src="fornitori-functions.js?v=7.4.3"></script>
+    <script src="interventi-functions.js?v=7.4.3"></script>
+    <script src="macchine-functions.js?v=7.4.3"></script>
+    <script src="macchine-report.js?v=7.4.3"></script>
+    <script src="macchine-raffica.js?v=7.4.3"></script>
+    <script src="listini-fornitori-functions.js?v=7.4.3"></script>
+    <script src="ordini-functions.js?v=7.4.3"></script>
+    <script src="ordini-macchine-functions.js?v=7.4.3"></script>
+    <script src="azienda-functions.js?v=7.4.3"></script>
+    <script src="richieste-robot-functions.js?v=7.4.3"></script>
+    <script src="buoni-functions.js?v=7.4.3"></script>
+    <script src="app.js?v=7.4.3"></script>
 </body>
 </html>

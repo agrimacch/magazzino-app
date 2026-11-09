@@ -914,6 +914,7 @@ function macSlotHtml(p) {
     const st = MAC_STATI[p.stato] || MAC_STATI.IN_CASA;
     const disponibile = p.stato === 'IN_CASA' && !p.cliente;
     const inArrivoLibera = p.stato === 'ORDINATA' && !p.cliente;
+    const daOrdinareMagazzino = p.stato === 'DA_ORDINARE' && !p.cliente;   // riga "per il magazzino" del libro ordini
     const titolo = [
         st.etichetta + (disponibile ? ' - disponibile' : '') + (inArrivoLibera ? ' - in arrivo, libera' : ''),
         (p.stato === 'ORDINATA' && macOfTesto(p)) ? macOfTesto(p) : '',
@@ -925,8 +926,8 @@ function macSlotHtml(p) {
     ].filter(Boolean).join('\n');
     return '<button type="button" class="mac-slot" data-pezzo="' + p.id + '" title="' + macEsc(titolo) + '">' +
         '<span class="mac-quadro ' + st.classe + '">' + (p.stato === 'CONSEGNATA' ? '&#10005;' : '') + '</span>' +
-        '<span class="mac-nome' + (disponibile || inArrivoLibera ? ' mac-nome-libera' : '') + '">' +
-            (disponibile ? 'disponibile' : inArrivoLibera ? 'in arrivo' : macEsc(p.cliente || '')) +
+        '<span class="mac-nome' + (disponibile || inArrivoLibera || daOrdinareMagazzino ? ' mac-nome-libera' : '') + '">' +
+            (disponibile ? 'disponibile' : inArrivoLibera ? 'in arrivo' : daOrdinareMagazzino ? 'da ordinare' : macEsc(p.cliente || '')) +
             (p.set_id ? '<span class="mac-tag-set">SET</span>' : '') +
             (p.matricola ? '<span class="mac-tag-matr" title="Matricola ' + macEsc(p.matricola) + '">&#35;</span>' : '') +
         '</span></button>';

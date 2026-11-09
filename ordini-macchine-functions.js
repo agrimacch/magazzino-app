@@ -12,6 +12,8 @@
 // - Ogni ordine fatto e' un blocco: righe con quantita', codice, descrizione, clienti, e in fondo
 //   data + iniziali (+ consegna). Riga arrivata = spunta verde.
 // Righe da ordinare = macchine DA ORDINARE (senza data e iniziali).
+// Righe da ordinare per il magazzino (v7.5.1): "Aggiungi riga" in Da ordinare = macchine DA_ORDINARE senza cliente,
+// si ordinano insieme alle altre (diventano ORDINATE libere). Nell'elenco vanno dopo i clienti.
 // Macchine in piu' per il magazzino (v7.5): in "quante" si puo' scrivere piu' delle richieste dei clienti
 // (le altre arrivano libere), "Nuovo ordine" anche in ORDINI NORMALE, righe libere in ogni ordine,
 // e nella finestra di una riga "Aggiungi in arrivo libere".
@@ -55,6 +57,12 @@ function omOggiISO() {
     return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 }
 
+// Da ordinare: prima i clienti (dal piu' vecchio), in fondo le righe per il magazzino
+function omConfrontaDaOrd(x, y) {
+    const a = x.cliente ? 0 : 1, b = y.cliente ? 0 : 1;
+    return a !== b ? a - b : macConfrontaAttesa(x, y);
+}
+
 function omDaOrdinare(marchio) {
     return macPezzi.filter(p => p.stato === 'DA_ORDINARE' && (!marchio || omMarchioDi(p) === marchio));
 }
@@ -95,6 +103,7 @@ function omClienteTesto(lista) {
         const x = per[k];
         const num = omOrdineCliente(x.p);
         const m = macPuoMontaggio() ? macMontaggioDi(x.p) : null;
+        if (!x.p.cliente) return x.n + 'x <em class="om-magazzino">per il magazzino</em>';
         return x.n + 'x ' + macEsc(x.p.cliente) + (num ? ' <small>(' + num + ')</small>' : '') +
             (m ? ' <span class="om-mont om-mont-' + m.toLowerCase() + '">' + MAC_MONTAGGIO[m].breve + '</span>' : '');
     }).join(', ');
@@ -219,7 +228,8 @@ function omHtmlMarchio(marchio) {
 
     if (sezione === OM_NORMALE) {
         html += '<div class="om-sez-testa"><div class="mac-aiuto">Ordini senza consegna programmata. Le macchine da ordinare dei clienti arrivano da sole; ' +
-            'per ordinare macchine <strong>per il magazzino</strong> usa <strong>Nuovo ordine</strong> o scrivi in <strong>quante</strong> pi&ugrave; di quelle richieste.</div>' +
+            'per il magazzino usa <strong>&#10133; Aggiungi riga</strong> (si ordina insieme alle altre), scrivi in <strong>quante</strong> pi&ugrave; di quelle richieste, ' +
+            'oppure <strong>Nuovo ordine</strong> per un ordine gi&agrave; fatto solo per il magazzino.</div>' +
             '<div class="om-sez-azioni">' + (macOfPronto ? '<button type="button" class="btn-primary mac-btn-piccolo" data-om-azione="nuovo-of">&#10133; Nuovo ordine</button>' : '') + '</div></div>';
         html += omHtmlDaOrdinare(daOrdinare);
         html += omHtmlOrdiniFatti(marchio, null);
@@ -243,7 +253,8 @@ function omHtmlMarchio(marchio) {
 // ---------- Righe da ordinare (macchine DA ORDINARE dei clienti) ----------
 function omHtmlDaOrdinare(pezzi) {
     if (pezzi.length === 0) {
-        return '<div class="om-blocco om-blocco-daord"><div class="om-blocco-titolo">&#9989; Niente da ordinare per questo marchio</div></div>';
+        return '<div class="om-blocco om-blocco-daord"><div class="om-blocco-titolo">&#9989; Niente da ordinare per questo marchio' +
+            (macOfPronto ? '<button type="button" class="btn-back mac-btn-piccolo om-dao-btn" data-om-azione="aggiungi-dao">&#10133; Aggiungi riga</button>' : '') + '</div></div>';
     }
     const gruppi = omPerArticolo(pezzi);
     // tolgo dalla selezione articoli che non ci sono piu'
@@ -251,10 +262,12 @@ function omHtmlDaOrdinare(pezzi) {
     const totSel = Object.keys(omSelezione).reduce((t, id) => t + omSelezione[id], 0);
     let html = '<div class="om-blocco om-blocco-daord">' +
         '<div class="om-blocco-titolo">&#128203; Da ordinare <small>(dagli ordini clienti, dal pi&ugrave; vecchio)</small>' +
+            (macOfPronto ? '<button type="button" class="btn-back mac-btn-piccolo om-dao-btn" data-om-azione="aggiungi-dao" title="Aggiungi un modello da ordinare per il magazzino">&#10133; Aggiungi riga</button>' : '') +
             '<label class="mac-check om-tutte"><input type="checkbox" id="om-sel-tutte"' + (gruppi.every(g => g.art && omSelezione[g.art.id]) ? ' checked' : '') + '> tutte</label></div>';
     gruppi.forEach(g => {
-        const lista = g.pezzi.slice().sort(macConfrontaAttesa);
+        const lista = g.pezzi.slice().sort(omConfrontaDaOrd);
         const a = g.art;
+        const magazzino = lista.filter(p => !p.cliente).length;
         const id = a ? a.id : 0;
         const sel = a && omSelezione[id];
         const extra = sel ? Math.max(0, omSelezione[id] - lista.length) : 0;
@@ -263,7 +276,9 @@ function omHtmlDaOrdinare(pezzi) {
                 '<span class="mac-quadro st-daordinare"></span></label>' +
             '<div class="om-riga-testo"><strong class="om-qta">' + lista.length + '</strong> ' +
                 omDescrizioneHtml(a) +
-                '<div class="om-clienti">' + omClienteTesto(lista) + '</div></div>' +
+                '<div class="om-clienti">' + omClienteTesto(lista) +
+                    (magazzino && a ? ' <button type="button" class="mac-link om-dao-togli" data-om-dao-togli="' + a.id + '" title="Togli le righe per il magazzino di questo modello">togli</button>' : '') +
+                '</div></div>' +
             (sel ? '<label class="om-quante" title="Puoi scriverne pi&ugrave; di quelle richieste: le altre arrivano libere (per il magazzino)">quante <input type="number" min="1" max="' +
                 MAC_MAX_QTA + '" value="' + omSelezione[id] + '" data-om-quante="' + id + '" inputmode="numeric">' +
                 (extra ? '<small class="om-extra">+' + extra + ' per il magazzino</small>' : '') + '</label>' : '') +
@@ -331,7 +346,7 @@ function omHtmlOf(of) {
 function omPezziSelezionati(marchio) {
     const scelti = [];
     Object.keys(omSelezione).forEach(id => {
-        const lista = omDaOrdinare(marchio).filter(p => p.articolo_id === Number(id)).sort(macConfrontaAttesa);
+        const lista = omDaOrdinare(marchio).filter(p => p.articolo_id === Number(id)).sort(omConfrontaDaOrd);
         lista.slice(0, omSelezione[id]).forEach(p => scelti.push(p));
     });
     return scelti;
@@ -491,6 +506,101 @@ async function omSalvaFinestraOf() {
         return;
     }
     omChiudiFinestraOf();
+    await omRicarica();
+}
+
+// ========================================
+// RIGHE DA ORDINARE PER IL MAGAZZINO (senza cliente)
+// ========================================
+let omDaoRighe = [];
+
+function omApriDao() {
+    omDaoRighe = [];
+    document.getElementById('om-dao-titolo').innerHTML = '&#10133; Da ordinare per il magazzino - ' + macEsc(omSessione('omMarchio') || '');
+    document.getElementById('om-dao-search').value = '';
+    omRenderDao();
+    document.getElementById('om-dao-modal').classList.remove('hidden');
+    setTimeout(() => document.getElementById('om-dao-search').focus(), 50);
+}
+
+function omChiudiDao() {
+    document.getElementById('om-dao-modal').classList.add('hidden');
+    macPickerChiudi('om-dao-search');
+    omDaoRighe = [];
+}
+
+function omRenderDao() {
+    const box = document.getElementById('om-dao-righe');
+    if (!omDaoRighe.length) {
+        box.innerHTML = '<p class="mac-aiuto">Cerca qui sotto il modello: si aggiunge alle righe <strong>Da ordinare</strong> e lo ordini insieme alle altre.</p>';
+        return;
+    }
+    box.innerHTML = omDaoRighe.map((r, i) =>
+        '<div class="mac-set-riga">' +
+            '<input type="number" class="mac-set-qta" min="1" max="' + MAC_MAX_QTA + '" value="' + r.n + '" data-om-dao-qta="' + i + '" inputmode="numeric">' +
+            '<span class="mac-set-riga-nome">' + macNomeHtml(r.art) + '</span>' +
+            '<button type="button" class="mac-set-togli" data-om-dao-x="' + i + '" title="Togli">&times;</button>' +
+        '</div>').join('');
+}
+
+function omDaoAggiungi(a) {
+    document.getElementById('om-dao-search').value = '';
+    const r = omDaoRighe.find(x => x.art.id === a.id);
+    if (r) r.n++; else omDaoRighe.push({ art: a, n: 1 });
+    omRenderDao();
+}
+
+async function omSalvaDao() {
+    if (!omDaoRighe.length) { await showCustomAlert('Cerca e aggiungi almeno un modello.', 'Da ordinare', '&#9888;&#65039;'); return; }
+    const btn = document.getElementById('om-dao-salva');
+    btn.disabled = true;
+    const adesso = new Date().toISOString();
+    const utente = macUtente();
+    const nuovi = [];
+    omDaoRighe.forEach(r => {
+        const elenco = macIsSet(r.art.id)
+            ? macComponenti(r.art.id).map(c => ({ art: macArticolo(c.componente_id), n: c.quantita * r.n })).filter(x => x.art)
+            : [{ art: r.art, n: r.n }];
+        elenco.forEach(x => {
+            for (let k = 0; k < x.n; k++) nuovi.push({ articolo_id: x.art.id, stato: 'DA_ORDINARE', cliente: null, updated_at: adesso, updated_by: utente });
+        });
+    });
+    try {
+        const { data, error } = await supabaseClient.from('macchine_pezzi').insert(nuovi).select('*');
+        if (error) throw error;
+        await macRegistra((data || []).map(p => ({
+            pezzo_id: p.id, articolo_id: p.articolo_id, tipo: 'ORDINE', stato_prima: null, stato_dopo: 'DA_ORDINARE',
+            cliente: null, matricola: null, netto: null, dettaglio: 'DA ORDINARE PER IL MAGAZZINO'
+        })));
+    } catch (error) {
+        console.error('Errore righe da ordinare:', error);
+        btn.disabled = false;
+        await showCustomAlert('Errore:<br>' + macEsc(error.message), 'Errore', '&#10060;');
+        return;
+    }
+    btn.disabled = false;
+    omChiudiDao();
+    await omRicarica();
+}
+
+// Togli le righe per il magazzino (ancora da ordinare) di un modello
+async function omTogliDao(articoloId) {
+    const pezzi = omDaOrdinare(omSessione('omMarchio')).filter(p => p.articolo_id === articoloId && !p.cliente);
+    const a = macArticolo(articoloId);
+    if (!pezzi.length) return;
+    if (!window.confirm('Togliere ' + pezzi.length + ' ' + (a ? macNome(a) : '') + ' da ordinare per il magazzino?\n\nI clienti non vengono toccati.')) return;
+    try {
+        const { error } = await supabaseClient.from('macchine_pezzi').delete().in('id', pezzi.map(p => p.id));
+        if (error) throw error;
+        await macRegistra(pezzi.map(p => ({
+            pezzo_id: p.id, articolo_id: p.articolo_id, tipo: 'CANCELLATA', stato_prima: 'DA_ORDINARE', stato_dopo: null,
+            cliente: null, matricola: null, netto: null, dettaglio: 'TOLTA DA ORDINARE PER IL MAGAZZINO'
+        })));
+    } catch (error) {
+        console.error('Errore togli righe magazzino:', error);
+        await showCustomAlert('Errore:<br>' + macEsc(error.message), 'Errore', '&#10060;');
+    }
+    delete omSelezione[articoloId];
     await omRicarica();
 }
 
@@ -1116,6 +1226,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (bm) { omScegliMarchio(bm.dataset.omMarchio); return; }
         const bs = e.target.closest('[data-om-sezione]');
         if (bs) { omSessione('omSezione', bs.dataset.omSezione); omRender(); return; }
+        const bt = e.target.closest('[data-om-dao-togli]');
+        if (bt) { e.preventDefault(); omTogliDao(Number(bt.dataset.omDaoTogli)); return; }
         const br = e.target.closest('[data-om-riga]');
         if (br) {
             const [ofId, artId] = br.dataset.omRiga.split('|').map(Number);
@@ -1138,6 +1250,7 @@ document.addEventListener('DOMContentLoaded', () => {
         else if (az === 'nuova-sezione') omApriSezione(null);
         else if (az === 'modifica-sezione') omApriSezione(macOfSezione(Number(omSessione('omSezione'))));
         else if (az === 'carica-xls') omXlsApri();
+        else if (az === 'aggiungi-dao') omApriDao();
         else if (az === 'nuovo-of') {
             omOfInModifica = null;
             omOfRighe = [];
@@ -1204,6 +1317,27 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('om-sez-annulla').addEventListener('click', omChiudiSezione);
     document.getElementById('om-sez-salva').addEventListener('click', omSalvaSezione);
     document.getElementById('om-sez-elimina').addEventListener('click', omEliminaSezione);
+
+    // Righe da ordinare per il magazzino
+    macPickerImposta('om-dao-search', 'om-dao-results', a => a.marchio === omSessione('omMarchio'), omDaoAggiungi);
+    document.getElementById('om-dao-close').addEventListener('click', omChiudiDao);
+    document.getElementById('om-dao-annulla').addEventListener('click', omChiudiDao);
+    document.getElementById('om-dao-salva').addEventListener('click', omSalvaDao);
+    const dao = document.getElementById('om-dao-righe');
+    dao.addEventListener('change', (e) => {
+        const i = e.target.dataset.omDaoQta;
+        if (i === undefined) return;
+        const r = omDaoRighe[parseInt(i, 10)];
+        const q = parseInt(e.target.value, 10);
+        if (r) r.n = (q >= 1 && q <= MAC_MAX_QTA) ? q : 1;
+        omRenderDao();
+    });
+    dao.addEventListener('click', (e) => {
+        const b = e.target.closest('[data-om-dao-x]');
+        if (!b) return;
+        omDaoRighe.splice(parseInt(b.dataset.omDaoX, 10), 1);
+        omRenderDao();
+    });
 
     // Carica Excel (sezioni)
     document.getElementById('om-xls-close').addEventListener('click', omXlsChiudi);
