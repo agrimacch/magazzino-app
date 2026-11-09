@@ -48,9 +48,9 @@ const macOrdiniDaAggiornare = new Set();
 // Stati (i colori del quadernone)
 const MAC_STATI = {
     DA_ORDINARE: { etichetta: 'Da ordinare', classe: 'st-daordinare', aiuto: 'quadrato bianco + nome' },
-    ORDINATA:    { etichetta: 'Ordinata',    classe: 'st-ordinata',   aiuto: 'bianco con l\'angolino verde + nome (senza nome = in arrivo libera, es. prestagionale)' },
-    IN_CASA:     { etichetta: 'In casa',     classe: 'st-incasa',     aiuto: 'verde: con nome assegnata, senza nome disponibile' },
-    CONSEGNATA:  { etichetta: 'Consegnata',  classe: 'st-consegnata', aiuto: 'verde con la croce' }
+    ORDINATA:    { etichetta: 'Ordinata',    classe: 'st-ordinata',   aiuto: 'bianco con l\'angolino <span class="cw-n">verde</span><span class="cw-d">blu</span> + nome (senza nome = in arrivo libera, es. prestagionale)' },
+    IN_CASA:     { etichetta: 'In casa',     classe: 'st-incasa',     aiuto: '<span class="cw-n">verde</span><span class="cw-d">blu</span>: con nome assegnata, senza nome disponibile' },
+    CONSEGNATA:  { etichetta: 'Consegnata',  classe: 'st-consegnata', aiuto: '<span class="cw-n">verde</span><span class="cw-d">blu</span> con la croce' }
 };
 const MAC_ORDINE_STATI = ['DA_ORDINARE', 'ORDINATA', 'IN_CASA', 'CONSEGNATA'];
 const MAC_MAX_QTA = 50;
@@ -1200,7 +1200,7 @@ function macPezzoAggiornaStato() {
     });
     const aiuto = document.getElementById('mac-pezzo-stato-aiuto');
     const st = MAC_STATI[macPezzoStato];
-    if (aiuto && st) aiuto.textContent = st.aiuto;
+    if (aiuto && st) aiuto.innerHTML = st.aiuto;   // contiene le parole dei colori (normale / daltonici)
     const serveNome = macPezzoStato !== 'IN_CASA';
     document.getElementById('mac-pezzo-cliente-label').innerHTML = 'Cliente' + (serveNome ? ' *' : ' <small>(vuoto = disponibile alla vendita)</small>');
 }

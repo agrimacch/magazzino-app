@@ -711,7 +711,7 @@ function lfRenderListini() {
                 (admin ? '<td><button type="button" class="btn-danger mac-btn-piccolo" data-lf-elimina-listino="' + l.id + '">&#128465;</button></td>' : '') +
             '</tr>';
         }).join('') + '</tbody></table></div>' +
-        '<p class="mac-aiuto">Rosso = scaduto (si consulta lo stesso), arancione = scade entro ' + LF_GIORNI_AVVISO + ' giorni. ' +
+        '<p class="mac-aiuto"><span class="cw-n">Rosso</span><span class="cw-d">Arancio scuro</span> = scaduto (si consulta lo stesso), <span class="cw-n">arancione</span><span class="cw-d">giallo</span> = scade entro ' + LF_GIORNI_AVVISO + ' giorni. ' +
         (admin ? 'Un listino nuovo con lo stesso nome si carica da <strong>Carica file</strong> e sostituisce quello vecchio per intero.' : '') + '</p>';
 }
 

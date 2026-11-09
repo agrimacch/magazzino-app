@@ -17,17 +17,18 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Kalam:wght@400;700&family=Roboto+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=7.4.0">
-    <link rel="stylesheet" href="listino.css?v=7.4.0">
-    <link rel="stylesheet" href="listini-fornitori.css?v=7.4.0">
-    <link rel="stylesheet" href="fornitori.css?v=7.4.0">
-    <link rel="stylesheet" href="interventi.css?v=7.4.0">
-    <link rel="stylesheet" href="macchine.css?v=7.4.0">
-    <link rel="stylesheet" href="ordini.css?v=7.4.0">
-    <link rel="stylesheet" href="ordini-macchine.css?v=7.4.0">
-    <link rel="stylesheet" href="azienda.css?v=7.4.0">
-    <link rel="stylesheet" href="richieste.css?v=7.4.0">
-    <link rel="stylesheet" href="buoni.css?v=7.4.0">
+    <link rel="stylesheet" href="style.css?v=7.4.1">
+    <link rel="stylesheet" href="listino.css?v=7.4.1">
+    <link rel="stylesheet" href="listini-fornitori.css?v=7.4.1">
+    <link rel="stylesheet" href="fornitori.css?v=7.4.1">
+    <link rel="stylesheet" href="interventi.css?v=7.4.1">
+    <link rel="stylesheet" href="macchine.css?v=7.4.1">
+    <link rel="stylesheet" href="ordini.css?v=7.4.1">
+    <link rel="stylesheet" href="ordini-macchine.css?v=7.4.1">
+    <link rel="stylesheet" href="azienda.css?v=7.4.1">
+    <link rel="stylesheet" href="richieste.css?v=7.4.1">
+    <link rel="stylesheet" href="buoni.css?v=7.4.1">
+    <link rel="stylesheet" href="daltonici.css?v=7.4.1">
 
     <!-- SheetJS per import Excel -->
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
@@ -88,7 +89,7 @@
 
 <body class="loading">
     <!-- Version badge -->
-    <div class="version-badge">v7.4.0</div>
+    <div class="version-badge">v7.4.1</div>
 
     <!-- SCHERMATA LOGIN -->
     <div id="login-screen" class="screen">
@@ -147,6 +148,8 @@
                 <!-- Organizzazione interventi robot (mappa): solo admin, sempre visibile in alto -->
                 <button type="button" id="org-btn" class="notifiche-btn" title="Organizzazione interventi robot (mappa)" aria-label="Organizzazione interventi robot"
                     onclick="openSection('organizzazione-robot')" style="display: none;">&#127758;<span id="ass-badge-organizzazione" class="notifiche-badge hidden"></span></button>
+                <!-- Colori per daltonici (rosso/verde -> arancio/blu), si ricorda per ogni utente: app.js daltCambia() -->
+                <button type="button" id="daltonici-btn" class="notifiche-btn" title="Colori per daltonici" aria-label="Colori per daltonici" onclick="daltCambia()">&#128065;</button>
                 <span id="user-role" class="role-badge"></span>
                 <button id="logout-btn" class="btn-secondary">Logout</button>
             </div>
@@ -430,7 +433,7 @@
                         </div>
                     </div>
                     <p class="mac-aiuto sti-legenda">Prezzi IVA inclusa. Ogni riga mostra il prezzo in <strong>ogni listino</strong> in cui c'&egrave; l'articolo;
-                        &#9733; = prezzo cliente pi&ugrave; basso tra i listini validi. <strong>Riquadro rosso</strong> = listino scaduto (si consulta lo stesso).
+                        &#9733; = prezzo cliente pi&ugrave; basso tra i listini validi. <strong>Riquadro <span class="cw-n">rosso</span><span class="cw-d">arancio scuro</span></strong> = listino scaduto (si consulta lo stesso).
                         <span class="lf-solo-collega hidden"><strong>Collega</strong> = l'articolo c'&egrave; gi&agrave; nel tuo Listino Agrimacch; <strong>Crea</strong> = lo aggiunge al Listino Agrimacch gi&agrave; compilato.</span></p>
                     <div id="lf-container"></div>
                 </div>
@@ -2530,7 +2533,7 @@
                 <ol>
                     <li>Apri <strong>Carico a raffica</strong>.</li>
                     <li>Per ogni scatola leggi il <strong>codice del modello</strong> e la <strong>matricola</strong> (se c'&egrave;), sempre nello stesso ordine.</li>
-                    <li>Controlla l'elenco e sistema le scatole in rosso (vedi punto 4).</li>
+                    <li>Controlla l'elenco e sistema le scatole in <span class="cw-n">rosso</span><span class="cw-d">arancio scuro</span> (vedi punto 4).</li>
                     <li>Premi <strong>Conferma carico</strong>.</li>
                 </ol>
 
@@ -2539,11 +2542,11 @@
                     <li>Al PC leggi dal foglio <strong>Svuota memoria</strong> e poi <strong>Modalit&agrave; memoria</strong>.</li>
                     <li>In magazzino leggi le scatole: modello e matricola, una dopo l'altra.</li>
                     <li>Torna al PC, apri <strong>Carico a raffica</strong> e leggi <strong>Scarica i dati</strong>: le scatole compaiono nell'elenco.</li>
-                    <li>Controlla, sistema le scatole in rosso e premi <strong>Conferma carico</strong>.</li>
+                    <li>Controlla, sistema le scatole in <span class="cw-n">rosso</span><span class="cw-d">arancio scuro</span> e premi <strong>Conferma carico</strong>.</li>
                     <li>Leggi <strong>Svuota memoria</strong> e, se poi lo usi collegato, <strong>Modalit&agrave; normale</strong>.</li>
                 </ol>
 
-                <h4>4. Scatole in rosso</h4>
+                <h4>4. Scatole in <span class="cw-n">rosso</span><span class="cw-d">arancio scuro</span></h4>
                 <ul>
                     <li><strong>Modello da scegliere</strong>: il codice non &egrave; di nessun modello del listino. Tocca <strong>Scegli modello</strong> e cerca l'articolo.</li>
                     <li><strong>Codice ripetuto</strong>: &egrave; quasi certamente il codice a barre di un <strong>modello nuovo</strong>. Tocca <strong>Scegli modello</strong>, scegli l'articolo e lascia la spunta &quot;&egrave; il codice a barre del modello&quot;: il codice viene salvato sul listino, le scatole si riabbinano da sole e la prossima volta le riconosce subito.</li>
@@ -2641,7 +2644,7 @@
                 <ul>
                     <li>In alto c'&egrave; una <strong>scheda per ogni fornitore</strong> (es. STIHL).</li>
                     <li>Ogni fornitore pu&ograve; avere <strong>pi&ugrave; listini</strong> attivi insieme (es. OPG e OPM), ognuno con la sua <strong>scadenza</strong>.</li>
-                    <li>Sotto i fornitori vedi le scadenze: <strong>verde</strong> = valido, <strong>arancione</strong> = scade entro 7 giorni, <strong>rosso</strong> = scaduto.</li>
+                    <li>Sotto i fornitori vedi le scadenze: <strong><span class="cw-n">verde</span><span class="cw-d">blu</span></strong> = valido, <strong><span class="cw-n">arancione</span><span class="cw-d">giallo</span></strong> = scade entro 7 giorni, <strong><span class="cw-n">rosso</span><span class="cw-d">arancio scuro</span></strong> = scaduto.</li>
                     <li>Quando un listino scade entro 7 giorni (o &egrave; scaduto) compare un <strong>avviso in Dashboard</strong> e in Listini Vendite, con un pallino sulle card. La X lo nasconde fino al prossimo accesso.</li>
                 </ul>
 
@@ -2649,7 +2652,7 @@
                 <ul>
                     <li>Se un codice &egrave; in pi&ugrave; listini, nella riga vedi <strong>un prezzo per listino</strong>, uno sotto l'altro.</li>
                     <li>&#9733; = il <strong>prezzo cliente pi&ugrave; basso</strong> tra i listini non scaduti.</li>
-                    <li>Un listino <strong>scaduto</strong> ha il riquadro rosso: lo puoi consultare, ma il prezzo non vale pi&ugrave;.</li>
+                    <li>Un listino <strong>scaduto</strong> ha il riquadro <span class="cw-n">rosso</span><span class="cw-d">arancio scuro</span>: lo puoi consultare, ma il prezzo non vale pi&ugrave;.</li>
                     <li>Tutti i prezzi sono IVA inclusa. <strong>Prezzo cliente</strong> = (netto + ricarico del listino) &times; 1,22, arrotondato all'euro. Netti e ricarico si vedono con l'occhio in alto.</li>
                     <li>Con il menu <strong>Tutti i listini</strong> puoi guardarne uno solo.</li>
                 </ul>
@@ -2831,14 +2834,14 @@
             </div>
             <div class="mac-raf-guida">
                 <h4>1. Come &egrave; fatto</h4>
-                <p>&Egrave; il libro degli ordini ai fornitori: un <strong>divisorio per marchio</strong> (il numero rosso = macchine da ordinare). Dentro ogni marchio c'&egrave; la pagina <strong>ORDINI NORMALE</strong> e le <strong>sezioni</strong> che crei tu (prestagionali: OPG, TRATTORINI 2026...).</p>
+                <p>&Egrave; il libro degli ordini ai fornitori: un <strong>divisorio per marchio</strong> (il numero <span class="cw-n">rosso</span><span class="cw-d">arancio scuro</span> = macchine da ordinare). Dentro ogni marchio c'&egrave; la pagina <strong>ORDINI NORMALE</strong> e le <strong>sezioni</strong> che crei tu (prestagionali: OPG, TRATTORINI 2026...).</p>
 
                 <h4>2. Macchine da ordinare</h4>
                 <ol>
                     <li>Quando in un ordine cliente una macchina &egrave; <strong>Da ordinare</strong>, compare da sola in <strong>ORDINI NORMALE</strong> del suo marchio, con il nome del cliente e il numero d'ordine.</li>
                     <li>Quando fai l'ordine al fornitore spunta le righe (con <strong>quante</strong> puoi ordinarne meno: vanno a chi ha ordinato per primo).</li>
                     <li>Premi <strong>Segna come ordinate</strong>: data (oggi), le tue iniziali, la <strong>sezione</strong> (normale o un prestagionale) e, se serve, la consegna prevista.</li>
-                    <li>Le macchine diventano <strong>ordinate</strong>: nel quaderno quadratino bianco con l'<strong>angolino verde</strong>, nell'ordine cliente compare la data dell'ordine (e la consegna).</li>
+                    <li>Le macchine diventano <strong>ordinate</strong>: nel quaderno quadratino bianco con l'<strong>angolino <span class="cw-n">verde</span><span class="cw-d">blu</span></strong>, nell'ordine cliente compare la data dell'ordine (e la consegna).</li>
                 </ol>
 
                 <h4>3. Prestagionali</h4>
@@ -2862,7 +2865,7 @@
                 <p>Dal luned&igrave; al sabato alle 19 nel gruppo <strong>Ordini Macchine</strong> arrivano i marchi con macchine da ordinare. Se non c'&egrave; niente da ordinare non arriva nulla.</p>
 
                 <h4>8. Codice articolo</h4>
-                <p>Accanto al modello compare il <strong>codice articolo del fornitore</strong>. Se c'&egrave; <strong>cod. ?</strong> in arancione, scrivilo nel Listino Agrimacch (Modifica articolo &rarr; Codice articolo del fornitore) o nella colonna CODICE ARTICOLO dell'Excel del listino. Gli articoli STIHL collegati lo prendono da soli.</p>
+                <p>Accanto al modello compare il <strong>codice articolo del fornitore</strong>. Se c'&egrave; <strong>cod. ?</strong> in <span class="cw-n">arancione</span><span class="cw-d">giallo</span>, scrivilo nel Listino Agrimacch (Modifica articolo &rarr; Codice articolo del fornitore) o nella colonna CODICE ARTICOLO dell'Excel del listino. Gli articoli STIHL collegati lo prendono da soli.</p>
 
                 <h4>9. Correggere</h4>
                 <ul>
@@ -3068,7 +3071,7 @@
     <div id="whats-new-modal" class="modal hidden">
         <div class="modal-content whats-new-content">
             <div class="whats-new-header">
-                <h3>&#127881; AGRIDESK v7.4.0 - Aggiornamento!</h3>
+                <h3>&#127881; AGRIDESK v7.4.1 - Aggiornamento!</h3>
                 <p class="version-date">09 Novembre 2026</p>
             </div>
 
@@ -3486,19 +3489,19 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- Versione bloccata (la libreria non e' piu' mantenuta: cosi' non cambia mai da sola) -->
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-    <script src="ricambi-functions.js?v=7.4.0"></script>
-    <script src="listino-functions.js?v=7.4.0"></script>
-    <script src="fornitori-functions.js?v=7.4.0"></script>
-    <script src="interventi-functions.js?v=7.4.0"></script>
-    <script src="macchine-functions.js?v=7.4.0"></script>
-    <script src="macchine-report.js?v=7.4.0"></script>
-    <script src="macchine-raffica.js?v=7.4.0"></script>
-    <script src="listini-fornitori-functions.js?v=7.4.0"></script>
-    <script src="ordini-functions.js?v=7.4.0"></script>
-    <script src="ordini-macchine-functions.js?v=7.4.0"></script>
-    <script src="azienda-functions.js?v=7.4.0"></script>
-    <script src="richieste-robot-functions.js?v=7.4.0"></script>
-    <script src="buoni-functions.js?v=7.4.0"></script>
-    <script src="app.js?v=7.4.0"></script>
+    <script src="ricambi-functions.js?v=7.4.1"></script>
+    <script src="listino-functions.js?v=7.4.1"></script>
+    <script src="fornitori-functions.js?v=7.4.1"></script>
+    <script src="interventi-functions.js?v=7.4.1"></script>
+    <script src="macchine-functions.js?v=7.4.1"></script>
+    <script src="macchine-report.js?v=7.4.1"></script>
+    <script src="macchine-raffica.js?v=7.4.1"></script>
+    <script src="listini-fornitori-functions.js?v=7.4.1"></script>
+    <script src="ordini-functions.js?v=7.4.1"></script>
+    <script src="ordini-macchine-functions.js?v=7.4.1"></script>
+    <script src="azienda-functions.js?v=7.4.1"></script>
+    <script src="richieste-robot-functions.js?v=7.4.1"></script>
+    <script src="buoni-functions.js?v=7.4.1"></script>
+    <script src="app.js?v=7.4.1"></script>
 </body>
 </html>

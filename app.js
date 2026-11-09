@@ -11,8 +11,8 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 // ========================================
 // VARIABILI GLOBALI
 // ========================================
-const CURRENT_VERSION = '7.4.0';
-const SHOW_WHATS_NEW_POPUP = true;
+const CURRENT_VERSION = '7.4.1';
+const SHOW_WHATS_NEW_POPUP = false;
 
 let currentUser = null;
 let currentUserRole = null;
@@ -254,6 +254,58 @@ function showVisualFeedback(type) {
 }
 
 // ========================================
+// COLORI PER DALTONICI (pulsante occhio in alto, daltonici.css)
+// ----------------------------------------
+// Si ricorda per ogni utente: nel profilo Supabase (user_metadata.daltonici, vale su ogni dispositivo)
+// e nel browser (cosi' si applica subito all'apertura). Al logout si torna ai colori normali.
+// ========================================
+function daltApplica(attivo) {
+    document.body.classList.toggle('daltonici', !!attivo);
+    const b = document.getElementById('daltonici-btn');
+    if (b) {
+        b.classList.toggle('attivo', !!attivo);
+        b.title = attivo ? 'Colori per daltonici ATTIVI (tocca per tornare ai colori normali)' : 'Colori per daltonici';
+    }
+}
+
+function daltLocale() {
+    try { return localStorage.getItem('daltonici') === 'si'; } catch (e) { return false; }
+}
+
+function daltSalvaLocale(attivo) {
+    try {
+        if (attivo) localStorage.setItem('daltonici', 'si'); else localStorage.removeItem('daltonici');
+    } catch (e) { /* niente */ }
+}
+
+// Dopo il login: vale l'impostazione del profilo (se c'e'), altrimenti quella del browser
+function daltDaUtente() {
+    const meta = currentUser && currentUser.user_metadata ? currentUser.user_metadata : {};
+    const attivo = typeof meta.daltonici === 'boolean' ? meta.daltonici : daltLocale();
+    daltSalvaLocale(attivo);
+    daltApplica(attivo);
+}
+
+async function daltCambia() {
+    const attivo = !document.body.classList.contains('daltonici');
+    daltApplica(attivo);
+    daltSalvaLocale(attivo);
+    try {
+        const { data, error } = await supabaseClient.auth.updateUser({ data: { daltonici: attivo } });
+        if (!error && data && data.user) currentUser = data.user;
+    } catch (e) {
+        console.warn('Preferenza colori non salvata nel profilo:', e.message || e);
+    }
+    if (typeof showCustomAlert === 'function') {
+        showCustomAlert(attivo
+            ? 'Colori per daltonici <strong>attivi</strong>: il verde diventa <strong>blu</strong>, il rosso <strong>arancio scuro</strong>, l\'arancione <strong>giallo</strong>. ' +
+              'Accanto ad alcuni colori compaiono anche dei simboli (&#10004; &#9203; &#9888;&#65039;).<br><br>Vale su tutti i tuoi dispositivi. Per tornare ai colori normali tocca di nuovo l\'occhio in alto.'
+            : 'Colori normali ripristinati.', 'Colori', '&#128065;');
+    }
+}
+window.daltCambia = daltCambia;
+
+// ========================================
 // GESTIONE "RESTA CONNESSO"
 // ========================================
 // MODIFICA SICUREZZA: la password NON viene piu' salvata nel browser.
@@ -280,6 +332,38 @@ function loadSavedCredentials() {
         }
     }
 }
+
+// La sessione di Supabase resta salvata nel browser (chiave sb-...-auth-token) e si rinnova da sola.
+// Se all'apertura (o al ritorno sull'app) la rete non e' ancora pronta, il rinnovo fallisce e prima si
+// finiva sulla schermata di login anche se la sessione era ancora buona. Ora si riprova qualche volta;
+// si va al login solo se la sessione non c'e' piu' davvero (logout, password cambiata, sessione scaduta su Supabase).
+function authHaSessioneSalvata() {
+    try {
+        for (let i = 0; i < localStorage.length; i++) {
+            const k = localStorage.key(i);
+            if (k && /^sb-.+-auth-token$/.test(k)) return true;
+        }
+    } catch (e) { /* niente */ }
+    return false;
+}
+
+async function authRecuperaSessione() {
+    for (let tentativo = 0; tentativo < 5; tentativo++) {
+        let sessione = null;
+        try {
+            const { data } = await supabaseClient.auth.getSession();
+            sessione = data ? data.session : null;
+        } catch (e) {
+            sessione = null;
+        }
+        if (sessione) return sessione;
+        if (!authHaSessioneSalvata()) return null;           // niente da recuperare: login
+        await new Promise(r => setTimeout(r, 1000 + tentativo * 1500));
+    }
+    return null;
+}
+
+let authLogoutVolontario = false;
 
 function clearSavedCredentials() {
     localStorage.removeItem('savedEmail');
@@ -414,17 +498,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     sessionStorage.removeItem('movementRicambiFilters');
     
     loadSavedCredentials();
+    daltApplica(daltLocale());
     
     document.addEventListener('touchstart', function initAudio() {
         initAudioContext();
         document.removeEventListener('touchstart', initAudio);
     }, { once: true });
     
-    const { data: { session } } = await supabaseClient.auth.getSession();
+    const session = await authRecuperaSessione();
     
     if (session) {
         currentUser = session.user;
         loggedInUserEmail = session.user.email;
+        daltDaUtente();
         await loadUserRole();
         showMainScreen();
     } else {
@@ -440,15 +526,32 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     supabaseClient.auth.onAuthStateChange((event, session) => {
         if (event === 'SIGNED_OUT') {
+            if (!authLogoutVolontario) console.warn('Sessione chiusa da Supabase (non con il pulsante Logout)');
             currentUser = null;
             currentUserRole = null;
             loggedInUserEmail = null;
             showLoginScreen();
+            if (!authLogoutVolontario && typeof showCustomAlert === 'function') {
+                showCustomAlert('La sessione &egrave; scaduta: accedi di nuovo.', 'Accesso', '&#128274;');
+            }
         } else if (event === 'SIGNED_IN' && session) {
+            // SIGNED_IN arriva anche quando si torna sulla scheda: se l'utente e' gia' dentro non ricarico tutto
+            const giaDentro = currentUser && currentUser.id === session.user.id &&
+                document.getElementById('main-screen').classList.contains('active');
             currentUser = session.user;
             loggedInUserEmail = session.user.email;
+            if (giaDentro) return;
+            daltDaUtente();
             loadUserRole().then(() => showMainScreen());
+        } else if ((event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') && session) {
+            currentUser = session.user;
         }
+    });
+
+    // Ritorno sull'app (telefono sbloccato, scheda riaperta): faccio rinnovare subito la sessione,
+    // cosi' la prima operazione non trova il "biglietto" scaduto
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible' && currentUser) authRecuperaSessione();
     });
 });
 
@@ -918,6 +1021,8 @@ async function handleLogout() {
     sessionStorage.removeItem('interventiSettimana');
     sessionStorage.removeItem('interventiGiorno');
 
+    authLogoutVolontario = true;
+    daltSalvaLocale(false);
     await supabaseClient.auth.signOut();
     currentUser = null;
     currentUserRole = null;

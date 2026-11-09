@@ -1,0 +1,113 @@
+/* ============================================
+   COLORI PER DALTONICI (pulsante in alto, classe body.daltonici)
+   --------------------------------------------
+   Per chi confonde rosso e verde (il caso piu' comune). Solo i colori che hanno un SIGNIFICATO
+   cambiano; il verde dell'app (pulsanti, intestazioni) resta. Tavolozza Okabe-Ito:
+     verde "ok / disponibile / valido"  -> BLU       (#0072B2 scuro, #56B4E9 chiaro)
+     rosso "errore / scaduto / manca"   -> ARANCIO SCURO (vermiglio #D55E00)
+     arancione "attenzione / in scadenza" -> GIALLO   (#F0E442, testo scuro)
+   In piu' (solo in questa modalita') alcuni simboli accanto ai colori: si legge anche senza colore.
+   Le parole delle legende cambiano da sole: <span class="cw-n">verde</span><span class="cw-d">blu</span>.
+   Caricato DOPO tutti gli altri .css, cosi' vince a parita' di regola.
+   ============================================ */
+
+/* Parole delle legende: normale / daltonici */
+.cw-d { display: none; }
+body.daltonici .cw-n { display: none; }
+body.daltonici .cw-d { display: inline; }
+
+body.daltonici {
+    --danger: #D55E00;
+    --warning: #E69F00;
+    --mac-verde: #56B4E9;
+    --mac-verde-scuro: #0072B2;
+}
+
+/* ---------- Pulsante in alto (attivo) ---------- */
+#daltonici-btn.attivo {
+    background: #0072B2;
+    color: white;
+    border-color: #0072B2;
+}
+
+/* ---------- Quaderno e quadratini ---------- */
+body.daltonici .mac-quadro.st-consegnata { color: #08304f; }
+body.daltonici .om-quadro-ok { color: #08304f; }
+
+/* ---------- Numeri dell'inventario macchine ---------- */
+body.daltonici .mac-num-disp  { background: #dbeefa; color: #005a8c; }
+/* "ordinate" era azzurro: ora bianco con bordo blu tratteggiato, per non confonderlo con "disponibili" */
+body.daltonici .mac-num-ord   { background: white; color: #0072B2; border: 2px dashed #0072B2; }
+body.daltonici .mac-num-ass   { background: #fdf8c4; color: #6b5900; }
+body.daltonici .mac-num-err   { background: #fbe3d4; color: #8a3300; }
+
+/* ---------- Etichette e chip "ok" / "errore" (macchine) ---------- */
+body.daltonici .mac-badge-ok,
+body.daltonici .mac-chip-disp,
+body.daltonici .mac-chip-ord,
+body.daltonici .mac-picker-disp,
+body.daltonici .mac-mov-carico,
+body.daltonici .mac-excel-ok .mac-excel-tag {
+    background: #dbeefa;
+    color: #005a8c;
+    border-color: #56B4E9;
+}
+
+body.daltonici .mac-mov-cancellata,
+body.daltonici .mac-excel-err .mac-excel-tag {
+    background: #fbe3d4;
+    color: #8a3300;
+}
+
+body.daltonici .mac-divisorio.active { border-bottom-color: #D55E00; }
+body.daltonici .mac-raf-riga-allarme { background: #fbe3d4; }
+body.daltonici .mac-raf-ok { color: #0072B2; }
+body.daltonici .mac-raf-ok::before { content: '\2714\00a0'; }
+body.daltonici .mac-raf-allarme::before { content: '\26A0\00a0'; }
+body.daltonici .mac-sost-voce.scelta,
+body.daltonici .mac-corr-fatto { background: #eef7fd; }
+body.daltonici .mac-arr-casa { background: #dbeefa; }
+
+/* ---------- Ordini macchine: numero delle macchine da ordinare ---------- */
+body.daltonici .om-badge,
+body.daltonici .om-riep-marchio span { background: #D55E00; }
+body.daltonici .om-riep-marchio { border-color: #f3b98f; }
+
+/* ---------- Ordini clienti ---------- */
+body.daltonici .ord-matricole.ord-matricole-ok,
+body.daltonici .ord-mont.scelta { background: #eef7fd; border-color: #0072B2; }
+body.daltonici .ord-matr.scelta { background: #dbeefa; border-color: #0072B2; }
+body.daltonici .ord-badge-pagato { background: #dbeefa; color: #005a8c; border-color: #56B4E9; }
+body.daltonici .ord-sconto-errore { color: #8a3300; }
+
+/* ---------- Listini Fornitori: scadenze ---------- */
+body.daltonici .lf-scad.lf-ok,
+body.daltonici .lf-pr-listino.lf-ok { background: #dbeefa; border-color: #56B4E9; color: #005a8c; }
+body.daltonici .lf-scad.lf-presto,
+body.daltonici .lf-pr-listino.lf-presto { background: #fdf8c4; border-color: #c9a800; color: #5c4d00; }
+body.daltonici .lf-scad.lf-scaduto { background: #fbe3d4; border-color: #D55E00; color: #8a3300; }
+body.daltonici .lf-pr-listino.lf-scaduto { background: #D55E00; color: white; }
+body.daltonici .lf-pr-listino.lf-scaduto::before { content: '\26A0\00a0'; }
+body.daltonici .lf-pr-listino.lf-presto::before { content: '\23F3\00a0'; }
+body.daltonici .lf-scad.lf-ok::before { content: '\2714\00a0'; }
+body.daltonici .lf-pr-migliore { background: #eef7fd; border-color: #56B4E9; }
+body.daltonici .lf-pr-stella { color: #0072B2; }
+body.daltonici .lf-pr-scaduto { border-color: #D55E00; background: #fdf0e8; }
+body.daltonici .lf-pr-scaduto .lf-pr-cliente { color: #8a3300; }
+body.daltonici .lf-pr-presto { border-color: #c9a800; }
+body.daltonici .lf-riga-scaduto td { background: #fdf0e8; }
+body.daltonici .lf-riga-presto td { background: #fefbe0; }
+body.daltonici .lf-pallino.lf-scaduto,
+body.daltonici .lf-card-pallino.lf-scaduto { background: #D55E00; }
+body.daltonici .lf-pallino.lf-presto,
+body.daltonici .lf-card-pallino.lf-presto { background: #F0E442; border-color: #6b5900; }
+body.daltonici .lf-avviso-box { background: #fefbe0; border-color: #c9a800; color: #5c4d00; }
+body.daltonici .lf-avviso-box.lf-avviso-rosso { background: #fdf0e8; border-color: #D55E00; color: #8a3300; }
+body.daltonici .lf-avviso-box li.lf-avviso-scaduto { color: #8a3300; }
+body.daltonici .lf-avviso-box li.lf-avviso-presto { color: #5c4d00; }
+body.daltonici .lf-avviso-box li.lf-avviso-scaduto::before { content: '\26A0\00a0'; }
+body.daltonici .lf-avviso-box li.lf-avviso-presto::before { content: '\23F3\00a0'; }
+body.daltonici .lf-fuori { background: #fdf8c4; color: #5c4d00; }
+
+/* ---------- Scorte basse (inventario consumabili): bordo + simbolo ---------- */
+body.daltonici tbody tr.low-stock td:first-child::before { content: '\26A0\00a0'; color: #D55E00; }

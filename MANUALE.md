@@ -92,6 +92,11 @@ In ogni sezione c'&egrave; un pulsante per tornare indietro (es. "Torna a Magazz
 - La sessione di login &egrave; gestita da Supabase e resta attiva finch&eacute; non fai **Esci**.
 - Se vuoi che il browser proponga la password, usa il gestore password del dispositivo (iPhone: Portachiavi).
 
+- **Sessione che non cade** (v7.4.1): all'apertura e quando si torna sull'app (telefono sbloccato, PC risvegliato) se la rete non &egrave; ancora pronta l'app riprova per qualche secondo prima di mandare al login (`authRecuperaSessione()` in app.js). Al login si va solo se la sessione non c'&egrave; pi&ugrave; davvero; se la chiude Supabase compare &quot;La sessione &egrave; scaduta&quot;. Tornando sulla scheda l'app non ricarica pi&ugrave; tutto. Le finestre di navigazione **privata** cancellano la sessione quando si chiudono: l&igrave; bisogna rientrare ogni volta.
+
+### 3.2bis Colori per daltonici (v7.4.1)
+Pulsante con l'**occhio** in alto (accanto al ruolo). Per chi confonde rosso e verde: il verde con un significato (disponibile, in casa, valido, ok) diventa **blu**, il rosso (scaduto, da ordinare, errore) **arancio scuro**, l'arancione (in scadenza, attenzione) **giallo**; in pi&ugrave; alcuni simboli (&#10004; &#9203; &#9888;&#65039;) accanto ai colori. Il verde dell'app (pulsanti, intestazioni) resta. Cambiano anche le parole delle legende e delle guide. Si ricorda per ogni utente (profilo Supabase `user_metadata.daltonici`, vale su tutti i dispositivi); al logout si torna ai colori normali. File `daltonici.css` (caricato per ultimo) e funzioni `dalt*` in app.js; nelle legende le parole dei colori si scrivono `<span class="cw-n">verde</span><span class="cw-d">blu</span>`.
+
 ### 3.3 Ruoli
 | Ruolo | Cosa pu&ograve; fare |
 |-------|---------------------|
@@ -544,6 +549,7 @@ Percorso: Dashboard &rarr; Gestione Utenti.
 | `ricambi-functions.js` | Tutta la logica dei ricambi stock |
 | `listino-functions.js`, `listino.css` | Listino Agrimacch e notifiche (campanella) |
 | `fornitori-functions.js`, `fornitori.css` | Cataloghi Fornitori (cartelle Google Drive; ex Listini Fornitori) |
+| `daltonici.css` | Colori per daltonici (body.daltonici), caricato per ultimo |
 | `listini-fornitori-functions.js`, `listini-fornitori.css` | Listini Vendite &rarr; Listini Fornitori (pi&ugrave; fornitori e listini con scadenza, EAN, Collega/Crea) |
 | `supabase/listini-fornitori-setup.sql` | Tabelle lf_*, permessi, lf_collega, lf_carica_listino, copia dal vecchio Listino STIHL |
 | `supabase/pulizia-vecchio-listino-stihl.sql` | Ricopia gli ultimi collegamenti/EAN e cancella le tabelle e funzioni del vecchio Listino STIHL |
@@ -655,6 +661,7 @@ git rm --cached localhost.pem localhost-key.pem
 
 ## 15. STORICO MODIFICHE PRINCIPALI
 
+- **v7.4.1 (nov 2026)** - **Colori per daltonici** (occhio in alto, per utente). Sessione: niente pi&ugrave; uscite al login quando la rete non &egrave; ancora pronta al ritorno sull'app.
 - **v7.4.0 (nov 2026)** - Aperti agli **operatori**: Ordini Macchine, Listini Fornitori (consultazione, Collega/Crea, avvisi scadenze), Montata / in scatola, Arrivata al posto di.
 - **v7.3.3 (nov 2026)** - Inventario Macchine: colonna **Venduti** dell'anno solare (consegnate quest'anno + in casa assegnate).
 - **v7.3.2 (nov 2026)** - Listini Fornitori: avvisi dei listini in scadenza (7 giorni prima) e scaduti in Dashboard e Listini Vendite, pallino sulle card; avviso su Collega se il codice articolo &egrave; diverso; filtro degli articoli collegati fuori listino.
