@@ -180,11 +180,11 @@
                     <p>Listino Agrimacch, listini e cataloghi dei fornitori</p>
                 </div>
 
-                <!-- Card ORDINI (contiene: Buoni Regalo, Ordini Clienti, Ordini Macchine) - visibile se si vede almeno una delle tre -->
+                <!-- Card ORDINI (contiene: Buoni Regalo, Ordini Clienti, Ordini Fornitore) - visibile se si vede almeno una delle tre -->
                 <div class="dashboard-card" id="dashboard-ordini-card" onclick="openSection('ordini')" style="display: none;">
                     <span class="card-icon">&#128722;</span>
                     <h3>Ordini</h3>
-                    <p>Ordini clienti, ordini macchine ai fornitori e buoni regalo</p>
+                    <p>Ordini clienti, ordini fornitore e buoni regalo</p>
                 </div>
 
                 <!-- Card ASSISTENZA (ex Tecnici: Interventi Esterni, Richieste e Organizzazione interventi robot,
@@ -300,7 +300,7 @@
         </div>
 
         <!-- ========================================== -->
-        <!-- CATEGORIA ORDINI (menu: Ordini Macchine) -->
+        <!-- CATEGORIA ORDINI (menu: Buoni Regalo, Ordini Clienti, Ordini Fornitore) -->
         <!-- ========================================== -->
         <div id="section-ordini" class="section-container hidden">
             <div class="back-to-dashboard">
@@ -328,10 +328,10 @@
                         <p>Commissioni con firma, collegate al quaderno macchine</p>
                     </div>
 
-                    <!-- Card Ordini Macchine (ORDINI_RUOLI in ordini-macchine-functions.js) -->
+                    <!-- Card Ordini Fornitore, sezione interna 'ordini-macchine' (ORDINI_RUOLI in ordini-macchine-functions.js) -->
                     <div class="dashboard-card" id="ordini-macchine-card" onclick="openSection('ordini-macchine')" style="display: none;">
                         <span class="card-icon">&#128666;</span>
-                        <h3>Ordini Macchine</h3>
+                        <h3>Ordini Fornitore</h3>
                         <p>Il libro degli ordini ai fornitori, diviso per marchio</p>
                     </div>
                 </div>
@@ -339,7 +339,7 @@
         </div>
 
         <!-- ========================================== -->
-        <!-- SEZIONE ORDINI MACCHINE (ordini-macchine-functions.js) -->
+        <!-- SEZIONE ORDINI FORNITORE, id interno 'ordini-macchine' (ordini-macchine-functions.js) -->
         <!-- ========================================== -->
         <div id="section-ordini-macchine" class="section-container hidden">
             <div class="back-to-dashboard">
@@ -351,7 +351,7 @@
                         &#127968; Dashboard
                     </button>
                 </div>
-                <h2 class="section-title">&#128666; Ordini Macchine <button type="button" class="mac-raf-info-btn" id="om-guida-btn" title="Guida rapida">i</button></h2>
+                <h2 class="section-title">&#128666; Ordini Fornitore <button type="button" class="mac-raf-info-btn" id="om-guida-btn" title="Guida rapida">i</button></h2>
             </div>
             <div class="container">
                 <div id="om-avviso-sql" class="mac-info hidden">&#9888;&#65039; Per segnare gli ordini e creare le sezioni va eseguito su Supabase lo script <strong>supabase/ordini-macchine-setup.sql</strong>. Per ora vedi solo le macchine da ordinare.</div>
@@ -2747,7 +2747,7 @@
         </div>
     </div>
 
-    <!-- Ordini Macchine: ordine al fornitore (segna come ordinate / nuovo / modifica) -->
+    <!-- Ordini Fornitore: ordine al fornitore (segna come ordinate / nuovo / modifica) -->
     <div id="om-of-modal" class="modal hidden">
         <div class="modal-content mac-modal-content">
             <div class="modal-header">
@@ -2787,7 +2787,7 @@
         </div>
     </div>
 
-    <!-- Ordini Macchine: macchine di una riga -->
+    <!-- Ordini Fornitore: macchine di una riga -->
     <div id="om-riga-modal" class="modal hidden">
         <div class="modal-content mac-modal-content">
             <div class="modal-header">
@@ -2811,7 +2811,7 @@
         </div>
     </div>
 
-    <!-- Ordini Macchine: sezione (prestagionale) -->
+    <!-- Ordini Fornitore: sezione (prestagionale) -->
     <div id="om-sez-modal" class="modal hidden">
         <div class="modal-content mac-modal-content">
             <div class="modal-header">
@@ -2831,7 +2831,7 @@
         </div>
     </div>
 
-    <!-- Ordini Macchine: righe da ordinare per il magazzino (senza cliente) -->
+    <!-- Ordini Fornitore: righe da ordinare per il magazzino (senza cliente) -->
     <div id="om-dao-modal" class="modal hidden">
         <div class="modal-content mac-modal-content">
             <div class="modal-header">
@@ -2851,7 +2851,7 @@
         </div>
     </div>
 
-    <!-- Ordini Macchine: carica Excel in una sezione (prestagionali con le consegne per mese) -->
+    <!-- Ordini Fornitore: carica Excel in una sezione (prestagionali con le consegne per mese) -->
     <div id="om-xls-modal" class="modal hidden">
         <div class="modal-content mac-modal-content om-xls-content">
             <div class="modal-header">
@@ -2878,11 +2878,11 @@
         </div>
     </div>
 
-    <!-- Ordini Macchine: guida rapida -->
+    <!-- Ordini Fornitore: guida rapida -->
     <div id="om-guida-modal" class="modal hidden">
         <div class="modal-content mac-modal-content mac-raf-guida-content">
             <div class="modal-header">
-                <h3>&#8505;&#65039; Guida rapida: Ordini Macchine</h3>
+                <h3>&#8505;&#65039; Guida rapida: Ordini Fornitore</h3>
                 <button type="button" class="modal-close" id="om-guida-close">&times;</button>
             </div>
             <div class="mac-raf-guida">
@@ -3068,7 +3068,7 @@
                 <label>Codice a barre <small>(facoltativo: scrivilo o leggilo col lettore. Non compare nel listino)</small></label>
                 <input type="text" id="listino-edit-codice-barre" placeholder="es. 8012345678901" autocomplete="off" autocapitalize="characters">
 
-                <label>Codice articolo del fornitore <small>(facoltativo: compare negli Ordini Macchine. Si cerca anche nel listino)</small></label>
+                <label>Codice articolo del fornitore <small>(facoltativo: compare negli Ordini Fornitore. Si cerca anche nel listino)</small></label>
                 <input type="text" id="listino-edit-codice-articolo" placeholder="es. STIHA02-011-3515 / 11371200650" autocomplete="off" autocapitalize="characters">
 
                 <div class="modal-buttons">
@@ -3139,8 +3139,8 @@
                 <div class="new-feature">
                     <span class="feature-icon">&#11088;</span>
                     <div class="feature-content">
-                        <h4>ORDINI MACCHINE</h4>
-                        <p>Nuovo libro degli ordini ai fornitori (Ordini &gt; Ordini Macchine): marchi, prestagionali, consegne. Al carico la macchina va a chi l'ha ordinata per primo.</p>
+                        <h4>ORDINI FORNITORE</h4>
+                        <p>Nuovo libro degli ordini ai fornitori (Ordini &gt; Ordini Fornitore): marchi, prestagionali, consegne. Al carico la macchina va a chi l'ha ordinata per primo.</p>
                     </div>
                 </div>
 

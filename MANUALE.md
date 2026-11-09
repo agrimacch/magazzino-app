@@ -350,7 +350,9 @@ Si apre da **Ordini &rarr; Ordini Clienti**. Sostituisce il blocchetto delle com
 
 **Prossime fasi**: Telegram (da decidere).
 
-### 8.7 Ordini &rarr; Ordini Macchine (admin e operatori dal 9/11/2026)
+### 8.7 Ordini &rarr; Ordini Fornitore (ex Ordini Macchine; admin e operatori dal 9/11/2026)
+Dal 9/11/2026 la card si chiama **Ordini Fornitore** (nel codice resta `ordini-macchine`: file, id della sezione, tabelle `macchine_of_*`; il gruppo Telegram resta &quot;Ordini Macchine&quot;).
+
 Card **Ordini** in dashboard &rarr; **Ordini Macchine**. Sostituisce OneNote per gli ordini delle macchine ai fornitori (OneNote resta per i ricambi). File `ordini-macchine-functions.js`, `ordini-macchine.css`; tabelle `macchine_of_ordini` (un ordine al fornitore: marchio, sezione, data, iniziali, consegna, note) e `macchine_of_sezioni` (sezioni dei marchi), colonna `ordine_fornitore_id` di `macchine_pezzi`. Configurazione: eseguire una volta `supabase/ordini-macchine-setup.sql`. Chi la vede: `ORDINI_RUOLI` in `ordini-macchine-functions.js` (per aprirla agli operatori aggiungere `'operatore'`; su Supabase i permessi sono gi&agrave; quelli dell'inventario macchine).
 - **Il libro**: un divisorio per **marchio del listino** con il numero rosso delle macchine da ordinare; in alto &quot;Ordini da fare&quot; con i marchi; **Vai al marchio** per aprire un marchio che non ha ancora ordini. Dentro ogni marchio la pagina **ORDINI NORMALE** e le **sezioni** (prestagionali: OPG, TRATTORINI 2026...).
 - **Da ordinare** (ORDINI NORMALE): le macchine DA ORDINARE degli ordini clienti, raggruppate per modello (quantit&agrave;, attrezzo, modello, note, &quot;1x ROSSI (45/2026)&quot;). Un ordine da fare = una riga senza data e iniziali. Si spuntano le righe (con **quante** se ne ordinano meno: vanno a chi ha ordinato per primo) e **Segna come ordinate**: data (oggi), iniziali, sezione (normale o prestagionale), consegna prevista (testo libero), note.
@@ -664,6 +666,7 @@ git rm --cached localhost.pem localhost-key.pem
 
 ## 15. STORICO MODIFICHE PRINCIPALI
 
+- **v7.5.2 (nov 2026)** - La card Ordini Macchine si chiama **Ordini Fornitore**.
 - **v7.5.1 (nov 2026)** - Ordini Macchine: **Aggiungi riga** in Da ordinare (macchine per il magazzino da ordinare insieme alle altre).
 - **v7.5.0 (nov 2026)** - Ordini Macchine: macchine in pi&ugrave; per il magazzino (quante oltre le richieste, Nuovo ordine in ORDINI NORMALE, Aggiungi a una riga) e **Carica Excel** nelle sezioni (un ordine per mese di consegna).
 - **v7.4.1 (nov 2026)** - **Colori per daltonici** (occhio in alto, per utente). Sessione: niente pi&ugrave; uscite al login quando la rete non &egrave; ancora pronta al ritorno sull'app.
