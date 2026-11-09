@@ -1,5 +1,8 @@
 # Changelog App Magazzino
 
+## v7.4.4 - 2026-11-09 (PRODUZIONE)
+modifica ordine macchine
+
 ## v7.4.3 - 2026-11-09 (PRODUZIONE)
 aggiunta righa ordine
 
