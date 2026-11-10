@@ -1,5 +1,8 @@
 # Changelog App Magazzino
 
+## v7.5.0 - 2026-11-10 (PRODUZIONE)
+MODIFICHE ORDINE
+
 ## v7.4.4 - 2026-11-09 (PRODUZIONE)
 modifica ordine macchine
 

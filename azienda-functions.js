@@ -57,7 +57,7 @@ function aziendaIntestazioneHtml() {
     const d = aziendaDati;
     const unisci = arr => arr.filter(Boolean).join(' &middot; ');
     const righe = [
-        unisci([d.ragione_sociale ? '<strong>' + aziendaEsc(d.ragione_sociale) + '</strong>' : '', aziendaEsc(d.indirizzo)]),
+        unisci([d.ragione_sociale ? '<strong>' + aziendaEsc(String(d.ragione_sociale).toUpperCase()) + '</strong>' : '', aziendaEsc(d.indirizzo)]),
         unisci([d.telefono ? 'Tel. ' + aziendaEsc(d.telefono) : '', d.telefono_whatsapp ? 'WhatsApp ' + aziendaEsc(d.telefono_whatsapp) : '',
             aziendaEsc(d.email), aziendaEsc(d.sito_web)]),
         unisci([d.partita_iva ? 'P.IVA ' + aziendaEsc(d.partita_iva) : '', d.codice_fiscale ? 'C.F. ' + aziendaEsc(d.codice_fiscale) : '',

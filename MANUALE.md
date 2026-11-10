@@ -666,6 +666,7 @@ git rm --cached localhost.pem localhost-key.pem
 
 ## 15. STORICO MODIFICHE PRINCIPALI
 
+- **v7.6.0 (nov 2026)** - Ordini clienti: **Documento** obbligatorio (Scontrino / Fattura) prima delle Note, nel dettaglio e nel PDF (colonna `documento`, `supabase/ordini-documento.sql`). PDF di ordini e report con caratteri pi&ugrave; grandi; ragione sociale in MAIUSCOLO nell'intestazione.
 - **v7.5.2 (nov 2026)** - La card Ordini Macchine si chiama **Ordini Fornitore**.
 - **v7.5.1 (nov 2026)** - Ordini Macchine: **Aggiungi riga** in Da ordinare (macchine per il magazzino da ordinare insieme alle altre).
 - **v7.5.0 (nov 2026)** - Ordini Macchine: macchine in pi&ugrave; per il magazzino (quante oltre le richieste, Nuovo ordine in ORDINI NORMALE, Aggiungi a una riga) e **Carica Excel** nelle sezioni (un ordine per mese di consegna).

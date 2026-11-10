@@ -2209,3 +2209,23 @@
 .mac-sost-voce small {
     color: var(--gray);
 }
+
+/* ============================================ */
+/* REPORT PDF: CARATTERI PIU' GRANDI (v7.6)     */
+/* ============================================ */
+.rpt-pagina { font-size: 11.5px; }
+.rpt-titolo { font-size: 18px; }
+.rpt-sotto { font-size: 12.5px; }
+.rpt-kpi span { font-size: 9.5px; }
+.rpt-kpi strong { font-size: 15px; }
+.rpt-kpi small { font-size: 10.5px; }
+.rpt-nota { font-size: 10px; }
+.rpt-sezione { font-size: 13px; }
+.rpt-tab { font-size: 11px; }
+.rpt-tab th { font-size: 10.5px; }
+.rpt-tab-piccola { font-size: 10px; }
+.rpt-tab small { font-size: 9.5px; }
+.pdf-foglio .rpt-tab td { font-size: 11px !important; }
+.pdf-foglio .rpt-tab th { font-size: 10.5px !important; }
+.pdf-foglio .rpt-tab-piccola td { font-size: 10px !important; }
+.pdf-foglio .rpt-tab { font-size: 11px !important; }

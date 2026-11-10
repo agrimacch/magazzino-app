@@ -1172,3 +1172,36 @@
 
 .ord-tag-montata { background: #fef3c7; color: #92400e; }
 .ord-tag-scatola { background: #e0e7ff; color: #3730a3; }
+
+/* ---------- Documento fiscale (Scontrino / Fattura) nel modulo ---------- */
+.ord-documento {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 4px 0 10px;
+}
+
+.ord-obbl {
+    color: var(--danger, #dc2626);
+}
+
+/* ============================================ */
+/* PDF ORDINE: CARATTERI PIU' GRANDI (v7.6)     */
+/* ============================================ */
+.ordd { font-size: 12.5px; }
+.ordd .rpt-titolo { font-size: 21px; }
+.ordd .rpt-sotto { font-size: 11.5px; }
+.ordd .rpt-sotto.ordd-data { font-size: 16px; }
+.ordd-casella { width: 14px; height: 14px; font-size: 12px; line-height: 13px; }
+.ordd-etich { font-size: 10px; }
+.ordd-val { font-size: 14px; }
+.ordd-nota-sezione { font-size: 10px; }
+.ordd-box { font-size: 14px; }
+.pdf-foglio .ordd-righe th { font-size: 11px !important; }
+.pdf-foglio .ordd-righe td { font-size: 13px !important; height: 24px !important; }
+.ordd-matr { font-size: 10.5px; }
+.ordd-mag { font-size: 11px !important; }
+.pdf-foglio .ordd-righe tfoot td { font-size: 13px !important; }
+.pdf-foglio .ordd-righe .ordd-tot { font-size: 15px !important; }
+.ordd-condizioni { font-size: 8.5px; }
+.ordd-firma-linea { font-size: 10px; }

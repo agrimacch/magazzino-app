@@ -73,7 +73,7 @@ const ORD_STATI = {
     CONSEGNATO:  { etichetta: 'Consegnato',  classe: 'st-consegnata' },
     ANNULLATO:   { etichetta: 'Annullato',   classe: 'st-annullato' }
 };
-const ORD_MIN_RIGHE_STAMPA = 10;      // righe minime della tabella articoli (poi si riempie il foglio)
+const ORD_MIN_RIGHE_STAMPA = 8;       // righe minime della tabella articoli (poi si riempie il foglio)
 const ORD_ALTEZZA_A4_PX = 1040;       // altezza utile di un A4 con margini 10 mm (larghezza 718 px)
 
 let ordOrdini = [];
@@ -394,6 +394,26 @@ function ordRenderElenco() {
 // ========================================
 const ORD_CAMPI = ['data', 'operatore', 'cliente', 'indirizzo', 'telefono', 'email', 'cf', 'piva', 'note', 'pagamento'];
 
+// ---------- Documento fiscale: SCONTRINO o FATTURA (obbligatorio, uno solo) ----------
+const ORD_DOCUMENTI = { SCONTRINO: 'Scontrino', FATTURA: 'Fattura' };
+
+function ordLeggiDocumento() {
+    const el = document.querySelector('#ord-documento-box input[data-documento]:checked');
+    return el ? el.dataset.documento : null;
+}
+
+function ordImpostaDocumento(val) {
+    document.querySelectorAll('#ord-documento-box input[data-documento]').forEach(el => {
+        el.checked = el.dataset.documento === val;
+        el.closest('label').classList.toggle('scelta', el.checked);
+    });
+}
+
+// La colonna c'e' su Supabase? (se gli ordini caricati hanno il campo)
+function ordColonnaDocumento() {
+    return ordOrdini.some(o => Object.prototype.hasOwnProperty.call(o, 'documento'));
+}
+
 function ordNuovoModulo() {
     ordInModifica = null;
     ordFormRighe = [];
@@ -406,6 +426,7 @@ function ordNuovoModulo() {
     document.getElementById('ord-annulla-form').innerHTML = 'Svuota';
     document.getElementById('ord-aggiungi-box').classList.remove('hidden');
     ordFirmaPulisci();
+    ordImpostaDocumento(null);
     document.getElementById('ord-senza-installazione').checked = false;
     document.getElementById('ord-sconto').value = '';
     document.getElementById('ord-acconto').value = '';
@@ -975,8 +996,17 @@ function ordLeggiTesta() {
         codice_fiscale: listinoPulisciTesto(v('cf')),
         partita_iva: listinoPulisciTesto(v('piva')),
         note: listinoPulisciTesto(v('note')),
-        pagamento: listinoPulisciTesto(v('pagamento'))
+        pagamento: listinoPulisciTesto(v('pagamento')),
+        documento: ordLeggiDocumento()
     };
+}
+
+// Controllo del documento (scontrino / fattura)
+function ordControllaDocumento(testa, errori) {
+    if (!testa.documento) errori.push('Scegli il documento: <strong>Scontrino</strong> oppure <strong>Fattura</strong>');
+    else if (ordOrdini.length && !ordColonnaDocumento()) {
+        errori.push('Manca la colonna del documento su Supabase: esegui <strong>supabase/ordini-documento.sql</strong>');
+    }
 }
 
 async function ordProssimoNumero(anno) {
@@ -1025,6 +1055,7 @@ async function ordSalva() {
     const testa = ordLeggiTesta();
     const errori = [];
     if (!testa.cliente) errori.push('Scrivi il nome del cliente (Sig./Sig.ra)');
+    ordControllaDocumento(testa, errori);
     if (ordFormRighe.length === 0) errori.push('Aggiungi almeno un articolo');
     if (ordLeggiSconto().errore) errori.push(ordLeggiSconto().errore);
     if (ordErroreAcconto()) errori.push(ordErroreAcconto());
@@ -1185,6 +1216,7 @@ function ordApriModifica(id) {
     document.getElementById('ord-cf').value = o.codice_fiscale || '';
     document.getElementById('ord-piva').value = o.partita_iva || '';
     document.getElementById('ord-note').value = o.note || '';
+    ordImpostaDocumento(o.documento || null);
     document.getElementById('ord-pagamento').value = o.pagamento || '';
     document.getElementById('ord-form-titolo').innerHTML = '&#9997;&#65039; Modifica ordine N. ' + ordNumero(o);
     document.getElementById('ord-salva').innerHTML = '&#128190; Salva modifiche';
@@ -1246,6 +1278,7 @@ async function ordSalvaModifica() {
     const testa = ordLeggiTesta();
     const errori = [];
     if (!testa.cliente) errori.push('Scrivi il nome del cliente (Sig./Sig.ra)');
+    ordControllaDocumento(testa, errori);
     if (ordLeggiSconto().errore) errori.push(ordLeggiSconto().errore);
     if (ordErroreAcconto()) errori.push(ordErroreAcconto());
     if (ordFormRighe.length === 0) errori.push('Lascia almeno un articolo (per togliere tutto usa &quot;Annulla ordine&quot;)');
@@ -1377,7 +1410,7 @@ function ordApriDettaglio(id) {
 
     const dati = [
         ['Data', ordDataIt(o.data)], ['Operatore', o.operatore], ['Indirizzo', o.indirizzo], ['Tel / Cell', o.telefono], ['E-mail', o.email],
-        ['C.F.', o.codice_fiscale], ['P.IVA', o.partita_iva], ['Pagamento', o.pagamento], ['Note', o.note]
+        ['C.F.', o.codice_fiscale], ['P.IVA', o.partita_iva], ['Documento', ORD_DOCUMENTI[o.documento] || ''], ['Pagamento', o.pagamento], ['Note', o.note]
     ].filter(d => d[1]);
 
     let html =
@@ -1828,6 +1861,8 @@ function ordHtmlStampa(o, righeTotali) {
             '<tr>' + campo('Indirizzo', o.indirizzo, 3) + '</tr>' +
             '<tr>' + campo('Tel / Cell', o.telefono) + campo('E-mail', o.email) + '</tr>' +
             '<tr>' + campo('C.F.', o.codice_fiscale) + campo('P.IVA', o.partita_iva) + '</tr>' +
+            '<tr><td class="ordd-etich">Documento</td><td class="ordd-val" colspan="3">' +
+                casella(o.documento === 'SCONTRINO') + ' Scontrino &nbsp;&nbsp;&nbsp; ' + casella(o.documento === 'FATTURA') + ' Fattura</td></tr>' +
             '<tr>' + campo('Note', o.note, 3) + '</tr>' +
         '</table>' +
         '<div class="rpt-sezione">Pagamento</div>' +
@@ -2341,6 +2376,14 @@ async function ordBozzaUsa() {
 // EVENT LISTENERS
 // ========================================
 document.addEventListener('DOMContentLoaded', () => {
+    // Documento: Scontrino / Fattura, uno solo
+    const docBox = document.getElementById('ord-documento-box');
+    if (docBox) docBox.addEventListener('change', (e) => {
+        const el = e.target.closest('input[data-documento]');
+        if (!el) return;
+        ordImpostaDocumento(el.checked ? el.dataset.documento : null);
+    });
+
     const section = document.getElementById('section-ordini-clienti');
     if (!section) return;
 
