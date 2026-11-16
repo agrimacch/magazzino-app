@@ -17,18 +17,18 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Kalam:wght@400;700&family=Roboto+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=7.5.1">
-    <link rel="stylesheet" href="listino.css?v=7.5.1">
-    <link rel="stylesheet" href="listini-fornitori.css?v=7.5.1">
-    <link rel="stylesheet" href="fornitori.css?v=7.5.1">
-    <link rel="stylesheet" href="interventi.css?v=7.5.1">
-    <link rel="stylesheet" href="macchine.css?v=7.5.1">
-    <link rel="stylesheet" href="ordini.css?v=7.5.1">
-    <link rel="stylesheet" href="ordini-macchine.css?v=7.5.1">
-    <link rel="stylesheet" href="azienda.css?v=7.5.1">
-    <link rel="stylesheet" href="richieste.css?v=7.5.1">
-    <link rel="stylesheet" href="buoni.css?v=7.5.1">
-    <link rel="stylesheet" href="daltonici.css?v=7.5.1">
+    <link rel="stylesheet" href="style.css?v=7.8.0">
+    <link rel="stylesheet" href="listino.css?v=7.8.0">
+    <link rel="stylesheet" href="listini-fornitori.css?v=7.8.0">
+    <link rel="stylesheet" href="fornitori.css?v=7.8.0">
+    <link rel="stylesheet" href="interventi.css?v=7.8.0">
+    <link rel="stylesheet" href="macchine.css?v=7.8.0">
+    <link rel="stylesheet" href="ordini.css?v=7.8.0">
+    <link rel="stylesheet" href="ordini-macchine.css?v=7.8.0">
+    <link rel="stylesheet" href="azienda.css?v=7.8.0">
+    <link rel="stylesheet" href="richieste.css?v=7.8.0">
+    <link rel="stylesheet" href="buoni.css?v=7.8.0">
+    <link rel="stylesheet" href="daltonici.css?v=7.8.0">
 
     <!-- SheetJS per import Excel -->
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
@@ -89,7 +89,7 @@
 
 <body class="loading">
     <!-- Version badge -->
-    <div class="version-badge">v7.5.1</div>
+    <div class="version-badge">v7.8.0</div>
 
     <!-- SCHERMATA LOGIN -->
     <div id="login-screen" class="screen">
@@ -456,15 +456,16 @@
                     <div class="card">
                         <h2>&#128193; Carica un listino di <span id="lf-carica-fornitore"></span></h2>
                         <p class="listino-help">
-                            Carica il file Excel del fornitore (es. OPG, OPM). Scegli dove va: <strong>Nuovo listino</strong> oppure <strong>Sostituisci</strong>
+                            Carica il file Excel del fornitore (es. OPG, OPM) oppure il <strong>PDF</strong> del listino, se &egrave; un PDF di testo (non scansionato):
+                            l'app ricostruisce la tabella e propone le colonne, tu le controlli nell'anteprima. Se c'&egrave; la colonna EAN, i codici a barre vengono presi anche da l&igrave;. Scegli dove va: <strong>Nuovo listino</strong> oppure <strong>Sostituisci</strong>
                             un listino che c'&egrave; gi&agrave;. Imposta la <strong>scadenza</strong>, il ricarico e le colonne (l'app propone da sola le scelte
                             e si ricorda quelle dell'ultima volta). Prima di salvare vedi l'anteprima.<br><br>
                             <strong>Sostituisci</strong> = il file prende il posto del vecchio <strong>per intero</strong> (niente storico). Collegamenti con il
                             Listino Agrimacch ed EAN restano, perch&eacute; sono legati al codice.
                         </p>
-                        <input type="file" id="lf-file" accept=".xlsx,.xls,.xlsm" style="display: none;">
+                        <input type="file" id="lf-file" accept=".xlsx,.xls,.xlsm,.pdf" style="display: none;">
                         <div class="listino-import-pulsanti">
-                            <button type="button" id="lf-btn-file" class="btn-primary">&#128194; Seleziona file Excel</button>
+                            <button type="button" id="lf-btn-file" class="btn-primary">&#128194; Seleziona file Excel o PDF</button>
                         </div>
                         <div id="lf-file-nome" class="sti-file-nome"></div>
 
@@ -483,7 +484,14 @@
                                     <input type="date" id="lf-scadenza">
                                 </div>
                                 <div class="sti-colonna">
-                                    <label>Ricarico % *</label>
+                                    <label>Prezzo cliente</label>
+                                    <select id="lf-calcolo">
+                                        <option value="RICARICO">Netto + ricarico</option>
+                                        <option value="PUBBLICO">Prezzo al pubblico consigliato (colonna Listino)</option>
+                                    </select>
+                                </div>
+                                <div class="sti-colonna">
+                                    <label id="lf-ricarico-label">Ricarico % *</label>
                                     <input type="text" id="lf-ricarico" inputmode="decimal" value="30">
                                 </div>
                                 <div class="sti-colonna">
@@ -2639,6 +2647,22 @@
         </div>
     </div>
 
+    <!-- Listini Fornitori: esiste gia'? / vuoi collegarlo? (v7.8) -->
+    <div id="lf-simili-modal" class="modal hidden">
+        <div class="modal-content mac-modal-content">
+            <div class="modal-header">
+                <h3 id="lf-simili-titolo">&#128270; Esiste gi&agrave;?</h3>
+                <button type="button" class="modal-close" id="lf-simili-close">&times;</button>
+            </div>
+            <div id="lf-simili-info" class="mac-info"></div>
+            <div id="lf-simili-lista" class="lf-simili-lista"></div>
+            <div class="modal-buttons">
+                <button type="button" id="lf-simili-annulla" class="btn-secondary">Annulla</button>
+                <button type="button" id="lf-simili-nuovo" class="btn-primary">&#10133; No, crea un articolo nuovo</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Listini Fornitori: proponi collegamenti -->
     <div id="lf-prop-modal" class="modal hidden">
         <div class="modal-content mac-modal-content lf-prop-content">
@@ -2689,6 +2713,8 @@
                 <ul>
                     <li><strong>Collega</strong>: l'articolo c'&egrave; gi&agrave; nel Listino Agrimacch. Gli passa anche l'EAN come codice a barre, se manca.</li>
                     <li><strong>Crea</strong>: si apre Nuovo articolo gi&agrave; compilato con i prezzi del listino migliore. Scegli l'<strong>attrezzo</strong>, correggi il modello e salva.</li>
+                    <li><strong>Esiste gi&agrave;?</strong> Prima di creare, l'app controlla il Listino Agrimacch (stesso codice a barre, stesso codice articolo o stesso modello): se trova articoli simili te li mostra e puoi <strong>collegare</strong> invece di creare un doppione, oppure creare lo stesso.</li>
+                    <li><strong>Nuovo articolo creato a mano</strong> nel Listino Agrimacch: dopo il salvataggio, se l'app lo trova nei listini dei fornitori (non ancora collegato) ti chiede se vuoi collegarlo. I prezzi del Listino Agrimacch non cambiano mai.</li>
                     <li>Il collegamento vale per <strong>tutti i listini</strong> del fornitore (&egrave; legato al codice).</li>
                     <li><strong>&#128279; Proponi collegamenti</strong>: l'app cerca da sola le coppie tra gli articoli non collegati del fornitore e il Listino Agrimacch (stesso codice a barre, codice articolo o modello) e mostra i prezzi dei due listini. Le sicure sono gi&agrave; spuntate; controlli le altre e premi <strong>Collega le spuntate</strong>. Te lo propone anche dopo aver caricato un listino o importato l'Excel del Listino Agrimacch.</li>
                     <li>Collega scrive nel tuo articolo il <strong>codice articolo</strong> e l'<strong>EAN</strong> solo se sono vuoti: quello che c'&egrave; gi&agrave; non viene mai cambiato. Se il codice articolo &egrave; diverso l'app ti avvisa: forse &egrave; un altro modello.</li>
@@ -2702,6 +2728,8 @@
                     <li><strong>Dove va</strong>: <strong>Nuovo listino</strong>, oppure <strong>Sostituisci</strong> uno esistente (il file nuovo lo rimpiazza per intero, senza storico).</li>
                     <li>Controlla <strong>nome</strong>, <strong>scadenza</strong>, <strong>ricarico</strong>, foglio, riga dei titoli e colonne (STIHL OPG: foglio &quot;OPG&quot;, riga 19; OPM: foglio &quot;OPM&quot;, riga 28; colonne Codice, Descrizione prodotto, Listino Escl. Iva, Prezzo Promo, Categ. prod).</li>
                     <li><strong>Anteprima</strong> &#8594; <strong>Conferma caricamento</strong>.</li>
+                    <li><strong>Prezzo cliente</strong>: &quot;Netto + ricarico&quot; (come sempre) oppure &quot;Prezzo al pubblico consigliato&quot;: il prezzo cliente diventa il prezzo al pubblico del fornitore (colonna Listino IVA esclusa + IVA, con i centesimi) e il ricarico non serve. Si pu&ograve; cambiare dopo nella scheda Listini.</li>
+                    <li>Va bene anche il <strong>PDF</strong> del listino (di testo, non scansionato): l'app trova codice, modello, EAN, descrizione e i prezzi (PREZZO 1, 2, 3 nell'ordine del PDF, con il loro titolo). Di solito: Listino IVA esclusa = &quot;pubblico IVA esclusa&quot;, Netto = &quot;netto rivenditore&quot;. Controlla sempre l'anteprima.</li>
                 </ol>
 
                 <h4>5. Codici EAN (solo admin)</h4>
@@ -3158,44 +3186,12 @@
     <div id="whats-new-modal" class="modal hidden">
         <div class="modal-content whats-new-content">
             <div class="whats-new-header">
-                <h3>&#127881; AGRIDESK v7.5.1 - Aggiornamento!</h3>
+                <h3>&#127881; AGRIDESK v7.8.0 - Aggiornamento!</h3>
                 <p class="version-date">16 Novembre 2026</p>
             </div>
 
             <!-- INIZIO_FEATURES -->
             <div class="whats-new-body">
-
-                <div class="new-feature">
-                    <span class="feature-icon">&#11088;</span>
-                    <div class="feature-content">
-                        <h4>ORDINI FORNITORE</h4>
-                        <p>Nuovo libro degli ordini ai fornitori (Ordini &gt; Ordini Fornitore): marchi, prestagionali, consegne. Al carico la macchina va a chi l'ha ordinata per primo.</p>
-                    </div>
-                </div>
-
-                <div class="new-feature">
-                    <span class="feature-icon">&#128202;</span>
-                    <div class="feature-content">
-                        <h4>LISTINI FORNITORI</h4>
-                        <p>In Listini Vendite: prezzi STIHL OPG e OPM con le scadenze. Avviso in dashboard quando un listino scade. Collega e Crea per portare gli articoli nel Listino Agrimacch.</p>
-                    </div>
-                </div>
-
-                <div class="new-feature">
-                    <span class="feature-icon">&#128295;</span>
-                    <div class="feature-content">
-                        <h4>INVENTARIO E ORDINI CLIENTI</h4>
-                        <p>Colonna Venduti dell'anno nell'inventario. Negli ordini: macchina montata o in scatola. Al carico: &quot;arrivata al posto di&quot; un altro modello.</p>
-                    </div>
-                </div>
-
-                <div class="new-feature">
-                    <span class="feature-icon">&#127912;</span>
-                    <div class="feature-content">
-                        <h4>MENU RIORDINATI</h4>
-                        <p>Sezioni in ordine alfabetico. Buoni Regalo e Ordini Clienti sono dentro Ordini. Vendite si chiama Listini Vendite.</p>
-                    </div>
-                </div>
 
             </div>
             <!-- FINE_FEATURES -->
@@ -3576,19 +3572,19 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- Versione bloccata (la libreria non e' piu' mantenuta: cosi' non cambia mai da sola) -->
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-    <script src="ricambi-functions.js?v=7.5.1"></script>
-    <script src="listino-functions.js?v=7.5.1"></script>
-    <script src="fornitori-functions.js?v=7.5.1"></script>
-    <script src="interventi-functions.js?v=7.5.1"></script>
-    <script src="macchine-functions.js?v=7.5.1"></script>
-    <script src="macchine-report.js?v=7.5.1"></script>
-    <script src="macchine-raffica.js?v=7.5.1"></script>
-    <script src="listini-fornitori-functions.js?v=7.5.1"></script>
-    <script src="ordini-functions.js?v=7.5.1"></script>
-    <script src="ordini-macchine-functions.js?v=7.5.1"></script>
-    <script src="azienda-functions.js?v=7.5.1"></script>
-    <script src="richieste-robot-functions.js?v=7.5.1"></script>
-    <script src="buoni-functions.js?v=7.5.1"></script>
-    <script src="app.js?v=7.5.1"></script>
+    <script src="ricambi-functions.js?v=7.8.0"></script>
+    <script src="listino-functions.js?v=7.8.0"></script>
+    <script src="fornitori-functions.js?v=7.8.0"></script>
+    <script src="interventi-functions.js?v=7.8.0"></script>
+    <script src="macchine-functions.js?v=7.8.0"></script>
+    <script src="macchine-report.js?v=7.8.0"></script>
+    <script src="macchine-raffica.js?v=7.8.0"></script>
+    <script src="listini-fornitori-functions.js?v=7.8.0"></script>
+    <script src="ordini-functions.js?v=7.8.0"></script>
+    <script src="ordini-macchine-functions.js?v=7.8.0"></script>
+    <script src="azienda-functions.js?v=7.8.0"></script>
+    <script src="richieste-robot-functions.js?v=7.8.0"></script>
+    <script src="buoni-functions.js?v=7.8.0"></script>
+    <script src="app.js?v=7.8.0"></script>
 </body>
 </html>

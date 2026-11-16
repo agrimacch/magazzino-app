@@ -14,6 +14,10 @@
 //   - Codici EAN da un catalogo del fornitore (solo admin): si tengono solo gli EAN degli articoli dei listini.
 // Prezzi IVA inclusa: listino x 1,22; netto x 1,22 (oscurabile); cliente = netto + ricarico, x 1,22, all'euro.
 // Avvisi scadenze: riquadro in dashboard e in Listini Vendite + pallino sulle card (lfControllaScadenze, da showDashboard).
+// Gia' esiste? (v7.8): "Crea" controlla prima il Listino Agrimacch (lfCandidatiPerFornitore); un articolo creato a mano
+// nel Listino Agrimacch propone i codici dei fornitori da collegare (lfCandidatiPerArticolo, lfDopoAvvisoSalvataggio).
+// Prezzo cliente "pubblico consigliato" per listino (v7.8, colonna lf_listini.prezzo_cliente): lfUsaPubblico / lfPrezzoCliente.
+// Carica file anche da PDF di testo (v7.8): pdf.js -> tabella (lfPdfTabella) -> foglio "PDF" -> solito percorso.
 // Proponi collegamenti (v7.7): coppie fornitore / Listino Agrimacch per codice a barre, codice articolo o modello.
 // Filtro "fuori listino": articoli collegati che non sono piu' in nessun listino (modelli usciti di produzione).
 // Permessi (a regime): vedere, Collega e Crea = admin e operatori; fornitori, caricamenti, scadenze, ricarico, EAN = admin.
@@ -70,7 +74,10 @@ function lfIvato(n) {
 
 function lfEuroIntero(n) {
     if (n === null || n === undefined) return '-';
-    return '&#8364;&nbsp;' + Number(n).toLocaleString('it-IT', { maximumFractionDigits: 0 });
+    const v = Number(n);
+    // intero se tondo (ricarico), con i centesimi se no (prezzo al pubblico consigliato)
+    return '&#8364;&nbsp;' + (Math.round(v) === v ? v.toLocaleString('it-IT', { maximumFractionDigits: 0 })
+        : v.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
 }
 
 function lfCodiceNorm(c) {
@@ -94,12 +101,32 @@ function lfListiniDi(fornitoreId) {
     return lfListini.filter(l => l.fornitore_id === fornitoreId).sort((a, b) => listinoConfronta(a.nome, b.nome));
 }
 
+// Come si calcola il prezzo cliente di un listino (v7.8): 'RICARICO' = netto + ricarico, IVA, all'euro;
+// 'PUBBLICO' = prezzo al pubblico consigliato del fornitore (colonna Listino IVA esclusa) + IVA, con i centesimi.
+function lfUsaPubblico(l) {
+    return !!l && l.prezzo_cliente === 'PUBBLICO';
+}
+
+function lfPrezzoClientePubblico(listinoEscl) {
+    const n = lfNum(listinoEscl);
+    return n === null ? null : Math.round(n * LF_IVA * 100) / 100;
+}
+
 function lfPrezzoCliente(prezzo) {
     const l = lfListino(prezzo.listino_id);
+    if (lfUsaPubblico(l)) {
+        const pubb = lfPrezzoClientePubblico(prezzo.listino_escl);
+        if (pubb !== null) return pubb;
+    }
     const netto = lfNum(prezzo.netto_escl);
     if (netto === null) return null;
     const ric = l ? lfNum(l.ricarico) : null;
     return Math.round(netto * (1 + (ric === null ? LF_RICARICO_DEFAULT : ric) / 100) * LF_IVA);
+}
+
+// Testo breve del calcolo, per le righe dei prezzi
+function lfTestoCalcolo(l) {
+    return lfUsaPubblico(l) ? 'pubblico consigliato' : 'ric. ' + String(lfNum(l ? l.ricarico : null));
 }
 
 function lfOggiISO() {
@@ -429,7 +456,7 @@ function lfPrezziHtml(a, soloListino) {
                 (l.scadenza ? ' <small>' + (st === 'scaduto' ? 'scad. ' : 'al ') + lfDataIt(l.scadenza).slice(0, 5) + '</small>' : '') + '</span>' +
             '<span class="lf-pr-cliente" title="Prezzo cliente IVA incl.">' + lfEuroIntero(lfPrezzoCliente(p)) + '</span>' +
             '<span class="lf-pr-dett">list. ' + listinoFormatEuro(lfIvato(p.listino_escl)) +
-                ' &middot; <span class="netto-val">netto ' + listinoFormatEuro(lfIvato(p.netto_escl)) + ' &middot; ric. ' + listinoEsc(String(lfNum(l.ricarico))) + '%</span></span>' +
+                ' &middot; <span class="netto-val">netto ' + listinoFormatEuro(lfIvato(p.netto_escl)) + ' &middot; ' + listinoEsc(lfTestoCalcolo(l)) + (lfUsaPubblico(l) ? '' : '%') + '</span></span>' +
             (migliore ? '<span class="lf-pr-stella" title="Prezzo cliente pi&ugrave; basso tra i listini validi">&#9733;</span>' : '') +
         '</div>';
     }).join('');
@@ -594,10 +621,19 @@ async function lfScollega(id) {
     await lfSalvaCollegamento(id, null);
 }
 
-// "Crea": apre la finestra Nuovo articolo del Listino Agrimacch gia' compilata (prezzi dal listino migliore)
+// "Crea": prima controlla se nel Listino Agrimacch c'e' gia' (stesso EAN, codice o modello): se si' propone di collegarlo
 function lfCreaInListino(id) {
     const a = lfArticolo(id);
     if (!a || typeof openListinoEdit !== 'function' || !lfPuoCollegare()) return;
+    const cand = lfCandidatiPerFornitore(a).slice(0, 6);
+    if (cand.length) { lfApriSimiliCrea(a, cand); return; }
+    lfApriNuovoDaFornitore(id);
+}
+
+// Apre la finestra Nuovo articolo del Listino Agrimacch gia' compilata (prezzi dal listino migliore)
+function lfApriNuovoDaFornitore(id) {
+    const a = lfArticolo(id);
+    if (!a || typeof openListinoEdit !== 'function') return;
     const f = lfFornitore(a.fornitore_id);
     const p = lfPrezzoMigliore(a);
     const l = p ? lfListino(p.listino_id) : null;
@@ -611,7 +647,7 @@ function lfCreaInListino(id) {
     metti('modello', a.descrizione || '');
     if (p) {
         metti('netto-1', listinoNumeroPerForm(lfIvato(p.netto_escl)));
-        metti('vendita-no-promo', String(lfPrezzoCliente(p) || ''));
+        metti('vendita-no-promo', lfPrezzoCliente(p) ? listinoNumeroPerForm(lfPrezzoCliente(p)) : '');
         metti('listino', listinoNumeroPerForm(lfIvato(p.listino_escl)));
     }
     metti('note-1', (f ? f.nome + ' ' : '') + a.codice + (l ? ' - ' + l.nome : ''));
@@ -623,11 +659,147 @@ function lfCreaInListino(id) {
 }
 
 // Chiamata da saveListinoEdit() dopo il salvataggio di un articolo del Listino Agrimacch
+let lfDaProporreDopo = null;   // articolo nuovo creato a mano nel Listino Agrimacch: si propone il collegamento dopo l'avviso "Salvato"
+
 function lfDopoSalvataggioListino(articoloId, nuovo) {
     const id = lfInCreazione;
     lfInCreazione = null;
-    if (!id || !nuovo || !articoloId) return;
-    lfSalvaCollegamento(id, articoloId);
+    if (!nuovo || !articoloId) return;
+    if (id) { lfSalvaCollegamento(id, articoloId); return; }
+    // creato a mano dalla sezione Listino Agrimacch (non dal carico macchine o dal carico a raffica)
+    const sez = document.getElementById('section-listino-vendite');
+    if (sez && !sez.classList.contains('hidden') && lfPuoCollegare()) lfDaProporreDopo = articoloId;
+}
+
+// Chiamata da saveListinoEdit() dopo l'avviso "Articolo aggiunto"
+async function lfDopoAvvisoSalvataggio() {
+    const id = lfDaProporreDopo;
+    lfDaProporreDopo = null;
+    if (!id) return;
+    if (!lfArticoli.length) {
+        try { await lfCaricaDati(); } catch (err) { console.warn('Listini fornitori non caricati:', err); return; }
+    }
+    const art = listinoArticoli.find(x => x.id === id);
+    if (!art) return;
+    const cand = lfCandidatiPerArticolo(art).slice(0, 8);
+    if (cand.length) lfApriSimiliArticolo(art, cand);
+}
+
+// ========================================
+// GIA' ESISTE? / VUOI COLLEGARLO? (v7.8)
+// Stessa logica di Proponi collegamenti: stesso codice a barre o codice articolo = 200 punti;
+// tutte le sigle del modello Agrimacch (MS182, 30CM...) nella descrizione del fornitore = 50 + 10 per sigla;
+// SET contro singola = -30. Si mostrano i candidati da 50 punti in su (o SET contro singola, con l'avviso).
+// ========================================
+let lfSimili = null;   // { modo: 'crea' | 'articolo', lfId, artId, cand }
+
+function lfPunteggio(x, a) {
+    if (x.ean && a.codice_barre && listinoStessoCodiceBarre(a.codice_barre, x.ean)) return { punti: 200, motivo: 'stesso codice a barre' };
+    if (a.codice_articolo && lfCodiceNorm(a.codice_articolo) === lfCodiceNorm(x.codice)) return { punti: 200, motivo: 'stesso codice articolo' };
+    const f = lfFornitore(x.fornitore_id);
+    if (!f || listinoPulisciTesto(a.marchio) !== listinoPulisciTesto(f.marchio || f.nome)) return null;
+    const sigle = lfSigle(a.modello);
+    if (!sigle.length) return null;
+    const tok = lfToken(x.descrizione);
+    if (!sigle.every(s => tok.has(s))) return null;
+    if (lfHaSet(a.modello) !== lfHaSet(x.descrizione)) return { punti: 20 + 10 * sigle.length, motivo: 'stesso modello, ma uno dei due &egrave; un SET' };
+    return { punti: 50 + 10 * sigle.length, motivo: 'stesso modello' };
+}
+
+// Articoli del Listino Agrimacch che potrebbero essere questo articolo del fornitore
+function lfCandidatiPerFornitore(x) {
+    const out = [];
+    listinoArticoli.forEach(a => {
+        if (!a.attivo) return;
+        const p = lfPunteggio(x, a);
+        if (p) out.push(Object.assign({ art: a }, p));
+    });
+    return out.sort((p, q) => q.punti - p.punti || listinoConfronta(macNome(p.art), macNome(q.art)));
+}
+
+// Articoli dei listini fornitori (non ancora collegati, con prezzi) che potrebbero essere questo articolo Agrimacch
+function lfCandidatiPerArticolo(art) {
+    const out = [];
+    lfArticoli.forEach(x => {
+        if (x.articolo_id || !(lfPrezziDi[x.id] || []).length) return;
+        const p = lfPunteggio(x, art);
+        if (p) out.push(Object.assign({ x: x }, p));
+    });
+    return out.sort((p, q) => q.punti - p.punti || listinoConfronta(p.x.descrizione, q.x.descrizione));
+}
+
+function lfSimiliPrezzoLf(x) {
+    const p = lfPrezzoMigliore(x);
+    return p ? '<small>listino ' + listinoFormatEuro(lfIvato(p.listino_escl)) + ' &middot; cliente ' + lfEuroIntero(lfPrezzoCliente(p)) + '</small>' : '';
+}
+
+function lfSimiliMotivo(c) {
+    return '<span class="lf-simili-motivo' + (c.punti >= 200 ? ' lf-simili-sicuro' : '') + '">' + c.motivo + '</span>';
+}
+
+// Da "Crea": l'articolo del fornitore c'e' forse gia' nel Listino Agrimacch
+function lfApriSimiliCrea(x, cand) {
+    lfSimili = { modo: 'crea', lfId: x.id, cand: cand };
+    document.getElementById('lf-simili-titolo').innerHTML = '&#128270; Esiste gi&agrave;?';
+    document.getElementById('lf-simili-info').innerHTML = '<strong>' + listinoEsc(x.descrizione || '') + '</strong><br><small>' +
+        listinoEsc(lfNomeFornitore(x) + ' ' + x.codice) + (x.ean ? ' &middot; EAN ' + listinoEsc(x.ean) : '') + '</small><br>' + lfSimiliPrezzoLf(x) +
+        '<p class="mac-aiuto">Nel Listino Agrimacch ci sono gi&agrave; articoli che sembrano questo. Se &egrave; uno di loro <strong>collegalo</strong> invece di crearne un doppione (i prezzi del Listino Agrimacch non cambiano).</p>';
+    document.getElementById('lf-simili-lista').innerHTML = cand.map((c, i) =>
+        '<div class="lf-simili-riga"><div class="lf-simili-testo"><strong>' + listinoEsc(macNome(c.art)) + '</strong><br>' +
+            lfPrezzoArtHtml(c.art) + (c.art.codice_articolo ? '<br><small>cod. ' + listinoEsc(c.art.codice_articolo) + '</small>' : '') + '<br>' + lfSimiliMotivo(c) + '</div>' +
+        '<button type="button" class="btn-primary mac-btn-piccolo" data-lf-simili="' + i + '">&#128279; Collega a questo</button></div>').join('');
+    document.getElementById('lf-simili-nuovo').classList.remove('hidden');
+    document.getElementById('lf-simili-annulla').innerHTML = 'Annulla';
+    document.getElementById('lf-simili-modal').classList.remove('hidden');
+}
+
+// Dopo aver creato a mano un articolo nel Listino Agrimacch: c'e' nei listini dei fornitori?
+function lfApriSimiliArticolo(art, cand) {
+    lfSimili = { modo: 'articolo', artId: art.id, cand: cand };
+    document.getElementById('lf-simili-titolo').innerHTML = '&#128279; Vuoi collegarlo a un listino fornitore?';
+    document.getElementById('lf-simili-info').innerHTML = '<strong>' + listinoEsc(macNome(art)) + '</strong><br>' + lfPrezzoArtHtml(art) +
+        '<p class="mac-aiuto">Questo articolo sembra presente nei listini dei fornitori. Collegandolo vedi i loro prezzi e scadenze; ' +
+        'l\'EAN va nel codice a barre e il codice del fornitore nel codice articolo, solo se sono vuoti. I prezzi del Listino Agrimacch non cambiano.</p>';
+    document.getElementById('lf-simili-lista').innerHTML = cand.map((c, i) =>
+        '<div class="lf-simili-riga"><div class="lf-simili-testo"><strong>' + listinoEsc(c.x.descrizione || '') + '</strong><br><small>' +
+            listinoEsc(lfNomeFornitore(c.x) + ' ' + c.x.codice) + (c.x.ean ? ' &middot; EAN ' + listinoEsc(c.x.ean) : '') + '</small><br>' +
+            lfSimiliPrezzoLf(c.x) + '<br>' + lfSimiliMotivo(c) + '</div>' +
+        '<button type="button" class="btn-primary mac-btn-piccolo" data-lf-simili="' + i + '">&#128279; Collega</button></div>').join('');
+    document.getElementById('lf-simili-nuovo').classList.add('hidden');
+    document.getElementById('lf-simili-annulla').innerHTML = 'No, grazie';
+    document.getElementById('lf-simili-modal').classList.remove('hidden');
+}
+
+function lfChiudiSimili() {
+    document.getElementById('lf-simili-modal').classList.add('hidden');
+    lfSimili = null;
+}
+
+async function lfSimiliCollega(i) {
+    const s = lfSimili;
+    if (!s || !s.cand[i]) return;
+    const c = s.cand[i];
+    if (s.modo === 'crea') {
+        lfChiudiSimili();
+        lfCollegaId = s.lfId;
+        await lfCollegaScelto(c.art);
+        return;
+    }
+    // modo 'articolo': collega questo codice del fornitore all'articolo appena creato (si possono collegarne piu' d'uno)
+    const art = listinoArticoli.find(a => a.id === s.artId);
+    if (!art) { lfChiudiSimili(); return; }
+    const btn = document.querySelector('[data-lf-simili="' + i + '"]');
+    if (btn) btn.disabled = true;
+    if (!(await lfSalvaCollegamento(c.x.id, art.id))) { if (btn) btn.disabled = false; return; }
+    const esito = await lfPassaEan(c.x, art);
+    if (btn) btn.outerHTML = '<span class="lf-simili-fatto">&#10004; Collegato' + (esito === 'messo' ? ' (EAN nel codice a barre)' : '') + '</span>';
+    document.getElementById('lf-simili-annulla').innerHTML = 'Chiudi';
+}
+
+function lfSimiliCreaNuovo() {
+    const s = lfSimili;
+    lfChiudiSimili();
+    if (s && s.lfId) lfApriNuovoDaFornitore(s.lfId);
 }
 
 // ========================================
@@ -701,7 +873,7 @@ function lfRenderListini() {
     lfPrezzi.forEach(p => { conta[p.listino_id] = (conta[p.listino_id] || 0) + 1; });
     const admin = lfPuoCaricare();
     box.innerHTML = '<div class="table-container"><table class="listino-table sti-table"><thead><tr>' +
-        '<th>Listino</th><th>Scadenza</th><th>Articoli</th><th>Ricarico</th><th>File caricato</th>' + (admin ? '<th></th>' : '') + '</tr></thead><tbody>' +
+        '<th>Listino</th><th>Scadenza</th><th>Articoli</th><th>Prezzo cliente</th><th>File caricato</th>' + (admin ? '<th></th>' : '') + '</tr></thead><tbody>' +
         listini.map(l => {
             const st = lfStatoScadenza(l);
             return '<tr class="lf-riga-' + st + '">' +
@@ -711,9 +883,12 @@ function lfRenderListini() {
                         '<button type="button" class="btn-back mac-btn-piccolo" data-lf-scad="' + l.id + '">Salva</button></div>' : '') + '</td>' +
                 '<td class="mac-raf-num">' + (conta[l.id] || 0) + '</td>' +
                 '<td class="sti-col-ric-mod">' + (admin
-                    ? '<div class="lf-scad-riga"><input type="text" inputmode="decimal" class="sti-ric-input" data-lf-ric-input="' + l.id + '" value="' + listinoEsc(String(lfNum(l.ricarico)).replace('.', ',')) + '"> % ' +
+                    ? '<select class="lf-calcolo-sel" data-lf-calcolo-sel="' + l.id + '">' +
+                        '<option value="RICARICO"' + (lfUsaPubblico(l) ? '' : ' selected') + '>Netto + ricarico</option>' +
+                        '<option value="PUBBLICO"' + (lfUsaPubblico(l) ? ' selected' : '') + '>Pubblico consigliato</option></select>' +
+                      '<div class="lf-scad-riga"><input type="text" inputmode="decimal" class="sti-ric-input" data-lf-ric-input="' + l.id + '" value="' + listinoEsc(String(lfNum(l.ricarico)).replace('.', ',')) + '"' + (lfUsaPubblico(l) ? ' disabled' : '') + '> % ' +
                       '<button type="button" class="btn-back mac-btn-piccolo" data-lf-ric="' + l.id + '">Applica</button></div>'
-                    : listinoEsc(String(lfNum(l.ricarico))) + '%') + '</td>' +
+                    : (lfUsaPubblico(l) ? 'Pubblico consigliato' : listinoEsc(String(lfNum(l.ricarico))) + '%')) + '</td>' +
                 '<td><small>' + listinoVal(l.file_nome) + '<br>' + listinoEsc(macDataOra(l.caricato_il)) + ' ' + listinoEsc(macChi(l.caricato_da)) + '</small></td>' +
                 (admin ? '<td><button type="button" class="btn-danger mac-btn-piccolo" data-lf-elimina-listino="' + l.id + '">&#128465;</button></td>' : '') +
             '</tr>';
@@ -734,13 +909,26 @@ async function lfSalvaScadenza(id) {
 
 async function lfCambiaRicarico(id) {
     const input = document.querySelector('[data-lf-ric-input="' + id + '"]');
-    const ric = listinoParseNumero(input ? input.value : '');
-    if (typeof ric !== 'number' || isNaN(ric) || ric < 0 || ric > 500) { await showCustomAlert('Ricarico non valido', 'Controlla i dati', '&#9888;&#65039;'); return; }
+    const sel = document.querySelector('[data-lf-calcolo-sel="' + id + '"]');
+    const calcolo = sel && sel.value === 'PUBBLICO' ? 'PUBBLICO' : 'RICARICO';
     const l = lfListino(id);
-    if (!window.confirm('Applicare il ricarico ' + ric + '% a tutto il listino ' + (l ? l.nome : '') + '?')) return;
-    const { error } = await supabaseClient.from('lf_listini').update({ ricarico: ric }).eq('id', id);
-    if (error) { await showCustomAlert('Ricarico non salvato:<br>' + listinoEsc(error.message), 'Errore', '&#10060;'); return; }
-    if (l) l.ricarico = ric;
+    const aggiorna = { prezzo_cliente: calcolo };
+    if (calcolo === 'RICARICO') {
+        const ric = listinoParseNumero(input ? input.value : '');
+        if (typeof ric !== 'number' || isNaN(ric) || ric < 0 || ric > 500) { await showCustomAlert('Ricarico non valido', 'Controlla i dati', '&#9888;&#65039;'); return; }
+        aggiorna.ricarico = ric;
+        if (!window.confirm('Applicare il ricarico ' + ric + '% a tutto il listino ' + (l ? l.nome : '') + '?')) return;
+    } else {
+        const senza = lfPrezzi.filter(p => p.listino_id === id && lfNum(p.listino_escl) === null).length;
+        if (!window.confirm('Usare il prezzo al pubblico consigliato del fornitore (colonna Listino + IVA) come prezzo cliente per tutto il listino ' + (l ? l.nome : '') + '?' +
+            (senza ? '\n\n' + senza + ' articoli non hanno il prezzo al pubblico: per loro resta netto + ricarico.' : ''))) return;
+    }
+    const { error } = await supabaseClient.from('lf_listini').update(aggiorna).eq('id', id);
+    if (error) {
+        await showCustomAlert('Non salvato:<br>' + listinoEsc(error.message) + (/prezzo_cliente/.test(error.message) ? '<br><br>Esegui prima su Supabase lo script <strong>supabase/lf-prezzo-pubblico.sql</strong>.' : ''), 'Errore', '&#10060;');
+        return;
+    }
+    if (l) Object.assign(l, aggiorna);
     lfRenderTutto();
 }
 
@@ -757,12 +945,270 @@ async function lfEliminaListino(id) {
 // ========================================
 // CARICA FILE (solo admin)
 // ========================================
+// ========================================
+// LISTINO IN PDF -> TABELLA (v7.8)
+// ----------------------------------------
+// Solo PDF "di testo" (generati da un programma), non scansionati.
+// pdf.js da' i pezzi di testo con la posizione. Per ogni pagina:
+//   1. i pezzi si uniscono in righe (stessa altezza) e, nella riga, in celle (pezzi vicini);
+//   2. righe "articolo" = quelle con almeno un prezzo in euro (1.299,99 EUR);
+//   3. colonne = zone orizzontali occupate dalle celle delle righe articolo (le celle della stessa colonna
+//      si sovrappongono, anche se il testo e' centrato o allineato a destra);
+//   4. nome delle colonne = le righe di intestazione della pagina (CODICE, EAN, MODELLO, PREZZO...);
+//   5. descrizione andata a capo: testo delle righe subito sopra/sotto che cade nelle colonne vuote.
+// Le colonne delle varie pagine si uniscono per nome. Il risultato (titoli + righe) diventa un foglio
+// Excel "virtuale" e passa nel solito Carica file (scelta colonne, ricarico, scadenza, anteprima).
+// ========================================
+const LF_PDF_EURO = /^-?\d{1,3}(?:\.\d{3})*,\d{2}\s*(?:€|EUR)?$|^(?:€|EUR)\s*-?\d{1,3}(?:\.\d{3})*,\d{2}$/;
+const LF_PDF_TITOLO = /(CODICE|COD\.|SAP|ERP|EAN|MODELLO|DESCRIZ|ARTICOLO|PREZZO|PUBBL|LISTINO|NETTO|STATUS|NOTE|VOLTAGGIO|ADATTO|CATEG|IVA|RIVENDITORE|CONSIGLIATO|MATERIAL)/i;
+
+function lfPdfEuro(t) {
+    return LF_PDF_EURO.test(String(t || '').trim());
+}
+
+function lfPdfLinee(items, np) {
+    const pezzi = items.filter(it => it.str && it.str.trim()).map(it => ({ s: it.str, x: it.x, x2: it.x + it.w, y: it.y, h: it.h || 8 }));
+    pezzi.sort((a, b) => b.y - a.y || a.x - b.x);
+    const linee = [];
+    pezzi.forEach(p => {
+        const l = linee.find(l => Math.abs(l.y - p.y) <= Math.max(2, p.h * 0.4));
+        if (l) l.pezzi.push(p); else linee.push({ y: p.y, h: p.h, pezzi: [p], pagina: np });
+    });
+    linee.forEach(l => {
+        l.pezzi.sort((a, b) => a.x - b.x);
+        const celle = [];
+        l.pezzi.forEach(p => {
+            const c = celle[celle.length - 1];
+            const spazio = c ? p.x - c.x2 : 999;
+            const sep = Math.max(2.5, p.h * 0.6);
+            if (c && spazio < sep && /^\s*(€|EUR)\s*$/.test(p.s) && /\d,\d{2}\s*$/.test(c.s)) {
+                c.s += ' €'; c.x2 = p.x2;
+            } else if (c && spazio < sep && !lfPdfEuro(p.s) && !lfPdfEuro(c.s)) {
+                c.s += (spazio > p.h * 0.15 ? ' ' : '') + p.s;
+                c.x2 = Math.max(c.x2, p.x2);
+            } else {
+                celle.push({ s: p.s, x: p.x, x2: p.x2 });
+            }
+        });
+        celle.forEach(c => { c.s = c.s.replace(/\s+/g, ' ').trim(); });
+        l.celle = celle.filter(c => c.s && !/^(\u20ac|EUR)$/.test(c.s));
+        l.prezzo = l.celle.some(c => lfPdfEuro(c.s));
+        // nella stessa riga, "169,99" senza simbolo e' un prezzo anche lui
+        if (l.prezzo) l.celle.forEach(c => { if (/^\d{1,3}(?:\.\d{3})*,\d{2}$/.test(c.s)) c.s += ' \u20ac'; });
+    });
+    linee.sort((a, b) => b.y - a.y);
+    return linee;
+}
+
+// Zone delle colonne: unione degli intervalli [x, x2] delle celle che si sovrappongono
+function lfPdfZone(celle) {
+    const iv = celle.map(c => ({ a: c.x, b: c.x2, euro: lfPdfEuro(c.s) ? 1 : 0, n: 1 })).sort((p, q) => p.a - q.a);
+    const zone = [];
+    iv.forEach(i => {
+        const z = zone[zone.length - 1];
+        if (z && i.a <= z.b - 1) { z.b = Math.max(z.b, i.b); z.euro += i.euro; z.n++; }
+        else zone.push({ a: i.a, b: i.b, euro: i.euro, n: 1 });
+    });
+    zone.forEach(z => { z.prezzo = z.euro > z.n / 2; });
+    return zone;
+}
+
+function lfPdfZonaDi(zone, c) {
+    let best = -1, ov = -1;
+    zone.forEach((z, i) => {
+        const o = Math.min(z.b, c.x2) - Math.max(z.a, c.x);
+        if (o > ov) { ov = o; best = i; }
+    });
+    if (ov <= 0) {
+        let d = 1e9;
+        zone.forEach((z, i) => { const dd = Math.min(Math.abs(c.x - z.b), Math.abs(c.x2 - z.a)); if (dd < d) { d = dd; best = i; } });
+    }
+    return best;
+}
+
+// pagine = [[{ str, x, y, w, h }]] (y dal basso, come pdf.js) -> { titoli: [...], righe: [[...]] }
+function lfPdfTabella(pagine) {
+    const righe = [];                 // { nome colonna: testo }
+    const prezziTitoli = [];
+    let zonePrec = null, nomiPrec = null;
+
+    pagine.forEach((items, np) => {
+        const linee = lfPdfLinee(items, np);
+        const dati = linee.filter(l => l.prezzo);
+        if (!dati.length) return;
+        // zone: righe articolo di questa pagina (celle prezzo comprese)
+        let zone = lfPdfZone([].concat(...dati.map(l => l.celle)));
+        // intestazione: righe sopra la prima riga articolo con parole da titolo
+        const iPrima = linee.indexOf(dati[0]);
+        const testa = [];
+        for (let i = iPrima - 1; i >= 0 && i >= iPrima - 10; i--) {
+            const l = linee[i];
+            if (l.prezzo) break;
+            if (l.celle.some(c => LF_PDF_TITOLO.test(c.s)) && l.celle.length >= 2) testa.unshift(l);
+        }
+        let nomi;
+        if (testa.length) {
+            const parti = zone.map(() => []);
+            testa.forEach(l => l.celle.forEach(c => {
+                const i = lfPdfZonaDi(zone, c);
+                if (i !== -1) parti[i].push(c.s);
+            }));
+            nomi = parti.map(p => p.join(' ').replace(/\s+/g, ' ').trim().toUpperCase().slice(0, 60));
+        } else if (zonePrec) {
+            // pagina senza intestazione: stesse colonne della pagina prima
+            zone = zonePrec;
+            nomi = nomiPrec;
+        } else {
+            nomi = zone.map(() => '');
+        }
+        // ruolo di ogni colonna di testo (le colonne dei prezzi si numerano riga per riga)
+        const ruoli = nomi.map((n, i) => zone[i].prezzo ? null : lfPdfRuolo(n, dati, zone, i));
+        const contaRuolo = {};
+        const nomiRuolo = ruoli.map(r => {
+            if (!r) return null;
+            contaRuolo[r] = (contaRuolo[r] || 0) + 1;
+            return contaRuolo[r] > 1 ? r + ' ' + contaRuolo[r] : r;
+        });
+        // titoli dei prezzi (dalla prima pagina che li ha): servono solo come promemoria
+        const titoliPrezzi = nomi.filter((n, i) => zone[i].prezzo);
+        titoliPrezzi.forEach((t, k) => { if (t && !prezziTitoli[k]) prezziTitoli[k] = t; });
+        zonePrec = zone;
+        nomiPrec = nomi;
+
+        const maxPrezzi = Math.max(...dati.map(l => l.celle.filter(c => lfPdfEuro(c.s)).length));
+        const usate = new Set();
+        dati.forEach(l => {
+            const val = zone.map(() => '');
+            const prezzi = [];
+            l.celle.forEach(c => {
+                if (lfPdfEuro(c.s)) { prezzi.push(c); return; }
+                const i = lfPdfZonaDi(zone, c);
+                if (i !== -1) val[i] = val[i] ? val[i] + ' ' + c.s : c.s;
+            });
+            // descrizione a capo: righe vicine senza prezzi, tutto nelle colonne vuote (di testo)
+            const vuote = val.map((v, i) => (!v && !zone[i].prezzo) ? i : -1).filter(i => i >= 0);
+            if (vuote.length) {
+                const k = linee.indexOf(l);
+                [linee[k - 1], linee[k + 1]].forEach((v, sopra) => {
+                    if (!v || v.prezzo || usate.has(v) || testa.indexOf(v) !== -1) return;
+                    if (Math.abs(v.y - l.y) > l.h * 1.9) return;
+                    const cols = v.celle.map(c => lfPdfZonaDi(zone, c));
+                    if (!cols.every(ci => vuote.indexOf(ci) !== -1)) return;
+                    usate.add(v);
+                    v.celle.forEach((c, j) => {
+                        const ci = cols[j];
+                        val[ci] = sopra === 0 ? (c.s + (val[ci] ? ' ' + val[ci] : '')) : ((val[ci] ? val[ci] + ' ' : '') + c.s);
+                    });
+                });
+            }
+            const r = {};
+            nomiRuolo.forEach((n, i) => {
+                if (!n || !val[i]) return;
+                if (n.indexOf('CODICE+MODELLO') === 0) {
+                    // "2950107 ALM-KEY60V-GW" -> codice + modello
+                    const parti = val[i].split(' ');
+                    if (!r.CODICE) r.CODICE = parti.shift();
+                    if (parti.length && !r.MODELLO) r.MODELLO = parti.join(' ');
+                    return;
+                }
+                r[n] = r[n] ? r[n] + ' ' + val[i] : val[i];
+            });
+            prezzi.sort((p, q) => p.x - q.x).forEach((c, k) => { r['PREZZO ' + (k + 1 + Math.max(0, maxPrezzi - prezzi.length))] = c.s; });
+            // senza colonna descrizione (alcune pagine): le altre colonne di testo, o il modello
+            if (!r.DESCRIZIONE) {
+                const altre = Object.keys(r).filter(k => k.indexOf('ALTRO') === 0).map(k => r[k]).filter(v => !/^\d+\s*(pc|pcs|pz)$/i.test(v));
+                r.DESCRIZIONE = altre.join(' ') || r.MODELLO || '';
+            }
+            righe.push(r);
+        });
+    });
+    // colonne: prima i ruoli noti, poi le altre, poi i prezzi
+    const ordine = ['CODICE', 'MODELLO', 'EAN', 'DESCRIZIONE', 'CATEGORIA', 'NOTE'];
+    const tutte = [];
+    righe.forEach(r => Object.keys(r).forEach(k => { if (tutte.indexOf(k) === -1) tutte.push(k); }));
+    const peso = (k) => {
+        if (/^PREZZO \d+$/.test(k)) return 1000 + Number(k.slice(7));
+        const base = k.replace(/ \d+$/, '');
+        const i = ordine.indexOf(base);
+        return (i === -1 ? 500 : i * 10) + (k === base ? 0 : Number(k.slice(base.length + 1)));
+    };
+    tutte.sort((p, q) => peso(p) - peso(q));
+    const titoli = tutte.map(k => /^PREZZO \d+$/.test(k) && prezziTitoli[Number(k.slice(7)) - 1]
+        ? k + ' - ' + prezziTitoli[Number(k.slice(7)) - 1] : k);
+    const numero = (v) => {
+        const t = String(v).replace(/\u20ac|EUR/g, '').replace(/\s/g, '').replace(/\./g, '').replace(',', '.');
+        const n = Number(t);
+        return isFinite(n) ? n : v;
+    };
+    return { titoli: titoli, righe: righe.map(r => tutte.map(k => /^PREZZO \d+$/.test(k) && r[k] ? numero(r[k]) : (r[k] || ''))) };
+}
+
+// Ruolo di una colonna dal suo titolo (o dal contenuto, per il codice a barre)
+function lfPdfRuolo(nome, dati, zone, i) {
+    const n = String(nome || '').toUpperCase();
+    if (/\bEAN\b|BARCODE|CODICE A BARRE/.test(n)) return 'EAN';
+    if (/DESCRIZ|DESCRIPTION/.test(n)) return 'DESCRIZIONE';
+    if (/CODICE|\bSAP\b|\bERP\b/.test(n) && /MODELLO/.test(n)) return 'CODICE+MODELLO';   // due titoli finiti nella stessa colonna
+    if (/MODELLO|MODEL\b/.test(n)) return 'MODELLO';
+    if (/CODICE|COD\.|\bSAP\b|\bERP\b|MATERIAL|ARTICOLO/.test(n)) return 'CODICE';
+    if (/CATEG/.test(n)) return 'CATEGORIA';
+    if (/STATUS|NOTE/.test(n)) return 'NOTE';
+    // dal contenuto: numeri di 12-14 cifre = EAN
+    const vals = dati.map(l => l.celle.filter(c => lfPdfZonaDi(zone, c) === i).map(c => c.s).join(' ')).filter(Boolean);
+    if (vals.length && vals.filter(v => /^\d{12,14}$/.test(v)).length >= vals.length * 0.7) return 'EAN';
+    return n ? 'ALTRO ' + n.slice(0, 30) : 'ALTRO';
+}
+
+// pdf.js (caricato solo quando serve, come Leaflet)
+const LF_PDFJS = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/';
+let lfPdfJsPromessa = null;
+
+function lfCaricaPdfJs() {
+    if (window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
+    if (lfPdfJsPromessa) return lfPdfJsPromessa;
+    lfPdfJsPromessa = new Promise((ok, ko) => {
+        const s = document.createElement('script');
+        s.src = LF_PDFJS + 'pdf.min.js';
+        s.onload = () => {
+            if (!window.pdfjsLib) { ko(new Error('pdf.js non disponibile')); return; }
+            window.pdfjsLib.GlobalWorkerOptions.workerSrc = LF_PDFJS + 'pdf.worker.min.js';
+            ok(window.pdfjsLib);
+        };
+        s.onerror = () => { lfPdfJsPromessa = null; ko(new Error('Non riesco a scaricare il lettore PDF (serve internet)')); };
+        document.head.appendChild(s);
+    });
+    return lfPdfJsPromessa;
+}
+
+// File PDF -> cartella Excel "virtuale" con un foglio "PDF" (riga 1 = titoli)
+async function lfPdfInCartella(buffer, avanzamento) {
+    const pdfjs = await lfCaricaPdfJs();
+    const doc = await pdfjs.getDocument({ data: buffer }).promise;
+    const pagine = [];
+    for (let i = 1; i <= doc.numPages; i++) {
+        if (avanzamento) avanzamento(i, doc.numPages);
+        const pg = await doc.getPage(i);
+        const tc = await pg.getTextContent();
+        pagine.push(tc.items.map(it => ({ str: it.str, x: it.transform[4], y: it.transform[5], w: it.width, h: Math.abs(it.transform[3]) || it.height })));
+    }
+    const t = lfPdfTabella(pagine);
+    if (!t.righe.length) throw new Error('Nel PDF non trovo righe con prezzi in euro. &Egrave; un PDF scansionato (immagine)? Serve un PDF di testo o l\'Excel.');
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([t.titoli].concat(t.righe)), 'PDF');
+    return { wb: wb, righe: t.righe.length, pagine: doc.numPages };
+}
+
+// ========================================
+// CARICA FILE: colonne
+// ========================================
 const LF_CAMPI = [
     { campo: 'codice', titolo: 'Codice articolo', obbligatorio: true, indovina: h => h === 'CODICE' || h === 'CODICE ARTICOLO' || h === 'COD ARTICOLO' },
     { campo: 'descrizione', titolo: 'Descrizione', obbligatorio: true, indovina: h => h.indexOf('DESCRIZIONE') === 0 },
-    { campo: 'listino', titolo: 'Listino IVA esclusa', obbligatorio: false, indovina: h => h.indexOf('LISTINO') !== -1 },
-    { campo: 'netto', titolo: 'Netto IVA esclusa (prezzo promo)', obbligatorio: true, indovina: h => h.indexOf('PROMO') !== -1 || h.indexOf('NETTO') !== -1 },
-    { campo: 'categoria', titolo: 'Categoria (facoltativa)', obbligatorio: false, indovina: h => h.indexOf('CATEG') === 0 }
+    { campo: 'listino', titolo: 'Listino IVA esclusa', obbligatorio: false,
+        indovina: h => h.indexOf('LISTINO') !== -1 || (h.indexOf('PUBBL') !== -1 && h.indexOf('ESCLUSA') !== -1) },
+    { campo: 'netto', titolo: 'Netto IVA esclusa (prezzo promo)', obbligatorio: true, indovina: h => h.indexOf('PROMO') !== -1 || ((h.indexOf('NETTO') !== -1 || h.indexOf('RIVENDIT') !== -1) && h.indexOf('PUBBL') === -1) },
+    { campo: 'categoria', titolo: 'Categoria (facoltativa)', obbligatorio: false, indovina: h => h.indexOf('CATEG') === 0 },
+    { campo: 'ean', titolo: 'EAN / codice a barre (facoltativo)', obbligatorio: false, indovina: h => h === 'EAN' || h.indexOf('EAN ') === 0 || h.indexOf('BARCODE') !== -1 }
 ];
 
 function lfTestoCella(ws, r, c) {
@@ -831,13 +1277,23 @@ function lfFileScelto(e) {
     if (!file) return;
     if (!lfFornitoreCorrente()) { showCustomAlert('Crea prima il fornitore.', 'Fornitore', '&#9888;&#65039;'); return; }
     lfFileNome = file.name;
+    const pdf = /\.pdf$/i.test(file.name);
+    const nomeBox = document.getElementById('lf-file-nome');
     const reader = new FileReader();
-    reader.onload = (ev) => {
+    reader.onload = async (ev) => {
+        let infoPdf = null;
         try {
-            lfWb = XLSX.read(new Uint8Array(ev.target.result), { type: 'array' });
+            if (pdf) {
+                nomeBox.innerHTML = '&#8987; Lettura del PDF...';
+                infoPdf = await lfPdfInCartella(new Uint8Array(ev.target.result), (i, n) => { nomeBox.innerHTML = '&#8987; Lettura del PDF: pagina ' + i + ' di ' + n + '...'; });
+                lfWb = infoPdf.wb;
+            } else {
+                lfWb = XLSX.read(new Uint8Array(ev.target.result), { type: 'array' });
+            }
         } catch (err) {
-            console.error('Errore lettura Excel fornitore:', err);
-            showCustomAlert('Non riesco a leggere il file:<br>' + listinoEsc(err.message), 'Errore', '&#10060;');
+            console.error('Errore lettura file fornitore:', err);
+            nomeBox.innerHTML = '';
+            showCustomAlert('Non riesco a leggere il file:<br>' + (pdf ? err.message : listinoEsc(err.message)), 'Errore', '&#10060;');
             return;
         }
         lfPiano = null;
@@ -848,8 +1304,9 @@ function lfFileScelto(e) {
         sel.innerHTML = lfWb.SheetNames.map(n => '<option value="' + listinoEsc(n) + '">' + listinoEsc(n) +
             (lfFoglioNascosto(lfWb, n) ? ' (nascosto)' : '') + '</option>').join('');
         sel.value = scelto || lfWb.SheetNames[0];
-        document.getElementById('lf-file-nome').innerHTML = '&#128196; <strong>' + listinoEsc(file.name) + '</strong> &middot; ' +
-            lfWb.SheetNames.length + ' fogl' + (lfWb.SheetNames.length === 1 ? 'io' : 'i');
+        nomeBox.innerHTML = '&#128196; <strong>' + listinoEsc(file.name) + '</strong> &middot; ' + (infoPdf
+            ? 'PDF: ' + infoPdf.pagine + ' pagine, ' + infoPdf.righe + ' righe con prezzi. <strong>Controlla bene le colonne e l\'anteprima</strong> (i PDF sono impaginati in tanti modi).'
+            : lfWb.SheetNames.length + ' fogl' + (lfWb.SheetNames.length === 1 ? 'io' : 'i'));
         document.getElementById('lf-impostazioni').classList.remove('hidden');
         lfPopolaDestinazione();
         lfFoglioCambiato(true);
@@ -894,6 +1351,8 @@ function lfDestinazioneCambiata(cambiaNome) {
     }
     const mod = lfModello();
     document.getElementById('lf-ricarico').value = String(lfNum(mod ? mod.ricarico : (f ? f.ricarico_default : LF_RICARICO_DEFAULT))).replace('.', ',');
+    document.getElementById('lf-calcolo').value = lfUsaPubblico(mod) ? 'PUBBLICO' : 'RICARICO';
+    lfCalcoloCambiato();
     document.getElementById('lf-sostituisci-avviso').classList.toggle('hidden', !l);
     lfRigaCambiata();
 }
@@ -969,6 +1428,7 @@ function lfLeggiImpostazioni() {
         nome: listinoPulisciTesto(document.getElementById('lf-nome').value),
         scadenza: document.getElementById('lf-scadenza').value || null,
         ricarico: listinoParseNumero(document.getElementById('lf-ricarico').value),
+        calcolo: document.getElementById('lf-calcolo').value === 'PUBBLICO' ? 'PUBBLICO' : 'RICARICO',
         colonne: colonne,
         titoli: titoli
     };
@@ -993,7 +1453,11 @@ async function lfAnteprima() {
         errori.push('C\'&egrave; gi&agrave; un listino ' + listinoEsc(imp.nome) + ': sceglilo in &quot;Dove va&quot; per sostituirlo, oppure cambia nome');
     }
     if (!imp.riga || imp.riga < 1) errori.push('Scrivi la riga delle intestazioni');
-    if (typeof imp.ricarico !== 'number' || isNaN(imp.ricarico) || imp.ricarico < 0 || imp.ricarico > 500) errori.push('Ricarico non valido');
+    if (imp.calcolo === 'PUBBLICO') {
+        if (imp.colonne.listino === null || imp.colonne.listino === undefined) errori.push('Con &quot;prezzo al pubblico consigliato&quot; scegli la colonna: Listino IVA esclusa');
+        // ricarico non obbligatorio: serve solo per gli articoli senza prezzo al pubblico
+        if (typeof imp.ricarico !== 'number' || isNaN(imp.ricarico) || imp.ricarico < 0 || imp.ricarico > 500) imp.ricarico = LF_RICARICO_DEFAULT;
+    } else if (typeof imp.ricarico !== 'number' || isNaN(imp.ricarico) || imp.ricarico < 0 || imp.ricarico > 500) errori.push('Ricarico non valido');
     LF_CAMPI.forEach(c => { if (c.obbligatorio && imp.colonne[c.campo] === null) errori.push('Scegli la colonna: ' + c.titolo); });
     if (errori.length) { await showCustomAlert(errori.join('<br>'), 'Controlla i dati', '&#9888;&#65039;'); return; }
 
@@ -1022,6 +1486,7 @@ async function lfAnteprima() {
         if (perCodice[codice]) doppie++;
         perCodice[codice] = {
             codice: codice,
+            ean: imp.colonne.ean !== null && imp.colonne.ean !== undefined ? lfEanPulisci(lfTestoCella(ws, r, imp.colonne.ean)) : null,
             descrizione: descr,
             categoria: imp.colonne.categoria !== null ? listinoPulisciTesto(lfTestoCella(ws, r, imp.colonne.categoria)) : null,
             listino_escl: (listino === null || isNaN(listino)) ? null : Math.round(listino * 10000) / 10000,
@@ -1056,11 +1521,29 @@ function lfPrezzoClienteRic(netto, ric) {
     return netto === null ? null : Math.round(netto * (1 + ric / 100) * LF_IVA);
 }
 
+// Prezzo cliente in anteprima, secondo il calcolo scelto
+function lfPrezzoClienteAnteprima(x, imp) {
+    if (imp.calcolo === 'PUBBLICO') {
+        const pubb = lfPrezzoClientePubblico(x.listino_escl);
+        if (pubb !== null) return pubb;
+    }
+    return lfPrezzoClienteRic(x.netto_escl, imp.ricarico);
+}
+
+// Carica file: con "pubblico consigliato" il ricarico non serve
+function lfCalcoloCambiato() {
+    const pubb = document.getElementById('lf-calcolo').value === 'PUBBLICO';
+    const ric = document.getElementById('lf-ricarico');
+    ric.disabled = pubb;
+    const lab = document.getElementById('lf-ricarico-label');
+    if (lab) lab.innerHTML = pubb ? 'Ricarico % <small>(non serve)</small>' : 'Ricarico % *';
+}
+
 function lfRigaAnteprima(x, ric, extra) {
     return '<tr><td class="sti-col-codice">' + listinoEsc(x.codice) + '</td><td>' + listinoVal(x.descrizione) + '</td>' +
         '<td class="listino-col-prezzo">' + listinoFormatEuro(lfIvato(x.listino_escl)) + '</td>' +
         '<td class="listino-col-prezzo">' + listinoFormatEuro(lfIvato(x.netto_escl)) + '</td>' +
-        '<td class="listino-col-prezzo"><strong>' + lfEuroIntero(lfPrezzoClienteRic(x.netto_escl, ric)) + '</strong></td>' +
+        '<td class="listino-col-prezzo"><strong>' + lfEuroIntero(typeof ric === 'object' ? lfPrezzoClienteAnteprima(x, ric) : lfPrezzoClienteRic(x.netto_escl, ric)) + '</strong></td>' +
         (extra !== undefined ? '<td>' + extra + '</td>' : '') + '</tr>';
 }
 
@@ -1075,7 +1558,7 @@ function lfRenderAnteprima() {
     const box = document.getElementById('lf-anteprima');
     if (!p) { box.innerHTML = ''; return; }
     const max = 200;
-    const ric = p.imp.ricarico;
+    const ric = p.imp;     // lfRigaAnteprima calcola il prezzo cliente con il calcolo scelto
     let html = '<div class="sti-riepilogo">' +
         '<div><strong>' + p.righe.length + '</strong> articoli nel file</div>' +
         '<div class="sti-ok"><strong>' + p.nuovi.length + '</strong> nuovi</div>' +
@@ -1086,7 +1569,10 @@ function lfRenderAnteprima() {
         '</div>';
     html += '<p class="mac-aiuto">Listino <strong>' + listinoEsc(p.imp.nome) + '</strong>' +
         (p.imp.scadenza ? ', valido fino al <strong>' + lfDataIt(p.imp.scadenza) + '</strong>' : ', <strong>senza scadenza</strong>') + '. ' +
-        'Prezzo cliente = netto + ' + listinoEsc(String(ric)) + '%, poi IVA 22%, arrotondato all\'euro. ' +
+        (p.imp.calcolo === 'PUBBLICO'
+            ? 'Prezzo cliente = <strong>prezzo al pubblico consigliato</strong> del fornitore (colonna Listino) + IVA 22%' +
+              (p.righe.some(x => x.listino_escl === null) ? '; dove manca: netto + ' + listinoEsc(String(p.imp.ricarico)) + '%, IVA, all\'euro' : '') + '. '
+            : 'Prezzo cliente = netto + ' + listinoEsc(String(p.imp.ricarico)) + '%, poi IVA 22%, arrotondato all\'euro. ') +
         (p.doppie ? p.doppie + ' codici ripetuti nel file: vale l\'ultima riga. ' : '') +
         (p.imp.destinazione ? 'Il file <strong>sostituisce per intero</strong> il listino: i prezzi vecchi spariscono. ' : '') +
         'Collegamenti con il Listino Agrimacch ed EAN restano.</p>';
@@ -1137,15 +1623,40 @@ async function lfConferma() {
         await showCustomAlert('Errore durante il caricamento:<br>' + listinoEsc(error.message), 'Errore', '&#10060;');
         return;
     }
-    const riepilogo = p.righe.length + ' articoli' + (p.imp.destinazione ? ', ' + p.nuovi.length + ' nuovi, ' + p.cambiati.length + ' con prezzo cambiato, ' + p.tolti.length + ' tolti' : '') + '.';
+    let riepilogo = p.righe.length + ' articoli' + (p.imp.destinazione ? ', ' + p.nuovi.length + ' nuovi, ' + p.cambiati.length + ' con prezzo cambiato, ' + p.tolti.length + ' tolti' : '') + '.';
     lfPiano = null;
     lfWb = null;
     document.getElementById('lf-anteprima').innerHTML = '';
     document.getElementById('lf-impostazioni').classList.add('hidden');
     document.getElementById('lf-file-nome').innerHTML = '';
+    // calcolo del prezzo cliente (colonna aggiunta in v7.8, fuori dalla funzione lf_carica_listino)
+    const idListino = listinoId || p.imp.destinazione;
+    let avvisoCalcolo = '';
+    if (idListino) {
+        const { error: errCalc } = await supabaseClient.from('lf_listini').update({ prezzo_cliente: p.imp.calcolo }).eq('id', idListino);
+        if (errCalc) {
+            console.warn('Calcolo prezzo cliente non salvato:', errCalc.message);
+            if (p.imp.calcolo === 'PUBBLICO') avvisoCalcolo = '<br><br>&#9888;&#65039; Il &quot;prezzo al pubblico consigliato&quot; non &egrave; stato salvato: esegui su Supabase <strong>supabase/lf-prezzo-pubblico.sql</strong>, poi sceglilo nella scheda Listini.';
+        }
+    }
     await lfCaricaDati();
+    // EAN dal file (colonna facoltativa): solo agli articoli che non ne hanno gia' uno
+    const conEan = p.righe.filter(x => x.ean);
+    let eanMessi = 0;
+    if (conEan.length) {
+        const daMettere = conEan.filter(x => { const a = lfArticoli.find(y => y.fornitore_id === f.id && y.codice === x.codice); return a && !a.ean; })
+            .map(x => ({ fornitore_id: f.id, codice: x.codice, ean: x.ean, updated_at: new Date().toISOString(), updated_by: listinoEmailUtente() }));
+        for (let i = 0; i < daMettere.length; i += 300) {
+            const { error: errEan } = await supabaseClient.from('lf_articoli').upsert(daMettere.slice(i, i + 300), { onConflict: 'fornitore_id,codice' });
+            if (errEan) { console.warn('EAN dal listino non salvati:', errEan.message); break; }
+            eanMessi += Math.min(300, daMettere.length - i);
+        }
+        if (eanMessi) await lfCaricaDati();
+    }
     lfRenderTutto();
     lfSwitchTab('elenco');
+    if (eanMessi) riepilogo += '<br>' + eanMessi + ' codici EAN presi dal file.';
+    riepilogo += avvisoCalcolo;
     await showCustomAlert('<strong>' + listinoEsc(p.imp.nome) + '</strong> caricato (' + listinoEsc(f.nome) + ').<br>' + riepilogo, 'Listino aggiornato', '&#10004;');
     // codici nuovi: proposte di collegamento con il Listino Agrimacch
     if (lfPuoCollegare()) {
@@ -1400,7 +1911,7 @@ function lfToken(s) {
     for (let i = 0; i < base.length - 1; i++) {
         const a = base[i], b = base[i + 1];
         if (/^[A-Z]+$/.test(a) && /^\d/.test(b)) out.add(a + b);          // MS 182 -> MS182
-        if (/^\d+$/.test(a) && /^[A-Z]{1,3}$/.test(b)) out.add(a + b);    // 30 CM -> 30CM
+        if (/^\d+$/.test(a) && /^[A-Z]{1,3}$/.test(b) && b !== 'SET' && b !== 'KIT') out.add(a + b);    // 30 CM -> 30CM (non "50 SET")
     }
     return out;
 }
@@ -1634,7 +2145,22 @@ document.addEventListener('DOMContentLoaded', () => {
         if ((el = e.target.closest('[data-lf-apri]'))) { if (typeof openListinoEdit === 'function') openListinoEdit(parseInt(el.dataset.lfApri, 10)); }
     });
 
+    // Esiste gia'? / Vuoi collegarlo?
+    document.getElementById('lf-simili-lista').addEventListener('click', (e) => {
+        const b = e.target.closest('[data-lf-simili]');
+        if (b) lfSimiliCollega(parseInt(b.dataset.lfSimili, 10));
+    });
+    document.getElementById('lf-simili-nuovo').addEventListener('click', lfSimiliCreaNuovo);
+    document.getElementById('lf-simili-annulla').addEventListener('click', lfChiudiSimili);
+    document.getElementById('lf-simili-close').addEventListener('click', lfChiudiSimili);
+
     // Listini e scadenze
+    document.getElementById('lf-listini').addEventListener('change', (e) => {
+        const sel = e.target.closest('[data-lf-calcolo-sel]');
+        if (!sel) return;
+        const inp = document.querySelector('[data-lf-ric-input="' + sel.dataset.lfCalcoloSel + '"]');
+        if (inp) inp.disabled = sel.value === 'PUBBLICO';
+    });
     document.getElementById('lf-listini').addEventListener('click', (e) => {
         let el;
         if ((el = e.target.closest('[data-lf-scad]'))) { lfSalvaScadenza(parseInt(el.dataset.lfScad, 10)); return; }
@@ -1649,6 +2175,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('lf-riga').addEventListener('change', lfRigaCambiata);
     document.getElementById('lf-destinazione').addEventListener('change', () => lfDestinazioneCambiata(true));
     ['lf-nome', 'lf-scadenza', 'lf-ricarico'].forEach(id => document.getElementById(id).addEventListener('change', lfAnnullaAnteprima));
+    document.getElementById('lf-calcolo').addEventListener('change', () => { lfCalcoloCambiato(); lfAnnullaAnteprima(); });
     document.getElementById('lf-colonne').addEventListener('change', lfAnnullaAnteprima);
     document.getElementById('lf-btn-anteprima').addEventListener('click', lfAnteprima);
     document.getElementById('lf-anteprima').addEventListener('click', (e) => {
@@ -1703,5 +2230,6 @@ document.addEventListener('DOMContentLoaded', () => {
 window.openListiniFornitoriPrezzi = openListiniFornitoriPrezzi;
 window.lfPuoVedere = lfPuoVedere;
 window.lfDopoSalvataggioListino = lfDopoSalvataggioListino;
+window.lfDopoAvvisoSalvataggio = lfDopoAvvisoSalvataggio;
 window.lfControllaScadenze = lfControllaScadenze;
 window.lfDopoImportListino = lfDopoImportListino;

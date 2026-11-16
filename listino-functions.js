@@ -1591,6 +1591,8 @@ async function saveListinoEdit(e) {
         '<br><br>Ricorda: prima di lavorare sul tuo Excel scarica il listino aggiornato dalla scheda Import Excel.',
         'Salvato', '&#10004;'
     );
+    // Articolo nuovo creato a mano: Listini Fornitori propone di collegarlo (se lo trova nei listini dei fornitori)
+    if (typeof lfDopoAvvisoSalvataggio === 'function') lfDopoAvvisoSalvataggio();
 }
 
 async function spostaInCancellatiListino() {
