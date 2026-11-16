@@ -1,5 +1,8 @@
 # Changelog App Magazzino
 
+## v7.5.1 - 2026-11-16 (PRODUZIONE)
+proponi codici collegamento listini
+
 ## v7.5.0 - 2026-11-10 (PRODUZIONE)
 MODIFICHE ORDINE
 
