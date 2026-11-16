@@ -614,3 +614,14 @@
         align-items: stretch;
     }
 }
+
+/* v7.8: avviso colonne probabilmente sbagliate nell'anteprima di Carica file */
+.lf-avviso-colonne {
+    background: #fef2f2;
+    border: 2px solid #dc2626;
+    color: #991b1b;
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin: 10px 0;
+    line-height: 1.5;
+}

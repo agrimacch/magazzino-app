@@ -960,7 +960,7 @@ async function lfEliminaListino(id) {
 // Excel "virtuale" e passa nel solito Carica file (scelta colonne, ricarico, scadenza, anteprima).
 // ========================================
 const LF_PDF_EURO = /^-?\d{1,3}(?:\.\d{3})*,\d{2}\s*(?:€|EUR)?$|^(?:€|EUR)\s*-?\d{1,3}(?:\.\d{3})*,\d{2}$/;
-const LF_PDF_TITOLO = /(CODICE|COD\.|SAP|ERP|EAN|MODELLO|DESCRIZ|ARTICOLO|PREZZO|PUBBL|LISTINO|NETTO|STATUS|NOTE|VOLTAGGIO|ADATTO|CATEG|IVA|RIVENDITORE|CONSIGLIATO|MATERIAL)/i;
+const LF_PDF_TITOLO = /(CODICE|COD\.|SAP|ERP|EAN|MODELLO|DESCRIZ|ARTICOLO|PREZZO|PUBBL|LISTINO|NETTO|STATUS|NOTE|VOLTAGGIO|ADATTO|CATEG|IVA|RIVENDITORE|CONSIGLIATO|MATERIAL|INCLUSA|ESCLUSA)/i;
 
 function lfPdfEuro(t) {
     return LF_PDF_EURO.test(String(t || '').trim());
@@ -1031,6 +1031,7 @@ function lfPdfTabella(pagine) {
     const righe = [];                 // { nome colonna: testo }
     const prezziTitoli = [];
     let zonePrec = null, nomiPrec = null;
+    let incompleti = 0;               // righe con meno prezzi delle altre (da controllare)
 
     pagine.forEach((items, np) => {
         const linee = lfPdfLinee(items, np);
@@ -1046,12 +1047,25 @@ function lfPdfTabella(pagine) {
             if (l.prezzo) break;
             if (l.celle.some(c => LF_PDF_TITOLO.test(c.s)) && l.celle.length >= 2) testa.unshift(l);
         }
+        // righe di titolo con un solo pezzo (es. "Prezzo" sopra e "Cons." sotto) dentro il blocco dei titoli
+        if (testa.length) {
+            const alto = Math.max(...testa.map(l => l.y)) + testa[0].h * 1.6;
+            const basso = Math.min(...testa.map(l => l.y)) - testa[0].h * 1.6;
+            for (let i = iPrima - 1; i >= 0 && i >= iPrima - 12; i--) {
+                const l = linee[i];
+                if (l.prezzo || testa.indexOf(l) !== -1 || l.celle.length !== 1) continue;
+                if (l.y <= alto && l.y >= basso && l.y > dati[0].y) testa.push(l);
+            }
+            testa.sort((p, q) => q.y - p.y);
+        }
         let nomi;
         if (testa.length) {
             const parti = zone.map(() => []);
-            testa.forEach(l => l.celle.forEach(c => {
+            // pezzi singoli (non le celle unite: titoli vicini come "CONSIGLIATO IVA" + "RIVENDITORE IVA" restano separati);
+            // un titolo che non sta sopra nessuna colonna di dati (es. Status vuoto) si ignora
+            testa.forEach(l => l.pezzi.forEach(c => {
                 const i = lfPdfZonaDi(zone, c);
-                if (i !== -1) parti[i].push(c.s);
+                if (i !== -1 && Math.min(zone[i].b, c.x2) - Math.max(zone[i].a, c.x) > 0) parti[i].push(c.s.trim());
             }));
             nomi = parti.map(p => p.join(' ').replace(/\s+/g, ' ').trim().toUpperCase().slice(0, 60));
         } else if (zonePrec) {
@@ -1113,7 +1127,20 @@ function lfPdfTabella(pagine) {
                 }
                 r[n] = r[n] ? r[n] + ' ' + val[i] : val[i];
             });
-            prezzi.sort((p, q) => p.x - q.x).forEach((c, k) => { r['PREZZO ' + (k + 1 + Math.max(0, maxPrezzi - prezzi.length))] = c.s; });
+            // ogni prezzo nella sua colonna, per posizione (se una riga non ha il primo o l'ultimo prezzo gli altri non scivolano)
+            const zonePrezzo = zone.map((z, i) => z.prezzo ? i : -1).filter(i => i >= 0);
+            const usateZ = new Set();
+            prezzi.sort((p, q) => p.x - q.x).forEach((c, k) => {
+                let n = -1;
+                if (zonePrezzo.length >= maxPrezzi) {
+                    const zi = lfPdfZonaDi(zonePrezzo.map(i => zone[i]), c);
+                    if (zi !== -1 && !usateZ.has(zi)) n = zi;
+                }
+                if (n === -1) n = k + Math.max(0, maxPrezzi - prezzi.length);   // ripiego: allineati a destra
+                usateZ.add(n);
+                r['PREZZO ' + (n + 1)] = c.s;
+            });
+            if (prezzi.length < maxPrezzi) incompleti++;
             // senza colonna descrizione (alcune pagine): le altre colonne di testo, o il modello
             if (!r.DESCRIZIONE) {
                 const altre = Object.keys(r).filter(k => k.indexOf('ALTRO') === 0).map(k => r[k]).filter(v => !/^\d+\s*(pc|pcs|pz)$/i.test(v));
@@ -1140,7 +1167,7 @@ function lfPdfTabella(pagine) {
         const n = Number(t);
         return isFinite(n) ? n : v;
     };
-    return { titoli: titoli, righe: righe.map(r => tutte.map(k => /^PREZZO \d+$/.test(k) && r[k] ? numero(r[k]) : (r[k] || ''))) };
+    return { titoli: titoli, righe: righe.map(r => tutte.map(k => /^PREZZO \d+$/.test(k) && r[k] ? numero(r[k]) : (r[k] || ''))), incompleti: incompleti };
 }
 
 // Ruolo di una colonna dal suo titolo (o dal contenuto, per il codice a barre)
@@ -1205,7 +1232,7 @@ const LF_CAMPI = [
     { campo: 'codice', titolo: 'Codice articolo', obbligatorio: true, indovina: h => h === 'CODICE' || h === 'CODICE ARTICOLO' || h === 'COD ARTICOLO' },
     { campo: 'descrizione', titolo: 'Descrizione', obbligatorio: true, indovina: h => h.indexOf('DESCRIZIONE') === 0 },
     { campo: 'listino', titolo: 'Listino IVA esclusa', obbligatorio: false,
-        indovina: h => h.indexOf('LISTINO') !== -1 || (h.indexOf('PUBBL') !== -1 && h.indexOf('ESCLUSA') !== -1) },
+        indovina: h => h.indexOf('LISTINO') !== -1 || (h.indexOf('PUBBL') !== -1 && (h.indexOf('ESCLUSA') !== -1 || h.indexOf('NETTO IVA') !== -1)) },
     { campo: 'netto', titolo: 'Netto IVA esclusa (prezzo promo)', obbligatorio: true, indovina: h => h.indexOf('PROMO') !== -1 || ((h.indexOf('NETTO') !== -1 || h.indexOf('RIVENDIT') !== -1) && h.indexOf('PUBBL') === -1) },
     { campo: 'categoria', titolo: 'Categoria (facoltativa)', obbligatorio: false, indovina: h => h.indexOf('CATEG') === 0 },
     { campo: 'ean', titolo: 'EAN / codice a barre (facoltativo)', obbligatorio: false, indovina: h => h === 'EAN' || h.indexOf('EAN ') === 0 || h.indexOf('BARCODE') !== -1 }
@@ -1567,6 +1594,21 @@ function lfRenderAnteprima() {
             '<div class="sti-err"><strong>' + p.tolti.length + '</strong> tolti dal listino</div>' : '') +
         (p.scartate.length ? '<div class="sti-err"><strong>' + p.scartate.length + '</strong> righe scartate</div>' : '') +
         '</div>';
+    // controllo colonne (v7.8): netto uguale o piu' alto del listino, o colonne IVA inclusa = colonne scambiate
+    const avvisiCol = [];
+    const conEntrambi = p.righe.filter(x => x.listino_escl !== null && x.netto_escl !== null && x.listino_escl > 0);
+    const nettoAlto = conEntrambi.filter(x => x.netto_escl >= x.listino_escl * 0.99).length;
+    if (conEntrambi.length && nettoAlto > conEntrambi.length / 2) {
+        avvisiCol.push('In ' + nettoAlto + ' articoli su ' + conEntrambi.length + ' il <strong>netto &egrave; uguale o pi&ugrave; alto del listino</strong>: forse le colonne Listino e Netto sono scambiate o sbagliate.');
+    }
+    const titoloCol = (campo) => lfNormIntestazione((p.imp.titoli || {})[campo] || '');
+    ['listino', 'netto'].forEach(campo => {
+        const t = titoloCol(campo);
+        if (t.indexOf('INCLUSA') !== -1 && t.indexOf('ESCLUSA') === -1) {
+            avvisiCol.push('La colonna <strong>' + (campo === 'listino' ? 'Listino' : 'Netto') + '</strong> scelta &egrave; <strong>IVA inclusa</strong> (' + listinoEsc((p.imp.titoli || {})[campo]) + '): qui serve quella IVA esclusa, l\'app aggiunge l\'IVA da sola.');
+        }
+    });
+    if (avvisiCol.length) html += '<div class="lf-avviso-colonne">&#9888;&#65039; ' + avvisiCol.join('<br>&#9888;&#65039; ') + '<br>Controlla le colonne prima di confermare.</div>';
     html += '<p class="mac-aiuto">Listino <strong>' + listinoEsc(p.imp.nome) + '</strong>' +
         (p.imp.scadenza ? ', valido fino al <strong>' + lfDataIt(p.imp.scadenza) + '</strong>' : ', <strong>senza scadenza</strong>') + '. ' +
         (p.imp.calcolo === 'PUBBLICO'
