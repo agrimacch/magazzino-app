@@ -111,3 +111,6 @@ body.daltonici .lf-fuori { background: #fdf8c4; color: #5c4d00; }
 
 /* ---------- Scorte basse (inventario consumabili): bordo + simbolo ---------- */
 body.daltonici tbody tr.low-stock td:first-child::before { content: '\26A0\00a0'; color: #D55E00; }
+
+/* Proponi collegamenti: righe da controllare */
+body.daltonici .lf-prop-dubbia td { background: #fefbe0; }

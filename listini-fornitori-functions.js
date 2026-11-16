@@ -14,6 +14,7 @@
 //   - Codici EAN da un catalogo del fornitore (solo admin): si tengono solo gli EAN degli articoli dei listini.
 // Prezzi IVA inclusa: listino x 1,22; netto x 1,22 (oscurabile); cliente = netto + ricarico, x 1,22, all'euro.
 // Avvisi scadenze: riquadro in dashboard e in Listini Vendite + pallino sulle card (lfControllaScadenze, da showDashboard).
+// Proponi collegamenti (v7.7): coppie fornitore / Listino Agrimacch per codice a barre, codice articolo o modello.
 // Filtro "fuori listino": articoli collegati che non sono piu' in nessun listino (modelli usciti di produzione).
 // Permessi (a regime): vedere, Collega e Crea = admin e operatori; fornitori, caricamenti, scadenze, ricarico, EAN = admin.
 // Tabelle: lf_fornitori, lf_listini, lf_articoli, lf_prezzi (supabase/listini-fornitori-setup.sql)
@@ -215,6 +216,12 @@ async function openListiniFornitoriPrezzi() {
         return;
     }
     lfRenderTutto();
+    // arrivo da un import del Listino Agrimacch: apro subito le proposte di collegamento
+    if (sessionStorage.getItem('lfApriProposte')) {
+        sessionStorage.removeItem('lfApriProposte');
+        lfSwitchTab('elenco');
+        lfApriProposte();
+    }
 }
 
 function lfSwitchTab(tab, senzaRender) {
@@ -1140,6 +1147,11 @@ async function lfConferma() {
     lfRenderTutto();
     lfSwitchTab('elenco');
     await showCustomAlert('<strong>' + listinoEsc(p.imp.nome) + '</strong> caricato (' + listinoEsc(f.nome) + ').<br>' + riepilogo, 'Listino aggiornato', '&#10004;');
+    // codici nuovi: proposte di collegamento con il Listino Agrimacch
+    if (lfPuoCollegare()) {
+        const n = lfCalcolaProposte(f).length;
+        if (n && window.confirm('Ci sono ' + n + ' proposte di collegamento con il Listino Agrimacch.\n\nVuoi vederle adesso?')) lfApriProposte();
+    }
     if (listinoId === null) console.warn('lf_carica_listino senza id');
 }
 
@@ -1369,6 +1381,195 @@ async function lfEanConferma() {
 }
 
 // ========================================
+// PROPONI COLLEGAMENTI (v7.7)
+// ----------------------------------------
+// Per il fornitore scelto confronta i suoi articoli NON collegati con il Listino Agrimacch dello stesso marchio:
+//   - stesso codice a barre (EAN)       -> sicura
+//   - stesso codice articolo            -> sicura
+//   - stesso modello (es. "FSA 50", "MS 182 30CM": tutte le sigle con numeri del modello Agrimacch
+//     si ritrovano nella descrizione del fornitore) -> sicura se e' l'unica coppia possibile, altrimenti da controllare
+// Gli articoli gia' collegati non vengono toccati. Ogni riga mostra i prezzi dei due listini per il confronto.
+// "Collega le spuntate" = lf_collega per ognuna (+ EAN nel codice a barre se vuoto, codice articolo dal trigger).
+// Si apre dal pulsante in Listino, dopo un caricamento (Carica file) e dopo un import Excel del Listino Agrimacch.
+// ========================================
+let lfProposte = [];
+
+function lfToken(s) {
+    const base = String(s || '').toUpperCase().replace(/[^A-Z0-9]+/g, ' ').trim().split(' ').filter(Boolean);
+    const out = new Set(base);
+    for (let i = 0; i < base.length - 1; i++) {
+        const a = base[i], b = base[i + 1];
+        if (/^[A-Z]+$/.test(a) && /^\d/.test(b)) out.add(a + b);          // MS 182 -> MS182
+        if (/^\d+$/.test(a) && /^[A-Z]{1,3}$/.test(b)) out.add(a + b);    // 30 CM -> 30CM
+    }
+    return out;
+}
+
+// Sigle "di modello" di un testo: con almeno una cifra (MS182, FSA50, 30CM, 140)
+function lfSigle(s) {
+    const t = lfToken(s);
+    const sigle = [...t].filter(x => /\d/.test(x));
+    // se c'e' la forma unita (MS182) tolgo i pezzi separati (182) per non contarli due volte
+    return sigle.filter(x => !(/^\d+$/.test(x) && sigle.some(y => y !== x && y.endsWith(x) && /^[A-Z]/.test(y))));
+}
+
+function lfHaSet(s) {
+    return /\b(SET|KIT)\b/.test(String(s || '').toUpperCase());
+}
+
+function lfCalcolaProposte(fornitore) {
+    const f = fornitore;
+    if (!f) return [];
+    const marchio = listinoPulisciTesto(f.marchio || f.nome);
+    const arts = listinoArticoli.filter(a => a.attivo && listinoPulisciTesto(a.marchio) === marchio);
+    const giaUsati = new Set(lfArticoli.filter(x => x.fornitore_id === f.id && x.articolo_id).map(x => x.articolo_id));
+    const daFare = lfArticoli.filter(x => x.fornitore_id === f.id && !x.articolo_id && (lfPrezziDi[x.id] || []).length);
+    const sigleArt = new Map(arts.map(a => [a.id, lfSigle(a.modello)]));
+    const righe = [];
+    daFare.forEach(x => {
+        const cand = [];
+        const tokLf = lfToken(x.descrizione);
+        listinoArticoli.forEach(a => {
+            if (!a.attivo) return;
+            if (x.ean && a.codice_barre && listinoStessoCodiceBarre(a.codice_barre, x.ean)) cand.push({ art: a, punti: 200, motivo: 'stesso codice a barre' });
+            else if (a.codice_articolo && lfCodiceNorm(a.codice_articolo) === lfCodiceNorm(x.codice)) cand.push({ art: a, punti: 200, motivo: 'stesso codice articolo' });
+        });
+        if (!cand.length) {
+            arts.forEach(a => {
+                if (giaUsati.has(a.id)) return;
+                const sigle = sigleArt.get(a.id);
+                if (!sigle || !sigle.length || !sigle.every(s => tokLf.has(s))) return;
+                let punti = 50 + 10 * sigle.length;
+                let motivo = 'stesso modello';
+                if (lfHaSet(a.modello) !== lfHaSet(x.descrizione)) { punti -= 30; motivo = 'stesso modello, ma uno dei due &egrave; un SET'; }
+                cand.push({ art: a, punti: punti, motivo: motivo });
+            });
+        }
+        if (!cand.length) return;
+        cand.sort((p, q) => q.punti - p.punti || listinoConfronta(macNome(p.art), macNome(q.art)));
+        righe.push({ lf: x, cand: cand, scelto: cand[0].art.id, sicura: false, spunta: false });
+    });
+    // sicura: codice/EAN, oppure modello con un solo candidato migliore e che non e' il migliore anche per altri codici
+    const migliorePer = {};
+    righe.forEach(r => {
+        if (r.cand[0].punti < 60) return;     // le coppie "SET contro singola" non tolgono la sicurezza alle altre
+        const id = r.cand[0].art.id;
+        migliorePer[id] = (migliorePer[id] || 0) + 1;
+    });
+    righe.forEach(r => {
+        const top = r.cand[0];
+        const pari = r.cand.filter(c => c.punti === top.punti).length;
+        r.sicura = top.punti >= 200 || (pari === 1 && migliorePer[top.art.id] === 1 && top.punti >= 60 && top.motivo === 'stesso modello');
+        r.spunta = r.sicura;
+    });
+    righe.sort((p, q) => (q.sicura ? 1 : 0) - (p.sicura ? 1 : 0) || listinoConfronta(p.lf.descrizione, q.lf.descrizione));
+    return righe;
+}
+
+function lfPrezzoArtHtml(a) {
+    if (!a) return '';
+    const v = a.vendita_promo && !listinoPromoScaduta(a.scadenza_promo) ? a.vendita_promo : a.vendita_no_promo;
+    return '<small>listino ' + (a.listino !== null && a.listino !== undefined && a.listino !== '' ? listinoFormatEuro(Number(a.listino)) : '-') +
+        ' &middot; vendita ' + listinoEsc(v || '-') + '</small>';
+}
+
+function lfApriProposte() {
+    const f = lfFornitoreCorrente();
+    if (!f || !lfPuoCollegare()) return;
+    lfProposte = lfCalcolaProposte(f);
+    document.getElementById('lf-prop-titolo').innerHTML = '&#128279; Proponi collegamenti - ' + listinoEsc(f.nome);
+    lfRenderProposte();
+    document.getElementById('lf-prop-modal').classList.remove('hidden');
+}
+
+function lfChiudiProposte() {
+    document.getElementById('lf-prop-modal').classList.add('hidden');
+    lfProposte = [];
+}
+
+function lfRenderProposte() {
+    const box = document.getElementById('lf-prop-lista');
+    const btn = document.getElementById('lf-prop-collega');
+    const sicure = lfProposte.filter(r => r.sicura).length;
+    const spuntate = lfProposte.filter(r => r.spunta).length;
+    document.getElementById('lf-prop-conta').innerHTML = lfProposte.length
+        ? '<strong>' + lfProposte.length + '</strong> proposte: <strong>' + sicure + '</strong> sicure (gi&agrave; spuntate), <strong>' +
+          (lfProposte.length - sicure) + '</strong> da controllare. Gli articoli gi&agrave; collegati non compaiono.'
+        : '';
+    btn.innerHTML = '&#128279; Collega le spuntate (' + spuntate + ')';
+    btn.disabled = !spuntate;
+    if (!lfProposte.length) {
+        box.innerHTML = '<p class="mac-aiuto">Nessuna proposta: gli articoli del fornitore sono gi&agrave; collegati, oppure i modelli non si trovano nel Listino Agrimacch. ' +
+            'Quelli che restano li colleghi a mano con <strong>Collega</strong>, o li crei con <strong>Crea</strong>.</p>';
+        return;
+    }
+    const max = 600;
+    box.innerHTML = '<div class="table-container"><table class="listino-table lf-prop-tab"><thead><tr>' +
+        '<th></th><th>Fornitore</th><th>Prezzi fornitore <small>(IVA incl.)</small></th><th>Listino Agrimacch</th><th>Perch&eacute;</th>' +
+        '</tr></thead><tbody>' + lfProposte.slice(0, max).map((r, i) => {
+            const p = lfPrezzoMigliore(r.lf);
+            const c = r.cand.find(x => x.art.id === r.scelto) || r.cand[0];
+            const sel = r.cand.length > 1
+                ? '<select data-lf-prop-scelta="' + i + '">' + r.cand.map(x => '<option value="' + x.art.id + '"' + (x.art.id === r.scelto ? ' selected' : '') + '>' +
+                    listinoEsc(macNome(x.art)) + '</option>').join('') + '</select>'
+                : '<strong>' + listinoEsc(macNome(c.art)) + '</strong>';
+            return '<tr class="' + (r.sicura ? 'lf-prop-sicura' : 'lf-prop-dubbia') + '">' +
+                '<td><input type="checkbox" data-lf-prop="' + i + '"' + (r.spunta ? ' checked' : '') + '></td>' +
+                '<td><strong>' + listinoEsc(r.lf.descrizione || '') + '</strong><br><small>' + listinoEsc(r.lf.codice) + (r.lf.ean ? ' &middot; EAN ' + listinoEsc(r.lf.ean) : '') + '</small></td>' +
+                '<td class="lf-prop-prezzi">' + (p ? 'listino ' + listinoFormatEuro(lfIvato(p.listino_escl)) + '<br><small>cliente ' + lfEuroIntero(lfPrezzoCliente(p)) + '</small>' : '-') + '</td>' +
+                '<td>' + sel + '<br>' + lfPrezzoArtHtml(c.art) +
+                    (c.art.codice_articolo ? '<br><small>cod. ' + listinoEsc(c.art.codice_articolo) + '</small>' : '') + '</td>' +
+                '<td><small>' + c.motivo + (r.sicura ? '' : (r.cand.length > 1 ? '<br>' + r.cand.length + ' possibili' : '<br>da controllare')) + '</small></td>' +
+            '</tr>';
+        }).join('') + '</tbody></table></div>' +
+        (lfProposte.length > max ? '<p class="mac-aiuto">... e altre ' + (lfProposte.length - max) + ': collega queste e riapri le proposte.</p>' : '');
+}
+
+async function lfCollegaProposte() {
+    const scelte = lfProposte.filter(r => r.spunta).map(r => ({ lf: r.lf, art: listinoArticoli.find(a => a.id === r.scelto) })).filter(x => x.art);
+    if (!scelte.length) return;
+    const conta = {};
+    scelte.forEach(x => { conta[x.art.id] = (conta[x.art.id] || 0) + 1; });
+    const doppi = Object.keys(conta).filter(id => conta[id] > 1).length;
+    if (!window.confirm('Collegare ' + scelte.length + ' articoli al Listino Agrimacch?' +
+        (doppi ? '\n\nAttenzione: ' + doppi + ' articoli Agrimacch verrebbero collegati a pi\u00f9 codici del fornitore.' : '') +
+        '\n\nCodice articolo e codice a barre passano solo dove sono vuoti.')) return;
+    const btn = document.getElementById('lf-prop-collega');
+    btn.disabled = true;
+    let fatti = 0, eanMessi = 0;
+    const errori = [];
+    for (const x of scelte) {
+        btn.innerHTML = '&#8987; ' + (fatti + 1) + ' di ' + scelte.length + '...';
+        const { error } = await supabaseClient.rpc('lf_collega', { p_id: x.lf.id, p_articolo: x.art.id });
+        if (error) { errori.push(x.lf.codice + ': ' + error.message); continue; }
+        x.lf.articolo_id = x.art.id;
+        if (!x.art.codice_articolo && Object.prototype.hasOwnProperty.call(x.art, 'codice_articolo')) x.art.codice_articolo = x.lf.codice;
+        if ((await lfPassaEan(x.lf, x.art)) === 'messo') eanMessi++;
+        fatti++;
+    }
+    lfChiudiProposte();
+    lfRenderElenco();
+    await showCustomAlert(fatti + ' articoli collegati.' + (eanMessi ? '<br>' + eanMessi + ' codici a barre aggiunti nel Listino Agrimacch.' : '') +
+        (errori.length ? '<br><br>Non collegati:<br>' + errori.slice(0, 10).map(listinoEsc).join('<br>') : ''), 'Collegamenti', '&#10004;');
+}
+
+// Dopo un import Excel del Listino Agrimacch (listino-functions.js): propone di aprire le proposte
+async function lfDopoImportListino() {
+    if (!lfPuoCollegare()) return;
+    try { if (!lfCaricato) await lfCaricaDati(); } catch (e) { return; }
+    let migliore = null, quante = 0;
+    lfFornitori.forEach(f => {
+        const n = lfCalcolaProposte(f).length;
+        if (n > quante) { quante = n; migliore = f; }
+    });
+    if (!migliore || !quante) return;
+    if (!window.confirm('Ci sono ' + quante + ' proposte di collegamento con il listino ' + migliore.nome + '.\n\nVuoi vederle adesso?')) return;
+    sessionStorage.setItem('lfFornitore', String(migliore.id));
+    sessionStorage.setItem('lfApriProposte', '1');
+    if (typeof openSection === 'function') openSection('listini-prezzi');
+}
+
+// ========================================
 // AVVIO
 // ========================================
 document.addEventListener('DOMContentLoaded', () => {
@@ -1467,6 +1668,21 @@ document.addEventListener('DOMContentLoaded', () => {
         else if (e.target.closest('#lf-ean-annulla')) { lfEanPiano = null; document.getElementById('lf-ean-anteprima').innerHTML = ''; }
     });
 
+    // Proponi collegamenti
+    document.getElementById('lf-proponi').addEventListener('click', lfApriProposte);
+    document.getElementById('lf-prop-close').addEventListener('click', lfChiudiProposte);
+    document.getElementById('lf-prop-annulla').addEventListener('click', lfChiudiProposte);
+    document.getElementById('lf-prop-collega').addEventListener('click', lfCollegaProposte);
+    const prop = document.getElementById('lf-prop-lista');
+    prop.addEventListener('change', (e) => {
+        const cb = e.target.closest('[data-lf-prop]');
+        if (cb) { const r = lfProposte[parseInt(cb.dataset.lfProp, 10)]; if (r) r.spunta = cb.checked; lfRenderProposte(); return; }
+        const s = e.target.closest('[data-lf-prop-scelta]');
+        if (s) { const r = lfProposte[parseInt(s.dataset.lfPropScelta, 10)]; if (r) { r.scelto = Number(s.value); r.spunta = true; } lfRenderProposte(); }
+    });
+    document.getElementById('lf-prop-tutte').addEventListener('click', () => { lfProposte.forEach(r => { r.spunta = true; }); lfRenderProposte(); });
+    document.getElementById('lf-prop-nessuna').addEventListener('click', () => { lfProposte.forEach(r => { r.spunta = false; }); lfRenderProposte(); });
+
     // Guida
     const chiudiGuida = () => document.getElementById('lf-guida-modal').classList.add('hidden');
     document.getElementById('lf-guida-btn').addEventListener('click', () => document.getElementById('lf-guida-modal').classList.remove('hidden'));
@@ -1488,3 +1704,4 @@ window.openListiniFornitoriPrezzi = openListiniFornitoriPrezzi;
 window.lfPuoVedere = lfPuoVedere;
 window.lfDopoSalvataggioListino = lfDopoSalvataggioListino;
 window.lfControllaScadenze = lfControllaScadenze;
+window.lfDopoImportListino = lfDopoImportListino;

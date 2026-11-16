@@ -1242,6 +1242,8 @@ async function confirmListinoImport() {
     await loadListino();
     await showCustomAlert(messaggio, 'Import Completato', '&#10004;');
     switchListinoTab('elenco');
+    // Proposte di collegamento con i listini fornitori (listini-fornitori-functions.js)
+    if (typeof lfDopoImportListino === 'function') lfDopoImportListino();
 }
 
 // ========================================

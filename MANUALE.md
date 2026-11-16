@@ -256,6 +256,7 @@ Ha preso il posto del vecchio Listino STIHL (tolto in v7.3.1) e vale per qualsia
 - **Dopo la pulizia** ricaricare OPG e OPM con &quot;Sostituisci&quot; e mettere le scadenze (il vecchio listino teneva un solo prezzo per codice e non aveva scadenze).
 - **Avvisi scadenze** (v7.3.2): se un listino scade entro 7 giorni o &egrave; scaduto compare un riquadro in **Dashboard** e nel menu **Listini Vendite** (arancione = in scadenza, rosso = scaduto, con fornitore, nome e data); tocca = apre Listini Fornitori, X = nascosto fino al prossimo accesso o a una scadenza nuova. Pallino rosso/arancione sulle card Listini Vendite e Listini Fornitori. Lo vede chi vede Listini Fornitori (per ora l'admin; con l'apertura anche gli operatori). Funzione `lfControllaScadenze()` chiamata da `showDashboard()` e dopo il login.
 - **Codice articolo ed EAN su Collega**: vengono scritti nel Listino Agrimacch solo se sono vuoti, mai sovrascritti. Se il codice articolo c'&egrave; ed &egrave; diverso l'app avvisa (forse &egrave; un altro modello) e lo lascia com'&egrave;. **Modello nuovo** del fornitore (codice ed EAN nuovi) = **Crea** un articolo nuovo; il vecchio resta per le macchine in casa (le scatole vecchie si riconoscono ancora) e quando &egrave; finito si sposta tra i cancellati.
+- **Proponi collegamenti** (v7.7.0, `lfCalcolaProposte` / `lfApriProposte`): pulsante in Listino (admin e operatori). Per il fornitore scelto confronta gli articoli NON collegati con il Listino Agrimacch: stesso codice a barre o stesso codice articolo = sicura; stesso modello (tutte le sigle con numeri del modello Agrimacch, es. MS182 / 30CM, presenti nella descrizione del fornitore) = sicura se &egrave; l'unica coppia possibile, altrimenti da controllare (tendina con le alternative); SET contro singola = da controllare. Ogni riga mostra listino / prezzo cliente del fornitore e listino / vendita dell'articolo Agrimacch. &quot;Collega le spuntate&quot; = lf_collega una per una + EAN nel codice a barre se vuoto. Proposto anche dopo un caricamento (Carica file) e dopo un import Excel del Listino Agrimacch (`lfDopoImportListino`). Gli articoli gi&agrave; collegati non compaiono.
 - **Filtro &quot;Collegati ma non pi&ugrave; in nessun listino&quot;**: articoli collegati il cui codice &egrave; uscito da tutti i listini del fornitore (fuori produzione).
 
 ---
@@ -666,6 +667,7 @@ git rm --cached localhost.pem localhost-key.pem
 
 ## 15. STORICO MODIFICHE PRINCIPALI
 
+- **v7.7.0 (nov 2026)** - Listini Fornitori: **Proponi collegamenti** (coppie per codice a barre, codice articolo o modello, con i prezzi dei due listini; anche dopo i caricamenti).
 - **v7.6.0 (nov 2026)** - Ordini clienti: **Documento** obbligatorio (Scontrino / Fattura) prima delle Note, nel dettaglio e nel PDF (colonna `documento`, `supabase/ordini-documento.sql`). PDF di ordini e report con caratteri pi&ugrave; grandi; ragione sociale in MAIUSCOLO nell'intestazione.
 - **v7.5.2 (nov 2026)** - La card Ordini Macchine si chiama **Ordini Fornitore**.
 - **v7.5.1 (nov 2026)** - Ordini Macchine: **Aggiungi riga** in Da ordinare (macchine per il magazzino da ordinare insieme alle altre).

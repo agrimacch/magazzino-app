@@ -429,6 +429,7 @@
                     <div class="listino-filtri-footer">
                         <span id="lf-count"></span>
                         <div class="listino-filtri-pulsanti">
+                            <button type="button" id="lf-proponi" class="btn-primary lf-solo-collega hidden" title="Proposte di collegamento con il Listino Agrimacch">&#128279; Proponi collegamenti</button>
                             <button type="button" id="lf-reset" class="btn-back">&#10006; Azzera filtri</button>
                         </div>
                     </div>
@@ -2638,6 +2639,27 @@
         </div>
     </div>
 
+    <!-- Listini Fornitori: proponi collegamenti -->
+    <div id="lf-prop-modal" class="modal hidden">
+        <div class="modal-content mac-modal-content lf-prop-content">
+            <div class="modal-header">
+                <h3 id="lf-prop-titolo">&#128279; Proponi collegamenti</h3>
+                <button type="button" class="modal-close" id="lf-prop-close">&times;</button>
+            </div>
+            <p class="mac-aiuto">Coppie trovate tra gli articoli <strong>non collegati</strong> del fornitore e il Listino Agrimacch (stesso codice a barre, stesso codice articolo o stesso modello). Le <strong>sicure</strong> sono gi&agrave; spuntate; controlla le altre guardando i prezzi e, se ci sono pi&ugrave; possibilit&agrave;, scegli quella giusta dalla tendina.</p>
+            <div id="lf-prop-conta" class="lf-prop-conta"></div>
+            <div class="lf-prop-azioni">
+                <button type="button" id="lf-prop-tutte" class="mac-link">spunta tutte</button>
+                <button type="button" id="lf-prop-nessuna" class="mac-link">togli tutte</button>
+            </div>
+            <div id="lf-prop-lista"></div>
+            <div class="modal-buttons">
+                <button type="button" id="lf-prop-collega" class="btn-primary">&#128279; Collega le spuntate</button>
+                <button type="button" id="lf-prop-annulla" class="btn-secondary">Chiudi</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Listini Fornitori: guida rapida -->
     <div id="lf-guida-modal" class="modal hidden">
         <div class="modal-content mac-modal-content mac-raf-guida-content">
@@ -2668,6 +2690,7 @@
                     <li><strong>Collega</strong>: l'articolo c'&egrave; gi&agrave; nel Listino Agrimacch. Gli passa anche l'EAN come codice a barre, se manca.</li>
                     <li><strong>Crea</strong>: si apre Nuovo articolo gi&agrave; compilato con i prezzi del listino migliore. Scegli l'<strong>attrezzo</strong>, correggi il modello e salva.</li>
                     <li>Il collegamento vale per <strong>tutti i listini</strong> del fornitore (&egrave; legato al codice).</li>
+                    <li><strong>&#128279; Proponi collegamenti</strong>: l'app cerca da sola le coppie tra gli articoli non collegati del fornitore e il Listino Agrimacch (stesso codice a barre, codice articolo o modello) e mostra i prezzi dei due listini. Le sicure sono gi&agrave; spuntate; controlli le altre e premi <strong>Collega le spuntate</strong>. Te lo propone anche dopo aver caricato un listino o importato l'Excel del Listino Agrimacch.</li>
                     <li>Collega scrive nel tuo articolo il <strong>codice articolo</strong> e l'<strong>EAN</strong> solo se sono vuoti: quello che c'&egrave; gi&agrave; non viene mai cambiato. Se il codice articolo &egrave; diverso l'app ti avvisa: forse &egrave; un altro modello.</li>
                     <li><strong>Modello nuovo</strong> (codice ed EAN nuovi) = usa <strong>Crea</strong>: nasce un articolo nuovo. Il vecchio resta per le macchine che hai ancora; quando le hai vendute lo sposti tra i cancellati.</li>
                     <li>Filtro <strong>Collegati ma non pi&ugrave; in nessun listino</strong>: i tuoi articoli il cui codice &egrave; uscito dai listini del fornitore (fuori produzione).</li>

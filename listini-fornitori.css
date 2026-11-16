@@ -469,3 +469,83 @@
     border-radius: 6px;
     padding: 4px 8px;
 }
+
+/* ---------- Proponi collegamenti ---------- */
+.lf-prop-content {
+    max-width: 1000px;
+}
+
+.lf-prop-conta {
+    font-size: 14px;
+    margin: 6px 0;
+}
+
+.lf-prop-azioni {
+    display: flex;
+    gap: 14px;
+    margin-bottom: 6px;
+}
+
+.lf-prop-tab td {
+    vertical-align: top;
+}
+
+.lf-prop-tab select {
+    width: 100%;
+    max-width: 320px;
+    margin: 0 0 2px;
+}
+
+.lf-prop-dubbia td {
+    background: #fffbeb;
+}
+
+.lf-prop-prezzi {
+    white-space: nowrap;
+}
+
+/* Finestra a tutto schermo (su PC): si vedono tutte le colonne e molte righe */
+#lf-prop-modal .lf-prop-content {
+    width: 96vw;
+    max-width: 96vw;
+    height: 94vh;
+    height: 94dvh;
+    max-height: 94vh;
+    max-height: 94dvh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+#lf-prop-modal .mac-aiuto {
+    margin: 0 0 4px;
+}
+
+#lf-prop-lista {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
+}
+
+#lf-prop-lista .table-container {
+    overflow: visible;
+}
+
+#lf-prop-lista thead th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+
+.lf-prop-tab {
+    width: 100%;
+}
+
+.lf-prop-tab td:first-child {
+    width: 32px;
+}
+
+#lf-prop-modal .modal-buttons {
+    flex: 0 0 auto;
+    margin-top: 10px;
+}
