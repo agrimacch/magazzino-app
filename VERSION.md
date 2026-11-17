@@ -1,5 +1,8 @@
 # Changelog App Magazzino
 
+## v7.8.2 - 2026-11-17 (PRODUZIONE)
+modifica listino pdf
+
 ## v7.8.1 - 2026-11-16 (PRODUZIONE)
 listini fornitori
 
