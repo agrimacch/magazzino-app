@@ -1,5 +1,8 @@
 # Changelog App Magazzino
 
+## v7.8.3 - 2026-11-17 (PRODUZIONE)
+aiiunta modello su carico listini pdf
+
 ## v7.8.2 - 2026-11-17 (PRODUZIONE)
 modifica listino pdf
 
