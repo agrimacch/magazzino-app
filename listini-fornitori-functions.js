@@ -14,6 +14,7 @@
 //   - Codici EAN da un catalogo del fornitore (solo admin): si tengono solo gli EAN degli articoli dei listini.
 // Prezzi IVA inclusa: listino x 1,22; netto x 1,22 (oscurabile); cliente = netto + ricarico, x 1,22, all'euro.
 // Avvisi scadenze: riquadro in dashboard e in Listini Vendite + pallino sulle card (lfControllaScadenze, da showDashboard).
+// Colonna Modello facoltativa in Carica file (v7.8): il modello va davanti alla descrizione se non c'e' gia'.
 // Gia' esiste? (v7.8): "Crea" controlla prima il Listino Agrimacch (lfCandidatiPerFornitore); un articolo creato a mano
 // nel Listino Agrimacch propone i codici dei fornitori da collegare (lfCandidatiPerArticolo, lfDopoAvvisoSalvataggio).
 // Prezzo cliente "pubblico consigliato" per listino (v7.8, colonna lf_listini.prezzo_cliente): lfUsaPubblico / lfPrezzoCliente.
@@ -1234,6 +1235,7 @@ const LF_CAMPI = [
     { campo: 'listino', titolo: 'Listino IVA esclusa', obbligatorio: false,
         indovina: h => h.indexOf('LISTINO') !== -1 || (h.indexOf('PUBBL') !== -1 && (h.indexOf('ESCLUSA') !== -1 || h.indexOf('NETTO IVA') !== -1)) },
     { campo: 'netto', titolo: 'Netto IVA esclusa (prezzo promo)', obbligatorio: true, indovina: h => h.indexOf('PROMO') !== -1 || ((h.indexOf('NETTO') !== -1 || h.indexOf('RIVENDIT') !== -1) && h.indexOf('PUBBL') === -1) },
+    { campo: 'modello', titolo: 'Modello (facoltativo)', obbligatorio: false, indovina: h => h === 'MODELLO' || h.indexOf('MODELLO') === 0 || h === 'MODEL' },
     { campo: 'categoria', titolo: 'Categoria (facoltativa)', obbligatorio: false, indovina: h => h.indexOf('CATEG') === 0 },
     { campo: 'ean', titolo: 'EAN / codice a barre (facoltativo)', obbligatorio: false, indovina: h => h === 'EAN' || h.indexOf('EAN ') === 0 || h.indexOf('BARCODE') !== -1 }
 ];
@@ -1494,7 +1496,14 @@ async function lfAnteprima() {
     const scartate = [];
     let doppie = 0;
     for (let r = imp.riga; r <= rg.e.r; r++) {
-        const descr = listinoPulisciTesto(lfTestoCella(ws, r, imp.colonne.descrizione));
+        let descr = listinoPulisciTesto(lfTestoCella(ws, r, imp.colonne.descrizione));
+        // modello (v7.8): se la descrizione non lo contiene gia', va davanti ("C6 - AI MOWBOT 6..."): cosi' si trova cercando
+        const modello = imp.colonne.modello !== null && imp.colonne.modello !== undefined ? listinoPulisciTesto(lfTestoCella(ws, r, imp.colonne.modello)) : null;
+        if (modello && modello !== '-' && modello !== '0') {
+            const senza = (t) => String(t || '').replace(/[^A-Z0-9]/g, '');
+            if (!descr) descr = modello;
+            else if (senza(descr).indexOf(senza(modello)) === -1) descr = modello + ' - ' + descr;
+        }
         const codice = listinoPulisciTesto(lfTestoCella(ws, r, imp.colonne.codice));
         if (!codice || codice === '0' || codice === '-') {
             if (descr && descr !== '0' && descr !== '-') scartate.push({ riga: r + 1, motivo: 'codice mancante', testo: descr });
