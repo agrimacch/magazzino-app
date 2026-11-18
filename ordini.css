@@ -1205,3 +1205,23 @@
 .pdf-foglio .ordd-righe .ordd-tot { font-size: 15px !important; }
 .ordd-condizioni { font-size: 8.5px; }
 .ordd-firma-linea { font-size: 10px; }
+
+/* v7.8: consegnato subito / data di consegna */
+.ord-consegnato-data {
+    margin: 0 0 8px 28px;
+    max-width: 220px;
+}
+
+.ord-det-consegnato {
+    margin-top: 6px;
+    padding: 6px 10px;
+    background: #ecfdf5;
+    border: 1px solid #86efac;
+    border-radius: 6px;
+    color: #166534;
+}
+
+.ordd .rpt-sotto.ordd-consegnato {
+    font-size: 16px;
+    color: #166534;
+}

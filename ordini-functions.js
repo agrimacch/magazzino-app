@@ -22,6 +22,9 @@
 // Permessi: come l'inventario macchine (macPuoGestire: admin e operatori)
 // ========================================
 
+// Consegnato (v7.8): casellina "Consegnato subito al cliente" nel nuovo ordine (solo se tutte le macchine sono disponibili)
+// e data di consegna chiesta da "Consegnato al cliente" (finestra ord-consegna-modal). La data (consegnato_at) va sul PDF,
+// che si aggiorna anche su Drive.
 // Pagamento: acconto versato (si scala dal totale: "da saldare") e ordine pagato (timbro sul PDF).
 // Colonne acconto / pagato di macchine_ordini: supabase/ordini-pagamento.sql
 // Timbro: immagine timbro-pagato.png nella cartella dell'app; se manca si usa un timbro scritto.
@@ -111,6 +114,46 @@ function ordNumero(o) {
 function ordOggiISO() {
     const d = new Date();
     return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+
+// Data locale (YYYY-MM-DD) di un timestamp (consegnato_at): non quella UTC
+function ordDataLocaleISO(ts) {
+    if (!ts) return null;
+    const d = new Date(ts);
+    if (isNaN(d.getTime())) return String(ts).slice(0, 10);
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+
+// Data scelta (YYYY-MM-DD) -> timestamp da salvare: oggi = adesso, altrimenti mezzogiorno di quel giorno
+function ordTimestampConsegna(dataISO) {
+    if (!dataISO || dataISO === ordOggiISO()) return new Date().toISOString();
+    const p = dataISO.split('-').map(Number);
+    return new Date(p[0], p[1] - 1, p[2], 12, 0, 0).toISOString();
+}
+
+// Chiede la data di consegna (oggi proposto). Restituisce 'YYYY-MM-DD' oppure null (annullato)
+function ordChiediDataConsegna(testo) {
+    return new Promise(resolve => {
+        const modal = document.getElementById('ord-consegna-modal');
+        const campo = document.getElementById('ord-consegna-data');
+        document.getElementById('ord-consegna-testo').innerHTML = testo;
+        campo.value = ordOggiISO();
+        campo.max = ordOggiISO();
+        const fine = (valore) => {
+            modal.classList.add('hidden');
+            ['ord-consegna-ok', 'ord-consegna-annulla', 'ord-consegna-close'].forEach(id => { document.getElementById(id).onclick = null; });
+            resolve(valore);
+        };
+        document.getElementById('ord-consegna-ok').onclick = () => {
+            if (!campo.value) { campo.focus(); return; }
+            if (campo.value > ordOggiISO()) { showCustomAlert('La data di consegna non pu&ograve; essere nel futuro', 'Controlla', '&#9888;&#65039;'); return; }
+            fine(campo.value);
+        };
+        document.getElementById('ord-consegna-annulla').onclick = () => fine(null);
+        document.getElementById('ord-consegna-close').onclick = () => fine(null);
+        modal.classList.remove('hidden');
+        setTimeout(() => campo.focus(), 50);
+    });
 }
 
 function ordDataIt(iso) {
@@ -435,6 +478,10 @@ function ordNuovoModulo() {
     document.getElementById('ord-sconto').value = '';
     document.getElementById('ord-acconto').value = '';
     document.getElementById('ord-pagato').checked = false;
+    document.getElementById('ord-consegnato').checked = false;
+    document.getElementById('ord-consegnato-data').value = ordOggiISO();
+    document.getElementById('ord-consegnato-data-box').classList.add('hidden');
+    document.getElementById('ord-consegnato-box').classList.remove('hidden');
     Object.keys(ORD_CAMPI_METODO).forEach(id => { document.getElementById(id).value = ''; });
     ordAggiornaSenzaInstallazione();
     ordRenderFormRighe();
@@ -1069,6 +1116,15 @@ async function ordSalva() {
         if (!r.descrizione) errori.push('Riga ' + (i + 1) + ': manca la descrizione');
     });
     ordControllaMacchine(errori);
+    // Consegnato subito: tutte le macchine devono essere in casa (Disponibile)
+    const consegnaSubito = document.getElementById('ord-consegnato').checked;
+    const dataConsegna = document.getElementById('ord-consegnato-data').value || ordOggiISO();
+    if (consegnaSubito) {
+        if (ordFormRighe.some(r => r.articolo_id && r.disponibilita !== 'DISPONIBILE')) {
+            errori.push('&quot;Consegnato subito&quot;: tutte le macchine devono essere <strong>Disponibili</strong> (in casa). Quelle da ordinare o in arrivo si consegnano dopo, dal dettaglio dell\'ordine');
+        }
+        if (dataConsegna > ordOggiISO()) errori.push('La data di consegna non pu&ograve; essere nel futuro');
+    }
     if (errori.length) {
         await showCustomAlert(errori.join('<br>'), 'Controlla l\'ordine', '&#9888;&#65039;');
         return;
@@ -1117,6 +1173,20 @@ async function ordSalva() {
             const r = ordFormRighe[i];
             if (!r.articolo_id) continue;
             await ordCreaPezziRiga(r, perPosizione[i + 1], ordine, testa.cliente, numeroTesto, adesso, utente, log);
+        }
+        // 4. Consegnato subito: le macchine assegnate escono dal magazzino, data sull'ordine
+        if (consegnaSubito) {
+            const quando = ordTimestampConsegna(dataConsegna);
+            for (const p of macPezzi.filter(x => x.ordine_id === ordine.id && x.stato === 'IN_CASA')) {
+                const { error } = await supabaseClient.from('macchine_pezzi').update({ stato: 'CONSEGNATA', data_consegna: quando, updated_at: adesso, updated_by: utente }).eq('id', p.id);
+                if (error) throw error;
+                p.stato = 'CONSEGNATA';
+                p.data_consegna = quando;
+                log.push({ pezzo_id: p.id, articolo_id: p.articolo_id, tipo: 'ORDINE', stato_prima: 'IN_CASA', stato_dopo: 'CONSEGNATA',
+                    cliente: p.cliente, matricola: p.matricola, netto: p.netto_carico, dettaglio: numeroTesto + ' - CONSEGNATA (SUBITO, ' + ordDataIt(dataConsegna) + ')' });
+            }
+            const { error: errCons } = await supabaseClient.from('macchine_ordini').update({ consegnato_at: quando, updated_at: adesso, updated_by: utente }).eq('id', ordine.id);
+            if (errCons) throw errCons;
         }
         await macRegistra(log);
     } catch (error) {
@@ -1232,6 +1302,9 @@ function ordApriModifica(id) {
     document.getElementById('ord-sconto').value = Number(o.sconto) > 0 ? String(o.sconto).replace('.', ',') : '';
     document.getElementById('ord-acconto').value = Number(o.acconto) > 0 ? String(o.acconto).replace('.', ',') : '';
     document.getElementById('ord-pagato').checked = !!o.pagato;
+    // in modifica la consegna si fa dal dettaglio ("Consegnato al cliente")
+    document.getElementById('ord-consegnato').checked = false;
+    document.getElementById('ord-consegnato-box').classList.add('hidden');
     Object.keys(ORD_CAMPI_METODO).forEach(id => { document.getElementById(id).value = o[ORD_CAMPI_METODO[id]] || ''; });
     ordAggiornaSenzaInstallazione();
     ordAggiornaTotale();
@@ -1443,6 +1516,7 @@ function ordApriDettaglio(id) {
         (Number(o.sconto) > 0 ? '<div class="ord-det-sconto"><span>Totale articoli</span><span>' + macEuro(Number(o.totale) + Number(o.sconto)) + '</span></div>' +
             '<div class="ord-det-sconto"><span>Sconto</span><span>&minus; ' + macEuro(o.sconto) + '</span></div>' : '') +
         '<div class="ord-det-totale"><span>TOTALE' + (o.pagato ? '<span class="ord-badge-pagato">&#128182; PAGATO</span>' : '') + '</span><strong>' + macEuro(o.totale) + '</strong></div>' +
+        (o.consegnato_at && !o.annullato_at ? '<div class="ord-det-consegnato">&#9989; Consegnato al cliente il <strong>' + ordDataIt(ordDataLocaleISO(o.consegnato_at)) + '</strong></div>' : '') +
         (!o.pagato && Number(o.acconto) > 0 ? '<div class="ord-det-saldo"><span>Acconto versato' + (o.metodo_acconto ? ' (' + macEsc(o.metodo_acconto) + ')' : '') + '</span><span>&minus; ' + macEuro(o.acconto) + '</span></div>' +
             '<div class="ord-det-saldo ord-da-saldare"><span>DA SALDARE' + (o.metodo_saldo ? ' (' + macEsc(o.metodo_saldo) + ')' : '') + '</span><span>' + macEuro(Math.round((Number(o.totale) - Number(o.acconto)) * 100) / 100) + '</span></div>' : '') +
         (o.metodo_pagamento ? '<div class="ord-det-saldo"><span>Metodo di pagamento</span><span>' + macEsc(o.metodo_pagamento) + '</span></div>' : '') +
@@ -1500,15 +1574,17 @@ async function ordAzione(azione) {
                 ? 'Segnare ' + lista.length + ' macchin' + (lista.length === 1 ? 'a' : 'e') + ' come CONSEGNATE al cliente?'
                 : 'Segnare l\'ordine come CONSEGNATO?';
             if (nonPronte) msg += '\n\nAttenzione: ' + nonPronte + ' macchine non sono ancora arrivate e restano in attesa.';
-            if (!window.confirm(msg)) return;
+            const dataScelta = await ordChiediDataConsegna(macEsc(msg).replace(/\n/g, '<br>'));
+            if (!dataScelta) return;
+            const quando = ordTimestampConsegna(dataScelta);
             for (const p of lista) {
-                const { error } = await supabaseClient.from('macchine_pezzi').update({ stato: 'CONSEGNATA', data_consegna: adesso, updated_at: adesso, updated_by: utente }).eq('id', p.id);
+                const { error } = await supabaseClient.from('macchine_pezzi').update({ stato: 'CONSEGNATA', data_consegna: quando, updated_at: adesso, updated_by: utente }).eq('id', p.id);
                 if (error) throw error;
                 log.push({ pezzo_id: p.id, articolo_id: p.articolo_id, tipo: 'ORDINE', stato_prima: 'IN_CASA', stato_dopo: 'CONSEGNATA',
-                    cliente: p.cliente, matricola: p.matricola, netto: p.netto_carico, dettaglio: numeroTesto + ' - CONSEGNATA' });
+                    cliente: p.cliente, matricola: p.matricola, netto: p.netto_carico, dettaglio: numeroTesto + ' - CONSEGNATA (' + ordDataIt(dataScelta) + ')' });
             }
             if (!nonPronte) {
-                const { error } = await supabaseClient.from('macchine_ordini').update({ consegnato_at: adesso, updated_at: adesso, updated_by: utente }).eq('id', o.id);
+                const { error } = await supabaseClient.from('macchine_ordini').update({ consegnato_at: quando, updated_at: adesso, updated_by: utente }).eq('id', o.id);
                 if (error) throw error;
             }
         } else if (azione === 'annulla') {
@@ -1552,6 +1628,7 @@ async function ordAzione(azione) {
     ordApriDettaglio(o.id);
     // Annullato: il PDF su Drive viene rifatto con la scritta ANNULLATO
     if (azione === 'annulla' && o.drive_file_id) ordSalvaSuDrive(o.id);
+    if (azione === 'consegna') ordSalvaSuDrive(o.id);   // PDF con la data di consegna
     // Annullato: la richiesta di montaggio non ancora organizzata viene tolta (se gia' organizzata diventa NO)
     if (azione === 'annulla' && typeof rrSincronizzaOrdine === 'function') rrSincronizzaOrdine(o.id);
 }
@@ -1856,6 +1933,7 @@ function ordHtmlStampa(o, righeTotali) {
                 '<div class="rpt-titolo">' + casella(true) + ' Ordine N. ' + ordNumero(o) + '</div>' +
                 '<div class="rpt-sotto ordd-data">Data <strong>' + ordDataIt(o.data) + '</strong>' +
                     (o.operatore ? ' &middot; Operatore <strong>' + macEsc(o.operatore) + '</strong>' : '') + '</div>' +
+                (o.consegnato_at && !o.annullato_at ? '<div class="rpt-sotto ordd-consegnato">&#9989; Consegnato il <strong>' + ordDataIt(ordDataLocaleISO(o.consegnato_at)) + '</strong></div>' : '') +
                 '<div class="rpt-sotto rpt-azienda">' + aziendaIntestazioneHtml() + '</div>' +
             '</td>' +
         '</tr></table>' +
@@ -2417,6 +2495,10 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('ord-sconto').addEventListener('input', ordAggiornaTotale);
     document.getElementById('ord-acconto').addEventListener('input', ordAggiornaTotale);
     document.getElementById('ord-pagato').addEventListener('change', ordAggiornaTotale);
+    document.getElementById('ord-consegnato').addEventListener('change', (e) => {
+        document.getElementById('ord-consegnato-data-box').classList.toggle('hidden', !e.target.checked);
+        if (e.target.checked && !document.getElementById('ord-consegnato-data').value) document.getElementById('ord-consegnato-data').value = ordOggiISO();
+    });
     Object.keys(ORD_CAMPI_METODO).forEach(id => document.getElementById(id).addEventListener('change', ordAggiornaTotale));
     const righe = document.getElementById('ord-righe');
     righe.addEventListener('input', ordCampoRigaCambiato);

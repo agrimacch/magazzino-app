@@ -1248,6 +1248,16 @@
                                 <input type="checkbox" id="ord-pagato">
                                 <span>&#128182; Pagato <small>(timbro PAGATO sul PDF)</small></span>
                             </label>
+                            <div id="ord-consegnato-box">
+                                <label class="ord-check-pagato">
+                                    <input type="checkbox" id="ord-consegnato">
+                                    <span>&#9989; Consegnato subito al cliente <small>(le macchine escono adesso dal magazzino)</small></span>
+                                </label>
+                                <div id="ord-consegnato-data-box" class="ord-consegnato-data hidden">
+                                    <label for="ord-consegnato-data">Data di consegna</label>
+                                    <input type="date" id="ord-consegnato-data">
+                                </div>
+                            </div>
                         </div>
 
                         <!-- Ordine senza servizio di installazione: seconda dichiarazione con firma propria (sopra il totale, come sulla commissione robot) -->
@@ -2802,6 +2812,24 @@
             <div class="modal-buttons">
                 <button type="button" id="ord-corr-salva" class="btn-primary">Salva</button>
                 <button type="button" id="ord-corr-annulla" class="btn-secondary">Annulla</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Ordini Clienti: data di consegna (sopra il dettaglio dell'ordine) -->
+    <div id="ord-consegna-modal" class="modal hidden">
+        <div class="modal-content mac-modal-content">
+            <div class="modal-header">
+                <h3>&#9989; Consegnato al cliente</h3>
+                <button type="button" class="modal-close" id="ord-consegna-close">&times;</button>
+            </div>
+            <div id="ord-consegna-testo" class="mac-info"></div>
+            <label for="ord-consegna-data">Data di consegna</label>
+            <input type="date" id="ord-consegna-data">
+            <p class="mac-aiuto">La data va sul PDF dell'ordine (che si aggiorna da solo, anche su Google Drive) e nel quaderno.</p>
+            <div class="modal-buttons">
+                <button type="button" id="ord-consegna-ok" class="btn-primary">&#10004; Conferma consegna</button>
+                <button type="button" id="ord-consegna-annulla" class="btn-secondary">Annulla</button>
             </div>
         </div>
     </div>
