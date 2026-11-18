@@ -960,7 +960,7 @@ const macPicker = {}; // id input -> { lista, filtro, onSelect }
 
 // opzioni.onPezzo: se c'e', la ricerca trova anche le macchine in casa per MATRICOLA (es. Ordini Clienti)
 function macPickerImposta(inputId, listaId, filtro, onSelect, opzioni) {
-    macPicker[inputId] = { listaId: listaId, filtro: filtro, onSelect: onSelect, onPezzo: opzioni && opzioni.onPezzo };
+    macPicker[inputId] = { listaId: listaId, filtro: filtro, onSelect: onSelect, onPezzo: opzioni && opzioni.onPezzo, onFornitore: opzioni && opzioni.onFornitore };
     const input = document.getElementById(inputId);
     const lista = document.getElementById(listaId);
     if (!input || !lista || input.dataset.macPicker) return;
@@ -975,6 +975,13 @@ function macPickerImposta(inputId, listaId, filtro, onSelect, opzioni) {
             lista.classList.add('hidden');
             lista.innerHTML = '';
             if (p && cfg && cfg.onPezzo) cfg.onPezzo(p);
+            return;
+        }
+        const bf = e.target.closest('[data-lf-art]');
+        if (bf) {
+            lista.classList.add('hidden');
+            lista.innerHTML = '';
+            if (cfg && cfg.onFornitore) cfg.onFornitore(parseInt(bf.dataset.lfArt, 10));
             return;
         }
         const btn = e.target.closest('[data-art]');
@@ -1032,8 +1039,10 @@ function macPickerMostra(inputId) {
                 (p.cliente ? ' a ' + macEsc(p.cliente) : '') + '</div>';
         }).join('');
     }
-    if (trovati.length === 0) html = htmlPezzi ? '' : '<div class="mac-picker-vuoto">Nessun articolo trovato nel listino</div>';
-    html = htmlPezzi + html;
+    // Articoli dei listini fornitori non ancora nel Listino Agrimacch (es. Ordini Clienti), in una sezione a parte sotto
+    const htmlForn = (cfg.onFornitore && typeof lfPickerFornitoriHtml === 'function') ? lfPickerFornitoriHtml(ricerca) : '';
+    if (trovati.length === 0) html = (htmlPezzi || htmlForn) ? '' : '<div class="mac-picker-vuoto">Nessun articolo trovato nel listino</div>';
+    html = htmlPezzi + html + htmlForn;
     lista.innerHTML = html;
     lista.classList.remove('hidden');
 }
@@ -2905,6 +2914,10 @@ async function macSalvaSet() {
     if (macSetRighe.length === 1 && macSetRighe[0].quantita === 1) {
         if (!window.confirm('Il set ha un solo componente. Salvare comunque?')) return;
     }
+    // v7.8: se l'articolo ha gia' macchine "intere" nel quaderno (non consegnate), dopo resterebbero set non scomposti
+    const interi = macPezzi.filter(p => p.articolo_id === a.id && p.stato !== 'CONSEGNATA').length;
+    if (macSetRighe.length && interi && !window.confirm('Attenzione: ' + macNome(a) + ' ha gi\u00e0 ' + interi + (interi === 1 ? ' macchina' : ' macchine') +
+        ' nel quaderno (non consegnate).\n\nUn set in magazzino si tiene come pezzi singoli: prima togli quelle righe dal quaderno e ricaricale come componenti.\n\nSalvare lo stesso la composizione?')) return;
     const btn = document.getElementById('mac-set-salva');
     btn.disabled = true;
     try {

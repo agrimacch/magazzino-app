@@ -14,6 +14,8 @@
 //   - Codici EAN da un catalogo del fornitore (solo admin): si tengono solo gli EAN degli articoli dei listini.
 // Prezzi IVA inclusa: listino x 1,22; netto x 1,22 (oscurabile); cliente = netto + ricarico, x 1,22, all'euro.
 // Avvisi scadenze: riquadro in dashboard e in Listini Vendite + pallino sulle card (lfControllaScadenze, da showDashboard).
+// Ordini Clienti (v7.8): la ricerca articoli mostra anche i codici fornitore non collegati (lfPickerFornitoriHtml);
+// scelto uno, lfUsaInOrdine: controllo doppioni, Nuovo articolo compilato, collegamento, poi lfDopoCreazione lo passa all'ordine.
 // Colonna Modello facoltativa in Carica file (v7.8): il modello va davanti alla descrizione se non c'e' gia'.
 // Gia' esiste? (v7.8): "Crea" controlla prima il Listino Agrimacch (lfCandidatiPerFornitore); un articolo creato a mano
 // nel Listino Agrimacch propone i codici dei fornitori da collegare (lfCandidatiPerArticolo, lfDopoAvvisoSalvataggio).
@@ -605,7 +607,7 @@ async function lfCollegaScelto(art) {
         !window.confirm('"' + macNome(art) + '" ha gi\u00e0 il codice articolo ' + art.codice_articolo +
             ', diverso da ' + a.codice + '.\n\nForse \u00e8 un altro modello (o il modello vecchio): se \u00e8 un modello nuovo usa Crea.' +
             '\n\nCollegarlo lo stesso? Il codice articolo ' + art.codice_articolo + ' resta com\'\u00e8.')) return;
-    if (!(await lfSalvaCollegamento(id, art.id))) return;
+    if (!(await lfSalvaCollegamento(id, art.id))) return false;
     lfChiudiCollega();
     const esito = await lfPassaEan(a, art);
     if (esito === 'messo') await showCustomAlert('Collegato. L\'EAN &egrave; stato messo anche nel <strong>codice a barre</strong> di ' +
@@ -613,6 +615,7 @@ async function lfCollegaScelto(art) {
     else if (esito === 'diverso') await showCustomAlert('Collegato. Attenzione: ' + listinoEsc(macNome(art)) + ' ha gi&agrave; un codice a barre diverso (' +
         listinoEsc(art.codice_barre) + '), non l\'ho cambiato.', 'Fatto', '&#9888;&#65039;');
     else if (esito === 'conflitto') await showCustomAlert('Collegato. L\'EAN &egrave; gi&agrave; usato da un altro articolo del Listino Agrimacch, quindi non l\'ho messo.', 'Fatto', '&#9888;&#65039;');
+    return true;
 }
 
 async function lfScollega(id) {
@@ -662,11 +665,17 @@ function lfApriNuovoDaFornitore(id) {
 // Chiamata da saveListinoEdit() dopo il salvataggio di un articolo del Listino Agrimacch
 let lfDaProporreDopo = null;   // articolo nuovo creato a mano nel Listino Agrimacch: si propone il collegamento dopo l'avviso "Salvato"
 
+let lfDopoCreazione = null;    // { fn, artId }: chi ha chiesto di creare l'articolo (es. ordine cliente) lo riceve dopo l'avviso "Salvato"
+
 function lfDopoSalvataggioListino(articoloId, nuovo) {
     const id = lfInCreazione;
     lfInCreazione = null;
     if (!nuovo || !articoloId) return;
-    if (id) { lfSalvaCollegamento(id, articoloId); return; }
+    if (id) {
+        lfSalvaCollegamento(id, articoloId);
+        if (lfDopoCreazione) lfDopoCreazione.artId = articoloId;
+        return;
+    }
     // creato a mano dalla sezione Listino Agrimacch (non dal carico macchine o dal carico a raffica)
     const sez = document.getElementById('section-listino-vendite');
     if (sez && !sez.classList.contains('hidden') && lfPuoCollegare()) lfDaProporreDopo = articoloId;
@@ -674,6 +683,13 @@ function lfDopoSalvataggioListino(articoloId, nuovo) {
 
 // Chiamata da saveListinoEdit() dopo l'avviso "Articolo aggiunto"
 async function lfDopoAvvisoSalvataggio() {
+    const dopo = lfDopoCreazione;
+    if (dopo && dopo.artId) {
+        lfDopoCreazione = null;
+        const creato = listinoArticoli.find(x => x.id === dopo.artId);
+        if (creato) dopo.fn(creato);
+        return;
+    }
     const id = lfDaProporreDopo;
     lfDaProporreDopo = null;
     if (!id) return;
@@ -750,6 +766,7 @@ function lfApriSimiliCrea(x, cand) {
             lfPrezzoArtHtml(c.art) + (c.art.codice_articolo ? '<br><small>cod. ' + listinoEsc(c.art.codice_articolo) + '</small>' : '') + '<br>' + lfSimiliMotivo(c) + '</div>' +
         '<button type="button" class="btn-primary mac-btn-piccolo" data-lf-simili="' + i + '">&#128279; Collega a questo</button></div>').join('');
     document.getElementById('lf-simili-nuovo').classList.remove('hidden');
+    document.getElementById('lf-simili-nuovo').innerHTML = '&#10133; No, crea un articolo nuovo';
     document.getElementById('lf-simili-annulla').innerHTML = 'Annulla';
     document.getElementById('lf-simili-modal').classList.remove('hidden');
 }
@@ -783,7 +800,8 @@ async function lfSimiliCollega(i) {
     if (s.modo === 'crea') {
         lfChiudiSimili();
         lfCollegaId = s.lfId;
-        await lfCollegaScelto(c.art);
+        const ok = await lfCollegaScelto(c.art);
+        if (ok && s.dopo) s.dopo(c.art);
         return;
     }
     // modo 'articolo': collega questo codice del fornitore all'articolo appena creato (si possono collegarne piu' d'uno)
@@ -800,7 +818,66 @@ async function lfSimiliCollega(i) {
 function lfSimiliCreaNuovo() {
     const s = lfSimili;
     lfChiudiSimili();
-    if (s && s.lfId) lfApriNuovoDaFornitore(s.lfId);
+    if (!s || !s.lfId) return;
+    lfDopoCreazione = s.dopo ? { fn: s.dopo, artId: null } : null;
+    lfApriNuovoDaFornitore(s.lfId);
+    if (s.dopo) {
+        const x = lfArticolo(s.lfId);
+        document.getElementById('listino-edit-titolo').innerHTML = '&#10133; Crea e aggiungi all\'ordine: ' + listinoEsc(x ? lfNomeFornitore(x) + ' ' + x.codice : '');
+    }
+}
+
+// ========================================
+// ORDINI CLIENTI: articoli dei listini fornitori (v7.8)
+// Nella ricerca dell'ordine, sotto gli articoli del Listino Agrimacch, una sezione con gli articoli dei fornitori
+// NON ancora collegati. Scegliendone uno: avviso + controllo doppioni, poi la finestra Nuovo articolo gia' compilata;
+// salvato, l'articolo viene collegato al fornitore e aggiunto all'ordine (segue tutto l'iter del magazzino).
+// ========================================
+const LF_MAX_PICKER = 8;
+
+function lfPickerFornitoriHtml(ricerca) {
+    if (!lfCaricato || !lfPuoVedere()) return '';
+    const parole = String(ricerca || '').toUpperCase().split(/\s+/).filter(Boolean);
+    if (!parole.length) return '';
+    const norm = (t) => String(t || '').toUpperCase();
+    const trovati = lfArticoli.filter(x => {
+        if (x.articolo_id || !(lfPrezziDi[x.id] || []).length) return false;
+        const testo = norm(x.descrizione) + ' ' + norm(x.codice) + ' ' + norm(x.ean) + ' ' + norm(lfNomeFornitore(x));
+        const compatto = testo.replace(/[^A-Z0-9]/g, '');
+        return parole.every(p => testo.indexOf(p) !== -1 || compatto.indexOf(p.replace(/[^A-Z0-9]/g, '')) !== -1);
+    });
+    if (!trovati.length) return '';
+    trovati.sort((a, b) => listinoConfronta(a.descrizione, b.descrizione));
+    let html = '<div class="mac-picker-sezione">&#128230; Dai listini fornitori <small>(non ancora nel Listino Agrimacch)</small></div>';
+    html += trovati.slice(0, LF_MAX_PICKER).map(x => {
+        const p = lfPrezzoMigliore(x);
+        return '<button type="button" class="mac-picker-voce mac-picker-forn" data-lf-art="' + x.id + '">' +
+            '<span class="mac-picker-attrezzo">' + listinoEsc(lfNomeFornitore(x)) + '</span>' +
+            '<span>' + listinoEsc(x.descrizione || x.codice) + ' <small>' + listinoEsc(x.codice) + '</small></span>' +
+            (p ? '<span class="mac-picker-disp">' + lfEuroIntero(lfPrezzoCliente(p)) + '</span>' : '') + '</button>';
+    }).join('');
+    if (trovati.length > LF_MAX_PICKER) html += '<div class="mac-picker-vuoto">... altri ' + (trovati.length - LF_MAX_PICKER) + ' dai fornitori: scrivi di pi&ugrave;</div>';
+    return html;
+}
+
+// Avviso e controllo prima di creare: articoli simili gia' nel Listino Agrimacch + cosa succede
+function lfUsaInOrdine(id, dopo) {
+    const x = lfArticolo(id);
+    if (!x) return;
+    lfInCreazione = null;
+    lfDopoCreazione = null;
+    const cand = lfCandidatiPerFornitore(x).slice(0, 6);
+    lfApriSimiliCrea(x, cand);
+    lfSimili.dopo = dopo;
+    document.getElementById('lf-simili-titolo').innerHTML = cand.length ? '&#128270; Esiste gi&agrave; nel Listino Agrimacch?' : '&#10133; Articolo non nel Listino Agrimacch';
+    const info = document.getElementById('lf-simili-info');
+    info.querySelector('.mac-aiuto').innerHTML = (cand.length
+        ? 'Nel Listino Agrimacch ci sono articoli che sembrano questo. Se &egrave; uno di loro <strong>collegalo</strong>: va nell\'ordine quello. '
+        : 'Nel Listino Agrimacch non ho trovato articoli simili. ') +
+        (cand.length ? 'Altrimenti l\'app' : 'Per metterlo nell\'ordine l\'app') + ' lo <strong>crea nel Listino Agrimacch</strong> con i dati e i prezzi del fornitore (li controlli nella finestra che si apre, scegli l\'attrezzo e salvi), ' +
+        'lo collega al fornitore e lo aggiunge all\'ordine: poi segue il quaderno e il magazzino come gli altri.';
+    if (!cand.length) document.getElementById('lf-simili-lista').innerHTML = '';
+    document.getElementById('lf-simili-nuovo').innerHTML = '&#10133; Crea e aggiungi all\'ordine';
 }
 
 // ========================================
@@ -2282,5 +2359,7 @@ window.openListiniFornitoriPrezzi = openListiniFornitoriPrezzi;
 window.lfPuoVedere = lfPuoVedere;
 window.lfDopoSalvataggioListino = lfDopoSalvataggioListino;
 window.lfDopoAvvisoSalvataggio = lfDopoAvvisoSalvataggio;
+window.lfPickerFornitoriHtml = lfPickerFornitoriHtml;
+window.lfUsaInOrdine = lfUsaInOrdine;
 window.lfControllaScadenze = lfControllaScadenze;
 window.lfDopoImportListino = lfDopoImportListino;

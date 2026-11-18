@@ -19,6 +19,10 @@
 // e nella finestra di una riga "Aggiungi in arrivo libere".
 // Sezioni: "Carica Excel" (file del fornitore con le quantita' per mese di consegna): un ordine per mese
 // con data = oggi, iniziali di chi carica, consegna = mese. Funzioni omXls*.
+// Ordina come set (v7.8): su una riga Da ordinare di un modello che fa parte di uno o piu' set, il tasto "come set"
+// sceglie il set e quanti; si apre la solita finestra Segna come ordinate con: le righe del modello (clienti per primi),
+// gli altri componenti del set come righe libere (arrivano disponibili) e la nota "COME SET". Il netto non cambia
+// (la divisione del prezzo del set tra i componenti e' da decidere). Funzioni omSet*.
 // Usa: macchine-functions.js (macPezzi, macOrdiniFornitore, macOfSezioni, macSegnaOrdinate...)
 // Tabelle: macchine_of_ordini, macchine_of_sezioni, macchine_pezzi.ordine_fornitore_id
 // (supabase/ordini-macchine-setup.sql)
@@ -278,6 +282,7 @@ function omHtmlDaOrdinare(pezzi) {
                 omDescrizioneHtml(a) +
                 '<div class="om-clienti">' + omClienteTesto(lista) +
                     (magazzino && a ? ' <button type="button" class="mac-link om-dao-togli" data-om-dao-togli="' + a.id + '" title="Togli le righe per il magazzino di questo modello">togli</button>' : '') +
+                    (a && macOfPronto && omSetCheContengono(a.id).length ? ' <button type="button" class="mac-link om-come-set" data-om-come-set="' + a.id + '" title="Ordina questo modello dentro un set: gli altri pezzi del set arrivano liberi">&#129513; ordina come set</button>' : '') +
                 '</div></div>' +
             (sel ? '<label class="om-quante" title="Puoi scriverne pi&ugrave; di quelle richieste: le altre arrivano libere (per il magazzino)">quante <input type="number" min="1" max="' +
                 MAC_MAX_QTA + '" value="' + omSelezione[id] + '" data-om-quante="' + id + '" inputmode="numeric">' +
@@ -418,6 +423,7 @@ function omApriFinestraOf(modo, marchio, pezzi) {
 
 function omChiudiFinestraOf() {
     document.getElementById('om-of-modal').classList.add('hidden');
+    if (omComeSet) { omComeSet = null; omSelezione = {}; }
     macPickerChiudi('om-of-art-search');
     omOfInModifica = null;
     omOfRighe = [];
@@ -602,6 +608,87 @@ async function omTogliDao(articoloId) {
     }
     delete omSelezione[articoloId];
     await omRicarica();
+}
+
+// ========================================
+// ORDINA COME SET (v7.8)
+// ========================================
+let omComeSet = null;   // { comp, set, nSet } mentre la finestra dell'ordine e' aperta
+
+// Set attivi che contengono questo modello: [{ set, q }] (q = quanti di quel modello in un set)
+function omSetCheContengono(articoloId) {
+    const visti = {};
+    const out = [];
+    macComposizione.filter(r => r.componente_id === articoloId).forEach(r => {
+        const s = macArticolo(r.set_id);
+        if (!s || !s.attivo || visti[s.id]) return;
+        visti[s.id] = true;
+        out.push({ set: s, q: r.quantita || 1 });
+    });
+    return out.sort((x, y) => listinoConfronta(macNome(x.set), macNome(y.set)));
+}
+
+function omEuro(n) {
+    if (n === null || n === undefined || n === '') return '-';
+    const v = Number(n);
+    return isNaN(v) ? '-' : listinoFormatEuro(v);
+}
+
+function omApriComeSet(articoloId) {
+    const a = macArticolo(articoloId);
+    if (!a) return;
+    const marchio = omSessione('omMarchio');
+    const richieste = omDaOrdinare(marchio).filter(p => p.articolo_id === a.id).length;
+    const sets = omSetCheContengono(a.id);
+    omComeSet = { comp: a, set: null, nSet: Math.max(1, richieste) };
+    document.getElementById('om-set-titolo').innerHTML = '&#129513; Ordina come set - ' + macEsc(macNome(a));
+    document.getElementById('om-set-info').innerHTML = '<strong>' + richieste + '</strong> da ordinare di ' + omDescrizioneHtml(a) +
+        '<br><small>Netto del modello da solo: <strong>' + omEuro(a.netto_1) + '</strong></small>';
+    document.getElementById('om-set-lista').innerHTML = sets.map((x, i) =>
+        '<label class="om-set-voce"><input type="radio" name="om-set-scelta" value="' + x.set.id + '"' + (i === 0 ? ' checked' : '') + '>' +
+            '<span><strong>' + macEsc(macNome(x.set)) + '</strong>' + (x.set.codice_articolo ? ' <small>(' + macEsc(x.set.codice_articolo) + ')</small>' : '') +
+            '<br><small>' + macEsc(macDescrizioneComponenti(x.set.id)) + '</small>' +
+            '<br><small>Netto del set: <strong>' + omEuro(x.set.netto_1) + '</strong>' + (x.q > 1 ? ' &middot; contiene ' + x.q + ' pezzi di questo modello' : '') + '</small></span></label>'
+    ).join('');
+    document.getElementById('om-set-quanti').value = String(Math.max(1, richieste));
+    document.getElementById('om-set-modal').classList.remove('hidden');
+}
+
+function omChiudiComeSet(tieni) {
+    document.getElementById('om-set-modal').classList.add('hidden');
+    if (!tieni) omComeSet = null;
+}
+
+// Prosegui: la finestra "Segna come ordinate" gia' compilata con il set
+function omComeSetProsegui() {
+    const s = omComeSet;
+    if (!s) return;
+    const scelta = document.querySelector('input[name="om-set-scelta"]:checked');
+    const set = scelta ? macArticolo(Number(scelta.value)) : null;
+    const nSet = Math.min(MAC_MAX_QTA, Math.max(1, parseInt(document.getElementById('om-set-quanti').value, 10) || 1));
+    if (!set) return;
+    const comp = macComponenti(set.id);
+    const riga = comp.find(r => r.componente_id === s.comp.id);
+    const qComp = (riga ? riga.quantita || 1 : 1) * nSet;
+    s.set = set;
+    s.nSet = nSet;
+    omChiudiComeSet(true);
+    const marchio = omSessione('omMarchio');
+    // il modello: tanti quanti ne arrivano nei set (clienti per primi; se avanzano, arrivano liberi)
+    omSelezione = {};
+    omSelezione[s.comp.id] = qComp;
+    const pezzi = omPezziSelezionati(marchio);
+    omOfInModifica = null;
+    // gli altri componenti del set: righe libere (arrivano disponibili)
+    omOfRighe = comp.filter(r => r.componente_id !== s.comp.id).map(r => ({ art: macArticolo(r.componente_id), n: (r.quantita || 1) * nSet })).filter(r => r.art);
+    omApriFinestraOf('segna', marchio, pezzi);
+    document.getElementById('om-of-titolo').innerHTML = '&#129513; Ordina come set - ' + macEsc(marchio);
+    document.getElementById('om-of-note').value = 'COME SET: ' + nSet + ' X ' + macNome(set) + (set.codice_articolo ? ' (' + set.codice_articolo + ')' : '');
+    const riep = document.getElementById('om-of-riepilogo');
+    riep.innerHTML = '<div class="om-set-avviso">&#129513; Al fornitore ordini <strong>' + nSet + ' x ' + macEsc(macNome(set)) + '</strong>' +
+        (set.codice_articolo ? ' <small>(' + macEsc(set.codice_articolo) + ')</small>' : '') + '. ' +
+        'Nel magazzino arrivano i pezzi singoli: ' + macEsc(s.comp.modello || macNome(s.comp)) + ' per i clienti, gli altri pezzi <strong>liberi</strong> (disponibili).' +
+        '<br><small>Il netto non viene diviso tra i pezzi: lo scrivi al carico come sempre.</small></div>' + riep.innerHTML;
 }
 
 // Macchine in piu' scritte in "quante" (oltre quelle richieste dai clienti): [{ art, n }]
@@ -1226,6 +1313,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (bm) { omScegliMarchio(bm.dataset.omMarchio); return; }
         const bs = e.target.closest('[data-om-sezione]');
         if (bs) { omSessione('omSezione', bs.dataset.omSezione); omRender(); return; }
+        const bcs = e.target.closest('[data-om-come-set]');
+        if (bcs) { e.preventDefault(); omApriComeSet(Number(bcs.dataset.omComeSet)); return; }
         const bt = e.target.closest('[data-om-dao-togli]');
         if (bt) { e.preventDefault(); omTogliDao(Number(bt.dataset.omDaoTogli)); return; }
         const br = e.target.closest('[data-om-riga]');
@@ -1283,6 +1372,11 @@ document.addEventListener('DOMContentLoaded', () => {
             omRender();
         }
     });
+
+    // Ordina come set
+    document.getElementById('om-set-close').addEventListener('click', () => omChiudiComeSet(false));
+    document.getElementById('om-set-annulla').addEventListener('click', () => omChiudiComeSet(false));
+    document.getElementById('om-set-prosegui').addEventListener('click', omComeSetProsegui);
 
     // Finestra ordine
     macPickerImposta('om-of-art-search', 'om-of-art-results', a => a.marchio === omSessione('omMarchio'), omOfAggiungiArticolo);

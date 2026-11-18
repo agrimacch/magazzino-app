@@ -2229,3 +2229,27 @@
 .pdf-foglio .rpt-tab th { font-size: 10.5px !important; }
 .pdf-foglio .rpt-tab-piccola td { font-size: 10px !important; }
 .pdf-foglio .rpt-tab { font-size: 11px !important; }
+
+/* v7.8: sezione "Dai listini fornitori" nella ricerca articoli (Ordini Clienti) */
+.mac-picker-sezione {
+    padding: 8px 10px 4px;
+    margin-top: 4px;
+    border-top: 2px dashed #cbd5e1;
+    font-size: 12px;
+    font-weight: 700;
+    color: #475569;
+    text-transform: uppercase;
+}
+
+.mac-picker-sezione small {
+    font-weight: 400;
+    text-transform: none;
+}
+
+.mac-picker-forn {
+    background: #f8fafc;
+}
+
+.mac-picker-forn .mac-picker-attrezzo {
+    color: #7c3aed;
+}

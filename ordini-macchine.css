@@ -643,3 +643,46 @@
     font-size: 12px;
     margin-left: 4px;
 }
+
+/* v7.8: ordina come set */
+.om-come-set {
+    margin-left: 6px;
+    font-size: 0.9em;
+}
+
+.om-set-lista {
+    max-height: 45vh;
+    overflow-y: auto;
+    margin-bottom: 10px;
+}
+
+.om-set-voce {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    padding: 8px 10px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    margin-bottom: 6px;
+    cursor: pointer;
+    font-weight: normal;
+    line-height: 1.35;
+}
+
+.om-set-voce input {
+    margin-top: 4px;
+    flex-shrink: 0;
+}
+
+.om-set-quanti {
+    max-width: 120px;
+}
+
+.om-set-avviso {
+    background: #eff6ff;
+    border: 1px solid #93c5fd;
+    border-radius: 8px;
+    padding: 8px 10px;
+    margin-bottom: 8px;
+    line-height: 1.45;
+}

@@ -263,6 +263,10 @@ async function openOrdiniClienti() {
     ordRenderElenco();
     ordRenderFormRighe();
     ordFirmaAdatta();
+    // Listini fornitori in sottofondo: servono alla ricerca articoli (sezione "Dai listini fornitori")
+    if (typeof lfCaricaDati === 'function' && typeof lfPuoVedere === 'function' && lfPuoVedere() && !lfCaricato) {
+        lfCaricaDati().catch(err => console.warn('Listini fornitori non caricati:', err));
+    }
     // Bozza dal listino
     await ordBozzaAggiorna();
     if (sessionStorage.getItem('ordBozzaDaUsare')) {
@@ -2404,7 +2408,11 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // Modulo
-    macPickerImposta('ord-art-search', 'ord-art-results', null, ordAggiungiArticolo, { onPezzo: ordAggiungiPezzo });
+    macPickerImposta('ord-art-search', 'ord-art-results', null, ordAggiungiArticolo, {
+        onPezzo: ordAggiungiPezzo,
+        // v7.8: articolo dei listini fornitori non ancora nel Listino Agrimacch -> creato, collegato e aggiunto
+        onFornitore: (typeof lfUsaInOrdine === 'function') ? (id) => lfUsaInOrdine(id, ordAggiungiArticolo) : null
+    });
     document.getElementById('ord-btn-libera').addEventListener('click', ordAggiungiLibera);
     document.getElementById('ord-sconto').addEventListener('input', ordAggiornaTotale);
     document.getElementById('ord-acconto').addEventListener('input', ordAggiornaTotale);

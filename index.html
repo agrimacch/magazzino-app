@@ -1213,6 +1213,7 @@
                                 <input type="text" id="ord-art-search" placeholder="&#128269; Cerca modello, marchio o matricola..." autocomplete="off">
                                 <div id="ord-art-results" class="mac-picker-lista hidden"></div>
                             </div>
+                            <p class="mac-aiuto">Non c'&egrave; nel Listino Agrimacch? Sotto i risultati compaiono anche gli articoli dei <strong>listini fornitori</strong>: scegliendolo l'app controlla i doppioni, lo crea nel Listino Agrimacch (con i prezzi del fornitore) e lo aggiunge all'ordine.</p>
                             <div class="ord-aggiungi-pulsanti">
                                 <button type="button" id="ord-btn-libera" class="btn-back">&#10133; Riga libera (accessori, olio...)</button>
                                 <button type="button" id="ord-btn-nuovo-listino" class="mac-link">Macchina non presente nel listino? Creala</button>
@@ -2909,6 +2910,27 @@
         </div>
     </div>
 
+    <!-- Ordini Fornitore: ordina come set (v7.8) -->
+    <div id="om-set-modal" class="modal hidden">
+        <div class="modal-content mac-modal-content">
+            <div class="modal-header">
+                <h3 id="om-set-titolo">&#129513; Ordina come set</h3>
+                <button type="button" class="modal-close" id="om-set-close">&times;</button>
+            </div>
+            <div id="om-set-info" class="mac-info"></div>
+            <label>Quale set ordini?</label>
+            <div id="om-set-lista" class="om-set-lista"></div>
+            <label for="om-set-quanti">Quanti set</label>
+            <input type="number" id="om-set-quanti" min="1" max="99" value="1" inputmode="numeric" class="om-set-quanti">
+            <p class="mac-aiuto">Al fornitore ordini il set, in magazzino arrivano i pezzi singoli: questo modello va ai clienti che lo aspettano (dal pi&ugrave; vecchio),
+                gli altri pezzi del set (batteria, caricatore...) arrivano <strong>liberi</strong> e restano disponibili. Nella finestra dopo controlli e confermi come al solito.</p>
+            <div class="modal-buttons">
+                <button type="button" id="om-set-prosegui" class="btn-primary">Avanti &#8594;</button>
+                <button type="button" id="om-set-annulla" class="btn-secondary">Annulla</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Ordini Fornitore: carica Excel in una sezione (prestagionali con le consegne per mese) -->
     <div id="om-xls-modal" class="modal hidden">
         <div class="modal-content mac-modal-content om-xls-content">
@@ -2953,6 +2975,7 @@
                     <li>Quando fai l'ordine al fornitore spunta le righe. Con <strong>quante</strong> puoi ordinarne meno (vanno a chi ha ordinato per primo) o <strong>di pi&ugrave;</strong>: es. 2 FSA 120 R per due clienti, scrivi 3 e la terza arriva libera per il magazzino.</li>
                     <li>Premi <strong>Segna come ordinate</strong>: data (oggi), le tue iniziali, la <strong>sezione</strong> (normale o un prestagionale) e, se serve, la consegna prevista. In fondo puoi <strong>aggiungere altri modelli</strong> per il magazzino nello stesso ordine.</li>
                     <li>Per ordinare una macchina <strong>per il magazzino</strong> (nessun cliente): in <strong>Da ordinare</strong> premi <strong>&#10133; Aggiungi riga</strong>, scegli il modello e quante. La riga resta tra quelle da ordinare (&quot;per il magazzino&quot;, dopo i clienti) e la ordini insieme alle altre; <strong>togli</strong> la cancella. Se l'ordine l'hai gi&agrave; fatto, usa <strong>&#10133; Nuovo ordine</strong>.</li>
+                    <li><strong>&#129513; Ordina come set</strong>: se un modello da ordinare fa parte di un set (es. HSA 50 nel SET HSA 50) e ti conviene ordinare il set, tocca &quot;ordina come set&quot; sulla riga, scegli il set e quanti. Il modello va ai clienti, gli altri pezzi del set (batteria, caricatore...) arrivano <strong>liberi</strong> e restano disponibili. Il netto lo scrivi al carico come sempre.</li>
                     <li>Le macchine diventano <strong>ordinate</strong>: nel quaderno quadratino bianco con l'<strong>angolino <span class="cw-n">verde</span><span class="cw-d">blu</span></strong>, nell'ordine cliente compare la data dell'ordine (e la consegna).</li>
                 </ol>
 
