@@ -1,5 +1,8 @@
 # Changelog App Magazzino
 
+## v7.8.6 - 2026-11-18 (PRODUZIONE)
+nasconti interventi no
+
 ## v7.8.5 - 2026-11-18 (PRODUZIONE)
 ordine consegnato
 
