@@ -71,7 +71,7 @@ const RR_LEAFLET_JS = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
 let rrRichieste = [];
 let rrCaricate = false;
 let rrFiltro = 'TUTTE';
-let rrNascondiOk = true;        // richieste OK nascoste (restano salvate): attivo ogni volta che si apre la sezione
+let rrNascondiOk = true;        // richieste OK e NO nascoste (v7.8) (restano salvate): attivo ogni volta che si apre la sezione
 let rrCercaTesto = '';
 let rrCercaTimer = null;
 let rrModifica = null;          // richiesta aperta nella finestra (null = nuova)
@@ -481,9 +481,13 @@ function rrCambiaCerca(valore) {
     }, 200);
 }
 
-// Richieste OK nascoste: non quando si sceglie proprio il filtro "Confermate (OK)"
+// Richieste chiuse (OK e NO) nascoste (v7.8): non quando si sceglie proprio il filtro "Confermate (OK)" o "Annullate (NO)"
 function rrOkNascoste() {
-    return rrNascondiOk && rrFiltro !== 'OK';
+    return rrNascondiOk;
+}
+
+function rrNascosta(r) {
+    return rrNascondiOk && (r.esito === 'OK' || r.esito === 'NO') && r.esito !== rrFiltro;
 }
 
 function rrCambiaNascondiOk(valore) {
@@ -494,7 +498,7 @@ function rrCambiaNascondiOk(valore) {
 
 function rrRigheFiltrate() {
     return rrRichieste.filter(r => {
-        if (rrOkNascoste() && r.esito === 'OK') return false;
+        if (rrNascosta(r)) return false;
         switch (rrFiltro) {
             case 'APERTE': if (!rrAperta(r)) return false; break;
             case 'VUOTO': if (r.esito) return false; break;
@@ -515,10 +519,12 @@ function rrRenderTabella() {
     if (!box) return;
     const righe = rrRigheFiltrate();
     const conta = document.getElementById('rr-conta');
-    const nascosteOk = rrOkNascoste() ? rrRichieste.filter(r => r.esito === 'OK').length : 0;
+    const nascosteOk = rrRichieste.filter(r => rrNascosta(r) && r.esito === 'OK').length;
+    const nascosteNo = rrRichieste.filter(r => rrNascosta(r) && r.esito === 'NO').length;
+    const testoNascoste = [nascosteOk ? nascosteOk + ' OK' : '', nascosteNo ? nascosteNo + ' NO' : ''].filter(Boolean).join(' e ');
     if (conta) conta.innerHTML = righe.length + (righe.length === 1 ? ' richiesta' : ' richieste') +
         (righe.length !== rrRichieste.length ? ' su ' + rrRichieste.length : '') +
-        (nascosteOk ? ' &middot; <span class="rr-conta-ok">' + nascosteOk + ' OK nascost' + (nascosteOk === 1 ? 'a' : 'e') + '</span>' : '');
+        (testoNascoste ? ' &middot; <span class="rr-conta-ok">' + testoNascoste + ' nascost' + (nascosteOk + nascosteNo === 1 ? 'a' : 'e') + '</span>' : '');
     if (righe.length === 0) {
         box.innerHTML = '<div class="rr-vuoto">' + (rrRichieste.length ? 'Nessuna richiesta con questi filtri.' :
             'Nessuna richiesta.' + (rrPuoModificare() ? ' Usa <strong>&#10133; Nuova richiesta</strong> per aggiungerne una.' : '')) + '</div>';

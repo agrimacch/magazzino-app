@@ -1,5 +1,8 @@
 # Changelog App Magazzino
 
+## v7.8.5 - 2026-11-18 (PRODUZIONE)
+ordine consegnato
+
 ## v7.8.4 - 2026-11-18 (PRODUZIONE)
 ORDINE COME SET ANCHE SE CLIENTE ORDINA MACCHINA SINGOLA
 
