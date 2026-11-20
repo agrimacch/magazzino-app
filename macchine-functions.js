@@ -478,20 +478,34 @@ function macIsSet(articoloId) {
     return macComposizione.some(r => r.set_id === articoloId);
 }
 
-// Il componente "macchina" di un set, quello a cui va la matricola della scatola (v7.10.1):
-// il componente il cui modello e' nel nome del set (SETASA20 -> ASA20), altrimenti il piu' caro (netto 1), altrimenti il primo
+// Il componente "macchina" di un set, quello a cui va la matricola della scatola (v7.10.1, scelta nel set v7.10.2):
+// 1. quello segnato nella composizione (macchine_composizione.principale, si sceglie nella scheda Set);
+// 2. altrimenti una proposta: esclusi batterie/caricatori/accessori, prima il modello che sta nel nome del set
+//    (SETASA20 -> ASA20), poi le lettere del modello nel nome (SETGTA26 -> GTA), poi il piu' caro, poi il primo.
 function macComponentePrincipale(setId) {
-    const comp = macComponenti(setId).map(r => ({ r: r, art: macArticolo(r.componente_id) })).filter(x => x.art);
+    const righe = macComponenti(setId);
+    const segnata = righe.find(r => r.principale);
+    if (segnata && macArticolo(segnata.componente_id)) return macArticolo(segnata.componente_id);
+    return macComponentePrincipaleProposto(righe.map(r => r.componente_id), macArticolo(setId));
+}
+
+function macComponentePrincipaleProposto(ids, set) {
+    const comp = ids.map(id => macArticolo(id)).filter(Boolean);
     if (!comp.length) return null;
-    const set = macArticolo(setId);
     const pulisci = t => String(t || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+    const accessorio = a => /BATTER|CARICA|ACCESSOR|ZAINO|CINTUR|ALIMENTATOR/.test(String([a.attrezzo, a.tipologia, a.modello, a.note].join(' ')).toUpperCase());
     const nomeSet = pulisci(set ? [set.modello, set.note].join(' ') : '');
-    const nelNome = comp.filter(x => pulisci(x.art.modello) && nomeSet.indexOf(pulisci(x.art.modello)) !== -1)
-        .sort((x, y) => pulisci(y.art.modello).length - pulisci(x.art.modello).length);
-    if (nelNome.length) return nelNome[0].art;
-    const conNetto = comp.filter(x => x.art.netto_1 !== null && x.art.netto_1 !== undefined && x.art.netto_1 !== '')
-        .sort((x, y) => Number(y.art.netto_1) - Number(x.art.netto_1));
-    return (conNetto.length ? conNetto[0] : comp[0]).art;
+    const punti = a => {
+        const m = pulisci(a.modello);
+        const lettere = (String(a.modello || '').toUpperCase().match(/^[A-Z]+/) || [''])[0];
+        let p = 0;
+        if (!accessorio(a)) p += 1000;
+        if (m && nomeSet.indexOf(m) !== -1) p += 500 + m.length;
+        else if (lettere.length >= 2 && nomeSet.indexOf(lettere) !== -1) p += 200 + lettere.length;
+        return p;
+    };
+    const netto = a => Number(a.netto_1) || 0;
+    return comp.slice().sort((x, y) => (punti(y) - punti(x)) || (netto(y) - netto(x)))[0];
 }
 
 function macIsComponente(articoloId) {
@@ -2877,7 +2891,7 @@ function macApriSet(setId) {
         return;
     }
     macSetInModifica = a;
-    macSetRighe = macComponenti(a.id).map(r => ({ componente_id: r.componente_id, quantita: r.quantita }));
+    macSetRighe = macComponenti(a.id).map(r => ({ componente_id: r.componente_id, quantita: r.quantita, principale: !!r.principale }));
     document.getElementById('mac-set-titolo').innerHTML = '&#129513; ' + macEsc(macNome(a));
     document.getElementById('mac-set-note-listino').innerHTML = a.note
         ? '<strong>Note del listino:</strong> ' + macEsc(a.note)
@@ -2909,8 +2923,16 @@ function macSetRenderRighe() {
         box.innerHTML = '<p class="mac-aiuto">Nessun componente. Cerca qui sotto la macchina, la batteria, il caricatore... e aggiungili.</p>';
         return;
     }
-    box.innerHTML = macSetRighe.map((r, i) =>
+    // la macchina del set (riceve la matricola della scatola): quella segnata, altrimenti la proposta
+    let princ = macSetRighe.findIndex(r => r.principale);
+    if (princ === -1) {
+        const prop = macComponentePrincipaleProposto(macSetRighe.map(r => r.componente_id), macSetInModifica);
+        princ = prop ? macSetRighe.findIndex(r => r.componente_id === prop.id) : -1;
+    }
+    box.innerHTML = '<p class="mac-aiuto">&#127991;&#65039; Segna con il pallino la <strong>macchina</strong> del set: riceve la matricola letta sulla scatola.</p>' +
+        macSetRighe.map((r, i) =>
         '<div class="mac-set-riga">' +
+            '<label class="mac-set-princ" title="La matricola della scatola va a questo pezzo"><input type="radio" name="mac-set-princ" data-set-princ="' + i + '"' + (i === princ ? ' checked' : '') + '> matricola</label>' +
             '<input type="number" min="1" max="99" class="mac-set-qta" data-set-qta="' + i + '" value="' + r.quantita + '">' +
             '<span class="mac-set-riga-nome">' + macNomeHtml(macArticolo(r.componente_id)) + '</span>' +
             '<button type="button" class="mac-set-togli" data-set-togli="' + i + '" title="Togli">&times;</button>' +
@@ -2953,9 +2975,16 @@ async function macSalvaSet() {
         const { error: errDel } = await supabaseClient.from('macchine_composizione').delete().eq('set_id', a.id);
         if (errDel) throw errDel;
         if (macSetRighe.length) {
-            const { error } = await supabaseClient.from('macchine_composizione').insert(
-                macSetRighe.map(r => ({ set_id: a.id, componente_id: r.componente_id, quantita: r.quantita }))
-            );
+            // la macchina del set: il pallino scelto (quello mostrato, anche se proposto)
+            const sel = document.querySelector('#mac-set-righe input[name="mac-set-princ"]:checked');
+            const iPrinc = sel ? parseInt(sel.dataset.setPrinc, 10) : -1;
+            const righe = macSetRighe.map((r, i) => ({ set_id: a.id, componente_id: r.componente_id, quantita: r.quantita, principale: i === iPrinc }));
+            let { error } = await supabaseClient.from('macchine_composizione').insert(righe);
+            if (error && /principale/i.test(error.message || '')) {
+                // colonna non ancora creata (supabase/set-matricola-principale.sql): salvo senza la scelta
+                ({ error } = await supabaseClient.from('macchine_composizione').insert(righe.map(r => ({ set_id: r.set_id, componente_id: r.componente_id, quantita: r.quantita }))));
+                if (!error) await showCustomAlert('Set salvato, ma la scelta della macchina (pallino) non &egrave; stata salvata: esegui su Supabase <strong>supabase/set-matricola-principale.sql</strong> e salva di nuovo il set.', 'Set', '&#9888;&#65039;');
+            }
             if (error) throw error;
         }
     } catch (error) {
@@ -3159,6 +3188,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ----- Finestra set -----
     macPickerImposta('mac-set-art-search', 'mac-set-art-results', null, macSetAggiungi);
+    document.getElementById('mac-set-righe').addEventListener('change', (e) => {
+        const r = e.target.closest('[data-set-princ]');
+        if (!r) return;
+        const i = parseInt(r.dataset.setPrinc, 10);
+        macSetRighe.forEach((x, j) => { x.principale = j === i; });
+    });
     document.getElementById('mac-set-righe').addEventListener('click', (e) => {
         const b = e.target.closest('[data-set-togli]');
         if (!b) return;

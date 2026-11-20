@@ -1,5 +1,8 @@
 # Changelog App Magazzino
 
+## v7.9.3 - 2026-11-20 (PRODUZIONE)
+MODIFICA MATRICOLE
+
 ## v7.9.2 - 2026-11-20 (PRODUZIONE)
 auth + carico set
 
