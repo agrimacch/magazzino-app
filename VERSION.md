@@ -1,5 +1,8 @@
 # Changelog App Magazzino
 
+## v7.9.2 - 2026-11-20 (PRODUZIONE)
+auth + carico set
+
 ## v7.9.1 - 2026-11-20 (PRODUZIONE)
 autenticazione a due fattori
 
