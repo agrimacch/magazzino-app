@@ -19,6 +19,8 @@
 
 const FUNZIONE_URL = 'https://uiypndhemhgljceylqzl.supabase.co/functions/v1/backup-dati';
 const CHIAVE = 'INCOLLA_QUI_LA_CHIAVE';
+// Chiave pubblica dell'app (la stessa di app.js, non e' segreta): Supabase la vuole per far passare la chiamata
+const SUPABASE_PUBLISHABLE = 'sb_publishable_OVFwbbEr_x9ElXSwu7tNcQ_5qtiUwjE';
 const CARTELLA = 'BACKUP AGRIDESK';
 const GIORNI_DA_TENERE = 14;
 const ORA_BACKUP = 2;          // dalle 2 di notte
@@ -39,12 +41,17 @@ function chiama(dati) {
   const res = UrlFetchApp.fetch(FUNZIONE_URL, {
     method: 'post',
     contentType: 'application/json',
+    headers: { apikey: SUPABASE_PUBLISHABLE },
     payload: JSON.stringify(dati),
     muteHttpExceptions: true
   });
   let j = {};
   try { j = JSON.parse(res.getContentText()); } catch (e) { j = { ok: false, errore: res.getContentText().slice(0, 300) }; }
-  if (!j.ok) throw new Error('Funzione Supabase (' + res.getResponseCode() + '): ' + (j.errore || 'errore'));
+  if (!j.ok) {
+    let msg = j.errore || j.message || j.msg || res.getContentText().slice(0, 200) || 'errore';
+    if (res.getResponseCode() === 401 && !j.errore) msg += ' -> controlla "Verify JWT" (spento) e la riga SUPABASE_PUBLISHABLE';
+    throw new Error('Funzione Supabase (' + res.getResponseCode() + '): ' + msg);
+  }
   return j;
 }
 

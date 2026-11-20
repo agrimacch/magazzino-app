@@ -199,7 +199,7 @@ function rafCostruisciCon(ordine) {
         const art = rafModelloDi(l.codice);
         const ultima = scatole.length ? scatole[scatole.length - 1] : null;
         if (art) {
-            if (ordine === 'matricola' && ultima && !ultima.artId && ultima.matricola && !ultima.probabileModello && !macIsSet(art.id)) {
+            if (ordine === 'matricola' && ultima && !ultima.artId && ultima.matricola && !ultima.probabileModello) {
                 ultima.artId = art.id;
                 ultima.letture.push(l.id);
             } else {
@@ -223,7 +223,7 @@ function rafCostruisciCon(ordine) {
         }
         const matricola = listinoPulisciTesto(l.codice);
         const ripetuto = conta[rafNorm(l.codice)] > 1;
-        if (!ripetuto && ordine === 'modello' && ultima && (ultima.artId || ultima.stihlId) && !ultima.matricola && !(ultima.artId && macIsSet(ultima.artId))) {
+        if (!ripetuto && ordine === 'modello' && ultima && (ultima.artId || ultima.stihlId) && !ultima.matricola) {
             ultima.matricola = matricola;
             ultima.idMatricola = l.id;
             ultima.letture.push(l.id);
@@ -241,7 +241,7 @@ function rafCostruisciCon(ordine) {
 
 function rafPunteggio(scatole) {
     // Scatole incomplete: senza modello pesano di piu' di quelle senza matricola
-    return scatole.reduce((t, s) => t + (!s.artId ? 2 : 0) + (s.artId && !s.matricola && !macIsSet(s.artId) ? 1 : 0), 0);
+    return scatole.reduce((t, s) => t + (!s.artId ? 2 : 0) + (s.artId && !s.matricola ? 1 : 0), 0);
 }
 
 function rafCostruisci() {
@@ -350,9 +350,8 @@ function rafLeggi(grezzo) {
         const a = macArticolo(s.artId);
         const ultimaDellaScatola = s.letture[s.letture.length - 1] === lettura.id;
         rafMessaggio('&#128230; Scatola ' + s.n + ': <strong>' + macEsc(macNome(a)) + '</strong>' +
-            (s.matricola ? ' &middot; matricola ' + macEsc(s.matricola) :
-                (macIsSet(a.id) ? ' (set: le matricole dei componenti si inseriscono dopo, nel quaderno)' :
-                    (ultimaDellaScatola && rafOrdineUsato === 'modello' ? '. Se c\'&egrave;, leggi ora la matricola.' : ''))), 'ok');
+            (s.matricola ? ' &middot; matricola ' + macEsc(s.matricola) + rafSetMatricolaTesto(a) :
+                (ultimaDellaScatola && rafOrdineUsato === 'modello' ? '. Se c\'&egrave;, leggi ora la matricola' + rafSetMatricolaTesto(a) + '.' : '')), 'ok');
     } else if (s && s.stihlId) {
         const st = rafFornInfo(s);
         rafMessaggio('&#127381; Scatola ' + s.n + ': <strong>' + macEsc(st ? st.fornitore + ' ' + (st.descrizione || '') : '') + '</strong> non &egrave; nel tuo listino. ' +
@@ -369,6 +368,13 @@ function rafLeggi(grezzo) {
     }
     rafSuono(true);
     rafRender();
+}
+
+// Set: la matricola della scatola va alla macchina del set (v7.10.1)
+function rafSetMatricolaTesto(a) {
+    if (!a || !macIsSet(a.id)) return '';
+    const p = macComponentePrincipale(a.id);
+    return p ? ' (va su ' + macEsc(macNome(p)) + ')' : '';
 }
 
 // ========================================
@@ -485,7 +491,7 @@ function rafRender() {
             if (rafCensimento) {
                 cosa = rafCosaCensimentoHtml(g);
             } else if (isSet) {
-                cosa = '&#129513; set: carica ' + macEsc(macDescrizioneComponenti(g.art.id));
+                cosa = '&#129513; set: carica ' + macEsc(macDescrizioneComponenti(g.art.id)) + (g.scatole.some(s => s.matricola) ? '<br><small>matricole' + rafSetMatricolaTesto(g.art) + '</small>' : '');
             } else {
                 const attesa = assegna ? macPianoCarico(g.art.id, n).clienti : [];
                 const liberi = n - attesa.length;
@@ -495,7 +501,7 @@ function rafRender() {
             }
             const conMatr = g.scatole.filter(s => s.matricola).length;
             html += '<tr><td>' + macNomeHtml(g.art) + '</td><td class="mac-raf-num">' + n + '</td>' +
-                '<td class="mac-raf-num">' + (isSet ? '-' : conMatr + ' / ' + n) + '</td><td>' + cosa + '</td></tr>';
+                '<td class="mac-raf-num">' + conMatr + ' / ' + n + '</td><td>' + cosa + '</td></tr>';
         });
         html += '</tbody></table></div>';
     }
@@ -524,7 +530,7 @@ function rafRender() {
                 }
                 sotto += '</small>';
             }
-            else if (a && !macIsSet(a.id)) sotto = '<br><small class="mac-raf-grigio">senza matricola</small>';
+            else if (a) sotto = '<br><small class="mac-raf-grigio">senza matricola</small>';
             return '<div class="mac-raf-riga' + (a ? '' : ' mac-raf-riga-allarme') + '">' +
                 '<span class="mac-raf-n">' + s.n + '</span>' +
                 '<span class="mac-raf-nome">' + nome + sotto + '</span>' +
@@ -764,11 +770,13 @@ async function rafConferma() {
             const n = g.scatole.length;
             let clienti = 0;
             if (macIsSet(a.id)) {
+                const princ = macComponentePrincipale(a.id);
                 for (const r of macComponenti(a.id)) {
                     const comp = macArticolo(r.componente_id);
                     if (!comp) continue;
                     const res = await macCaricaPezzi({
-                        art: comp, n: r.quantita * n, netto: comp.netto_1 != null ? comp.netto_1 : null, matricole: [],
+                        art: comp, n: r.quantita * n, netto: comp.netto_1 != null ? comp.netto_1 : null,
+                        matricole: princ && comp.id === princ.id ? g.scatole.map(s => s.matricola || null) : [],
                         assegna: assegna, setArt: a, dettaglio: 'CARICO A RAFFICA'
                     });
                     clienti += res.clienti.length;
@@ -876,11 +884,13 @@ async function rafConfermaCensimento() {
             // 2. Scatole in piu': macchine nuove, disponibili (nessuna assegnazione ai clienti)
             if (pi.nuove.length) {
                 if (macIsSet(a.id)) {
+                    const princ = macComponentePrincipale(a.id);
                     for (const r of macComponenti(a.id)) {
                         const comp = macArticolo(r.componente_id);
                         if (!comp) continue;
                         await macCaricaPezzi({
-                            art: comp, n: r.quantita * pi.nuove.length, netto: comp.netto_1 != null ? comp.netto_1 : null, matricole: [],
+                            art: comp, n: r.quantita * pi.nuove.length, netto: comp.netto_1 != null ? comp.netto_1 : null,
+                            matricole: princ && comp.id === princ.id ? pi.nuove.map(s => s.matricola || null) : [],
                             assegna: false, setArt: a, dettaglio: 'CARICO INIZIALE'
                         });
                     }

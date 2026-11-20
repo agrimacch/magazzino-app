@@ -2253,3 +2253,25 @@
 .mac-picker-forn .mac-picker-attrezzo {
     color: #7c3aed;
 }
+
+/* v7.10: scheda Situazione */
+.sit-table tr.sit-marchio td {
+    background: #e8f5e9;
+    border-top: 2px solid #2e7d32;
+}
+
+.sit-table tr.sit-tipologia td {
+    background: #f8fafc;
+}
+
+.sit-table td.sit-modello {
+    padding-left: 18px;
+}
+
+.sit-table td.sit-c-liberiCasa {
+    color: #166534;
+}
+
+.sit-table td.sit-c-prenotati {
+    color: #b45309;
+}

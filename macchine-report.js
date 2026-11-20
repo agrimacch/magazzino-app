@@ -698,6 +698,262 @@ function valPdf() {
     pdfApriInScheda(() => rptCreaPdfBlob(doc), 'VALORE MAGAZZINO MACCHINE ' + (v.adesso ? repIsoLocale(new Date()) : v.data) + '.pdf');
 }
 
+
+// ========================================
+// SITUAZIONE MACCHINE (Inventario Macchine > scheda Situazione) - v7.10
+// ----------------------------------------
+// Per marchio > tipologia > modello, quante macchine ci sono in ogni situazione (ogni macchina conta una volta sola):
+//   Consegnati           CONSEGNATA con data di consegna nel periodo scelto
+//   Impegnati in casa    IN_CASA con cliente (da consegnare)
+//   Impegnati in arrivo  ORDINATA con cliente
+//   Prenotati da ordinare DA_ORDINARE con cliente
+//   Liberi in casa       IN_CASA senza cliente (da vendere)
+//   Liberi in arrivo     ORDINATA senza cliente (prestagionale / magazzino)
+//   Da ordinare magazzino DA_ORDINARE senza cliente (colonna solo se ce ne sono)
+// I set si contano come stanno in magazzino: pezzi singoli.
+// ========================================
+const SIT_COLONNE = [
+    { k: 'consegnati', t: 'Consegnati', breve: 'Cons.' },
+    { k: 'impCasa', t: 'Impegnati in casa', breve: 'Imp. casa' },
+    { k: 'impArrivo', t: 'Impegnati in arrivo', breve: 'Imp. arrivo' },
+    { k: 'prenotati', t: 'Prenotati da ordinare', breve: 'Pren. da ord.' },
+    { k: 'liberiCasa', t: 'Liberi in casa', breve: 'Liberi casa' },
+    { k: 'liberiArrivo', t: 'Liberi in arrivo', breve: 'Liberi arrivo' },
+    { k: 'daOrdMag', t: 'Da ordinare per il magazzino', breve: 'Da ord. mag.' }
+];
+let sitUltimo = null;
+
+function sitImpostaPeriodo(scelta) {
+    const oggi = new Date();
+    let da, a;
+    if (scelta === 'anno') { da = new Date(oggi.getFullYear(), 0, 1); a = new Date(oggi.getFullYear(), 11, 31); }
+    else if (scelta === 'anno-scorso') { da = new Date(oggi.getFullYear() - 1, 0, 1); a = new Date(oggi.getFullYear() - 1, 11, 31); }
+    else if (scelta === 'mese') { da = new Date(oggi.getFullYear(), oggi.getMonth(), 1); a = new Date(oggi.getFullYear(), oggi.getMonth() + 1, 0); }
+    else if (scelta === 'mese-scorso') { da = new Date(oggi.getFullYear(), oggi.getMonth() - 1, 1); a = new Date(oggi.getFullYear(), oggi.getMonth(), 0); }
+    else if (scelta === 'tutto') { document.getElementById('sit-da').value = ''; document.getElementById('sit-a').value = ''; return; }
+    else return;
+    document.getElementById('sit-da').value = repIsoLocale(da);
+    document.getElementById('sit-a').value = repIsoLocale(a);
+}
+
+function sitTipologia(a) {
+    return (a && (a.tipologia || a.attrezzo)) || 'SENZA TIPOLOGIA';
+}
+
+function sitApri() {
+    const per = document.getElementById('sit-periodo');
+    if (!per.dataset.pronto) {
+        per.dataset.pronto = '1';
+        sitImpostaPeriodo('anno');
+    }
+    sitPopolaFiltri();
+    sitRender();
+}
+
+function sitPopolaFiltri() {
+    const art = macPezzi.map(p => macArticolo(p.articolo_id)).filter(Boolean);
+    const sel = document.getElementById('sit-f-marchio');
+    const corrente = sel.value;
+    const valori = [...new Set(art.map(a => a.marchio).filter(Boolean))].sort(listinoConfronta);
+    sel.innerHTML = '<option value="">Tutti i marchi</option>' + valori.map(v => '<option value="' + macEsc(v) + '">' + macEsc(v) + '</option>').join('');
+    sel.value = valori.indexOf(corrente) !== -1 ? corrente : '';
+    const selT = document.getElementById('sit-f-tipologia');
+    const correnteT = selT.value;
+    const tip = [...new Set(art.filter(a => !sel.value || a.marchio === sel.value).map(sitTipologia))].sort(listinoConfronta);
+    selT.innerHTML = '<option value="">Tutte le tipologie</option>' + tip.map(v => '<option value="' + macEsc(v) + '">' + macEsc(v) + '</option>').join('');
+    selT.value = tip.indexOf(correnteT) !== -1 ? correnteT : '';
+}
+
+function sitVuoti() {
+    const o = {};
+    SIT_COLONNE.forEach(c => { o[c.k] = 0; });
+    return o;
+}
+
+function sitSomma(dest, src) {
+    SIT_COLONNE.forEach(c => { dest[c.k] += src[c.k]; });
+}
+
+function sitCalcola() {
+    const da = document.getElementById('sit-da').value;
+    const a = document.getElementById('sit-a').value;
+    const marchio = document.getElementById('sit-f-marchio').value;
+    const tipologia = document.getElementById('sit-f-tipologia').value;
+    const ricerca = listinoPulisciTesto(document.getElementById('sit-search').value) || '';
+    const giorno = iso => iso ? repIsoLocale(new Date(iso)) : null;
+
+    const perArt = {};
+    macPezzi.forEach(p => {
+        let k = null;
+        if (p.stato === 'CONSEGNATA') {
+            const g = giorno(p.data_consegna);
+            if (!g || (da && g < da) || (a && g > a)) return;
+            k = 'consegnati';
+        } else if (p.stato === 'IN_CASA') k = p.cliente ? 'impCasa' : 'liberiCasa';
+        else if (p.stato === 'ORDINATA') k = p.cliente ? 'impArrivo' : 'liberiArrivo';
+        else if (p.stato === 'DA_ORDINARE') k = p.cliente ? 'prenotati' : 'daOrdMag';
+        if (!k) return;
+        const art = macArticolo(p.articolo_id);
+        if (marchio && (!art || art.marchio !== marchio)) return;
+        if (tipologia && sitTipologia(art) !== tipologia) return;
+        if (ricerca) {
+            const testo = [art ? art.attrezzo : '', art ? art.tipologia : '', art ? art.marchio : '', art ? art.modello : '', art ? art.note : '']
+                .filter(Boolean).join(' ').toUpperCase();
+            if (!ricerca.split(' ').every(x => testo.indexOf(x) !== -1)) return;
+        }
+        const id = art ? art.id : 'x' + p.articolo_id;
+        const r = perArt[id] = perArt[id] || Object.assign({ art: art }, sitVuoti());
+        r[k]++;
+    });
+
+    // marchio > tipologia > modello
+    const marchi = {};
+    Object.values(perArt).forEach(r => {
+        const m = (r.art && r.art.marchio) || 'SENZA MARCHIO';
+        const t = sitTipologia(r.art);
+        const gm = marchi[m] = marchi[m] || Object.assign({ nome: m, tipologie: {} }, sitVuoti());
+        const gt = gm.tipologie[t] = gm.tipologie[t] || Object.assign({ nome: t, righe: [] }, sitVuoti());
+        gt.righe.push(r);
+        sitSomma(gt, r);
+        sitSomma(gm, r);
+    });
+    const tot = sitVuoti();
+    const elenco = Object.values(marchi).sort((x, y) => listinoConfronta(x.nome, y.nome)).map(gm => {
+        sitSomma(tot, gm);
+        gm.tipologie = Object.values(gm.tipologie).sort((x, y) => listinoConfronta(x.nome, y.nome));
+        gm.tipologie.forEach(gt => gt.righe.sort((x, y) => listinoConfronta(sitModello(x.art), sitModello(y.art))));
+        return gm;
+    });
+    // la colonna "Da ordinare per il magazzino" solo se serve
+    const colonne = SIT_COLONNE.filter(c => c.k !== 'daOrdMag' || tot.daOrdMag > 0);
+    return { da: da, a: a, marchio: marchio, tipologia: tipologia, ricerca: ricerca, marchi: elenco, tot: tot, colonne: colonne };
+}
+
+function sitModello(a) {
+    return a ? [a.modello, a.note].filter(Boolean).join(' ') || macNome(a) : 'ARTICOLO NON TROVATO';
+}
+
+function sitPeriodoTesto(s) {
+    return 'consegnati ' + rptPeriodoTesto(s.da, s.a);
+}
+
+function sitNum(n) {
+    return n ? String(n) : '-';
+}
+
+function sitRender() {
+    const box = document.getElementById('sit-risultato');
+    if (!box || !macCaricato) return;
+    const s = sitCalcola();
+    sitUltimo = s;
+    if (!s.marchi.length) {
+        box.innerHTML = '<div class="card"><p style="text-align:center">Nessuna macchina con questi filtri.</p></div>';
+        return;
+    }
+    const t = s.tot;
+    const celle = (o, forte) => s.colonne.map(c => '<td class="rep-num sit-c-' + c.k + '">' + (forte ? '<strong>' + sitNum(o[c.k]) + '</strong>' : sitNum(o[c.k])) + '</td>').join('');
+    let corpo = '';
+    s.marchi.forEach(gm => {
+        corpo += '<tr class="sit-marchio"><td colspan="2"><strong>' + macEsc(gm.nome) + '</strong></td>' + celle(gm, true) + '</tr>';
+        gm.tipologie.forEach(gt => {
+            corpo += '<tr class="sit-tipologia"><td></td><td><strong>' + macEsc(gt.nome) + '</strong></td>' + celle(gt, true) + '</tr>';
+            gt.righe.forEach(r => {
+                corpo += '<tr><td></td><td class="sit-modello">' + macEsc(sitModello(r.art)) + '</td>' + celle(r, false) + '</tr>';
+            });
+        });
+    });
+    const kpi = (v, e, cls) => '<div class="mac-riep-box' + (cls ? ' ' + cls : '') + '"><div><strong>' + v + '</strong><span>' + e + '</span></div></div>';
+    box.innerHTML =
+        '<div class="rep-testata">' +
+            kpi(t.consegnati, 'Consegnati (' + macEsc(rptPeriodoTesto(s.da, s.a)) + ')') +
+            kpi(t.impCasa + t.impArrivo + t.prenotati, 'Impegnati, non consegnati') +
+            kpi(t.prenotati, 'Prenotati da ordinare') +
+            kpi(t.liberiCasa, 'Liberi in casa', 'mac-riep-valore') +
+            kpi(t.liberiArrivo, 'Liberi in arrivo') +
+        '</div>' +
+        '<div class="card rep-card">' +
+            '<div class="table-container"><table class="listino-table rep-table sit-table">' +
+                '<thead><tr><th>Marchio</th><th>Tipologia / Modello</th>' + s.colonne.map(c => '<th class="rep-num">' + c.t + '</th>').join('') + '</tr></thead>' +
+                '<tbody>' + corpo + '</tbody>' +
+                '<tfoot><tr><td colspan="2"><strong>TOTALE</strong></td>' + celle(t, true) + '</tr></tfoot>' +
+            '</table></div>' +
+        '</div>';
+}
+
+function sitFiltriTesto(s) {
+    const f = [sitPeriodoTesto(s)];
+    if (s.marchio) f.push('marchio ' + s.marchio);
+    if (s.tipologia) f.push('tipologia ' + s.tipologia);
+    if (s.ricerca) f.push('ricerca "' + s.ricerca + '"');
+    return f;
+}
+
+function sitScaricaExcel() {
+    const s = sitUltimo;
+    if (!s || !s.marchi.length) {
+        showCustomAlert('Niente da scaricare: nessuna macchina con questi filtri.', 'Situazione macchine', '&#9888;&#65039;');
+        return;
+    }
+    if (typeof XLSX === 'undefined') {
+        showCustomAlert('Libreria Excel non caricata: aggiorna la pagina e riprova.', 'Errore', '&#10060;');
+        return;
+    }
+    const num = (o) => s.colonne.map(c => o[c.k]);
+    const righe = [['SITUAZIONE MACCHINE - ' + ordDataIt(repIsoLocale(new Date()))], [sitFiltriTesto(s).join(' - ')], [],
+        ['MARCHIO', 'TIPOLOGIA', 'MODELLO'].concat(s.colonne.map(c => c.t.toUpperCase()))];
+    s.marchi.forEach(gm => {
+        gm.tipologie.forEach(gt => {
+            gt.righe.forEach(r => righe.push([gm.nome, gt.nome, sitModello(r.art)].concat(num(r))));
+            righe.push([gm.nome, 'TOTALE ' + gt.nome, ''].concat(num(gt)));
+        });
+        righe.push(['TOTALE ' + gm.nome, '', ''].concat(num(gm)));
+        righe.push([]);
+    });
+    righe.push(['TOTALE GENERALE', '', ''].concat(num(s.tot)));
+    const ws = XLSX.utils.aoa_to_sheet(righe);
+    ws['!cols'] = [18, 22, 32].concat(s.colonne.map(() => 14)).map(w => ({ wch: w }));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'SITUAZIONE');
+    XLSX.writeFile(wb, 'SITUAZIONE_MACCHINE_' + repIsoLocale(new Date()) + '.xlsx');
+}
+
+function sitPdf() {
+    const s = sitUltimo;
+    if (!s || !s.marchi.length) {
+        showCustomAlert('Niente da stampare: nessuna macchina con questi filtri.', 'Situazione macchine', '&#9888;&#65039;');
+        return;
+    }
+    const t = s.tot;
+    const num = (o, forte) => s.colonne.map(c => forte ? '<strong>' + sitNum(o[c.k]) + '</strong>' : sitNum(o[c.k]));
+    const doc = {
+        titolo: 'Situazione macchine',
+        sottotitolo: sitFiltriTesto(s).map(macEsc).join(' &middot; ') + '<br>Creato il ' + rptOggiTesto(),
+        kpi: [
+            { e: 'Consegnati', v: t.consegnati },
+            { e: 'Impegnati, non consegnati', v: t.impCasa + t.impArrivo + t.prenotati },
+            { e: 'Prenotati da ordinare', v: t.prenotati },
+            { e: 'Liberi in casa', v: t.liberiCasa },
+            { e: 'Liberi in arrivo', v: t.liberiArrivo }
+        ],
+        nota: 'I set sono contati come pezzi singoli, come stanno in magazzino. Impegnati = gi&agrave; di un cliente; liberi = da vendere.',
+        sezioni: s.marchi.map(gm => {
+            const righe = [];
+            gm.tipologie.forEach(gt => {
+                righe.push(['<strong>' + macEsc(gt.nome) + '</strong>', ''].concat(num(gt, true)));
+                gt.righe.forEach(r => righe.push(['', macEsc(sitModello(r.art))].concat(num(r, false))));
+            });
+            return {
+                titolo: macEsc(gm.nome),
+                piccola: true,
+                colonne: [{ t: 'Tipologia', w: '16%' }, { t: 'Modello', w: '28%' }].concat(s.colonne.map(c => ({ t: c.breve, num: true }))),
+                righe: righe,
+                totale: ['TOTALE ' + macEsc(gm.nome), ''].concat(num(gm, false))
+            };
+        })
+    };
+    pdfApriInScheda(() => rptCreaPdfBlob(doc), 'SITUAZIONE MACCHINE ' + repIsoLocale(new Date()) + '.pdf');
+}
+
 // ========================================
 // EVENT LISTENERS
 // ========================================
@@ -724,7 +980,21 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('val-search').addEventListener('input', () => { clearTimeout(attesaVal); attesaVal = setTimeout(valRender, 250); });
     document.getElementById('val-excel').addEventListener('click', valScaricaExcel);
     document.getElementById('val-pdf').addEventListener('click', valPdf);
+
+    // Situazione
+    const sitPer = document.getElementById('sit-periodo');
+    if (sitPer) {
+        sitPer.addEventListener('change', () => { sitImpostaPeriodo(sitPer.value); sitRender(); });
+        ['sit-da', 'sit-a'].forEach(id => document.getElementById(id).addEventListener('change', () => { sitPer.value = 'personalizzato'; sitRender(); }));
+        document.getElementById('sit-f-marchio').addEventListener('change', () => { sitPopolaFiltri(); sitRender(); });
+        document.getElementById('sit-f-tipologia').addEventListener('change', sitRender);
+        let attesaSit = null;
+        document.getElementById('sit-search').addEventListener('input', () => { clearTimeout(attesaSit); attesaSit = setTimeout(sitRender, 250); });
+        document.getElementById('sit-excel').addEventListener('click', sitScaricaExcel);
+        document.getElementById('sit-pdf').addEventListener('click', sitPdf);
+    }
 });
 
 window.repApri = repApri;
 window.valApri = valApri;
+window.sitApri = sitApri;

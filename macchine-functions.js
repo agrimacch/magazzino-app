@@ -478,6 +478,22 @@ function macIsSet(articoloId) {
     return macComposizione.some(r => r.set_id === articoloId);
 }
 
+// Il componente "macchina" di un set, quello a cui va la matricola della scatola (v7.10.1):
+// il componente il cui modello e' nel nome del set (SETASA20 -> ASA20), altrimenti il piu' caro (netto 1), altrimenti il primo
+function macComponentePrincipale(setId) {
+    const comp = macComponenti(setId).map(r => ({ r: r, art: macArticolo(r.componente_id) })).filter(x => x.art);
+    if (!comp.length) return null;
+    const set = macArticolo(setId);
+    const pulisci = t => String(t || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+    const nomeSet = pulisci(set ? [set.modello, set.note].join(' ') : '');
+    const nelNome = comp.filter(x => pulisci(x.art.modello) && nomeSet.indexOf(pulisci(x.art.modello)) !== -1)
+        .sort((x, y) => pulisci(y.art.modello).length - pulisci(x.art.modello).length);
+    if (nelNome.length) return nelNome[0].art;
+    const conNetto = comp.filter(x => x.art.netto_1 !== null && x.art.netto_1 !== undefined && x.art.netto_1 !== '')
+        .sort((x, y) => Number(y.art.netto_1) - Number(x.art.netto_1));
+    return (conNetto.length ? conNetto[0] : comp[0]).art;
+}
+
 function macIsComponente(articoloId) {
     return macComposizione.some(r => r.componente_id === articoloId);
 }
@@ -543,7 +559,7 @@ async function openInventarioMacchine() {
 }
 
 function macSwitchTab(tab, senzaRender) {
-    if (['inventario', 'quaderno', 'excel', 'set', 'movimenti', 'report', 'valore', 'correzioni'].indexOf(tab) === -1) tab = 'inventario';
+    if (['inventario', 'situazione', 'quaderno', 'excel', 'set', 'movimenti', 'report', 'valore', 'correzioni'].indexOf(tab) === -1) tab = 'inventario';
     if (tab === 'correzioni' && !macCorrPuo()) tab = 'inventario';
     macSessione('macchineTab', tab);
     document.querySelectorAll('#tabs-macchine .tab-btn').forEach(b => {
@@ -566,6 +582,7 @@ function macRenderTutto() {
     else if (tab === 'excel') macExcelPopolaMarchi();
     else if (tab === 'report' && typeof repApri === 'function') repApri();
     else if (tab === 'valore' && typeof valApri === 'function') valApri();
+    else if (tab === 'situazione' && typeof sitApri === 'function') sitApri();
     else if (tab === 'movimenti') macCaricaMovimenti();
     else if (tab === 'correzioni') macCorrApri();
 }
@@ -1636,13 +1653,18 @@ function macCaricoMatricole() {
     const box = document.getElementById('mac-carico-matricole');
     const a = macCaricoArticolo;
     const qta = parseInt(document.getElementById('mac-carico-qta').value, 10) || 0;
-    if (!a || macIsSet(a.id) || qta < 1 || qta > MAC_MAX_QTA) {
-        box.innerHTML = a && macIsSet(a.id) ? '<p class="mac-aiuto">Le matricole dei componenti si inseriscono dopo, toccando il quadratino nel quaderno.</p>' : '';
+    if (!a || qta < 1 || qta > MAC_MAX_QTA) {
+        box.innerHTML = '';
         return;
     }
+    // set: le matricole sono della macchina del set (es. ASA 20 nel SET ASA 20); gli altri pezzi si fanno dal quaderno
+    const princ = macIsSet(a.id) ? macComponentePrincipale(a.id) : null;
+    if (macIsSet(a.id) && !princ) { box.innerHTML = ''; return; }
+    const quante = princ ? qta * ((macComponenti(a.id).find(r => r.componente_id === princ.id) || {}).quantita || 1) : qta;
     const vecchi = Array.from(box.querySelectorAll('input')).map(i => i.value);
-    let html = '<label>Matricole <small>(facoltative: scrivi, leggi il QR o il codice a barre)</small></label>';
-    for (let i = 0; i < qta; i++) {
+    let html = '<label>Matricole' + (princ ? ' di <strong>' + macEsc(macNome(princ)) + '</strong>' : '') +
+        ' <small>(facoltative: scrivi, leggi il QR o il codice a barre' + (princ ? '; quelle degli altri pezzi dal quaderno' : '') + ')</small></label>';
+    for (let i = 0; i < Math.min(quante, MAC_MAX_QTA); i++) {
         html += '<div class="mac-matr-riga">' +
             '<span class="mac-matr-num">' + (i + 1) + '</span>' +
             '<input type="text" id="mac-carico-matr-' + i + '" value="' + macEsc(vecchi[i] || '') + '" placeholder="Matricola" autocomplete="off">' +
@@ -1798,8 +1820,10 @@ async function macSalvaCarico(e) {
     const assegna = document.getElementById('mac-carico-assegna').checked;
     const isSet = macIsSet(a.id);
     const matricole = [];
-    if (!isSet) {
-        for (let i = 0; i < qta; i++) {
+    const princ = isSet ? macComponentePrincipale(a.id) : null;
+    {
+        const campi = document.querySelectorAll('#mac-carico-matricole input[id^="mac-carico-matr-"]').length;
+        for (let i = 0; i < (isSet ? campi : qta); i++) {
             const el = document.getElementById('mac-carico-matr-' + i);
             matricole.push(el ? listinoPulisciTesto(el.value) : null);
         }
@@ -1830,7 +1854,8 @@ async function macSalvaCarico(e) {
             const n = x.n - (isSet ? 0 : sost.length);
             if (n < 1) continue;
             const res = await macCaricaPezzi({
-                art: x.art, n: n, netto: x.netto, matricole: isSet ? [] : matricole.slice(sost.length),
+                art: x.art, n: n, netto: x.netto,
+                matricole: isSet ? (princ && x.art.id === princ.id ? matricole : []) : matricole.slice(sost.length),
                 assegna: assegna, setArt: isSet ? a : null
             });
             riepilogo.push('<strong>' + macEsc(macNome(x.art)) + '</strong>: ' + n + ' caricat' + (n === 1 ? 'o' : 'i') +
@@ -2473,8 +2498,10 @@ function macExcelCostruisciPiano(righeFile, aggiornaListino, assegna) {
 
         if (r.matricole.length) {
             if (isSet) {
-                r.avvisi.push('Per i set le matricole si inseriscono dal quaderno: quelle del file vengono ignorate');
-                r.matricole = [];
+                const princ = macComponentePrincipale(art.id);
+                if (princ) r.avvisi.push('Set: le matricole vanno a ' + macEsc(macNome(princ)) + ' (quelle degli altri pezzi dal quaderno)');
+                else r.matricole = [];
+                if (r.matricole.length > r.qta) r.errori.push('Ci sono ' + r.matricole.length + ' matricole ma la QUANTITA &egrave; ' + r.qta);
             } else if (r.matricole.length > r.qta) {
                 r.errori.push('Ci sono ' + r.matricole.length + ' matricole ma la QUANTITA &egrave; ' + r.qta);
             }
@@ -2739,7 +2766,9 @@ async function macExcelConferma() {
                     for (const c of macComponenti(art.id)) {
                         const comp = macArticolo(c.componente_id);
                         if (!comp) continue;
-                        const res = await macCaricaPezzi({ art: comp, n: c.quantita * r.qta, netto: comp.netto_1, matricole: [], assegna: assegna, setArt: art, dettaglio: dettaglio });
+                        const princ = macComponentePrincipale(art.id);
+                        const res = await macCaricaPezzi({ art: comp, n: c.quantita * r.qta, netto: comp.netto_1,
+                            matricole: princ && comp.id === princ.id ? r.matricole : [], assegna: assegna, setArt: art, dettaglio: dettaglio });
                         riepilogo.pezzi += c.quantita * r.qta;
                         riepilogo.clienti += res.clienti.length;
                     }
@@ -3408,6 +3437,7 @@ document.addEventListener('DOMContentLoaded', () => {
 window.openInventarioMacchine = openInventarioMacchine;
 window.macPuoGestire = macPuoGestire;
 window.macBadgeListino = macBadgeListino;
+window.macComponentePrincipale = macComponentePrincipale;
 window.macCaricaPerListino = macCaricaPerListino;
 window.macDopoSalvataggioListino = macDopoSalvataggioListino;
 window.macSwitchTab = macSwitchTab;

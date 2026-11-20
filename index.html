@@ -800,6 +800,7 @@
             <!-- Navigazione tab -->
             <nav class="tabs" id="tabs-macchine">
                 <button class="tab-btn active" data-mac-tab="inventario">&#128203; Inventario</button>
+                <button class="tab-btn" data-mac-tab="situazione">&#128202; Situazione</button>
                 <button class="tab-btn" data-mac-tab="quaderno">&#128210; Quaderno</button>
                 <button class="tab-btn" data-mac-tab="excel">&#128193; Carico Excel</button>
                 <button class="tab-btn" data-mac-tab="set">&#129513; Set</button>
@@ -975,6 +976,54 @@
             </div>
 
             <!-- TAB: VALORE DEL MAGAZZINO (adesso o a una data) -->
+            <div id="tab-mac-situazione" class="tab-content">
+                <div class="container">
+                    <div class="card rep-filtri-card">
+                        <h2>&#128202; Situazione macchine</h2>
+                        <p class="mac-aiuto">Per marchio, tipologia e modello: quante macchine sono <strong>consegnate</strong> (nel periodo), <strong>impegnate</strong> per un cliente ma non consegnate (in casa, in arrivo o ancora da ordinare) e <strong>libere</strong> da vendere (in casa o in arrivo). Ogni macchina conta una volta sola; i set sono contati come pezzi singoli, come stanno in magazzino.</p>
+                        <div class="rep-filtri">
+                            <div>
+                                <label>Periodo dei consegnati</label>
+                                <select id="sit-periodo">
+                                    <option value="anno">Quest'anno</option>
+                                    <option value="anno-scorso">Anno scorso</option>
+                                    <option value="mese">Questo mese</option>
+                                    <option value="mese-scorso">Mese scorso</option>
+                                    <option value="tutto">Tutte le date</option>
+                                    <option value="personalizzato">Personalizzato</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label>Dal</label>
+                                <input type="date" id="sit-da">
+                            </div>
+                            <div>
+                                <label>Al</label>
+                                <input type="date" id="sit-a">
+                            </div>
+                            <div>
+                                <label>Marchio</label>
+                                <select id="sit-f-marchio"><option value="">Tutti i marchi</option></select>
+                            </div>
+                            <div>
+                                <label>Tipologia</label>
+                                <select id="sit-f-tipologia"><option value="">Tutte le tipologie</option></select>
+                            </div>
+                        </div>
+                        <div class="search-bar">
+                            <input type="text" id="sit-search" placeholder="&#128269; Cerca modello...">
+                        </div>
+                        <div class="rep-azioni">
+                            <div class="rep-pulsanti">
+                                <button type="button" id="sit-excel" class="btn-back mac-btn-piccolo">&#128229; Scarica Excel</button>
+                                <button type="button" id="sit-pdf" class="btn-back mac-btn-piccolo">&#128196; PDF / Stampa</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="sit-risultato"></div>
+                </div>
+            </div>
+
             <div id="tab-mac-valore" class="tab-content">
                 <div class="container">
                     <div class="card rep-filtri-card">
