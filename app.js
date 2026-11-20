@@ -11,7 +11,7 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 // ========================================
 // VARIABILI GLOBALI
 // ========================================
-const CURRENT_VERSION = '7.8.6';
+const CURRENT_VERSION = '7.9.1';
 const SHOW_WHATS_NEW_POPUP = false;
 
 let currentUser = null;
@@ -365,6 +365,200 @@ async function authRecuperaSessione() {
 
 let authLogoutVolontario = false;
 
+// ========================================
+// USCITA AUTOMATICA PER INATTIVITA' - SOLO PC (v7.9)
+// Da PC, dopo INATTIVITA_MINUTI senza toccare mouse o tastiera, l'app si scollega da sola
+// (avviso INATTIVITA_AVVISO_MINUTI prima, con "Resta collegato"). Telefoni e tablet no.
+// L'ultima attivita' e' condivisa tra le schede dello stesso browser (localStorage).
+// ========================================
+const INATTIVITA_MINUTI = 60;
+const INATTIVITA_AVVISO_MINUTI = 2;
+const INATT_CHIAVE = 'agriUltimaAttivita';
+let inattUltima = Date.now();
+let inattUltimaScritta = 0;
+let inattAvviata = false;
+
+// PC = nessun puntatore "a dito" (telefoni, tablet e PC con schermo touch sono esclusi)
+function inattSuPC() {
+    try { return !window.matchMedia('(any-pointer: coarse)').matches && !(navigator.maxTouchPoints > 0); } catch (e) { return false; }
+}
+
+function inattAttivita() {
+    const adesso = Date.now();
+    inattUltima = adesso;
+    if (adesso - inattUltimaScritta > 15000) {
+        inattUltimaScritta = adesso;
+        try { localStorage.setItem(INATT_CHIAVE, String(adesso)); } catch (e) { /* niente */ }
+    }
+    const avviso = document.getElementById('inatt-avviso');
+    if (avviso && !avviso.classList.contains('hidden')) avviso.classList.add('hidden');
+}
+
+function inattControlla() {
+    if (!currentUser || !inattSuPC()) return;
+    let ultima = inattUltima;
+    try { ultima = Math.max(ultima, Number(localStorage.getItem(INATT_CHIAVE)) || 0); } catch (e) { /* niente */ }
+    const ferma = Date.now() - ultima;
+    const avviso = document.getElementById('inatt-avviso');
+    if (ferma >= INATTIVITA_MINUTI * 60000) {
+        try { sessionStorage.setItem('uscitaInattivita', '1'); } catch (e) { /* niente */ }
+        handleLogout();
+    } else if (ferma >= (INATTIVITA_MINUTI - INATTIVITA_AVVISO_MINUTI) * 60000) {
+        if (avviso) avviso.classList.remove('hidden');
+    } else if (avviso) {
+        avviso.classList.add('hidden');
+    }
+}
+
+function inattAvvia() {
+    if (inattAvviata) return;
+    inattAvviata = true;
+    try { localStorage.setItem(INATT_CHIAVE, String(Date.now())); } catch (e) { /* niente */ }
+    ['mousedown', 'mousemove', 'keydown', 'wheel', 'touchstart'].forEach(ev => document.addEventListener(ev, inattAttivita, { passive: true, capture: true }));
+    document.addEventListener('scroll', inattAttivita, { passive: true, capture: true });
+    // al ritorno sul PC (risveglio, scheda riaperta) controllo subito
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') inattControlla(); });
+    setInterval(inattControlla, 20000);
+    const btn = document.getElementById('inatt-resta');
+    if (btn) btn.addEventListener('click', inattAttivita);
+}
+
+// ========================================
+// VERIFICA IN DUE PASSAGGI (v7.9) - obbligatoria per admin e operatori (v7.9.1)
+// Supabase Auth MFA (codice di 6 cifre dall'app Authenticator del telefono, TOTP).
+// Dopo email e password: chi ha la verifica attiva scrive il codice; un admin che non l'ha ancora attivata
+// (o un operatore) deve attivarla (QR da inquadrare) prima di entrare. Recupero (telefono perso): in Supabase si cancella
+// il fattore dell'utente (vedi MANUALE, sezione 3.5).
+// ========================================
+const MFA_RUOLI_OBBLIGATORI = ['admin', 'operatore'];   // v7.9.1: anche gli operatori (i tecnici no)
+let mfaInCorso = null;
+
+// Prima di mostrare l'app: controlla la verifica in due passaggi
+function mfaPoiEntra() {
+    if (mfaInCorso) return mfaInCorso;
+    mfaInCorso = (async () => {
+        try {
+            const ok = await mfaControlla();
+            if (ok) await showMainScreen();
+        } finally {
+            mfaInCorso = null;
+        }
+    })();
+    return mfaInCorso;
+}
+
+async function mfaControlla() {
+    const obbligatoria = MFA_RUOLI_OBBLIGATORI.includes(currentUserRole);
+    let livello = null;
+    try {
+        const { data, error } = await supabaseClient.auth.mfa.getAuthenticatorAssuranceLevel();
+        if (error) throw error;
+        livello = data;
+    } catch (e) {
+        console.warn('Verifica in due passaggi non disponibile:', e);
+        if (!obbligatoria) return true;
+        await showCustomAlert('Non riesco a controllare la verifica in due passaggi. Riprova tra poco.', 'Accesso', '&#128274;');
+        await mfaEsci();
+        return false;
+    }
+    if (livello.currentLevel === 'aal2') return true;
+    if (livello.nextLevel === 'aal2') return await mfaChiediCodice();
+    if (obbligatoria) return await mfaAttiva();
+    return true;
+}
+
+// Finestra: testo, eventuale QR, campo codice. Resolve(codice) o null (Esci)
+function mfaFinestra(titolo, testo, qr, segreto) {
+    return new Promise(resolve => {
+        const modal = document.getElementById('mfa-modal');
+        const campo = document.getElementById('mfa-codice');
+        document.getElementById('mfa-titolo').innerHTML = titolo;
+        document.getElementById('mfa-testo').innerHTML = testo;
+        const boxQr = document.getElementById('mfa-qr-box');
+        if (qr) {
+            document.getElementById('mfa-qr').src = qr;
+            document.getElementById('mfa-segreto').textContent = segreto || '';
+            boxQr.classList.remove('hidden');
+        } else {
+            boxQr.classList.add('hidden');
+        }
+        campo.value = '';
+        const fine = (valore) => {
+            document.getElementById('mfa-ok').onclick = null;
+            document.getElementById('mfa-esci').onclick = null;
+            campo.onkeydown = null;
+            resolve(valore);
+        };
+        const conferma = () => {
+            const codice = campo.value.replace(/\s/g, '');
+            if (!/^\d{6}$/.test(codice)) { campo.focus(); return; }
+            fine(codice);
+        };
+        document.getElementById('mfa-ok').onclick = conferma;
+        campo.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); conferma(); } };
+        document.getElementById('mfa-esci').onclick = () => fine(null);
+        modal.classList.remove('hidden');
+        setTimeout(() => campo.focus(), 50);
+    });
+}
+
+function mfaChiudiFinestra() {
+    document.getElementById('mfa-modal').classList.add('hidden');
+}
+
+async function mfaEsci() {
+    mfaChiudiFinestra();
+    await handleLogout();
+}
+
+// Accesso: codice dall'app Authenticator
+async function mfaChiediCodice() {
+    const { data, error } = await supabaseClient.auth.mfa.listFactors();
+    const fattore = !error && data ? (data.totp || []).find(f => f.status === 'verified') : null;
+    if (!fattore) return true;
+    for (;;) {
+        const codice = await mfaFinestra('&#128274; Verifica in due passaggi',
+            'Apri l\'app <strong>Authenticator</strong> sul telefono e scrivi il codice di 6 cifre di <strong>AGRIDESK</strong>.', null, null);
+        if (codice === null) { await mfaEsci(); return false; }
+        const { error: err } = await supabaseClient.auth.mfa.challengeAndVerify({ factorId: fattore.id, code: codice });
+        if (!err) { mfaChiudiFinestra(); return true; }
+        await showCustomAlert('Codice non valido o scaduto: riprova con quello nuovo.', 'Verifica in due passaggi', '&#9888;&#65039;');
+    }
+}
+
+// Primo accesso dell'admin: attivazione con il QR
+async function mfaAttiva() {
+    // tolgo eventuali attivazioni lasciate a meta'
+    try {
+        const { data } = await supabaseClient.auth.mfa.listFactors();
+        for (const f of ((data && data.all) || []).filter(x => x.status !== 'verified')) {
+            await supabaseClient.auth.mfa.unenroll({ factorId: f.id });
+        }
+    } catch (e) { /* niente */ }
+    const { data, error } = await supabaseClient.auth.mfa.enroll({ factorType: 'totp', friendlyName: 'AGRIDESK' });
+    if (error) {
+        await showCustomAlert('Non riesco ad attivare la verifica in due passaggi:<br>' + error.message, 'Errore', '&#10060;');
+        await mfaEsci();
+        return false;
+    }
+    for (;;) {
+        const codice = await mfaFinestra('&#128274; Attiva la verifica in due passaggi',
+            'Per entrare in AGRIDESK serve un secondo controllo oltre alla password.<br>' +
+            '1. Installa sul telefono <strong>Google Authenticator</strong> (o Microsoft Authenticator).<br>' +
+            '2. Nell\'app tocca <strong>+</strong> e <strong>inquadra il codice QR</strong> qui sotto.<br>' +
+            '3. Scrivi il codice di 6 cifre che compare per <strong>AGRIDESK</strong>.',
+            data.totp.qr_code, data.totp.secret);
+        if (codice === null) { await mfaEsci(); return false; }
+        const { error: err } = await supabaseClient.auth.mfa.challengeAndVerify({ factorId: data.id, code: codice });
+        if (!err) {
+            mfaChiudiFinestra();
+            await showCustomAlert('Verifica in due passaggi attivata. Dal prossimo accesso, dopo la password, ti verr&agrave; chiesto il codice dell\'app.', 'Fatto', '&#9989;');
+            return true;
+        }
+        await showCustomAlert('Codice non valido: controlla di aver inquadrato il QR e riprova con il codice nuovo.', 'Verifica in due passaggi', '&#9888;&#65039;');
+    }
+}
+
 function clearSavedCredentials() {
     localStorage.removeItem('savedEmail');
     localStorage.removeItem('savedPassword');
@@ -512,10 +706,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         loggedInUserEmail = session.user.email;
         daltDaUtente();
         await loadUserRole();
-        showMainScreen();
+        mfaPoiEntra();
     } else {
         showLoginScreen();
+        // uscita automatica per inattivita' (solo PC): avviso dopo il ricaricamento
+        try {
+            if (sessionStorage.getItem('uscitaInattivita')) {
+                sessionStorage.removeItem('uscitaInattivita');
+                showCustomAlert('Sei stato scollegato dopo ' + INATTIVITA_MINUTI + ' minuti senza usare l\'app. Accedi di nuovo.', 'Accesso', '&#128274;');
+            }
+        } catch (e) { /* niente */ }
     }
+    inattAvvia();
     
     document.body.classList.remove('loading');
     document.body.classList.add('ready');
@@ -542,7 +744,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             loggedInUserEmail = session.user.email;
             if (giaDentro) return;
             daltDaUtente();
-            loadUserRole().then(() => showMainScreen());
+            loadUserRole().then(() => mfaPoiEntra());
         } else if ((event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') && session) {
             currentUser = session.user;
         }

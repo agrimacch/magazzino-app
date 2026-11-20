@@ -109,6 +109,31 @@ La sezione **Vendite** &egrave; visibile ad admin e operatori. La sezione **Tecn
 ### 3.4 Password dimenticata
 Chiedi a un admin di reimpostarla da Gestione Utenti oppure dal pannello Supabase (Authentication &rarr; Users).
 
+### 3.5 Verifica in due passaggi per admin e operatori (v7.9, operatori dalla v7.9.1)
+- Dopo email e password, **admin e operatori** scrivono anche il **codice di 6 cifre** dell'app **Authenticator** del telefono (Google Authenticator o Microsoft Authenticator). I tecnici no (si cambia in `MFA_RUOLI_OBBLIGATORI`).
+- **Prima volta**: l'app mostra un **codice QR**; si inquadra con l'app Authenticator (tasto +) e si scrive il codice che compare per AGRIDESK. Finch&eacute; non &egrave; attivata non si entra (si pu&ograve; solo uscire). Ognuno la attiva sul **proprio** telefono.
+- La sessione verificata resta valida come le altre (non chiede il codice a ogni apertura, solo a ogni nuovo accesso).
+- Funziona con l'MFA di Supabase (TOTP, attivo di default: Authentication &rarr; Multi-Factor). Codice: `mfaPoiEntra`, `mfaControlla`, `mfaChiediCodice`, `mfaAttiva` in `app.js` (`MFA_RUOLI_OBBLIGATORI`), finestra `mfa-modal`.
+- **Telefono perso o cambiato**: in Supabase &rarr; SQL Editor:
+```
+delete from auth.mfa_factors where user_id = (select id from auth.users where email = 'EMAIL DELL UTENTE');
+```
+  Al prossimo accesso l'app chiede di riattivarla con il QR (sul telefono nuovo). Consiglio: inquadrare il QR anche con un secondo telefono come riserva.
+- Per ora il controllo &egrave; nell'app; il passo successivo (da fare dopo qualche giorno di prova) &egrave; far rifiutare anche al database le richieste di chi non ha scritto il codice.
+
+### 3.6 Uscita automatica da PC (v7.9)
+- Solo da **PC** (non telefoni, tablet o PC con schermo touch): dopo **60 minuti** senza usare mouse o tastiera l'app si scollega da sola; **2 minuti prima** compare in alto l'avviso con **Resta collegato**. Dopo l'uscita, nella pagina di accesso c'&egrave; il messaggio.
+- L'ultima attivit&agrave; vale per tutte le schede dello stesso browser. Tornando sul PC dopo ore (risveglio) esce subito.
+- Si cambia in `app.js`: `INATTIVITA_MINUTI`, `INATTIVITA_AVVISO_MINUTI` (funzioni `inatt*`).
+
+### 3.7 Sicurezza del sito e password (v7.9)
+- **`vercel.json`** (nella cartella dell'app, letto da Vercel): intestazioni di sicurezza su tutte le pagine (HTTPS obbligatorio, niente app dentro siti altrui, fotocamera solo per l'app, niente microfono). Non blocca librerie n&eacute; servizi esterni.
+- **Password** (Supabase &rarr; Authentication &rarr; Sign In / Providers &rarr; Email, sezione password): lunghezza minima consigliata 10 e lettere + numeri. Il controllo delle **password finite in rete** (Leaked password protection) c'&egrave; solo nel piano **Pro** di Supabase.
+- Le chiavi vecchie (legacy) di Supabase sono disattivate.
+
+### 3.8 Backup giornaliero su Google Drive (v7.9)
+Ogni notte dopo le 2 tutte le tabelle del database vanno su Drive in `BACKUP AGRIDESK / AAAA-MM-GG` (un file .json per tabella + LEGGIMI.txt con le righe). Restano 14 giorni, i pi&ugrave; vecchi vanno nel cestino. Le tabelle nuove entrano da sole. Non copia utenti/password e Storage. Funzione Supabase `backup-dati` (`supabase/backup-dati.ts`, secret `BACKUP_SCRIPT_KEY`, Verify JWT spento) + script Google `google/backup-drive.gs`. Configurazione e recupero: `GUIDA_BACKUP_DRIVE.md`. La cartella &egrave; privata: non condividerla.
+
 ---
 
 ## 4. DASHBOARD
@@ -573,6 +598,8 @@ Percorso: Dashboard &rarr; Gestione Utenti.
 | `buoni-functions.js`, `buoni.css` | Ordini &rarr; Buoni Regalo (elenco, numerazione per anno, PDF del buono su mezzo A4) |
 | `google/buoni-drive.gs`, `supabase/buoni-drive.ts` | PDF dei buoni regalo su Google Drive (script Google + funzione Supabase) |
 | `GUIDA_BUONI_DRIVE.md` | Guida di configurazione del salvataggio buoni su Drive |
+| `GUIDA_BACKUP_DRIVE.md` | Guida di configurazione del backup giornaliero su Drive (`supabase/backup-dati.ts` + `google/backup-drive.gs`) |
+| `vercel.json` | Intestazioni di sicurezza lette da Vercel (v7.9) |
 | `richieste-robot-functions.js`, `richieste.css` | Assistenza &rarr; Richieste e Organizzazione interventi robot (tabella, mappa, contenitori, PDF e pulizia di fine anno) |
 | `supabase/richieste-robot-setup.sql` | Tabella richieste_robot, aggancio al planning, trigger degli esiti, richieste dagli ordini |
 | `supabase/telefonate-setup.sql` | Telefonate TEL: colonne della chiamata, tipo TEL nelle richieste, funzione `intervento_chiamata` |
@@ -678,6 +705,8 @@ git rm --cached localhost.pem localhost-key.pem
 ## 15. STORICO MODIFICHE PRINCIPALI
 
 - **v7.8.0 (nov 2026)** - Listini Fornitori: **Carica file anche da PDF** di testo; colonna **EAN** facoltativa nel caricamento; prezzo cliente **pubblico consigliato** in alternativa al ricarico; **Esiste gi&agrave;?** su Crea e proposta di collegamento per gli articoli creati a mano; colonna **Modello**. Ordini Clienti: articoli **dai listini fornitori** (creati e collegati al volo). Ordini Fornitore: **ordina come set**. Ordini Clienti: **consegnato subito** e **data di consegna** sul PDF. Richieste robot: &quot;Nascondi OK e NO&quot;.
+- **v7.9.0 (nov 2026)** - Sicurezza: verifica in due passaggi per gli admin, uscita automatica da PC dopo 60 minuti, intestazioni di sicurezza (`vercel.json`), backup giornaliero su Drive (14 giorni).
+- **v7.9.1 (nov 2026)** - Verifica in due passaggi obbligatoria anche per gli **operatori** (i tecnici no).
 - **v7.7.0 (nov 2026)** - Listini Fornitori: **Proponi collegamenti** (coppie per codice a barre, codice articolo o modello, con i prezzi dei due listini; anche dopo i caricamenti).
 - **v7.6.0 (nov 2026)** - Ordini clienti: **Documento** obbligatorio (Scontrino / Fattura) prima delle Note, nel dettaglio e nel PDF (colonna `documento`, `supabase/ordini-documento.sql`). PDF di ordini e report con caratteri pi&ugrave; grandi; ragione sociale in MAIUSCOLO nell'intestazione.
 - **v7.5.2 (nov 2026)** - La card Ordini Macchine si chiama **Ordini Fornitore**.

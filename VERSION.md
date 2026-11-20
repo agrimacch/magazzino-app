@@ -1,5 +1,8 @@
 # Changelog App Magazzino
 
+## v7.9.1 - 2026-11-20 (PRODUZIONE)
+autenticazione a due fattori
+
 ## v7.8.6 - 2026-11-18 (PRODUZIONE)
 nasconti interventi no
 

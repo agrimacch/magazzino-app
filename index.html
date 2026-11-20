@@ -17,18 +17,18 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Kalam:wght@400;700&family=Roboto+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=7.8.6">
-    <link rel="stylesheet" href="listino.css?v=7.8.6">
-    <link rel="stylesheet" href="listini-fornitori.css?v=7.8.6">
-    <link rel="stylesheet" href="fornitori.css?v=7.8.6">
-    <link rel="stylesheet" href="interventi.css?v=7.8.6">
-    <link rel="stylesheet" href="macchine.css?v=7.8.6">
-    <link rel="stylesheet" href="ordini.css?v=7.8.6">
-    <link rel="stylesheet" href="ordini-macchine.css?v=7.8.6">
-    <link rel="stylesheet" href="azienda.css?v=7.8.6">
-    <link rel="stylesheet" href="richieste.css?v=7.8.6">
-    <link rel="stylesheet" href="buoni.css?v=7.8.6">
-    <link rel="stylesheet" href="daltonici.css?v=7.8.6">
+    <link rel="stylesheet" href="style.css?v=7.9.1">
+    <link rel="stylesheet" href="listino.css?v=7.9.1">
+    <link rel="stylesheet" href="listini-fornitori.css?v=7.9.1">
+    <link rel="stylesheet" href="fornitori.css?v=7.9.1">
+    <link rel="stylesheet" href="interventi.css?v=7.9.1">
+    <link rel="stylesheet" href="macchine.css?v=7.9.1">
+    <link rel="stylesheet" href="ordini.css?v=7.9.1">
+    <link rel="stylesheet" href="ordini-macchine.css?v=7.9.1">
+    <link rel="stylesheet" href="azienda.css?v=7.9.1">
+    <link rel="stylesheet" href="richieste.css?v=7.9.1">
+    <link rel="stylesheet" href="buoni.css?v=7.9.1">
+    <link rel="stylesheet" href="daltonici.css?v=7.9.1">
 
     <!-- SheetJS per import Excel -->
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
@@ -89,7 +89,7 @@
 
 <body class="loading">
     <!-- Version badge -->
-    <div class="version-badge">v7.8.6</div>
+    <div class="version-badge">v7.9.1</div>
 
     <!-- SCHERMATA LOGIN -->
     <div id="login-screen" class="screen">
@@ -3238,8 +3238,8 @@
     <div id="whats-new-modal" class="modal hidden">
         <div class="modal-content whats-new-content">
             <div class="whats-new-header">
-                <h3>&#127881; AGRIDESK v7.8.6 - Aggiornamento!</h3>
-                <p class="version-date">18 Novembre 2026</p>
+                <h3>&#127881; AGRIDESK v7.9.1 - Aggiornamento!</h3>
+                <p class="version-date">20 Novembre 2026</p>
             </div>
 
             <!-- INIZIO_FEATURES -->
@@ -3600,6 +3600,30 @@
         </div>
     </div>
 
+    <!-- Verifica in due passaggi (v7.9): sotto l'avviso personalizzato, cosi' gli errori compaiono sopra -->
+    <div id="mfa-modal" class="modal hidden">
+        <div class="modal-content mfa-content">
+            <h3 id="mfa-titolo">&#128274; Verifica in due passaggi</h3>
+            <div id="mfa-testo" class="mfa-testo"></div>
+            <div id="mfa-qr-box" class="mfa-qr-box hidden">
+                <img id="mfa-qr" alt="Codice QR da inquadrare con l'app Authenticator">
+                <div class="mfa-segreto-riga">Non riesci a inquadrarlo? Scrivi questo codice nell'app:<br><code id="mfa-segreto"></code></div>
+            </div>
+            <label for="mfa-codice">Codice di 6 cifre</label>
+            <input type="text" id="mfa-codice" inputmode="numeric" autocomplete="one-time-code" maxlength="7" placeholder="123456" class="mfa-codice">
+            <div class="modal-buttons">
+                <button type="button" id="mfa-ok" class="btn-primary">&#10004; Conferma</button>
+                <button type="button" id="mfa-esci" class="btn-secondary">Esci</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Uscita automatica da PC (v7.9): avviso 2 minuti prima, sopra tutto -->
+    <div id="inatt-avviso" class="inatt-avviso hidden">
+        &#9203; Tra poco verrai scollegato perch&eacute; l'app non viene usata da quasi un'ora.
+        <button type="button" id="inatt-resta" class="btn-primary">Resta collegato</button>
+    </div>
+
     <!-- MODAL ALERT PERSONALIZZATO -->
     <div id="custom-alert-modal" class="modal hidden">
         <div class="modal-content" style="max-width: 450px;">
@@ -3624,19 +3648,19 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- Versione bloccata (la libreria non e' piu' mantenuta: cosi' non cambia mai da sola) -->
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-    <script src="ricambi-functions.js?v=7.8.6"></script>
-    <script src="listino-functions.js?v=7.8.6"></script>
-    <script src="fornitori-functions.js?v=7.8.6"></script>
-    <script src="interventi-functions.js?v=7.8.6"></script>
-    <script src="macchine-functions.js?v=7.8.6"></script>
-    <script src="macchine-report.js?v=7.8.6"></script>
-    <script src="macchine-raffica.js?v=7.8.6"></script>
-    <script src="listini-fornitori-functions.js?v=7.8.6"></script>
-    <script src="ordini-functions.js?v=7.8.6"></script>
-    <script src="ordini-macchine-functions.js?v=7.8.6"></script>
-    <script src="azienda-functions.js?v=7.8.6"></script>
-    <script src="richieste-robot-functions.js?v=7.8.6"></script>
-    <script src="buoni-functions.js?v=7.8.6"></script>
-    <script src="app.js?v=7.8.6"></script>
+    <script src="ricambi-functions.js?v=7.9.1"></script>
+    <script src="listino-functions.js?v=7.9.1"></script>
+    <script src="fornitori-functions.js?v=7.9.1"></script>
+    <script src="interventi-functions.js?v=7.9.1"></script>
+    <script src="macchine-functions.js?v=7.9.1"></script>
+    <script src="macchine-report.js?v=7.9.1"></script>
+    <script src="macchine-raffica.js?v=7.9.1"></script>
+    <script src="listini-fornitori-functions.js?v=7.9.1"></script>
+    <script src="ordini-functions.js?v=7.9.1"></script>
+    <script src="ordini-macchine-functions.js?v=7.9.1"></script>
+    <script src="azienda-functions.js?v=7.9.1"></script>
+    <script src="richieste-robot-functions.js?v=7.9.1"></script>
+    <script src="buoni-functions.js?v=7.9.1"></script>
+    <script src="app.js?v=7.9.1"></script>
 </body>
 </html>
