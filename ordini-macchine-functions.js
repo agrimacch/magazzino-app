@@ -23,6 +23,10 @@
 // sceglie il set e quanti; si apre la solita finestra Segna come ordinate con: le righe del modello (clienti per primi),
 // gli altri componenti del set come righe libere (arrivano disponibili) e la nota "COME SET". Il netto non cambia
 // (la divisione del prezzo del set tra i componenti e' da decidere). Funzioni omSet*.
+// Sposta righe (v7.11.5): nella finestra di una riga di un ordine fatto si spuntano le macchine ancora in arrivo e
+// "Sposta" le mette in un altro ordine dello stesso marchio (ORDINI NORMALE o una sezione/prestagionale), esistente
+// oppure nuovo (stessa data e iniziali). Clienti e stato non cambiano; l'ordine rimasto vuoto si elimina.
+// Per spostare un ORDINE INTERO basta "modifica" e cambiare la sezione. Funzioni omSposta*.
 // Usa: macchine-functions.js (macPezzi, macOrdiniFornitore, macOfSezioni, macSegnaOrdinate...)
 // Tabelle: macchine_of_ordini, macchine_of_sezioni, macchine_pezzi.ordine_fornitore_id
 // (supabase/ordini-macchine-setup.sql)
@@ -799,6 +803,7 @@ function omApriRiga(ofId, articoloId) {
     document.getElementById('om-riga-piu-box').classList.toggle('hidden', !a || !macOfPronto);
     document.getElementById('om-riga-tieni').checked = true;
     document.getElementById('om-riga-tieni-box').classList.toggle('hidden', !pezzi.some(p => p.cliente && p.stato === 'ORDINATA'));
+    omRigaPreparaSposta(of, pezzi);
     document.getElementById('om-riga-aiuto').innerHTML =
         'Spunta e premi il pulsante: le macchine <strong>con cliente</strong> tornano <strong>da ordinare</strong> (es. il cliente non pu&ograve; aspettare la consegna e va fatto un altro ordine), ' +
         'quelle <strong>in arrivo libere</strong> vengono tolte dall\'ordine.';
@@ -847,6 +852,90 @@ async function omRigaRiporta() {
         await showCustomAlert('Errore:<br>' + macEsc(error.message), 'Errore', '&#10060;');
     }
     omChiudiRiga();
+    await omRicarica();
+}
+
+// ---------- Sposta in un altro ordine / sezione (v7.11.5) ----------
+// Elenco delle destinazioni: ordini in corso dello stesso marchio (tranne questo) e "nuovo ordine" per ogni pagina
+function omRigaPreparaSposta(of, pezzi) {
+    const box = document.getElementById('om-riga-sposta-box');
+    const sel = document.getElementById('om-riga-sposta-dove');
+    if (!box || !sel) return;
+    const inAttesa = pezzi.filter(p => p.stato === 'ORDINATA').length;
+    box.classList.toggle('hidden', !inAttesa || !macOfPronto);
+    if (!inAttesa) return;
+    const pagine = [{ id: null, nome: 'ORDINI NORMALE' }].concat(omSezioniMarchio(of.marchio).filter(s => !s.chiusa || s.id === of.sezione_id)
+        .map(s => ({ id: s.id, nome: s.nome })));
+    let html = '<option value="">- scegli dove spostarle -</option>';
+    pagine.forEach(pg => {
+        const ordini = macOrdiniFornitore.filter(o => o.marchio === of.marchio && o.id !== of.id && (o.sezione_id || null) === pg.id && !omOfArrivato(o))
+            .sort((a, b) => String(b.data).localeCompare(String(a.data)));
+        html += '<optgroup label="' + macEsc(pg.nome) + '">' +
+            '<option value="nuovo|' + (pg.id || '') + '">&#10133; Nuovo ordine in ' + macEsc(pg.nome) + '</option>' +
+            ordini.map(o => '<option value="of|' + o.id + '">Ordine del ' + macDataCorta(o.data) + ' ' + macEsc(o.operatore || '') +
+                (o.consegna ? ' - ' + macEsc(o.consegna) : '') + '</option>').join('') +
+        '</optgroup>';
+    });
+    sel.innerHTML = html;
+}
+
+async function omRigaSposta() {
+    if (!omRigaAperta) return;
+    const of = macOf(omRigaAperta.ofId);
+    if (!of) return;
+    const ids = Array.from(document.querySelectorAll('#om-riga-corpo [data-om-pezzo]:checked')).map(el => parseInt(el.dataset.omPezzo, 10));
+    const pezzi = macPezzi.filter(p => ids.indexOf(p.id) !== -1 && p.stato === 'ORDINATA' && p.ordine_fornitore_id === of.id);
+    if (!pezzi.length) { await showCustomAlert('Spunta le macchine da spostare.', 'Sposta', '&#8505;&#65039;'); return; }
+    const dove = document.getElementById('om-riga-sposta-dove').value;
+    if (!dove) { await showCustomAlert('Scegli dove spostarle.', 'Sposta', '&#8505;&#65039;'); return; }
+    const [tipo, valore] = dove.split('|');
+    let meta = null, sezNome = '';
+    if (tipo === 'of') {
+        meta = macOf(Number(valore));
+        if (!meta) return;
+        const s = macOfSezione(meta.sezione_id);
+        sezNome = s ? s.nome : 'ORDINI NORMALE';
+    } else {
+        const s = valore ? macOfSezione(Number(valore)) : null;
+        sezNome = s ? s.nome : 'ORDINI NORMALE';
+    }
+    const resta = omPezziOf(of).length - pezzi.length;
+    const descr = tipo === 'of' ? 'nell\'ordine del ' + macDataCorta(meta.data) + ' ' + (meta.operatore || '') + ' (' + sezNome + ')'
+        : 'in un NUOVO ordine in ' + sezNome + ' (data ' + macDataCorta(of.data) + ', ' + (of.operatore || '') + ')';
+    if (!window.confirm('Spostare ' + pezzi.length + (pezzi.length === 1 ? ' macchina ' : ' macchine ') + descr + '?\n\n' +
+        'Clienti e stato non cambiano.' + (resta === 0 ? '\nL\'ordine del ' + macDataCorta(of.data) + ' resta vuoto e viene eliminato.' : ''))) return;
+    const btn = document.getElementById('om-riga-sposta');
+    btn.disabled = true;
+    try {
+        if (!meta) {
+            const s = valore ? Number(valore) : null;
+            meta = await omCreaOf(of.marchio, s, String(of.data).slice(0, 10), of.operatore || macIniziali(), null, null);
+        }
+        const adesso = new Date().toISOString();
+        const utente = macUtente();
+        const { error } = await supabaseClient.from('macchine_pezzi')
+            .update({ ordine_fornitore_id: meta.id, updated_at: adesso, updated_by: utente }).in('id', pezzi.map(p => p.id));
+        if (error) throw error;
+        pezzi.forEach(p => { p.ordine_fornitore_id = meta.id; });
+        const daSez = macOfSezione(of.sezione_id);
+        await macRegistra(pezzi.map(p => ({
+            pezzo_id: p.id, articolo_id: p.articolo_id, tipo: 'ORDINE', stato_prima: p.stato, stato_dopo: p.stato,
+            cliente: p.cliente || null, matricola: p.matricola || null, netto: p.netto_carico || null,
+            dettaglio: 'ORDINE FORNITORE SPOSTATO: DA ' + macDataCorta(of.data) + ' ' + (of.operatore || '') + ' (' + (daSez ? daSez.nome : 'ORDINI NORMALE') + ')' +
+                ' A ' + macDataCorta(meta.data) + ' ' + (meta.operatore || '') + ' (' + sezNome + ')'
+        })));
+        if (resta === 0) {
+            const { error: e2 } = await supabaseClient.from('macchine_of_ordini').delete().eq('id', of.id);
+            if (e2) throw e2;
+        }
+    } catch (error) {
+        console.error('Errore sposta righe:', error);
+        await showCustomAlert('Errore:<br>' + macEsc(error.message), 'Errore', '&#10060;');
+    }
+    btn.disabled = false;
+    omChiudiRiga();
+    // si va alla pagina di destinazione, cosi' si vede dove sono finite
+    omSessione('omSezione', meta && meta.sezione_id ? String(meta.sezione_id) : OM_NORMALE);
     await omRicarica();
 }
 
@@ -1405,6 +1494,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('om-riga-chiudi').addEventListener('click', omChiudiRiga);
     document.getElementById('om-riga-riporta').addEventListener('click', omRigaRiporta);
     document.getElementById('om-riga-aggiungi').addEventListener('click', omRigaAggiungi);
+    document.getElementById('om-riga-sposta').addEventListener('click', omRigaSposta);
 
     // Finestra sezione
     document.getElementById('om-sez-close').addEventListener('click', omChiudiSezione);

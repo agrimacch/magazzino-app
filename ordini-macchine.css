@@ -686,3 +686,7 @@
     margin-bottom: 8px;
     line-height: 1.45;
 }
+
+/* v7.11.5: sposta righe in un altro ordine / sezione */
+.om-riga-sposta select { flex: 1; min-width: 200px; margin: 0; }
+.om-riga-sposta span { flex-basis: 100%; }

@@ -17,18 +17,18 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Kalam:wght@400;700&family=Roboto+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=7.9.6">
-    <link rel="stylesheet" href="listino.css?v=7.9.6">
-    <link rel="stylesheet" href="listini-fornitori.css?v=7.9.6">
-    <link rel="stylesheet" href="fornitori.css?v=7.9.6">
-    <link rel="stylesheet" href="interventi.css?v=7.9.6">
-    <link rel="stylesheet" href="macchine.css?v=7.9.6">
-    <link rel="stylesheet" href="ordini.css?v=7.9.6">
-    <link rel="stylesheet" href="ordini-macchine.css?v=7.9.6">
-    <link rel="stylesheet" href="azienda.css?v=7.9.6">
-    <link rel="stylesheet" href="richieste.css?v=7.9.6">
-    <link rel="stylesheet" href="buoni.css?v=7.9.6">
-    <link rel="stylesheet" href="daltonici.css?v=7.9.6">
+    <link rel="stylesheet" href="style.css?v=7.9.7">
+    <link rel="stylesheet" href="listino.css?v=7.9.7">
+    <link rel="stylesheet" href="listini-fornitori.css?v=7.9.7">
+    <link rel="stylesheet" href="fornitori.css?v=7.9.7">
+    <link rel="stylesheet" href="interventi.css?v=7.9.7">
+    <link rel="stylesheet" href="macchine.css?v=7.9.7">
+    <link rel="stylesheet" href="ordini.css?v=7.9.7">
+    <link rel="stylesheet" href="ordini-macchine.css?v=7.9.7">
+    <link rel="stylesheet" href="azienda.css?v=7.9.7">
+    <link rel="stylesheet" href="richieste.css?v=7.9.7">
+    <link rel="stylesheet" href="buoni.css?v=7.9.7">
+    <link rel="stylesheet" href="daltonici.css?v=7.9.7">
 
     <!-- SheetJS per import Excel -->
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
@@ -89,7 +89,7 @@
 
 <body class="loading">
     <!-- Version badge -->
-    <div class="version-badge">v7.9.6</div>
+    <div class="version-badge">v7.9.7</div>
 
     <!-- SCHERMATA LOGIN -->
     <div id="login-screen" class="screen">
@@ -2946,6 +2946,12 @@
                 <span>in arrivo libere (per il magazzino)</span>
                 <button type="button" id="om-riga-aggiungi" class="btn-back mac-btn-piccolo">Aggiungi</button>
             </div>
+            <div id="om-riga-sposta-box" class="om-riga-piu om-riga-sposta hidden">
+                <label for="om-riga-sposta-dove">&#10145;&#65039; Sposta le spuntate in</label>
+                <select id="om-riga-sposta-dove"></select>
+                <button type="button" id="om-riga-sposta" class="btn-back mac-btn-piccolo">Sposta</button>
+                <span>altro ordine o sezione (es. prestagionale): clienti e stato non cambiano</span>
+            </div>
             <label id="om-riga-tieni-box" class="mac-check"><input type="checkbox" id="om-riga-tieni" checked> La macchina resta ordinata al fornitore (arriver&agrave; libera e la prende il prossimo cliente)</label>
             <p id="om-riga-aiuto" class="mac-aiuto"></p>
             <div class="modal-buttons">
@@ -3074,6 +3080,9 @@
 
                 <h4>4. Aggiungere macchine a un ordine fatto</h4>
                 <p>Tocca la riga nell'ordine fatto: in <strong>Aggiungi a questa riga</strong> scrivi quante e premi <strong>Aggiungi</strong>: arrivano libere per il magazzino. Per altri modelli usa <strong>modifica</strong> sotto l'ordine.</p>
+
+                <h4>4ter. Spostare in un'altra sezione (es. prestagionale)</h4>
+                <p><strong>Ordine intero</strong>: premi <strong>&#9997;&#65039; modifica</strong> sotto l'ordine e cambia la <strong>Sezione</strong>. <strong>Solo alcune macchine</strong>: tocca la riga nell'ordine fatto, spunta le macchine (solo quelle non ancora arrivate), in <strong>Sposta le spuntate in</strong> scegli un ordine gi&agrave; fatto oppure <strong>Nuovo ordine in ...</strong> (stessa data e iniziali) e premi <strong>Sposta</strong>. Clienti e stato restano uguali; se l'ordine di partenza resta vuoto viene eliminato. La sezione nuova si crea con <strong>&#10133; Sezione</strong>.</p>
 
                 <h4>4bis. Il cliente ha fretta</h4>
                 <p>Tocca la riga nell'ordine fatto, spunta la macchina del cliente e premi <strong>Riporta da ordinare</strong>: il cliente torna tra quelle da fare in ORDINI NORMALE e, con la spunta <strong>resta ordinata al fornitore</strong>, la macchina del prestagionale resta in arrivo libera per un altro cliente. Lo stesso si pu&ograve; fare dall'ordine cliente con <strong>Correggi lo stato</strong> (togli la spunta se l'ordine era stato segnato per sbaglio).</p>
@@ -3295,7 +3304,7 @@
     <div id="whats-new-modal" class="modal hidden">
         <div class="modal-content whats-new-content">
             <div class="whats-new-header">
-                <h3>&#127881; AGRIDESK v7.9.6 - Aggiornamento!</h3>
+                <h3>&#127881; AGRIDESK v7.9.7 - Aggiornamento!</h3>
                 <p class="version-date">21 Novembre 2026</p>
             </div>
 
@@ -3724,19 +3733,19 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- Versione bloccata (la libreria non e' piu' mantenuta: cosi' non cambia mai da sola) -->
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-    <script src="ricambi-functions.js?v=7.9.6"></script>
-    <script src="listino-functions.js?v=7.9.6"></script>
-    <script src="fornitori-functions.js?v=7.9.6"></script>
-    <script src="interventi-functions.js?v=7.9.6"></script>
-    <script src="macchine-functions.js?v=7.9.6"></script>
-    <script src="macchine-report.js?v=7.9.6"></script>
-    <script src="macchine-raffica.js?v=7.9.6"></script>
-    <script src="listini-fornitori-functions.js?v=7.9.6"></script>
-    <script src="ordini-functions.js?v=7.9.6"></script>
-    <script src="ordini-macchine-functions.js?v=7.9.6"></script>
-    <script src="azienda-functions.js?v=7.9.6"></script>
-    <script src="richieste-robot-functions.js?v=7.9.6"></script>
-    <script src="buoni-functions.js?v=7.9.6"></script>
-    <script src="app.js?v=7.9.6"></script>
+    <script src="ricambi-functions.js?v=7.9.7"></script>
+    <script src="listino-functions.js?v=7.9.7"></script>
+    <script src="fornitori-functions.js?v=7.9.7"></script>
+    <script src="interventi-functions.js?v=7.9.7"></script>
+    <script src="macchine-functions.js?v=7.9.7"></script>
+    <script src="macchine-report.js?v=7.9.7"></script>
+    <script src="macchine-raffica.js?v=7.9.7"></script>
+    <script src="listini-fornitori-functions.js?v=7.9.7"></script>
+    <script src="ordini-functions.js?v=7.9.7"></script>
+    <script src="ordini-macchine-functions.js?v=7.9.7"></script>
+    <script src="azienda-functions.js?v=7.9.7"></script>
+    <script src="richieste-robot-functions.js?v=7.9.7"></script>
+    <script src="buoni-functions.js?v=7.9.7"></script>
+    <script src="app.js?v=7.9.7"></script>
 </body>
 </html>
