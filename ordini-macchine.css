@@ -690,3 +690,19 @@
 /* v7.11.5: sposta righe in un altro ordine / sezione */
 .om-riga-sposta select { flex: 1; min-width: 200px; margin: 0; }
 .om-riga-sposta span { flex-basis: 100%; }
+
+/* v7.11.6: sposta righe da ordinare in un'altra pagina */
+.om-dao-sposta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-top: 10px;
+    padding: 8px 10px;
+    border: 1px dashed #cbd5e1;
+    border-radius: 8px;
+}
+.om-dao-sposta label { margin: 0; font-weight: 700; }
+.om-dao-sposta select { flex: 1; min-width: 180px; margin: 0; }
+.om-dao-sposta .btn-back { width: auto; margin: 0; }
+.om-dao-sposta small { flex-basis: 100%; color: var(--gray); }

@@ -27,6 +27,10 @@
 // "Sposta" le mette in un altro ordine dello stesso marchio (ORDINI NORMALE o una sezione/prestagionale), esistente
 // oppure nuovo (stessa data e iniziali). Clienti e stato non cambiano; l'ordine rimasto vuoto si elimina.
 // Per spostare un ORDINE INTERO basta "modifica" e cambiare la sezione. Funzioni omSposta*.
+// Da ordinare nelle sezioni (v7.11.6): le righe ANCORA DA ORDINARE si possono spostare da ORDINI NORMALE in una sezione
+// (es. PRESTAGIONALE) e viceversa: colonna macchine_pezzi.sezione_da_ordinare (script supabase/ordini-fornitore-da-ordinare.sql).
+// Ogni pagina ha il suo blocco "Da ordinare"; "Segna come ordinate" propone la sezione della pagina e poi la colonna si svuota.
+// I nuovi "da ordinare" degli ordini clienti arrivano sempre in ORDINI NORMALE. Funzioni omDaoSposta*.
 // Usa: macchine-functions.js (macPezzi, macOrdiniFornitore, macOfSezioni, macSegnaOrdinate...)
 // Tabelle: macchine_of_ordini, macchine_of_sezioni, macchine_pezzi.ordine_fornitore_id
 // (supabase/ordini-macchine-setup.sql)
@@ -71,8 +75,18 @@ function omConfrontaDaOrd(x, y) {
     return a !== b ? a - b : macConfrontaAttesa(x, y);
 }
 
-function omDaOrdinare(marchio) {
-    return macPezzi.filter(p => p.stato === 'DA_ORDINARE' && (!marchio || omMarchioDi(p) === marchio));
+// Pagina aperta nel marchio: null = ORDINI NORMALE, altrimenti id della sezione
+function omPaginaCorrente() {
+    const s = omSessione('omSezione');
+    return s && s !== OM_NORMALE ? Number(s) : null;
+}
+
+// Macchine DA ORDINARE. Con il marchio: solo quelle della pagina (pagina non indicata = pagina aperta).
+// Senza marchio: tutte (per i numeri sui divisori)
+function omDaOrdinare(marchio, pagina) {
+    if (!marchio) return macPezzi.filter(p => p.stato === 'DA_ORDINARE');
+    const pg = pagina === undefined ? omPaginaCorrente() : pagina;
+    return macPezzi.filter(p => p.stato === 'DA_ORDINARE' && omMarchioDi(p) === marchio && (Number(p.sezione_da_ordinare) || null) === pg);
 }
 
 function omArrivato(p) {
@@ -221,16 +235,19 @@ function omHtmlMarchio(marchio) {
     const sezioni = omSezioniMarchio(marchio);
     let sezione = omSessione('omSezione') || OM_NORMALE;
     const sezScelta = sezione !== OM_NORMALE ? sezioni.find(s => String(s.id) === String(sezione)) : null;
-    if (sezione !== OM_NORMALE && !sezScelta) sezione = OM_NORMALE;
-    const daOrdinare = omDaOrdinare(marchio);
+    if (sezione !== OM_NORMALE && !sezScelta) { sezione = OM_NORMALE; omSessione('omSezione', OM_NORMALE); }
+    const daOrdinare = omDaOrdinare(marchio, null);
 
     let html = '<div class="om-testa"><h3 class="mac-evidenziatore">' + macEsc(marchio) + '</h3></div>';
     // Pagine del marchio (come le pagine di OneNote)
     html += '<div class="om-pagine">' +
         '<button type="button" class="om-pagina-btn' + (sezione === OM_NORMALE ? ' active' : '') + '" data-om-sezione="' + OM_NORMALE + '">ORDINI NORMALE' +
             (daOrdinare.length ? ' <span class="om-badge">' + daOrdinare.length + '</span>' : '') + '</button>' +
-        sezioni.map(s => '<button type="button" class="om-pagina-btn' + (String(s.id) === String(sezione) ? ' active' : '') + (s.chiusa ? ' om-chiusa' : '') +
-            '" data-om-sezione="' + s.id + '">' + macEsc(s.nome) + '</button>').join('') +
+        sezioni.map(s => {
+            const n = omDaOrdinare(marchio, s.id).length;
+            return '<button type="button" class="om-pagina-btn' + (String(s.id) === String(sezione) ? ' active' : '') + (s.chiusa ? ' om-chiusa' : '') +
+                '" data-om-sezione="' + s.id + '">' + macEsc(s.nome) + (n ? ' <span class="om-badge">' + n + '</span>' : '') + '</button>';
+        }).join('') +
         (macOfPronto ? '<button type="button" class="om-pagina-btn om-pagina-nuova" data-om-azione="nuova-sezione">&#10133; Sezione</button>' : '') +
     '</div>';
 
@@ -239,7 +256,7 @@ function omHtmlMarchio(marchio) {
             'per il magazzino usa <strong>&#10133; Aggiungi riga</strong> (si ordina insieme alle altre), scrivi in <strong>quante</strong> pi&ugrave; di quelle richieste, ' +
             'oppure <strong>Nuovo ordine</strong> per un ordine gi&agrave; fatto solo per il magazzino.</div>' +
             '<div class="om-sez-azioni">' + (macOfPronto ? '<button type="button" class="btn-primary mac-btn-piccolo" data-om-azione="nuovo-of">&#10133; Nuovo ordine</button>' : '') + '</div></div>';
-        html += omHtmlDaOrdinare(daOrdinare);
+        html += omHtmlDaOrdinare(daOrdinare, null);
         html += omHtmlOrdiniFatti(marchio, null);
     } else {
         html += '<div class="om-sez-testa">' +
@@ -252,16 +269,18 @@ function omHtmlMarchio(marchio) {
             '</div>' +
         '</div>';
         html += '<p class="mac-aiuto">Ordini con consegna programmata (prestagionali). Le righe senza cliente sono macchine <strong>in arrivo libere</strong>: ' +
-            'il primo ordine cliente di quel modello le prende da solo. Le macchine da ordinare dei clienti si mettono qui da <strong>ORDINI NORMALE</strong> &rarr; Segna come ordinate &rarr; scegli la sezione.</p>';
+            'il primo ordine cliente di quel modello le prende da solo. Le macchine ancora da ordinare si portano qui da <strong>ORDINI NORMALE</strong>: spunta le righe e <strong>Sposta in</strong> questa sezione; quando le ordini, <strong>Segna come ordinate</strong>.</p>';
+        html += omHtmlDaOrdinare(omDaOrdinare(marchio, sezScelta.id), sezScelta);
         html += omHtmlOrdiniFatti(marchio, sezScelta.id);
     }
     return html;
 }
 
 // ---------- Righe da ordinare (macchine DA ORDINARE dei clienti) ----------
-function omHtmlDaOrdinare(pezzi) {
+function omHtmlDaOrdinare(pezzi, sezione) {
     if (pezzi.length === 0) {
-        return '<div class="om-blocco om-blocco-daord"><div class="om-blocco-titolo">&#9989; Niente da ordinare per questo marchio' +
+        if (sezione && sezione.chiusa) return '';
+        return '<div class="om-blocco om-blocco-daord"><div class="om-blocco-titolo">&#9989; Niente da ordinare ' + (sezione ? 'in questa sezione' : 'per questo marchio') +
             (macOfPronto ? '<button type="button" class="btn-back mac-btn-piccolo om-dao-btn" data-om-azione="aggiungi-dao">&#10133; Aggiungi riga</button>' : '') + '</div></div>';
     }
     const gruppi = omPerArticolo(pezzi);
@@ -269,7 +288,7 @@ function omHtmlDaOrdinare(pezzi) {
     Object.keys(omSelezione).forEach(id => { if (!gruppi.some(g => g.art && String(g.art.id) === id)) delete omSelezione[id]; });
     const totSel = Object.keys(omSelezione).reduce((t, id) => t + omSelezione[id], 0);
     let html = '<div class="om-blocco om-blocco-daord">' +
-        '<div class="om-blocco-titolo">&#128203; Da ordinare <small>(dagli ordini clienti, dal pi&ugrave; vecchio)</small>' +
+        '<div class="om-blocco-titolo">&#128203; Da ordinare <small>(' + (sezione ? 'spostate in questa sezione' : 'dagli ordini clienti') + ', dal pi&ugrave; vecchio)</small>' +
             (macOfPronto ? '<button type="button" class="btn-back mac-btn-piccolo om-dao-btn" data-om-azione="aggiungi-dao" title="Aggiungi un modello da ordinare per il magazzino">&#10133; Aggiungi riga</button>' : '') +
             '<label class="mac-check om-tutte"><input type="checkbox" id="om-sel-tutte"' + (gruppi.every(g => g.art && omSelezione[g.art.id]) ? ' checked' : '') + '> tutte</label></div>';
     gruppi.forEach(g => {
@@ -297,8 +316,59 @@ function omHtmlDaOrdinare(pezzi) {
         '<button type="button" class="btn-primary" data-om-azione="segna-ordinate"' + (totSel && macOfPronto ? '' : ' disabled') + '>&#9745;&#65039; Segna come ordinate' +
             (totSel ? ' (' + totSel + ')' : '') + '</button>' +
         '<small>Se ne ordini meno di quelle richieste vanno a chi ha ordinato per primo; se ne scrivi di pi&ugrave;, le altre arrivano libere per il magazzino.</small>' +
-    '</div></div>';
+    '</div>' + omHtmlDaoSposta(totSel, sezione) + '</div>';
     return html;
+}
+
+// Sposta le righe spuntate (ancora da ordinare) in un'altra pagina del marchio (v7.11.6)
+function omHtmlDaoSposta(totSel, sezione) {
+    if (!macOfPronto) return '';
+    const marchio = omSessione('omMarchio');
+    const qui = sezione ? sezione.id : null;
+    const pagine = [{ id: null, nome: 'ORDINI NORMALE' }].concat(omSezioniMarchio(marchio).filter(s => !s.chiusa).map(s => ({ id: s.id, nome: s.nome })))
+        .filter(pg => pg.id !== qui);
+    if (!pagine.length) return '';
+    return '<div class="om-dao-sposta">' +
+        '<label for="om-dao-sposta-dove">&#10145;&#65039; Sposta le spuntate' + (totSel ? ' (' + totSel + ')' : '') + ' in</label>' +
+        '<select id="om-dao-sposta-dove">' + pagine.map(pg => '<option value="' + (pg.id || OM_NORMALE) + '">' + macEsc(pg.nome) + '</option>').join('') + '</select>' +
+        '<button type="button" class="btn-back mac-btn-piccolo" data-om-azione="dao-sposta"' + (totSel ? '' : ' disabled') + '>Sposta</button>' +
+        '<small>Restano <strong>da ordinare</strong> (non vengono ordinate): le ritrovi in quella pagina. ' +
+            (pagine.length === 1 && !sezione ? 'Per un prestagionale crea prima la sezione con <strong>&#10133; Sezione</strong>.' : '') + '</small>' +
+    '</div>';
+}
+
+async function omDaoSposta() {
+    const marchio = omSessione('omMarchio');
+    const pezzi = omPezziSelezionati(marchio);
+    if (!pezzi.length) { await showCustomAlert('Spunta le righe da spostare.', 'Sposta', '&#8505;&#65039;'); return; }
+    const v = document.getElementById('om-dao-sposta-dove').value;
+    const dest = v && v !== OM_NORMALE ? Number(v) : null;
+    const sez = dest ? macOfSezione(dest) : null;
+    const nome = sez ? sez.nome : 'ORDINI NORMALE';
+    if (!window.confirm('Spostare ' + pezzi.length + (pezzi.length === 1 ? ' macchina' : ' macchine') + ' da ordinare in ' + nome + '?\n\n' +
+        'Restano DA ORDINARE (non vengono ordinate): le ritrovi in quella pagina.')) return;
+    const adesso = new Date().toISOString();
+    const utente = macUtente();
+    try {
+        const { error } = await supabaseClient.from('macchine_pezzi')
+            .update({ sezione_da_ordinare: dest, updated_at: adesso, updated_by: utente }).in('id', pezzi.map(p => p.id));
+        if (error) throw error;
+        pezzi.forEach(p => { p.sezione_da_ordinare = dest; });
+        await macRegistra(pezzi.map(p => ({
+            pezzo_id: p.id, articolo_id: p.articolo_id, tipo: 'ORDINE', stato_prima: 'DA_ORDINARE', stato_dopo: 'DA_ORDINARE',
+            cliente: p.cliente || null, matricola: null, netto: null, dettaglio: 'DA ORDINARE SPOSTATA IN ' + nome
+        })));
+    } catch (error) {
+        console.error('Errore sposta da ordinare:', error);
+        const manca = /sezione_da_ordinare/i.test(String(error.message || ''));
+        await showCustomAlert('Errore:<br>' + macEsc(error.message) +
+            (manca ? '<br><br>Esegui su Supabase lo script <strong>supabase/ordini-fornitore-da-ordinare.sql</strong>.' : ''), 'Errore', '&#10060;');
+        await omRicarica();
+        return;
+    }
+    omSelezione = {};
+    omSessione('omSezione', dest ? String(dest) : OM_NORMALE);   // si va nella pagina di destinazione
+    await omRicarica();
 }
 
 // ---------- Ordini fatti (blocchi con data e iniziali) ----------
@@ -392,7 +462,8 @@ function omApriFinestraOf(modo, marchio, pezzi) {
     document.getElementById('om-of-consegna').value = of ? (of.consegna || '') : '';
     document.getElementById('om-of-note').value = of ? (of.note || '') : '';
     const sel = document.getElementById('om-of-sezione');
-    let scelta = of ? (of.sezione_id || OM_NORMALE) : (modo === 'nuovo' ? sezioneCorrente : OM_NORMALE);
+    // v7.11.6: anche "Segna come ordinate" propone la pagina aperta (le righe da ordinare di una sezione restano li')
+    let scelta = of ? (of.sezione_id || OM_NORMALE) : ((modo === 'nuovo' || modo === 'segna') ? (sezioneCorrente || OM_NORMALE) : OM_NORMALE);
     sel.innerHTML = '<option value="' + OM_NORMALE + '">ORDINI NORMALE</option>' +
         sezioni.map(s => '<option value="' + s.id + '">' + macEsc(s.nome) + '</option>').join('');
     sel.value = String(scelta);
@@ -489,6 +560,13 @@ async function omSalvaFinestraOf() {
             let of = null;
             if (ancora.length) {
                 const creati = await macSegnaOrdinate(ancora, { data: data, operatore: operatore, sezione_id: sezioneId, consegna: consegna, note: note });
+                // ordinate: non sono piu' "da ordinare" di una sezione (se tornano da ordinare vanno in ORDINI NORMALE)
+                const conSez = ancora.filter(p => p.sezione_da_ordinare);
+                if (conSez.length) {
+                    const { error: eSez } = await supabaseClient.from('macchine_pezzi').update({ sezione_da_ordinare: null }).in('id', conSez.map(p => p.id));
+                    if (eSez) console.log('sezione_da_ordinare non svuotata:', eSez.message);
+                    else conSez.forEach(p => { p.sezione_da_ordinare = null; });
+                }
                 of = creati.find(o => o.marchio === marchio) || creati[0] || null;
             }
             if (libere.length) {
@@ -572,7 +650,11 @@ async function omSalvaDao() {
             ? macComponenti(r.art.id).map(c => ({ art: macArticolo(c.componente_id), n: c.quantita * r.n })).filter(x => x.art)
             : [{ art: r.art, n: r.n }];
         elenco.forEach(x => {
-            for (let k = 0; k < x.n; k++) nuovi.push({ articolo_id: x.art.id, stato: 'DA_ORDINARE', cliente: null, updated_at: adesso, updated_by: utente });
+            for (let k = 0; k < x.n; k++) {
+                const riga = { articolo_id: x.art.id, stato: 'DA_ORDINARE', cliente: null, updated_at: adesso, updated_by: utente };
+                if (omPaginaCorrente()) riga.sezione_da_ordinare = omPaginaCorrente();   // aggiunta da una sezione: resta li'
+                nuovi.push(riga);
+            }
         });
     });
     try {
@@ -1429,6 +1511,7 @@ document.addEventListener('DOMContentLoaded', () => {
         else if (az === 'modifica-sezione') omApriSezione(macOfSezione(Number(omSessione('omSezione'))));
         else if (az === 'carica-xls') omXlsApri();
         else if (az === 'aggiungi-dao') omApriDao();
+        else if (az === 'dao-sposta') omDaoSposta();
         else if (az === 'nuovo-of') {
             omOfInModifica = null;
             omOfRighe = [];
