@@ -1,5 +1,8 @@
 # Changelog App Magazzino
 
+## v7.9.8 - 2026-11-21 (PRODUZIONE)
+spsost ordine fornitore
+
 ## v7.9.7 - 2026-11-21 (PRODUZIONE)
 spostare ord prestagionale
 
