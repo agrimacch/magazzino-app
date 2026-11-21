@@ -4,7 +4,7 @@
 // Un buono per riga: cliente (chi lo compra), telefono, intestato a (chi lo riceve,
 // facoltativo), importo, scadenza, note. Numero progressivo che riparte da 1 ogni anno
 // (2026/1, 2026/2 ... 2027/1) come gli ordini clienti.
-// Il PDF e' un vero buono regalo su META' foglio A4 (in alto), con la linea da tagliare;
+// Il PDF e' un vero buono regalo su META' foglio A4 (in alto);
 // la "copia per il negozio" con i dati e la firma del cliente e' nella seconda pagina (v7.11.2).
 // Stati: VALIDO, IN SCADENZA (entro 30 giorni), SCADUTO, UTILIZZATO, ANNULLATO.
 // Tabella Supabase: buoni_regalo (script supabase/buoni-regalo-setup.sql).
@@ -14,7 +14,11 @@
 // eliminando il buono il PDF va nel cestino di Drive.
 // Per ora solo admin: BUONI_RUOLI in app.js + funzione buoni_puo_gestire() su Supabase.
 // v7.11: due tipi, BUONO REGALO (verde scuro, fiocco rosso, dedica) e BUONO SPESA (verde chiaro e oro, borsa della spesa):
-// v7.11.2: il PDF ha DUE pagine: pagina 1 il buono del cliente (meta' alta, con la linea da tagliare),
+// v7.11.3: buono speso A PIU' RIPRESE. Colonna buoni_regalo.utilizzi (jsonb, script supabase/buoni-utilizzi.sql):
+// elenco [{data, importo, note, operatore, at}]. Residuo = importo - speso; a residuo 0 il buono diventa UTILIZZATO
+// (utilizzato_at). Ogni spesa registrata / tolta rifa' il PDF su Drive (la copia per il negozio elenca le spese).
+// Tolta la linea "taglia qui".
+// v7.11.2: il PDF ha DUE pagine: pagina 1 il buono del cliente (meta' alta),
 // pagina 2 la copia per il negozio. Condizioni spostate nella fascia a sinistra, timbro piu' grande.
 // v7.11.1: modalita' di pagamento (colonna pagamento, script supabase/buoni-pagamento.sql): solo nell'app e sulla copia
 // per il negozio, mai sul buono del cliente. Filtro per tipo, riepilogo e Scarica Excel dei buoni filtrati.
@@ -146,7 +150,9 @@ function buoErrore(error, dove) {
     console.error('Buoni regalo - ' + dove + ':', error);
     const msg = error && error.message ? error.message : String(error);
     let extra = '';
-    if (/pagamento/i.test(msg) && /column|colonna|schema cache/i.test(msg)) {
+    if (/utilizzi/i.test(msg) && /column|colonna|schema cache/i.test(msg)) {
+        extra = '<br><br>Esegui su Supabase lo script <strong>supabase/buoni-utilizzi.sql</strong> (aggiunge le spese a pi&ugrave; riprese).';
+    } else if (/pagamento/i.test(msg) && /column|colonna|schema cache/i.test(msg)) {
         extra = '<br><br>Esegui su Supabase lo script <strong>supabase/buoni-pagamento.sql</strong> (aggiunge la modalit&agrave; di pagamento).';
     } else if (/tipo/i.test(msg) && /column|colonna|schema cache/i.test(msg)) {
         extra = '<br><br>Esegui su Supabase lo script <strong>supabase/buoni-tipo.sql</strong> (aggiunge il tipo regalo / spesa).';
@@ -179,6 +185,21 @@ function buoStato(b) {
     return 'VALIDO';
 }
 
+// ---------- Spese (utilizzo a piu' riprese) ----------
+function buoUtilizzi(b) {
+    return Array.isArray(b && b.utilizzi) ? b.utilizzi : [];
+}
+function buoCent(n) { return Math.round((Number(n) || 0) * 100) / 100; }
+// Speso: somma delle spese; un vecchio buono "utilizzato" senza spese scritte vale come speso tutto
+function buoSpeso(b) {
+    const u = buoUtilizzi(b);
+    if (u.length) return buoCent(u.reduce((t, x) => t + Number(x.importo || 0), 0));
+    return b.utilizzato_at ? buoCent(b.importo) : 0;
+}
+function buoResiduo(b) {
+    return Math.max(0, buoCent(Number(b.importo || 0) - buoSpeso(b)));
+}
+
 const BUO_STATI = {
     VALIDO:      { etichetta: 'Valido',       classe: 'buo-st-valido' },
     IN_SCADENZA: { etichetta: 'In scadenza',  classe: 'buo-st-scadenza' },
@@ -194,6 +215,7 @@ function buoBadge(b) {
         const g = buoGiorniA(b.scadenza);
         extra = g === 0 ? ' (oggi)' : ' (' + g + ' gg)';
     }
+    if (s !== 'UTILIZZATO' && s !== 'ANNULLATO' && buoSpeso(b) > 0) extra += ' &middot; usato in parte';
     return '<span class="buo-stato ' + BUO_STATI[s].classe + '">' + BUO_STATI[s].etichetta + extra + '</span>';
 }
 
@@ -268,17 +290,19 @@ function buoRender() {
     if (!box) return;
     // Riepilogo (segue i filtri tipo e anno): da usare, valore, in scadenza, utilizzati, scaduti non usati
     const base = buoBuoni.filter(b => (buoFiltroTipo === 'TUTTI' || buoTipo(b) === buoFiltroTipo) && (buoAnno === 'TUTTI' || String(b.anno) === String(buoAnno)));
-    const somma = l => l.reduce((t, b) => t + Number(b.importo || 0), 0);
+    const somma = l => l.reduce((t, b) => t + buoResiduo(b), 0);   // quello che resta da spendere
     const aperti = base.filter(b => ['VALIDO', 'IN_SCADENZA'].includes(buoStato(b)));
     const inScad = aperti.filter(b => buoStato(b) === 'IN_SCADENZA').length;
     const usati = base.filter(b => buoStato(b) === 'UTILIZZATO');
     const scaduti = base.filter(b => buoStato(b) === 'SCADUTO');
+    const spesoTot = base.filter(b => buoStato(b) !== 'ANNULLATO').reduce((t, b) => t + buoSpeso(b), 0);
     const riep = document.getElementById('buo-riepilogo');
     if (riep) {
         riep.innerHTML =
             '<div><span>Da usare</span><strong>' + aperti.length + ' &middot; ' + buoEuro(somma(aperti)) + '</strong></div>' +
             '<div' + (inScad ? ' class="avviso"' : '') + '><span>In scadenza (' + BUO_GIORNI_AVVISO + ' gg)</span><strong>' + inScad + '</strong></div>' +
-            '<div><span>Utilizzati</span><strong>' + usati.length + ' &middot; ' + buoEuro(somma(usati)) + '</strong></div>' +
+            '<div><span>Usati del tutto</span><strong>' + usati.length + '</strong></div>' +
+            '<div><span>Gi&agrave; speso dai clienti</span><strong>' + buoEuro(spesoTot) + '</strong></div>' +
             '<div' + (scaduti.length ? ' class="avviso"' : '') + '><span>Scaduti non usati</span><strong>' + scaduti.length + ' &middot; ' + buoEuro(somma(scaduti)) + '</strong></div>';
     }
 
@@ -292,7 +316,7 @@ function buoRender() {
         return;
     }
     box.innerHTML = '<table class="buo-tabella"><thead><tr>' +
-        '<th>N.</th><th>EMESSO</th><th>CLIENTE</th><th>TELEFONO</th><th>INTESTATO A</th><th class="buo-n">IMPORTO</th>' +
+        '<th>N.</th><th>EMESSO</th><th>CLIENTE</th><th>TELEFONO</th><th>INTESTATO A</th><th class="buo-n">VALORE</th>' +
         '<th>SCADENZA</th><th>STATO</th><th></th></tr></thead><tbody>' +
         lista.map(b => {
             const s = buoStato(b);
@@ -303,7 +327,10 @@ function buoRender() {
                 '<td><strong>' + buoEsc(b.cliente) + '</strong>' + (b.note ? '<span class="buo-note">' + buoEsc(b.note) + '</span>' : '') + '</td>' +
                 '<td>' + (tel ? '<a href="tel:' + buoEsc(tel.replace(/[^\d+]/g, '')) + '" onclick="event.stopPropagation()">' + buoEsc(tel) + '</a>' : '') + '</td>' +
                 '<td>' + buoEsc(b.intestato_a || '') + '</td>' +
-                '<td class="buo-n"><strong>' + buoEuro(b.importo) + '</strong>' + (b.pagamento ? '<span class="buo-note">' + buoEsc(b.pagamento) + '</span>' : '') + '</td>' +
+                '<td class="buo-n">' + (buoSpeso(b) > 0 && s !== 'ANNULLATO' && s !== 'UTILIZZATO'
+                    ? '<strong>' + buoEuro(buoResiduo(b)) + '</strong><span class="buo-note">residuo su ' + buoEuro(b.importo) + '</span>'
+                    : '<strong>' + buoEuro(b.importo) + '</strong>') +
+                    (b.pagamento ? '<span class="buo-note">' + buoEsc(b.pagamento) + '</span>' : '') + '</td>' +
                 '<td>' + buoDataIt(b.scadenza) + '</td>' +
                 '<td>' + buoBadge(b) + (b.utilizzato_at ? '<span class="buo-note">il ' + buoDataIt(String(b.utilizzato_at).slice(0, 10)) + '</span>' : '') + '</td>' +
                 '<td class="buo-az-riga"><button type="button" class="buo-btn-pdf" title="Stampa il buono" onclick="event.stopPropagation(); buoStampa(' + b.id + ')">&#128424;&#65039;</button>' +
@@ -347,8 +374,8 @@ function buoApriFinestra(b) {
     if (b) {
         const s = buoStato(b);
         let html = '<button type="button" class="btn-back buo-az" onclick="buoStampa(' + b.id + ')">&#128424;&#65039; Stampa buono</button>';
-        if (s !== 'ANNULLATO' && s !== 'UTILIZZATO') html += '<button type="button" class="btn-back buo-az buo-az-usa" onclick="buoSegnaUtilizzato()">&#9989; Segna utilizzato</button>';
-        if (s === 'UTILIZZATO') html += '<button type="button" class="btn-back buo-az" onclick="buoRimettiValido()">&#8617;&#65039; Non ancora utilizzato</button>';
+        if (s !== 'ANNULLATO' && s !== 'UTILIZZATO') html += '<button type="button" class="btn-back buo-az buo-az-usa" onclick="buoSegnaUtilizzato()">&#9989; Speso tutto (' + buoEuro(buoResiduo(b)) + ')</button>';
+        if (s === 'UTILIZZATO' && !buoUtilizzi(b).length) html += '<button type="button" class="btn-back buo-az" onclick="buoRimettiValido()">&#8617;&#65039; Non ancora utilizzato</button>';
         if (s !== 'ANNULLATO') html += '<button type="button" class="btn-back buo-az buo-az-annulla" onclick="buoAnnulla()">&#10060; Annulla buono</button>';
         else html += '<button type="button" class="btn-back buo-az" onclick="buoRipristina()">&#8617;&#65039; Ripristina</button>';
         html += '<button type="button" class="btn-back buo-az buo-az-annulla" onclick="buoElimina()">&#128465;&#65039; Elimina</button>';
@@ -358,6 +385,7 @@ function buoApriFinestra(b) {
         azioni.innerHTML = '';
         azioni.classList.add('hidden');
     }
+    buoRenderSpese(b);
     buoTipoCambiato();
     document.getElementById('buo-modal').classList.remove('hidden');
     if (!b && !(typeof isMobile === 'function' && isMobile())) setTimeout(() => document.getElementById('buo-f-cliente').focus(), 50);
@@ -424,6 +452,7 @@ async function buoSalva() {
     if (!valori.telefono) errori.push('Scrivi il <strong>telefono</strong>');
     if (!valori.importo) errori.push('Scrivi l&#39;<strong>importo</strong> (es. 50 oppure 50,00)');
     if (!valori.pagamento) errori.push('Scegli come &egrave; stato <strong>pagato</strong> il buono');
+    if (prima && valori.importo && valori.importo < buoSpeso(prima) - 0.001) errori.push('Il cliente ha gi&agrave; speso <strong>' + buoEuro(buoSpeso(prima)) + '</strong>: l&#39;importo non pu&ograve; essere pi&ugrave; basso');
     if (!valori.scadenza) errori.push('Scegli la <strong>scadenza</strong>');
     else if (valori.scadenza < valori.data) errori.push('La scadenza &egrave; prima della data di emissione');
     if (errori.length) {
@@ -489,13 +518,117 @@ async function buoAggiorna(campi, conferma, rifaiPdf) {
     if (rifaiPdf) buoSalvaSuDrive(data.id);   // annullato / ripristinato: PDF aggiornato su Drive
 }
 
-function buoSegnaUtilizzato() {
-    const b = buoModifica;
-    if (!b) return;
+// ---------- Spese a piu' riprese ----------
+// Riquadro nella finestra: valore, speso, residuo, elenco delle spese e modulo per una nuova spesa
+function buoRenderSpese(b) {
+    const box = document.getElementById('buo-f-spese');
+    if (!box) return;
+    if (!b) { box.innerHTML = ''; box.classList.add('hidden'); return; }
     const s = buoStato(b);
-    let msg = 'Segnare il buono N. ' + buoNumero(b) + ' (' + Number(b.importo).toFixed(2).replace('.', ',') + ' euro) come UTILIZZATO oggi?';
-    if (s === 'SCADUTO') msg += '\n\nAttenzione: il buono e\' SCADUTO il ' + buoDataIt(b.scadenza) + '.';
-    buoAggiorna({ utilizzato_at: new Date().toISOString() }, msg);
+    const u = buoUtilizzi(b);
+    const residuo = buoResiduo(b);
+    let html = '<div class="buo-spese-testa">' +
+        '<div><span>Valore</span><strong>' + buoEuro(b.importo) + '</strong></div>' +
+        '<div><span>Speso</span><strong>' + buoEuro(buoSpeso(b)) + '</strong></div>' +
+        '<div class="buo-spese-residuo"><span>Residuo</span><strong>' + buoEuro(residuo) + '</strong></div>' +
+    '</div>';
+    if (u.length) {
+        html += '<table class="buo-spese-tab"><thead><tr><th>DATA</th><th class="buo-n">SPESO</th><th>NOTE</th><th>OP</th><th></th></tr></thead><tbody>' +
+            u.map((x, i) => '<tr><td>' + buoDataIt(x.data) + '</td><td class="buo-n"><strong>' + buoEuro(x.importo) + '</strong></td>' +
+                '<td>' + buoEsc(x.note || '') + '</td><td>' + buoEsc(x.operatore || '') + '</td>' +
+                '<td><button type="button" class="buo-spese-togli" title="Togli questa spesa" onclick="buoTogliSpesa(' + i + ')">&#10006;</button></td></tr>').join('') +
+            '</tbody></table>';
+    } else if (b.utilizzato_at) {
+        html += '<div class="buo-spese-vuoto">Segnato come utilizzato tutto il ' + buoDataIt(String(b.utilizzato_at).slice(0, 10)) + '.</div>';
+    } else {
+        html += '<div class="buo-spese-vuoto">Nessuna spesa ancora.</div>';
+    }
+    if (s !== 'ANNULLATO' && residuo > 0) {
+        html += '<div class="buo-spese-nuova">' +
+            '<div><label for="buo-u-data">Data</label><input type="date" id="buo-u-data" value="' + buoOggi() + '"></div>' +
+            '<div><label for="buo-u-importo">Quanto ha speso (&euro;)</label><input type="text" id="buo-u-importo" inputmode="decimal" maxlength="12" autocomplete="off" placeholder="max ' + buoEuroNumero(residuo) + '"></div>' +
+            '<div class="buo-spese-nota"><label for="buo-u-note">Note <small>(es. n. scontrino)</small></label><input type="text" id="buo-u-note" maxlength="80" autocomplete="off"></div>' +
+            '<button type="button" class="btn-primary buo-spese-btn" onclick="buoRegistraSpesa()">&#10133; Registra spesa</button>' +
+        '</div>';
+    }
+    box.innerHTML = '<div class="buo-spese-titolo">&#128176; Spese del cliente con questo buono</div>' + html;
+    box.classList.remove('hidden');
+}
+
+// Riga del buono letta di nuovo dal database (se un collega ha appena registrato una spesa non la perdiamo)
+async function buoRileggi(id) {
+    const { data, error } = await supabaseClient.from('buoni_regalo').select('*').eq('id', id).single();
+    if (error) throw error;
+    return data;
+}
+
+// Salva l'elenco delle spese: a residuo zero il buono diventa UTILIZZATO, altrimenti torna non utilizzato
+async function buoSalvaSpese(b, utilizzi) {
+    const speso = buoCent(utilizzi.reduce((t, x) => t + Number(x.importo || 0), 0));
+    const finito = speso >= buoCent(b.importo) - 0.001;
+    let utilizzatoAt = null;
+    if (finito) {
+        const ultima = utilizzi[utilizzi.length - 1];
+        utilizzatoAt = ultima && ultima.data ? new Date(ultima.data + 'T12:00:00').toISOString() : new Date().toISOString();
+    }
+    const { data, error } = await supabaseClient.from('buoni_regalo')
+        .update({ utilizzi: utilizzi, utilizzato_at: utilizzatoAt, updated_at: new Date().toISOString(), updated_by: loggedInUserEmail || null })
+        .eq('id', b.id).select('*').single();
+    if (error) throw error;
+    const i = buoBuoni.findIndex(x => x.id === b.id);
+    if (i >= 0) buoBuoni[i] = data;
+    buoApriFinestra(data);
+    buoRender();
+    buoSalvaSuDrive(data.id);   // la copia per il negozio su Drive elenca le spese
+    return data;
+}
+
+async function buoRegistraSpesa(importoFisso) {
+    const b0 = buoModifica;
+    if (!b0) return;
+    let b;
+    try { b = await buoRileggi(b0.id); } catch (err) { buoErrore(err, 'lettura buono'); return; }
+    const residuo = buoResiduo(b);
+    const data = importoFisso ? buoOggi() : (document.getElementById('buo-u-data').value || buoOggi());
+    const importo = importoFisso ? residuo : buoLeggiImporto(document.getElementById('buo-u-importo').value);
+    const note = importoFisso ? '' : buoTesto(document.getElementById('buo-u-note').value);
+    const errori = [];
+    if (buoStato(b) === 'ANNULLATO') errori.push('Il buono &egrave; <strong>annullato</strong>');
+    if (residuo <= 0) errori.push('Il buono &egrave; gi&agrave; stato speso tutto');
+    if (!importo) errori.push('Scrivi <strong>quanto ha speso</strong> (es. 30 oppure 30,50)');
+    else if (importo > residuo + 0.001) errori.push('Ha speso ' + buoEuro(importo) + ' ma sul buono restano solo <strong>' + buoEuro(residuo) + '</strong>');
+    if (data > buoOggi()) errori.push('La data della spesa &egrave; nel futuro');
+    if (errori.length) { await showCustomAlert(errori.join('<br>'), 'Controlla la spesa', '&#9888;&#65039;'); return; }
+    const resta = buoCent(residuo - importo);
+    let msg = 'Registrare una spesa di ' + importo.toFixed(2).replace('.', ',') + ' euro sul buono N. ' + buoNumero(b) + '?\n\n' +
+        (resta > 0 ? 'Restano ' + resta.toFixed(2).replace('.', ',') + ' euro.' : 'Il buono risulta SPESO TUTTO (utilizzato).');
+    if (buoStato(b) === 'SCADUTO') msg += '\n\nAttenzione: il buono e\' SCADUTO il ' + buoDataIt(b.scadenza) + '.';
+    if (!window.confirm(msg)) return;
+    const nuove = buoUtilizzi(b).concat([{ data: data, importo: importo, note: note || null, operatore: buoMieIniziali() || null, at: new Date().toISOString() }])
+        .sort((x, y) => String(x.data).localeCompare(String(y.data)) || String(x.at || '').localeCompare(String(y.at || '')));
+    try { await buoSalvaSpese(b, nuove); } catch (err) { buoErrore(err, 'registrazione spesa'); }
+}
+
+async function buoTogliSpesa(indice) {
+    const b0 = buoModifica;
+    if (!b0) return;
+    const x = buoUtilizzi(b0)[indice];
+    if (!x) return;
+    if (!window.confirm('Togliere la spesa di ' + Number(x.importo).toFixed(2).replace('.', ',') + ' euro del ' + buoDataIt(x.data) + '?\n\nL\'importo torna disponibile sul buono.')) return;
+    let b;
+    try { b = await buoRileggi(b0.id); } catch (err) { buoErrore(err, 'lettura buono'); return; }
+    const u = buoUtilizzi(b).slice();
+    // stessa spesa anche se nel frattempo l'elenco e' cambiato
+    let k = u.findIndex(y => y.at && y.at === x.at);
+    if (k < 0) k = u.findIndex(y => y.data === x.data && Number(y.importo) === Number(x.importo));
+    if (k < 0) { showCustomAlert('Questa spesa non c&#39;&egrave; pi&ugrave; (forse l&#39;ha gi&agrave; tolta un collega).', 'Buoni', '&#9888;&#65039;'); buoApriFinestra(b); return; }
+    u.splice(k, 1);
+    try { await buoSalvaSpese(b, u); } catch (err) { buoErrore(err, 'rimozione spesa'); }
+}
+
+// "Speso tutto": una spesa di oggi per tutto il residuo
+function buoSegnaUtilizzato() {
+    return buoRegistraSpesa(true);
 }
 
 function buoRimettiValido() {
@@ -594,8 +727,6 @@ function buoHtml(b) {
                 (annullato ? '<div class="buo-annullato">ANNULLATO</div>' : '') +
             '</div>' +
         '</div>' +
-        // ---------- LINEA DA TAGLIARE ----------
-        '<div class="buo-taglio"><span>&#9986;&#65039; taglia qui</span></div>' +
         '</div>' +
         // ---------- PAGINA 2: COPIA PER IL NEGOZIO ----------
         '<div class="buo-pagina buo-pagina-negozio">' +
@@ -614,6 +745,7 @@ function buoHtml(b) {
                     '<tr><th>Pagato con</th><td>' + buoEsc(b.pagamento || '') + '</td><th>Tipo</th><td>' + BUO_TIPI[buoTipo(b)].nome + '</td></tr>' +
                     '<tr><th>Note</th><td colspan="3">' + buoEsc(b.note || '') + '</td></tr>' +
                 '</table>' +
+                buoCopiaSpeseHtml(b) +
                 '<div class="buo-copia-firme">' +
                     '<div><span>Firma del cliente</span></div>' +
                     '<div><span>Utilizzato il ____ / ____ / ________</span></div>' +
@@ -623,6 +755,15 @@ function buoHtml(b) {
         '</div>' +
         '</div>' +
     '</div>';
+}
+
+// Copia per il negozio: spese gia' fatte e residuo
+function buoCopiaSpeseHtml(b) {
+    const u = buoUtilizzi(b);
+    if (!u.length) return '';
+    return '<table class="buo-copia-tab buo-copia-spese"><tr><th>Data spesa</th><th>Speso</th><th>Note</th><th>Op.</th></tr>' +
+        u.map(x => '<tr><td>' + buoDataIt(x.data) + '</td><td>' + buoEuro(x.importo) + '</td><td>' + buoEsc(x.note || '') + '</td><td>' + buoEsc(x.operatore || '') + '</td></tr>').join('') +
+        '<tr class="buo-copia-residuo"><th>Residuo</th><td colspan="3">' + buoEuro(buoResiduo(b)) + ' su ' + buoEuro(b.importo) + '</td></tr></table>';
 }
 
 // PDF A4 verticale, senza margini, DUE pagine: ogni .buo-pagina (718 x 1015 px) diventa una pagina intera
@@ -730,17 +871,23 @@ function buoScaricaExcel() {
     const lista = buoFiltrati();
     if (!lista.length) { showCustomAlert('Nessun buono da scaricare con questi filtri.', 'Buoni', '&#9888;&#65039;'); return; }
     if (typeof XLSX === 'undefined') { showCustomAlert('Libreria Excel non caricata: aggiorna la pagina e riprova.', 'Errore', '&#10060;'); return; }
-    const righe = [['TIPO', 'NUMERO', 'EMESSO', 'CLIENTE', 'TELEFONO', 'INTESTATO A', 'IMPORTO', 'PAGATO CON', 'SCADENZA', 'STATO', 'UTILIZZATO IL', 'OPERATORE', 'NOTE']];
+    const righe = [['TIPO', 'NUMERO', 'EMESSO', 'CLIENTE', 'TELEFONO', 'INTESTATO A', 'IMPORTO', 'SPESO', 'RESIDUO', 'PAGATO CON', 'SCADENZA', 'STATO', 'UTILIZZATO IL', 'SPESE', 'OPERATORE', 'NOTE']];
     lista.forEach(b => righe.push([BUO_TIPI[buoTipo(b)].nome.toUpperCase(), buoNumero(b), buoDataIt(b.data), b.cliente, b.telefono, b.intestato_a || '',
-        Number(b.importo), b.pagamento || '', buoDataIt(b.scadenza), BUO_STATI[buoStato(b)].etichetta.toUpperCase(),
-        b.utilizzato_at ? buoDataIt(String(b.utilizzato_at).slice(0, 10)) : '', b.operatore || '', b.note || '']));
+        Number(b.importo), buoSpeso(b), buoResiduo(b), b.pagamento || '', buoDataIt(b.scadenza), BUO_STATI[buoStato(b)].etichetta.toUpperCase(),
+        b.utilizzato_at ? buoDataIt(String(b.utilizzato_at).slice(0, 10)) : '',
+        buoUtilizzi(b).map(x => buoDataIt(x.data) + ' ' + Number(x.importo).toFixed(2).replace('.', ',')).join('; '),
+        b.operatore || '', b.note || '']));
     const tot = lista.reduce((t, b) => t + Number(b.importo || 0), 0);
-    righe.push([], ['TOTALE', lista.length + ' buoni', '', '', '', '', Math.round(tot * 100) / 100]);
+    const spe = lista.reduce((t, b) => t + buoSpeso(b), 0);
+    const res = lista.reduce((t, b) => t + (buoStato(b) === 'ANNULLATO' ? 0 : buoResiduo(b)), 0);
+    righe.push([], ['TOTALE', lista.length + ' buoni', '', '', '', '', buoCent(tot), buoCent(spe), buoCent(res)]);
     const ws = XLSX.utils.aoa_to_sheet(righe);
-    ws['!cols'] = [14, 10, 11, 24, 14, 24, 11, 13, 11, 13, 13, 9, 30].map(w => ({ wch: w }));
+    ws['!cols'] = [14, 10, 11, 24, 14, 24, 11, 11, 11, 13, 11, 13, 13, 30, 9, 30].map(w => ({ wch: w }));
     for (let r = 1; r < righe.length; r++) {
-        const c = ws[XLSX.utils.encode_cell({ r: r, c: 6 })];
-        if (c && typeof c.v === 'number') c.z = '#,##0.00 \u20AC';
+        [6, 7, 8].forEach(col => {
+            const c = ws[XLSX.utils.encode_cell({ r: r, c: col })];
+            if (c && typeof c.v === 'number') c.z = '#,##0.00 \u20AC';
+        });
     }
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'BUONI');
@@ -884,6 +1031,8 @@ window.buoImpostaAnno = buoImpostaAnno;
 window.buoCambiaCerca = buoCambiaCerca;
 window.buoStampa = buoStampa;
 window.buoSegnaUtilizzato = buoSegnaUtilizzato;
+window.buoRegistraSpesa = buoRegistraSpesa;
+window.buoTogliSpesa = buoTogliSpesa;
 window.buoRimettiValido = buoRimettiValido;
 window.buoAnnulla = buoAnnulla;
 window.buoRipristina = buoRipristina;

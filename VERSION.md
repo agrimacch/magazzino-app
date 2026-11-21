@@ -1,5 +1,8 @@
 # Changelog App Magazzino
 
+## v7.9.5 - 2026-11-21 (PRODUZIONE)
+buoni spesa 2
+
 ## v7.9.4 - 2026-11-21 (PRODUZIONE)
 buono regalo
 

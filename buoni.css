@@ -679,3 +679,74 @@ a.buo-btn-pdf { display: inline-block; text-decoration: none; }
 .buo-tipo-spesa .buo-copia-testa { border-bottom-color: #8fb56f; }
 .buo-tipo-spesa .buo-copia-titolo,
 .buo-tipo-spesa .buo-copia-valore { color: #688E53; }
+
+/* ========================================
+   v7.11.3: SPESE A PIU' RIPRESE (finestra del buono e copia per il negozio)
+   ======================================== */
+.buo-spese {
+    margin-bottom: 14px;
+    padding: 10px 12px;
+    border: 2px solid #c9dcbb;
+    border-radius: var(--border-radius-sm);
+    background: #f8fbf5;
+}
+
+.buo-spese-titolo { font-weight: 700; color: #3f5a2c; margin-bottom: 8px; }
+
+.buo-spese-testa {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.buo-spese-testa > div {
+    background: #ffffff;
+    border: 1px solid #dfe9d6;
+    border-radius: 8px;
+    padding: 6px 8px;
+}
+
+.buo-spese-testa span { display: block; font-size: 11px; color: var(--gray); text-transform: uppercase; }
+.buo-spese-testa strong { font-size: 16px; }
+.buo-spese-testa .buo-spese-residuo { border-color: #688E53; background: #eef5e8; }
+.buo-spese-testa .buo-spese-residuo strong { color: #3f5a2c; font-size: 19px; }
+
+.buo-spese-tab { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 8px; background: #ffffff; }
+.buo-spese-tab th { text-align: left; font-size: 11px; color: var(--gray); padding: 4px 6px; border-bottom: 1px solid #dfe9d6; }
+.buo-spese-tab td { padding: 5px 6px; border-bottom: 1px solid #eef2ea; }
+.buo-spese-tab .buo-n { text-align: right; white-space: nowrap; }
+
+.buo-spese-togli {
+    background: none;
+    border: 1px solid #fca5a5;
+    color: #b91c1c;
+    border-radius: 6px;
+    padding: 1px 6px;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.buo-spese-vuoto { font-size: 13px; color: var(--gray); margin-bottom: 8px; }
+
+.buo-spese-nuova {
+    display: grid;
+    grid-template-columns: 150px 1fr;
+    gap: 4px 10px;
+    align-items: end;
+}
+
+.buo-spese-nuova label { margin-top: 0; font-size: 12px; }
+.buo-spese-nuova .buo-spese-nota { grid-column: 1 / -1; }
+.buo-spese-nuova .buo-spese-btn { grid-column: 1 / -1; margin-top: 4px; }
+
+@media (max-width: 520px) {
+    .buo-spese-testa strong { font-size: 14px; }
+    .buo-spese-nuova { grid-template-columns: 1fr; }
+}
+
+/* copia per il negozio */
+.buo-pagina-negozio .buo-meta { height: auto; }
+.buo-copia-spese { margin-top: 14px; }
+.buo-copia-spese th { width: auto; }
+.buo-copia-residuo th, .buo-copia-residuo td { font-weight: 700; color: #3f5a2c; }
