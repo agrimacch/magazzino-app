@@ -1,5 +1,8 @@
 # Changelog App Magazzino
 
+## v7.9.4 - 2026-11-21 (PRODUZIONE)
+buono regalo
+
 ## v7.9.3 - 2026-11-20 (PRODUZIONE)
 MODIFICA MATRICOLE
 
