@@ -184,7 +184,7 @@
                 <div class="dashboard-card" id="dashboard-ordini-card" onclick="openSection('ordini')" style="display: none;">
                     <span class="card-icon">&#128722;</span>
                     <h3>Ordini</h3>
-                    <p>Ordini clienti, ordini fornitore e buoni regalo</p>
+                    <p>Ordini clienti, ordini fornitore e buoni</p>
                 </div>
 
                 <!-- Card ASSISTENZA (ex Tecnici: Interventi Esterni, Richieste e Organizzazione interventi robot,
@@ -317,8 +317,8 @@
                     <!-- Card Buoni Regalo (admin e operatori: BUONI_RUOLI in app.js) -->
                     <div class="dashboard-card" id="vendite-buoni-card" onclick="openSection('buoni-regalo')" style="display: none;">
                         <span class="card-icon">&#127873;</span>
-                        <h3>Buoni Regalo</h3>
-                        <p>Buoni numerati da stampare su mezzo foglio A4</p>
+                        <h3>Buoni</h3>
+                        <p>Buoni regalo e buoni spesa numerati: pagina 1 il buono da tagliare, pagina 2 la copia per il negozio</p>
                     </div>
 
                     <!-- Card Ordini Clienti (admin e operatori) -->
@@ -1132,13 +1132,13 @@
                         &#127968; Dashboard
                     </button>
                 </div>
-                <h2 class="section-title">&#127873; Buoni Regalo</h2>
+                <h2 class="section-title">&#127873; Buoni</h2>
             </div>
             <div class="container">
                 <div id="buo-riepilogo" class="buo-riepilogo"></div>
                 <div class="buo-strumenti">
                     <button type="button" class="btn-primary" onclick="buoApriNuovo()">&#10133; Nuovo buono</button>
-                    <input type="search" class="buo-cerca" placeholder="Cerca numero, cliente, telefono..." autocomplete="off" oninput="buoCambiaCerca(this.value)">
+                    <input type="search" class="buo-cerca" placeholder="Cerca numero, cliente, telefono, spesa / regalo..." autocomplete="off" oninput="buoCambiaCerca(this.value)">
                     <select id="buo-filtro" onchange="buoImpostaFiltro(this.value)">
                         <option value="TUTTI">Tutti</option>
                         <option value="VALIDI">Da usare (validi)</option>
@@ -1148,6 +1148,12 @@
                         <option value="ANNULLATO">Annullati</option>
                     </select>
                     <select id="buo-anno" onchange="buoImpostaAnno(this.value)"></select>
+                    <select id="buo-tipo-filtro" onchange="buoImpostaTipo(this.value)">
+                        <option value="TUTTI">Regalo e spesa</option>
+                        <option value="REGALO">Solo buoni regalo</option>
+                        <option value="SPESA">Solo buoni spesa</option>
+                    </select>
+                    <button type="button" class="btn-back buo-btn-drive" onclick="buoScaricaExcel()" title="Scarica in Excel i buoni che vedi">&#128229; Excel</button>
                     <button type="button" id="buo-prova-drive" class="btn-back buo-btn-drive" onclick="buoProvaDrive()" title="Controlla il collegamento con Google Drive">&#128193; Prova Drive</button>
                 </div>
                 <p id="buo-conta" class="buo-conta"></p>
@@ -3337,6 +3343,13 @@
             </div>
             <div id="buo-f-azioni" class="buo-f-azioni hidden"></div>
 
+            <label>Tipo di buono</label>
+            <input type="hidden" id="buo-f-tipo" value="REGALO">
+            <div id="buo-f-tipo-scelte" class="int-scelte buo-f-tipi">
+                <button type="button" data-tipo="REGALO" onclick="buoScegliTipo('REGALO')">&#127873; Buono regalo</button>
+                <button type="button" data-tipo="SPESA" onclick="buoScegliTipo('SPESA')">&#128722; Buono spesa</button>
+            </div>
+
             <div class="buo-f-due">
                 <div class="form-col">
                     <label for="buo-f-data">Data di emissione</label>
@@ -3359,7 +3372,7 @@
                 </div>
             </div>
 
-            <label for="buo-f-intestato">Intestato a <small style="font-weight: 400; color: var(--gray);">(chi riceve il regalo; vuoto = il cliente)</small></label>
+            <label for="buo-f-intestato">Intestato a <small id="buo-f-intestato-aiuto" style="font-weight: 400; color: var(--gray);">(chi riceve il regalo; vuoto = il cliente)</small></label>
             <input type="text" id="buo-f-intestato" maxlength="80" autocomplete="off" placeholder="es. BIANCHI LUCIA">
 
             <div class="buo-f-due">
@@ -3378,6 +3391,17 @@
                 <button type="button" data-mesi="12" onclick="buoScegliDurata(12)">1 anno</button>
                 <button type="button" data-mesi="24" onclick="buoScegliDurata(24)">2 anni</button>
             </div>
+
+            <label for="buo-f-pagamento">Pagato con * <small style="font-weight: 400; color: var(--gray);">(solo per noi: non compare sul buono del cliente, solo sulla copia per il negozio)</small></label>
+            <select id="buo-f-pagamento">
+                <option value="">-- scegli --</option>
+                <option value="CONTANTI">Contanti</option>
+                <option value="POS / CARTA">POS / carta</option>
+                <option value="BONIFICO">Bonifico</option>
+                <option value="ASSEGNO">Assegno</option>
+                <option value="OMAGGIO">Omaggio (non pagato)</option>
+                <option value="ALTRO">Altro (scrivilo nelle note)</option>
+            </select>
 
             <label for="buo-f-note">Note <small style="font-weight: 400; color: var(--gray);">(solo sulla copia per il negozio)</small></label>
             <textarea id="buo-f-note" rows="2" maxlength="300"></textarea>

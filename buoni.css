@@ -221,12 +221,20 @@ a.buo-btn-pdf { display: inline-block; text-decoration: none; }
 /* ============================================ */
 .buo-foglio {
     width: 718px;
-    height: 1015px;
     background: #ffffff;
-    font-family: Arial, Helvetica, sans-serif;
+    font-family: 'Roboto Mono', monospace;
     color: #1f2937;
     position: relative;
     box-sizing: border-box;
+}
+
+/* v7.11.2: due pagine A4 (cliente e negozio) */
+.buo-pagina {
+    width: 718px;
+    height: 1015px;
+    background: #ffffff;
+    position: relative;
+    overflow: hidden;
 }
 
 .buo-meta {
@@ -285,16 +293,23 @@ a.buo-btn-pdf { display: inline-block; text-decoration: none; }
 }
 
 .buo-lato-regalo span {
-    font-size: 66px;
+    font-size: 58px;
     line-height: 1;
 }
 
 .buo-lato-regalo div {
     margin-top: 10px;
-    font-family: 'Kalam', 'Comic Sans MS', cursive;
-    font-size: 22px;
+    font-family: 'Roboto Mono', monospace;
+    font-size: 19px;
     line-height: 1.1;
     font-weight: 700;
+}
+
+.buo-lato-condizioni {
+    font-size: 7.5px;
+    line-height: 1.4;
+    color: rgba(255, 255, 255, 0.9);
+    margin-bottom: 9px;
 }
 
 .buo-lato-azienda {
@@ -353,12 +368,13 @@ a.buo-btn-pdf { display: inline-block; text-decoration: none; }
     align-items: flex-start;
     justify-content: space-between;
     gap: 10px;
-    height: 62px;
+    height: 54px;
 }
 
 .buo-titolo {
-    font-family: 'Kalam', 'Comic Sans MS', cursive;
-    font-size: 46px;
+    font-family: 'Roboto Mono', monospace;
+    font-size: 33px;
+    letter-spacing: -1px;
     font-weight: 700;
     line-height: 1.2;
     color: #3f5a2c;
@@ -377,11 +393,11 @@ a.buo-btn-pdf { display: inline-block; text-decoration: none; }
 }
 
 .buo-valore {
-    height: 76px;
-    margin-top: 8px;
+    height: 70px;
+    margin-top: 6px;
     display: flex;
     align-items: baseline;
-    line-height: 74px;
+    line-height: 68px;
     font-size: 54px;
     font-weight: 800;
     color: #111111;
@@ -399,7 +415,7 @@ a.buo-btn-pdf { display: inline-block; text-decoration: none; }
 }
 
 .buo-campo {
-    margin-top: 14px;
+    margin-top: 11px;
     border-bottom: 1.5px dashed #a7c493;
     padding-bottom: 3px;
     min-width: 0;
@@ -434,7 +450,7 @@ a.buo-btn-pdf { display: inline-block; text-decoration: none; }
 }
 
 .buo-dedica {
-    margin-top: 16px;
+    margin-top: 12px;
 }
 
 .buo-dedica span {
@@ -446,7 +462,7 @@ a.buo-btn-pdf { display: inline-block; text-decoration: none; }
 }
 
 .buo-dedica div {
-    height: 26px;
+    height: 22px;
     border-bottom: 1px dotted #a7c493;
 }
 
@@ -464,12 +480,14 @@ a.buo-btn-pdf { display: inline-block; text-decoration: none; }
     color: #6b7280;
 }
 
+.buo-piede { justify-content: flex-end; }
+
 .buo-timbro {
-    width: 128px;
-    height: 46px;
+    width: 230px;
+    height: 84px;
     border: 1.5px dashed #9ca3af;
     border-radius: 8px;
-    font-size: 9px;
+    font-size: 10px;
     color: #9ca3af;
     display: flex;
     align-items: flex-end;
@@ -594,3 +612,70 @@ a.buo-btn-pdf { display: inline-block; text-decoration: none; }
     font-size: 10px;
     color: #6b7280;
 }
+
+/* ========================================
+   v7.11: BUONO SPESA (fondo bianco, dettagli verde istituzionale e oro, borsa della spesa al posto del fiocco)
+   ======================================== */
+.buo-tipo-ico { font-size: 15px; }
+
+.buo-f-tipi { margin-bottom: 12px; }
+
+.buo-tipo-spesa .buo-card { border-color: #688E53; }
+
+/* v7.11.2: fascia a sinistra BIANCA, scritte scure */
+.buo-tipo-spesa .buo-lato {
+    background: #ffffff;
+    color: #3f5a2c;
+}
+
+.buo-tipo-spesa .buo-lato-condizioni { color: #6b7280; }
+
+.buo-tipo-spesa .buo-lato-azienda {
+    color: #4b5563;
+    border-top-color: #d6e6c8;
+}
+
+.buo-tipo-spesa .buo-lato-azienda strong { color: #3f5a2c; }
+
+/* striscia oro al posto del nastro rosso */
+.buo-tipo-spesa .buo-nastro {
+    background: linear-gradient(90deg, #a8841c, #e2c25a 50%, #a8841c);
+}
+
+/* borsa della spesa nel tondo, sulla striscia */
+.buo-tipo-spesa .buo-fiocco {
+    left: 185px;
+    top: 10px;
+    width: 84px;
+    height: 84px;
+}
+
+.buo-tipo-spesa .buo-dx { background: #ffffff; }
+
+.buo-tipo-spesa .buo-titolo { color: #688E53; }
+
+.buo-tipo-spesa .buo-numero {
+    color: #3f5a2c;
+    border-color: #8fb56f;
+}
+
+.buo-tipo-spesa .buo-valore {
+    border-top-color: #d6e6c8;
+    border-bottom-color: #d6e6c8;
+}
+
+.buo-tipo-spesa .buo-campo { border-bottom-color: #b5d39c; }
+
+.buo-spesa-frase {
+    margin-top: 14px;
+    padding: 8px 12px;
+    border-left: 4px solid #c9a227;
+    background: #fbf8e8;
+    color: #3f5a2c;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.buo-tipo-spesa .buo-copia-testa { border-bottom-color: #8fb56f; }
+.buo-tipo-spesa .buo-copia-titolo,
+.buo-tipo-spesa .buo-copia-valore { color: #688E53; }

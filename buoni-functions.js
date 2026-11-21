@@ -5,7 +5,7 @@
 // facoltativo), importo, scadenza, note. Numero progressivo che riparte da 1 ogni anno
 // (2026/1, 2026/2 ... 2027/1) come gli ordini clienti.
 // Il PDF e' un vero buono regalo su META' foglio A4 (in alto), con la linea da tagliare;
-// nella meta' in basso la "copia per il negozio" con i dati e la firma del cliente.
+// la "copia per il negozio" con i dati e la firma del cliente e' nella seconda pagina (v7.11.2).
 // Stati: VALIDO, IN SCADENZA (entro 30 giorni), SCADUTO, UTILIZZATO, ANNULLATO.
 // Tabella Supabase: buoni_regalo (script supabase/buoni-regalo-setup.sql).
 // PDF su Google Drive come gli ordini: Edge Function SEPARATA "buoni-drive" + script Google
@@ -13,6 +13,13 @@
 // Il PDF viene salvato da solo alla creazione e rifatto dopo modifica / annullo / ripristino;
 // eliminando il buono il PDF va nel cestino di Drive.
 // Per ora solo admin: BUONI_RUOLI in app.js + funzione buoni_puo_gestire() su Supabase.
+// v7.11: due tipi, BUONO REGALO (verde scuro, fiocco rosso, dedica) e BUONO SPESA (verde chiaro e oro, borsa della spesa):
+// v7.11.2: il PDF ha DUE pagine: pagina 1 il buono del cliente (meta' alta, con la linea da tagliare),
+// pagina 2 la copia per il negozio. Condizioni spostate nella fascia a sinistra, timbro piu' grande.
+// v7.11.1: modalita' di pagamento (colonna pagamento, script supabase/buoni-pagamento.sql): solo nell'app e sulla copia
+// per il negozio, mai sul buono del cliente. Filtro per tipo, riepilogo e Scarica Excel dei buoni filtrati.
+// colonna buoni_regalo.tipo ('REGALO' / 'SPESA', script supabase/buoni-tipo.sql). Stessa numerazione.
+// Cambiando il tipo il PDF su Drive viene rifatto (nome "BUONO SPESA ..." / "BUONO REGALO ...") e il vecchio va nel cestino.
 // ========================================
 
 const BUO_GIORNI_AVVISO = 30;     // "in scadenza" se mancano al massimo 30 giorni
@@ -40,6 +47,29 @@ const BUO_FIOCCO_SVG =
     // nodo
     '<rect x="30" y="21" width="14" height="13" rx="4" fill="#dc2626" stroke="#7f1d1d" stroke-width="1"/>' +
     '</svg>';
+
+// Borsa della spesa disegnata (SVG) per il buono spesa
+const BUO_BORSA_SVG =
+    '<svg xmlns="http://www.w3.org/2000/svg" width="84" height="84" viewBox="0 0 64 64">' +
+    '<circle cx="32" cy="32" r="31" fill="#ffffff" stroke="#c9a227" stroke-width="2"/>' +
+    '<path d="M24 24 C24 14 40 14 40 24" stroke="#3f5a2c" stroke-width="3" fill="none" stroke-linecap="round"/>' +
+    '<path d="M16 24 H48 L45 50 H19 Z" fill="#688E53" stroke="#3f5a2c" stroke-width="1.5" stroke-linejoin="round"/>' +
+    '<path d="M16 24 H48 L47.4 29 H16.6 Z" fill="#c9a227"/>' +
+    '<circle cx="25" cy="29" r="1.8" fill="#3f5a2c"/><circle cx="39" cy="29" r="1.8" fill="#3f5a2c"/>' +
+    '<text x="32" y="45" text-anchor="middle" font-family="Arial, sans-serif" font-size="13" font-weight="700" fill="#ffffff">&#8364;</text>' +
+    '</svg>';
+
+const BUO_TIPI = {
+    REGALO: { nome: 'Buono Regalo', icona: '&#127873;', file: 'BUONO REGALO' },
+    SPESA:  { nome: 'Buono Spesa',  icona: '&#128722;', file: 'BUONO SPESA' }
+};
+
+function buoTipo(b) {
+    return b && b.tipo === 'SPESA' ? 'SPESA' : 'REGALO';
+}
+
+const BUO_PAGAMENTI = ['CONTANTI', 'POS / CARTA', 'BONIFICO', 'ASSEGNO', 'OMAGGIO', 'ALTRO'];
+let buoFiltroTipo = 'TUTTI';
 
 let buoBuoni = [];
 let buoCaricati = false;
@@ -116,7 +146,11 @@ function buoErrore(error, dove) {
     console.error('Buoni regalo - ' + dove + ':', error);
     const msg = error && error.message ? error.message : String(error);
     let extra = '';
-    if (/buoni_regalo|does not exist|schema cache/i.test(msg)) {
+    if (/pagamento/i.test(msg) && /column|colonna|schema cache/i.test(msg)) {
+        extra = '<br><br>Esegui su Supabase lo script <strong>supabase/buoni-pagamento.sql</strong> (aggiunge la modalit&agrave; di pagamento).';
+    } else if (/tipo/i.test(msg) && /column|colonna|schema cache/i.test(msg)) {
+        extra = '<br><br>Esegui su Supabase lo script <strong>supabase/buoni-tipo.sql</strong> (aggiunge il tipo regalo / spesa).';
+    } else if (/buoni_regalo|does not exist|schema cache/i.test(msg)) {
         extra = '<br><br>Hai eseguito su Supabase lo script <strong>supabase/buoni-regalo-setup.sql</strong>?';
     } else if (/row-level security|violates/i.test(msg)) {
         extra = '<br><br>Non hai il permesso di gestire i buoni regalo.';
@@ -212,14 +246,17 @@ function buoCambiaCerca(v) {
     buoCercaTimer = setTimeout(() => { buoCerca = buoNorm(v); buoRender(); }, 200);
 }
 
+function buoImpostaTipo(v) { buoFiltroTipo = v; buoRender(); }
+
 function buoFiltrati() {
     return buoBuoni.filter(b => {
+        if (buoFiltroTipo !== 'TUTTI' && buoTipo(b) !== buoFiltroTipo) return false;
         if (buoAnno !== 'TUTTI' && String(b.anno) !== String(buoAnno)) return false;
         const s = buoStato(b);
         if (buoFiltro === 'VALIDI' && s !== 'VALIDO' && s !== 'IN_SCADENZA') return false;
         if (buoFiltro !== 'TUTTI' && buoFiltro !== 'VALIDI' && s !== buoFiltro) return false;
         if (buoCerca) {
-            const t = buoNorm([buoNumero(b), b.cliente, b.telefono, b.intestato_a, b.note, b.operatore].join(' '));
+            const t = buoNorm([buoNumero(b), b.cliente, b.telefono, b.intestato_a, b.note, b.operatore, BUO_TIPI[buoTipo(b)].nome, b.pagamento].join(' '));
             if (!buoCerca.split(' ').every(p => t.indexOf(p) >= 0)) return false;
         }
         return true;
@@ -229,15 +266,20 @@ function buoFiltrati() {
 function buoRender() {
     const box = document.getElementById('buo-elenco');
     if (!box) return;
-    // Riepilogo: buoni ancora da usare
-    const aperti = buoBuoni.filter(b => ['VALIDO', 'IN_SCADENZA'].includes(buoStato(b)));
+    // Riepilogo (segue i filtri tipo e anno): da usare, valore, in scadenza, utilizzati, scaduti non usati
+    const base = buoBuoni.filter(b => (buoFiltroTipo === 'TUTTI' || buoTipo(b) === buoFiltroTipo) && (buoAnno === 'TUTTI' || String(b.anno) === String(buoAnno)));
+    const somma = l => l.reduce((t, b) => t + Number(b.importo || 0), 0);
+    const aperti = base.filter(b => ['VALIDO', 'IN_SCADENZA'].includes(buoStato(b)));
     const inScad = aperti.filter(b => buoStato(b) === 'IN_SCADENZA').length;
+    const usati = base.filter(b => buoStato(b) === 'UTILIZZATO');
+    const scaduti = base.filter(b => buoStato(b) === 'SCADUTO');
     const riep = document.getElementById('buo-riepilogo');
     if (riep) {
         riep.innerHTML =
-            '<div><span>Buoni da usare</span><strong>' + aperti.length + '</strong></div>' +
-            '<div><span>Valore da usare</span><strong>' + buoEuro(aperti.reduce((t, b) => t + Number(b.importo || 0), 0)) + '</strong></div>' +
-            '<div' + (inScad ? ' class="avviso"' : '') + '><span>In scadenza (' + BUO_GIORNI_AVVISO + ' gg)</span><strong>' + inScad + '</strong></div>';
+            '<div><span>Da usare</span><strong>' + aperti.length + ' &middot; ' + buoEuro(somma(aperti)) + '</strong></div>' +
+            '<div' + (inScad ? ' class="avviso"' : '') + '><span>In scadenza (' + BUO_GIORNI_AVVISO + ' gg)</span><strong>' + inScad + '</strong></div>' +
+            '<div><span>Utilizzati</span><strong>' + usati.length + ' &middot; ' + buoEuro(somma(usati)) + '</strong></div>' +
+            '<div' + (scaduti.length ? ' class="avviso"' : '') + '><span>Scaduti non usati</span><strong>' + scaduti.length + ' &middot; ' + buoEuro(somma(scaduti)) + '</strong></div>';
     }
 
     const lista = buoFiltrati();
@@ -256,12 +298,12 @@ function buoRender() {
             const s = buoStato(b);
             const tel = String(b.telefono || '').trim();
             return '<tr class="buo-riga st-' + s.toLowerCase() + '" onclick="buoApriModifica(' + b.id + ')">' +
-                '<td class="buo-num">' + buoNumero(b) + '</td>' +
+                '<td class="buo-num"><span class="buo-tipo-ico" title="' + BUO_TIPI[buoTipo(b)].nome + '">' + BUO_TIPI[buoTipo(b)].icona + '</span> ' + buoNumero(b) + '</td>' +
                 '<td>' + buoDataIt(b.data) + '</td>' +
                 '<td><strong>' + buoEsc(b.cliente) + '</strong>' + (b.note ? '<span class="buo-note">' + buoEsc(b.note) + '</span>' : '') + '</td>' +
                 '<td>' + (tel ? '<a href="tel:' + buoEsc(tel.replace(/[^\d+]/g, '')) + '" onclick="event.stopPropagation()">' + buoEsc(tel) + '</a>' : '') + '</td>' +
                 '<td>' + buoEsc(b.intestato_a || '') + '</td>' +
-                '<td class="buo-n"><strong>' + buoEuro(b.importo) + '</strong></td>' +
+                '<td class="buo-n"><strong>' + buoEuro(b.importo) + '</strong>' + (b.pagamento ? '<span class="buo-note">' + buoEsc(b.pagamento) + '</span>' : '') + '</td>' +
                 '<td>' + buoDataIt(b.scadenza) + '</td>' +
                 '<td>' + buoBadge(b) + (b.utilizzato_at ? '<span class="buo-note">il ' + buoDataIt(String(b.utilizzato_at).slice(0, 10)) + '</span>' : '') + '</td>' +
                 '<td class="buo-az-riga"><button type="button" class="buo-btn-pdf" title="Stampa il buono" onclick="event.stopPropagation(); buoStampa(' + b.id + ')">&#128424;&#65039;</button>' +
@@ -285,9 +327,10 @@ function buoApriModifica(id) {
 function buoApriFinestra(b) {
     buoModifica = b;
     const oggi = buoOggi();
+    document.getElementById('buo-f-tipo').value = b ? buoTipo(b) : 'REGALO';
     document.getElementById('buo-modal-titolo').innerHTML = b
-        ? '&#127873; Buono regalo N. ' + buoNumero(b) + ' ' + buoBadge(b)
-        : '&#10133; Nuovo buono regalo';
+        ? BUO_TIPI[buoTipo(b)].icona + ' ' + BUO_TIPI[buoTipo(b)].nome + ' N. ' + buoNumero(b) + ' ' + buoBadge(b)
+        : '&#10133; Nuovo buono';
     document.getElementById('buo-f-data').value = b ? b.data : oggi;
     document.getElementById('buo-f-operatore').value = b ? (b.operatore || '') : buoMieIniziali();
     document.getElementById('buo-f-cliente').value = b ? b.cliente : '';
@@ -296,6 +339,7 @@ function buoApriFinestra(b) {
     document.getElementById('buo-f-importo').value = b ? String(Number(b.importo).toFixed(2)).replace('.', ',') : '';
     document.getElementById('buo-f-scadenza').value = b ? b.scadenza : buoPiuMesi(oggi, 12);
     document.getElementById('buo-f-note').value = b ? (b.note || '') : '';
+    document.getElementById('buo-f-pagamento').value = b && b.pagamento && BUO_PAGAMENTI.includes(b.pagamento) ? b.pagamento : '';
     buoAggiornaDurata();
 
     // Pulsanti dello stato (solo per un buono gia' salvato)
@@ -314,9 +358,25 @@ function buoApriFinestra(b) {
         azioni.innerHTML = '';
         azioni.classList.add('hidden');
     }
-    document.getElementById('buo-f-salva').innerHTML = b ? '&#128190; Salva modifiche' : '&#127873; Crea e stampa il buono';
+    buoTipoCambiato();
     document.getElementById('buo-modal').classList.remove('hidden');
     if (!b && !(typeof isMobile === 'function' && isMobile())) setTimeout(() => document.getElementById('buo-f-cliente').focus(), 50);
+}
+
+// Tipo scelto nella finestra: testi del pulsante e del campo "Intestato a"
+function buoTipoCambiato() {
+    const tipo = document.getElementById('buo-f-tipo').value === 'SPESA' ? 'SPESA' : 'REGALO';
+    const b = buoModifica;
+    document.getElementById('buo-f-salva').innerHTML = b
+        ? '&#128190; Salva modifiche' + (buoTipo(b) !== tipo ? ' (diventa ' + BUO_TIPI[tipo].nome.toLowerCase() + ')' : '')
+        : BUO_TIPI[tipo].icona + ' Crea e stampa il ' + BUO_TIPI[tipo].nome.toLowerCase();
+    document.getElementById('buo-f-intestato-aiuto').innerHTML = tipo === 'SPESA' ? '(chi lo user&agrave;; vuoto = il cliente)' : '(chi riceve il regalo; vuoto = il cliente)';
+    document.querySelectorAll('#buo-f-tipo-scelte button').forEach(x => x.classList.toggle('attivo', x.dataset.tipo === tipo));
+}
+
+function buoScegliTipo(tipo) {
+    document.getElementById('buo-f-tipo').value = tipo;
+    buoTipoCambiato();
 }
 
 function buoChiudiFinestra() {
@@ -348,6 +408,7 @@ async function buoProssimoNumero(anno) {
 async function buoSalva() {
     const prima = buoModifica;
     const valori = {
+        tipo: document.getElementById('buo-f-tipo').value === 'SPESA' ? 'SPESA' : 'REGALO',
         data: document.getElementById('buo-f-data').value || buoOggi(),
         operatore: buoTesto(document.getElementById('buo-f-operatore').value) || null,
         cliente: buoTesto(document.getElementById('buo-f-cliente').value),
@@ -355,12 +416,14 @@ async function buoSalva() {
         intestato_a: buoTesto(document.getElementById('buo-f-intestato').value) || null,
         importo: buoLeggiImporto(document.getElementById('buo-f-importo').value),
         scadenza: document.getElementById('buo-f-scadenza').value,
-        note: buoTesto(document.getElementById('buo-f-note').value) || null
+        note: buoTesto(document.getElementById('buo-f-note').value) || null,
+        pagamento: document.getElementById('buo-f-pagamento').value || null
     };
     const errori = [];
     if (!valori.cliente) errori.push('Scrivi il <strong>nome del cliente</strong>');
     if (!valori.telefono) errori.push('Scrivi il <strong>telefono</strong>');
     if (!valori.importo) errori.push('Scrivi l&#39;<strong>importo</strong> (es. 50 oppure 50,00)');
+    if (!valori.pagamento) errori.push('Scegli come &egrave; stato <strong>pagato</strong> il buono');
     if (!valori.scadenza) errori.push('Scegli la <strong>scadenza</strong>');
     else if (valori.scadenza < valori.data) errori.push('La scadenza &egrave; prima della data di emissione');
     if (errori.length) {
@@ -482,6 +545,7 @@ function buoHtml(b) {
     const nomeAz = az.ragione_sociale || '';
     const intestato = b.intestato_a || b.cliente;
     const annullato = buoStato(b) === 'ANNULLATO';
+    const spesa = buoTipo(b) === 'SPESA';
     // Nomi lunghi: carattere piu' piccolo, cosi' stanno sempre su una riga
     const lungo = String(intestato || '').length;
     const classeNome = lungo > 30 ? ' piccolissimo' : lungo > 22 ? ' piccolo' : '';
@@ -490,24 +554,28 @@ function buoHtml(b) {
         [az.telefono ? 'Tel. ' + buoEsc(az.telefono) : '', az.telefono_whatsapp ? 'WhatsApp ' + buoEsc(az.telefono_whatsapp) : ''].filter(Boolean).join(' &middot; '),
         [az.email ? buoEsc(az.email) : '', az.sito_web ? buoEsc(az.sito_web) : ''].filter(Boolean).join(' &middot; ')
     ].filter(Boolean);
-    return '<div class="buo-foglio">' +
-        // ---------- META' SUPERIORE: IL BUONO ----------
+    return '<div class="buo-foglio' + (spesa ? ' buo-tipo-spesa' : '') + '">' +
+        // ---------- PAGINA 1: IL BUONO PER IL CLIENTE ----------
+        '<div class="buo-pagina buo-pagina-cliente">' +
         '<div class="buo-meta buo-meta-buono">' +
             '<div class="buo-card">' +
                 // Fascia sinistra: logo, regalo, dati dell'azienda
                 '<div class="buo-lato">' +
-                    '<div class="buo-lato-logo"><img src="' + logo + '" alt="" class="buo-logo-ricolora"></div>' +
-                    '<div class="buo-lato-regalo"><span>&#127873;</span><div>Un pensiero<br>per te</div></div>' +
+                    '<div class="buo-lato-logo"><img src="' + logo + '" alt=""' + (spesa ? '' : ' class="buo-logo-ricolora"') + '></div>' +
+                    (spesa
+                        ? '<div class="buo-lato-regalo"><span>&#128722;</span><div>Buona<br>spesa!</div></div>'
+                        : '<div class="buo-lato-regalo"><span>&#127873;</span><div>Un pensiero<br>per te</div></div>') +
+                    '<div class="buo-lato-condizioni">' + BUO_CONDIZIONI + '</div>' +
                     '<div class="buo-lato-azienda"><strong>' + buoEsc(nomeAz) + '</strong>' +
                         righeAz.map(r => '<div class="buo-una-riga">' + r + '</div>').join('') + '</div>' +
                 '</div>' +
                 // Nastro rosso tra le due parti, con il fiocco
                 '<div class="buo-nastro"></div>' +
-                '<div class="buo-fiocco">' + BUO_FIOCCO_SVG + '</div>' +
+                '<div class="buo-fiocco">' + (spesa ? BUO_BORSA_SVG : BUO_FIOCCO_SVG) + '</div>' +
                 // Parte destra: titolo, valore, dati del buono
                 '<div class="buo-dx">' +
                     '<div class="buo-dx-testa">' +
-                        '<div class="buo-titolo">Buono Regalo</div>' +
+                        '<div class="buo-titolo">' + BUO_TIPI[buoTipo(b)].nome + '</div>' +
                         '<div class="buo-numero">N. <strong>' + buoNumero(b) + '</strong></div>' +
                     '</div>' +
                     '<div class="buo-valore"><span class="buo-valore-eur">&euro;</span>' + buoEuroNumero(b.importo) + '</div>' +
@@ -516,9 +584,10 @@ function buoHtml(b) {
                         '<div class="buo-campo"><span>Emesso il</span><strong>' + buoDataIt(b.data) + '</strong></div>' +
                         '<div class="buo-campo"><span>Valido fino al</span><strong>' + buoDataIt(b.scadenza) + '</strong></div>' +
                     '</div>' +
-                    '<div class="buo-dedica"><span>Dedica</span><div></div><div></div></div>' +
+                    (spesa
+                        ? '<div class="buo-spesa-frase">Da utilizzare per i tuoi acquisti nel nostro negozio</div>'
+                        : '<div class="buo-dedica"><span>Dedica</span><div></div><div></div></div>') +
                     '<div class="buo-piede">' +
-                        '<div class="buo-condizioni">' + BUO_CONDIZIONI + '</div>' +
                         '<div class="buo-timbro">Timbro e firma</div>' +
                     '</div>' +
                 '</div>' +
@@ -527,12 +596,14 @@ function buoHtml(b) {
         '</div>' +
         // ---------- LINEA DA TAGLIARE ----------
         '<div class="buo-taglio"><span>&#9986;&#65039; taglia qui</span></div>' +
-        // ---------- META' INFERIORE: COPIA PER IL NEGOZIO ----------
+        '</div>' +
+        // ---------- PAGINA 2: COPIA PER IL NEGOZIO ----------
+        '<div class="buo-pagina buo-pagina-negozio">' +
         '<div class="buo-meta buo-meta-copia">' +
             '<div class="buo-copia">' +
                 '<div class="buo-copia-testa">' +
                     '<img src="' + logo + '" alt="" class="buo-copia-logo">' +
-                    '<div class="buo-copia-titoli"><div class="buo-copia-titolo">BUONO REGALO N. ' + buoNumero(b) + '</div>' +
+                    '<div class="buo-copia-titoli"><div class="buo-copia-titolo">' + BUO_TIPI[buoTipo(b)].file + ' N. ' + buoNumero(b) + '</div>' +
                     '<div class="buo-copia-sotto">COPIA PER IL NEGOZIO &middot; ' + buoEsc(nomeAz) + '</div></div>' +
                     '<div class="buo-copia-valore">&euro; ' + buoEuroNumero(b.importo) + '</div>' +
                 '</div>' +
@@ -540,6 +611,7 @@ function buoHtml(b) {
                     '<tr><th>Cliente (acquirente)</th><td>' + buoEsc(b.cliente) + '</td><th>Telefono</th><td>' + buoEsc(b.telefono) + '</td></tr>' +
                     '<tr><th>Intestato a</th><td>' + buoEsc(intestato) + '</td><th>Operatore</th><td>' + buoEsc(b.operatore || '') + '</td></tr>' +
                     '<tr><th>Emesso il</th><td>' + buoDataIt(b.data) + '</td><th>Valido fino al</th><td>' + buoDataIt(b.scadenza) + '</td></tr>' +
+                    '<tr><th>Pagato con</th><td>' + buoEsc(b.pagamento || '') + '</td><th>Tipo</th><td>' + BUO_TIPI[buoTipo(b)].nome + '</td></tr>' +
                     '<tr><th>Note</th><td colspan="3">' + buoEsc(b.note || '') + '</td></tr>' +
                 '</table>' +
                 '<div class="buo-copia-firme">' +
@@ -549,10 +621,12 @@ function buoHtml(b) {
                 (annullato ? '<div class="buo-annullato piccolo">ANNULLATO</div>' : '') +
             '</div>' +
         '</div>' +
+        '</div>' +
     '</div>';
 }
 
-// PDF A4 verticale, senza margini: il foglio (718 x 1015 px) diventa l'intera pagina.
+// PDF A4 verticale, senza margini, DUE pagine: ogni .buo-pagina (718 x 1015 px) diventa una pagina intera
+// (1 = buono per il cliente, 2 = copia per il negozio).
 // formato: 'blob' (per aprirlo / stamparlo) oppure 'base64' (per Drive)
 async function buoCreaPdfBlob(b) {
     return buoCreaPdf(b, 'blob');
@@ -582,10 +656,14 @@ async function buoCreaPdf(b, formato) {
         if (document.fonts && document.fonts.ready) { try { await document.fonts.ready; } catch (e) { /* niente */ } }
         buoStringiUnaRiga(el);
         window.scrollTo(0, 0);
-        const canvas = await window.html2canvas(el, { scale: 2.5, backgroundColor: '#ffffff', useCORS: true, logging: false, scrollX: 0, scrollY: 0 });
         const pdf = new window.jspdf.jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
-        pdf.addImage(canvas.toDataURL('image/jpeg', 0.94), 'JPEG', 0, 0, 210, 297);
-        pdf.setProperties({ title: 'Buono regalo ' + buoNumero(b) });
+        const pagine = Array.from(el.querySelectorAll('.buo-pagina'));
+        for (let i = 0; i < pagine.length; i++) {
+            const canvas = await window.html2canvas(pagine[i], { scale: 2.5, backgroundColor: '#ffffff', useCORS: true, logging: false, scrollX: 0, scrollY: 0 });
+            if (i > 0) pdf.addPage('a4', 'portrait');
+            pdf.addImage(canvas.toDataURL('image/jpeg', 0.94), 'JPEG', 0, 0, 210, 297);
+        }
+        pdf.setProperties({ title: BUO_TIPI[buoTipo(b)].nome + ' ' + buoNumero(b) });
         if (formato === 'base64') return String(pdf.output('datauristring')).split(',')[1];
         return pdf.output('blob');
     } finally {
@@ -644,7 +722,29 @@ function buoLogoPuntinoRosso(src) {
 
 function buoNomeFile(b) {
     const nome = String(b.intestato_a || b.cliente || '').replace(/[^A-Z0-9 ]+/gi, ' ').replace(/\s+/g, ' ').trim().slice(0, 40);
-    return 'BUONO REGALO ' + String(b.numero).padStart(4, '0') + '-' + b.anno + (nome ? ' ' + nome : '') + '.pdf';
+    return BUO_TIPI[buoTipo(b)].file + ' ' + String(b.numero).padStart(4, '0') + '-' + b.anno + (nome ? ' ' + nome : '') + '.pdf';
+}
+
+// Elenco dei buoni filtrati in Excel (con pagamento e stato)
+function buoScaricaExcel() {
+    const lista = buoFiltrati();
+    if (!lista.length) { showCustomAlert('Nessun buono da scaricare con questi filtri.', 'Buoni', '&#9888;&#65039;'); return; }
+    if (typeof XLSX === 'undefined') { showCustomAlert('Libreria Excel non caricata: aggiorna la pagina e riprova.', 'Errore', '&#10060;'); return; }
+    const righe = [['TIPO', 'NUMERO', 'EMESSO', 'CLIENTE', 'TELEFONO', 'INTESTATO A', 'IMPORTO', 'PAGATO CON', 'SCADENZA', 'STATO', 'UTILIZZATO IL', 'OPERATORE', 'NOTE']];
+    lista.forEach(b => righe.push([BUO_TIPI[buoTipo(b)].nome.toUpperCase(), buoNumero(b), buoDataIt(b.data), b.cliente, b.telefono, b.intestato_a || '',
+        Number(b.importo), b.pagamento || '', buoDataIt(b.scadenza), BUO_STATI[buoStato(b)].etichetta.toUpperCase(),
+        b.utilizzato_at ? buoDataIt(String(b.utilizzato_at).slice(0, 10)) : '', b.operatore || '', b.note || '']));
+    const tot = lista.reduce((t, b) => t + Number(b.importo || 0), 0);
+    righe.push([], ['TOTALE', lista.length + ' buoni', '', '', '', '', Math.round(tot * 100) / 100]);
+    const ws = XLSX.utils.aoa_to_sheet(righe);
+    ws['!cols'] = [14, 10, 11, 24, 14, 24, 11, 13, 11, 13, 13, 9, 30].map(w => ({ wch: w }));
+    for (let r = 1; r < righe.length; r++) {
+        const c = ws[XLSX.utils.encode_cell({ r: r, c: 6 })];
+        if (c && typeof c.v === 'number') c.z = '#,##0.00 \u20AC';
+    }
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'BUONI');
+    XLSX.writeFile(wb, 'BUONI_' + buoOggi() + '.xlsx');
 }
 
 function buoStampa(id) {
@@ -770,6 +870,10 @@ function buoAvviaTempoReale() {
 // ========================================
 window.openBuoniRegalo = openBuoniRegalo;
 window.buoApriNuovo = buoApriNuovo;
+window.buoScegliTipo = buoScegliTipo;
+window.buoImpostaTipo = buoImpostaTipo;
+window.buoScaricaExcel = buoScaricaExcel;
+window.buoTipoCambiato = buoTipoCambiato;
 window.buoApriModifica = buoApriModifica;
 window.buoChiudiFinestra = buoChiudiFinestra;
 window.buoSalva = buoSalva;
