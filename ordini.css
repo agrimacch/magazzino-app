@@ -1225,3 +1225,28 @@
     font-size: 16px;
     color: #166534;
 }
+
+/* v7.11.4: piu' acconti con la data */
+.ord-pagamento-riga .ord-acconti { flex-basis: 100%; }
+.ord-acconti-vuoto { font-size: 13px; color: var(--gray); margin: 2px 0 6px; }
+.ord-acconto-riga {
+    display: grid;
+    grid-template-columns: 150px 120px minmax(150px, 210px) auto;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 6px;
+}
+.ord-acconto-riga input, .ord-acconto-riga select { margin: 0; }
+.ord-acconto-togli {
+    background: none;
+    border: 1px solid #fca5a5;
+    color: #b91c1c;
+    border-radius: 6px;
+    padding: 4px 9px;
+    cursor: pointer;
+}
+.ord-acconto-aggiungi { padding: 6px 12px; font-size: 13px; }
+@media (max-width: 600px) {
+    .ord-acconto-riga { grid-template-columns: 1fr 1fr auto; }
+    .ord-acconto-riga select { grid-column: 1 / 3; grid-row: 2; }
+}

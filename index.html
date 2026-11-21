@@ -1287,13 +1287,11 @@
                                 <label for="ord-metodo">Metodo di pagamento</label>
                                 <select id="ord-metodo"><option value="">- scegli -</option><option>CONTANTI</option><option>CARTA DI CREDITO</option><option>BONIFICO</option><option>BONIFICO ANTICIPATO</option><option>ASSEGNO</option></select>
                             </div>
-                            <div class="ord-acconto">
-                                <label for="ord-acconto">Acconto versato <small>(in euro: si scala dal totale)</small></label>
-                                <input type="text" id="ord-acconto" inputmode="decimal" autocomplete="off" placeholder="nessuno">
-                            </div>
-                            <div class="ord-metodo ord-solo-acconto hidden">
-                                <label for="ord-metodo-acconto">Acconto pagato con</label>
-                                <select id="ord-metodo-acconto"><option value="">- scegli -</option><option>CONTANTI</option><option>CARTA DI CREDITO</option><option>BONIFICO</option><option>BONIFICO ANTICIPATO</option><option>ASSEGNO</option></select>
+                            <!-- v7.11.4: piu' acconti, ognuno con data, importo e metodo -->
+                            <div class="ord-acconti">
+                                <label>Acconti versati <small>(uno per ogni versamento, con la sua data: si scalano dal totale)</small></label>
+                                <div id="ord-acconti-lista"></div>
+                                <button type="button" class="btn-back ord-acconto-aggiungi" onclick="ordAggiungiAcconto()">&#10133; Aggiungi acconto</button>
                             </div>
                             <div class="ord-metodo ord-solo-acconto hidden">
                                 <label for="ord-metodo-saldo">Saldo da pagare con</label>
@@ -1303,6 +1301,10 @@
                                 <input type="checkbox" id="ord-pagato">
                                 <span>&#128182; Pagato <small>(timbro PAGATO sul PDF)</small></span>
                             </label>
+                            <div id="ord-saldo-data-box" class="ord-consegnato-data hidden">
+                                <label for="ord-saldo-data">Data del saldo</label>
+                                <input type="date" id="ord-saldo-data">
+                            </div>
                             <div id="ord-consegnato-box">
                                 <label class="ord-check-pagato">
                                     <input type="checkbox" id="ord-consegnato">
@@ -2875,13 +2877,13 @@
     <div id="ord-consegna-modal" class="modal hidden">
         <div class="modal-content mac-modal-content">
             <div class="modal-header">
-                <h3>&#9989; Consegnato al cliente</h3>
+                <h3 id="ord-consegna-titolo">&#9989; Consegnato al cliente</h3>
                 <button type="button" class="modal-close" id="ord-consegna-close">&times;</button>
             </div>
             <div id="ord-consegna-testo" class="mac-info"></div>
-            <label for="ord-consegna-data">Data di consegna</label>
+            <label for="ord-consegna-data" id="ord-consegna-etichetta">Data di consegna</label>
             <input type="date" id="ord-consegna-data">
-            <p class="mac-aiuto">La data va sul PDF dell'ordine (che si aggiorna da solo, anche su Google Drive) e nel quaderno.</p>
+            <p class="mac-aiuto" id="ord-consegna-aiuto">La data va sul PDF dell'ordine (che si aggiorna da solo, anche su Google Drive) e nel quaderno.</p>
             <div class="modal-buttons">
                 <button type="button" id="ord-consegna-ok" class="btn-primary">&#10004; Conferma consegna</button>
                 <button type="button" id="ord-consegna-annulla" class="btn-secondary">Annulla</button>

@@ -32,7 +32,13 @@ const ORD_TIMBRO_PAGATO = 'timbro-pagato.png';
 // Metodi di pagamento (complessivo; con l'acconto: metodo dell'acconto e del saldo). Colonne metodo_pagamento,
 // metodo_acconto, metodo_saldo di macchine_ordini (supabase/ordini-pagamento.sql)
 const ORD_METODI = ['CONTANTI', 'CARTA DI CREDITO', 'BONIFICO', 'BONIFICO ANTICIPATO', 'ASSEGNO'];
-const ORD_CAMPI_METODO = { 'ord-metodo': 'metodo_pagamento', 'ord-metodo-acconto': 'metodo_acconto', 'ord-metodo-saldo': 'metodo_saldo' };
+// v7.11.4: il metodo dell'acconto e' su ogni acconto (metodo_acconto = metodi degli acconti, per compatibilita')
+const ORD_CAMPI_METODO = { 'ord-metodo': 'metodo_pagamento', 'ord-metodo-saldo': 'metodo_saldo' };
+// v7.11.4: PIU' ACCONTI, ognuno con data, importo e metodo (colonna acconti jsonb di macchine_ordini:
+// [{data, importo, metodo, operatore, at}]); acconto = somma degli acconti. Data del saldo: colonna saldo_data
+// (chiesta quando si segna "Pagato"). Script supabase/ordini-acconti.sql. Vecchi ordini con un solo acconto senza
+// data: in modifica diventa un acconto con la data dell'ordine.
+let ordAcconti = [];   // acconti nel modulo: {data, importo (testo), metodo, operatore, at}
 let ordTimbroPronto = false;
 (function () {
     const img = new Image();
@@ -132,11 +138,17 @@ function ordTimestampConsegna(dataISO) {
 }
 
 // Chiede la data di consegna (oggi proposto). Restituisce 'YYYY-MM-DD' oppure null (annullato)
-function ordChiediDataConsegna(testo) {
+// opzioni (v7.11.4, per la data del saldo): { titolo, etichetta, aiuto, ok, errore }
+function ordChiediDataConsegna(testo, opzioni) {
+    const op = opzioni || {};
     return new Promise(resolve => {
         const modal = document.getElementById('ord-consegna-modal');
         const campo = document.getElementById('ord-consegna-data');
         document.getElementById('ord-consegna-testo').innerHTML = testo;
+        document.getElementById('ord-consegna-titolo').innerHTML = op.titolo || '&#9989; Consegnato al cliente';
+        document.getElementById('ord-consegna-etichetta').innerHTML = op.etichetta || 'Data di consegna';
+        document.getElementById('ord-consegna-aiuto').innerHTML = op.aiuto || 'La data va sul PDF dell&#39;ordine (che si aggiorna da solo, anche su Google Drive) e nel quaderno.';
+        document.getElementById('ord-consegna-ok').innerHTML = op.ok || '&#10004; Conferma consegna';
         campo.value = ordOggiISO();
         campo.max = ordOggiISO();
         const fine = (valore) => {
@@ -146,7 +158,7 @@ function ordChiediDataConsegna(testo) {
         };
         document.getElementById('ord-consegna-ok').onclick = () => {
             if (!campo.value) { campo.focus(); return; }
-            if (campo.value > ordOggiISO()) { showCustomAlert('La data di consegna non pu&ograve; essere nel futuro', 'Controlla', '&#9888;&#65039;'); return; }
+            if (campo.value > ordOggiISO()) { showCustomAlert(op.errore || 'La data di consegna non pu&ograve; essere nel futuro', 'Controlla', '&#9888;&#65039;'); return; }
             fine(campo.value);
         };
         document.getElementById('ord-consegna-annulla').onclick = () => fine(null);
@@ -476,8 +488,10 @@ function ordNuovoModulo() {
     ordImpostaDocumento(null);
     document.getElementById('ord-senza-installazione').checked = false;
     document.getElementById('ord-sconto').value = '';
-    document.getElementById('ord-acconto').value = '';
+    ordAcconti = [];
+    ordRenderAcconti();
     document.getElementById('ord-pagato').checked = false;
+    document.getElementById('ord-saldo-data').value = '';
     document.getElementById('ord-consegnato').checked = false;
     document.getElementById('ord-consegnato-data').value = ordOggiISO();
     document.getElementById('ord-consegnato-data-box').classList.add('hidden');
@@ -737,15 +751,78 @@ function ordLeggiSconto() {
     return { euro: Math.round(n * 100) / 100, percento: null, errore: null };
 }
 
-// Legge il campo acconto: { euro, errore } (il controllo sul totale lo fa ordAggiornaTotale)
+// Colonna nuova mancante su Supabase: quale script eseguire
+function ordSuggerisciScript(error) {
+    const msg = String(error && error.message || '');
+    if (/acconti|saldo_data/i.test(msg)) return '<br><br>Esegui su Supabase lo script <strong>supabase/ordini-acconti.sql</strong> (acconti con la data e data del saldo).';
+    return '';
+}
+
+// ---------- Acconti (v7.11.4: piu' acconti, ognuno con la sua data) ----------
+// Acconti di un ordine salvato: dalla colonna acconti; vecchi ordini: un acconto senza data
+function ordAccontiOrdine(o) {
+    if (!o) return [];
+    if (Array.isArray(o.acconti) && o.acconti.length) return o.acconti;
+    return Number(o.acconto) > 0 ? [{ data: null, importo: Number(o.acconto), metodo: o.metodo_acconto || null }] : [];
+}
+
+// Testo "Acconto del 21/11/2026" (o "Acconto versato" se manca la data)
+function ordEtichettaAcconto(a) {
+    return a && a.data ? 'Acconto del ' + ordDataIt(a.data) : 'Acconto versato';
+}
+
+function ordRenderAcconti() {
+    const box = document.getElementById('ord-acconti-lista');
+    if (!box) return;
+    const opz = (sel) => '<option value="">- metodo -</option>' + ORD_METODI.map(m => '<option' + (m === sel ? ' selected' : '') + '>' + m + '</option>').join('');
+    box.innerHTML = !ordAcconti.length ? '<div class="ord-acconti-vuoto">Nessun acconto.</div>' :
+        ordAcconti.map((a, i) => '<div class="ord-acconto-riga">' +
+            '<input type="date" value="' + macEsc(a.data || '') + '" max="' + ordOggiISO() + '" title="Data dell&#39;acconto" onchange="ordAccontoCampo(' + i + ', \'data\', this.value)">' +
+            '<input type="text" inputmode="decimal" autocomplete="off" placeholder="euro" value="' + macEsc(a.importo === null || a.importo === undefined ? '' : String(a.importo).replace('.', ',')) + '" oninput="ordAccontoCampo(' + i + ', \'importo\', this.value)">' +
+            '<select title="Pagato con" onchange="ordAccontoCampo(' + i + ', \'metodo\', this.value)">' + opz(a.metodo) + '</select>' +
+            '<button type="button" class="ord-acconto-togli" title="Togli questo acconto" onclick="ordTogliAcconto(' + i + ')">&#10006;</button>' +
+        '</div>').join('');
+}
+
+function ordAggiungiAcconto() {
+    // il primo acconto di un ordine nuovo e' di solito di oggi (versato insieme all'ordine)
+    ordAcconti.push({ data: ordOggiISO(), importo: '', metodo: '' });
+    ordRenderAcconti();
+    ordAggiornaTotale();
+    const campi = document.querySelectorAll('#ord-acconti-lista .ord-acconto-riga input[inputmode="decimal"]');
+    if (campi.length) campi[campi.length - 1].focus();
+}
+
+function ordTogliAcconto(i) {
+    ordAcconti.splice(i, 1);
+    ordRenderAcconti();
+    ordAggiornaTotale();
+}
+
+function ordAccontoCampo(i, campo, valore) {
+    if (!ordAcconti[i]) return;
+    ordAcconti[i][campo] = valore;
+    ordAggiornaTotale();
+}
+
+// Acconti del modulo: { euro (somma), lista (validi, da salvare), errore }
 function ordLeggiAcconto(totale) {
-    const el = document.getElementById('ord-acconto');
-    const testo = el ? String(el.value || '').trim() : '';
-    if (!testo) return { euro: 0, errore: null };
-    const n = listinoParseNumero(testo);
-    if (typeof n !== 'number' || isNaN(n) || n < 0) return { euro: 0, errore: 'Acconto: scrivi un importo in euro (es. 200)' };
-    if (totale !== undefined && n > totale + 0.001) return { euro: 0, errore: 'Acconto: non pu&ograve; essere pi&ugrave; alto del totale' };
-    return { euro: Math.round(n * 100) / 100, errore: null };
+    const lista = [];
+    let errore = null;
+    ordAcconti.forEach((a, i) => {
+        const testo = String(a.importo === null || a.importo === undefined ? '' : a.importo).trim();
+        if (!testo && !a.metodo) return;   // riga vuota: si ignora
+        const n = listinoParseNumero(testo);
+        if (!testo || typeof n !== 'number' || isNaN(n) || n <= 0) { errore = errore || 'Acconto ' + (i + 1) + ': scrivi l&#39;importo in euro (es. 200)'; return; }
+        if (!a.data) { errore = errore || 'Acconto ' + (i + 1) + ': manca la data'; return; }
+        if (a.data > ordOggiISO()) { errore = errore || 'Acconto ' + (i + 1) + ': la data &egrave; nel futuro'; return; }
+        lista.push({ data: a.data, importo: Math.round(n * 100) / 100, metodo: a.metodo || null,
+            operatore: a.operatore || (typeof macUtente === 'function' ? macUtente() : null), at: a.at || new Date().toISOString() });
+    });
+    lista.sort((x, y) => String(x.data).localeCompare(String(y.data)));
+    const euro = Math.round(lista.reduce((t, a) => t + a.importo, 0) * 100) / 100;
+    if (!errore && totale !== undefined && euro > totale + 0.001) errore = 'Acconti: la somma (' + macEuro(euro) + ') &egrave; pi&ugrave; alta del totale';
+    return { euro: errore ? 0 : euro, lista: errore ? [] : lista, errore: errore };
 }
 
 function ordTotaleForm() {
@@ -762,7 +839,14 @@ function ordCampiPagamento(prima) {
     const pagato = document.getElementById('ord-pagato').checked;
     const c = {};
     if (ac.euro > 0 || (prima && Number(prima.acconto) > 0)) c.acconto = ac.euro > 0 ? ac.euro : null;
+    // elenco degli acconti con le date (mandato solo se c'e' o c'era: i vecchi ordini funzionano anche senza la colonna)
+    if (ac.lista.length || (prima && Array.isArray(prima.acconti) && prima.acconti.length)) c.acconti = ac.lista;
+    const metodiAcc = [...new Set(ac.lista.map(a => a.metodo).filter(Boolean))].join(' + ') || null;
+    if (metodiAcc || (prima && prima.metodo_acconto)) c.metodo_acconto = metodiAcc;
     if (pagato || (prima && prima.pagato)) c.pagato = pagato;
+    // data del saldo (quando e' stato pagato tutto)
+    const dataSaldo = pagato ? (document.getElementById('ord-saldo-data').value || ordOggiISO()) : null;
+    if (dataSaldo || (prima && prima.saldo_data)) c.saldo_data = dataSaldo;
     Object.keys(ORD_CAMPI_METODO).forEach(id => {
         const campo = ORD_CAMPI_METODO[id];
         let v = document.getElementById(id).value || null;
@@ -779,6 +863,8 @@ function ordAggiornaTotale() {
     const tot = Math.round((sub - sc.euro) * 100) / 100;
     const ac = ordLeggiAcconto(tot);
     const pagato = document.getElementById('ord-pagato') && document.getElementById('ord-pagato').checked;
+    const cSaldo = document.getElementById('ord-saldo-data');
+    if (pagato && cSaldo && !cSaldo.value) cSaldo.value = ordOggiISO();   // data del saldo: oggi proposto
     const el = document.getElementById('ord-totale');
     if (el) el.innerHTML = macEuro(tot);
     const det = document.getElementById('ord-totale-dettaglio');
@@ -800,16 +886,20 @@ function ordAggiornaTotale() {
     }
     if (saldo) {
         const mostraSaldo = (ac.euro > 0 && !ac.errore) || pagato;
-        const mAcc = document.getElementById('ord-metodo-acconto').value;
         const mSal = document.getElementById('ord-metodo-saldo').value;
+        const dSal = document.getElementById('ord-saldo-data').value;
+        const righeAcc = ac.lista.map(a => '<div><span>' + ordEtichettaAcconto(a) + (a.metodo ? ' (' + macEsc(a.metodo) + ')' : '') + '</span><span>&minus; ' + macEuro(a.importo) + '</span></div>').join('');
         saldo.classList.toggle('hidden', !mostraSaldo);
-        saldo.innerHTML = !mostraSaldo ? '' : (pagato ? '<div><span>&#128182; <strong>PAGATO</strong></span><span>' + macEuro(tot) + '</span></div>' :
-            '<div><span>Acconto versato' + (mAcc ? ' (' + macEsc(mAcc) + ')' : '') + '</span><span>&minus; ' + macEuro(ac.euro) + '</span></div>' +
+        saldo.innerHTML = !mostraSaldo ? '' : (pagato ? righeAcc + '<div><span>&#128182; <strong>PAGATO</strong>' + (dSal ? ' il ' + ordDataIt(dSal) : '') + '</span><span>' + macEuro(tot) + '</span></div>' :
+            righeAcc +
             '<div><span><strong>DA SALDARE</strong>' + (mSal ? ' (' + macEsc(mSal) + ')' : '') + '</span><strong>' + macEuro(Math.round((tot - ac.euro) * 100) / 100) + '</strong></div>');
     }
     // Metodo dell'acconto e del saldo: solo se c'e' un acconto
     const conAcconto = ac.euro > 0 && !ac.errore;
     document.querySelectorAll('.ord-solo-acconto').forEach(x => x.classList.toggle('hidden', !conAcconto));
+    // data del saldo: solo con "Pagato" (oggi proposto)
+    const boxSaldo = document.getElementById('ord-saldo-data-box');
+    if (boxSaldo) boxSaldo.classList.toggle('hidden', !pagato);
     return tot;
 }
 
@@ -1193,7 +1283,7 @@ async function ordSalva() {
         console.error('Errore salvataggio ordine:', error);
         btn.disabled = false;
         await ordRicarica();
-        await showCustomAlert('Errore durante il salvataggio dell\'ordine:<br><strong>' + macEsc(error.message) + '</strong>' +
+        await showCustomAlert('Errore durante il salvataggio dell\'ordine:<br><strong>' + macEsc(error.message) + '</strong>' + ordSuggerisciScript(error) +
             (ordine ? '<br><br>L\'ordine N. ' + ordNumero(ordine) + ' &egrave; stato creato ma potrebbe essere incompleto: controllalo nell\'elenco.' : ''),
             'Errore', '&#10060;');
         return;
@@ -1300,8 +1390,11 @@ function ordApriModifica(id) {
     ordFirmaImposta(ordFirme.installazione, o.firma_installazione);
     document.getElementById('ord-senza-installazione').checked = !!o.senza_installazione;
     document.getElementById('ord-sconto').value = Number(o.sconto) > 0 ? String(o.sconto).replace('.', ',') : '';
-    document.getElementById('ord-acconto').value = Number(o.acconto) > 0 ? String(o.acconto).replace('.', ',') : '';
+    // acconti: un vecchio acconto senza data prende la data dell'ordine
+    ordAcconti = ordAccontiOrdine(o).map(a => ({ data: a.data || o.data || ordOggiISO(), importo: a.importo, metodo: a.metodo || '', operatore: a.operatore || null, at: a.at || null }));
+    ordRenderAcconti();
     document.getElementById('ord-pagato').checked = !!o.pagato;
+    document.getElementById('ord-saldo-data').value = o.saldo_data || '';
     // in modifica la consegna si fa dal dettaglio ("Consegnato al cliente")
     document.getElementById('ord-consegnato').checked = false;
     document.getElementById('ord-consegnato-box').classList.add('hidden');
@@ -1444,7 +1537,7 @@ async function ordSalvaModifica() {
         btn.disabled = false;
         await macRegistra(log);
         await ordRicarica();
-        await showCustomAlert('Errore durante il salvataggio:<br>' + macEsc(error.message) +
+        await showCustomAlert('Errore durante il salvataggio:<br>' + macEsc(error.message) + ordSuggerisciScript(error) +
             '<br><br>Controlla l\'ordine nell\'elenco: una parte delle modifiche potrebbe essere stata salvata.', 'Errore', '&#10060;');
         return;
     }
@@ -1515,10 +1608,10 @@ function ordApriDettaglio(id) {
         }).join('') + '</div>' +
         (Number(o.sconto) > 0 ? '<div class="ord-det-sconto"><span>Totale articoli</span><span>' + macEuro(Number(o.totale) + Number(o.sconto)) + '</span></div>' +
             '<div class="ord-det-sconto"><span>Sconto</span><span>&minus; ' + macEuro(o.sconto) + '</span></div>' : '') +
-        '<div class="ord-det-totale"><span>TOTALE' + (o.pagato ? '<span class="ord-badge-pagato">&#128182; PAGATO</span>' : '') + '</span><strong>' + macEuro(o.totale) + '</strong></div>' +
+        '<div class="ord-det-totale"><span>TOTALE' + (o.pagato ? '<span class="ord-badge-pagato">&#128182; PAGATO' + (o.saldo_data ? ' IL ' + ordDataIt(o.saldo_data) : '') + '</span>' : '') + '</span><strong>' + macEuro(o.totale) + '</strong></div>' +
         (o.consegnato_at && !o.annullato_at ? '<div class="ord-det-consegnato">&#9989; Consegnato al cliente il <strong>' + ordDataIt(ordDataLocaleISO(o.consegnato_at)) + '</strong></div>' : '') +
-        (!o.pagato && Number(o.acconto) > 0 ? '<div class="ord-det-saldo"><span>Acconto versato' + (o.metodo_acconto ? ' (' + macEsc(o.metodo_acconto) + ')' : '') + '</span><span>&minus; ' + macEuro(o.acconto) + '</span></div>' +
-            '<div class="ord-det-saldo ord-da-saldare"><span>DA SALDARE' + (o.metodo_saldo ? ' (' + macEsc(o.metodo_saldo) + ')' : '') + '</span><span>' + macEuro(Math.round((Number(o.totale) - Number(o.acconto)) * 100) / 100) + '</span></div>' : '') +
+        ordAccontiOrdine(o).map(a => '<div class="ord-det-saldo"><span>' + ordEtichettaAcconto(a) + (a.metodo ? ' (' + macEsc(a.metodo) + ')' : '') + '</span><span>&minus; ' + macEuro(a.importo) + '</span></div>').join('') +
+        (!o.pagato && Number(o.acconto) > 0 ? '<div class="ord-det-saldo ord-da-saldare"><span>DA SALDARE' + (o.metodo_saldo ? ' (' + macEsc(o.metodo_saldo) + ')' : '') + '</span><span>' + macEuro(Math.round((Number(o.totale) - Number(o.acconto)) * 100) / 100) + '</span></div>' : '') +
         (o.metodo_pagamento ? '<div class="ord-det-saldo"><span>Metodo di pagamento</span><span>' + macEsc(o.metodo_pagamento) + '</span></div>' : '') +
         (o.firma ? '<div class="ord-det-firma"><span>Firma per accettazione</span><img src="' + o.firma + '" alt="Firma"></div>' : '<p class="mac-aiuto">Ordine non firmato.</p>') +
         (o.senza_installazione ? '<div class="ord-det-noinst"><strong>&#9888;&#65039; Senza servizio di installazione</strong>' +
@@ -1777,13 +1870,27 @@ async function ordSalvaCorreggiStato() {
 // Segna / toglie "Pagato" dal dettaglio (il PDF su Drive viene rifatto con il timbro)
 async function ordSegnaPagato(o) {
     const nuovo = !o.pagato;
-    if (!window.confirm(nuovo ? 'Segnare l\'ordine N. ' + ordNumero(o) + ' come PAGATO?\n\nSul PDF comparir\u00e0 il timbro PAGATO.'
-        : 'Togliere "Pagato" dall\'ordine N. ' + ordNumero(o) + '?')) return;
-    const { error } = await supabaseClient.from('macchine_ordini')
-        .update({ pagato: nuovo, updated_at: new Date().toISOString(), updated_by: macUtente() }).eq('id', o.id);
+    const campi = { pagato: nuovo, updated_at: new Date().toISOString(), updated_by: macUtente() };
+    if (nuovo) {
+        // v7.11.4: data del saldo (oggi proposto; se ha fatto un bonifico puo' essere un altro giorno)
+        const residuo = Math.round((Number(o.totale) - Number(o.acconto || 0)) * 100) / 100;
+        const data = await ordChiediDataConsegna('Ordine N. ' + ordNumero(o) + ' di <strong>' + macEsc(o.cliente || '') + '</strong>: ' +
+            (Number(o.acconto) > 0 ? 'saldo di <strong>' + macEuro(residuo) + '</strong>' : 'totale <strong>' + macEuro(o.totale) + '</strong>') +
+            '.<br>Sul PDF comparir&agrave; il timbro PAGATO.', {
+                titolo: '&#128182; Segna come pagato', etichetta: 'Data del saldo', ok: '&#10004; Segna pagato',
+                aiuto: 'Il giorno in cui il cliente ha pagato (o in cui &egrave; arrivato il bonifico).',
+                errore: 'La data del saldo non pu&ograve; essere nel futuro'
+            });
+        if (!data) return;
+        campi.saldo_data = data;
+    } else {
+        if (!window.confirm('Togliere "Pagato" dall\'ordine N. ' + ordNumero(o) + '?')) return;
+        if (o.saldo_data) campi.saldo_data = null;
+    }
+    const { error } = await supabaseClient.from('macchine_ordini').update(campi).eq('id', o.id);
     if (error) {
         console.error('Errore pagato:', error);
-        await showCustomAlert('Non salvato:<br>' + macEsc(error.message) + '<br><br>Hai eseguito lo script <strong>ordini-pagamento.sql</strong> su Supabase?', 'Errore', '&#10060;');
+        await showCustomAlert('Non salvato:<br>' + macEsc(error.message) + '<br><br>Hai eseguito gli script <strong>ordini-pagamento.sql</strong> e <strong>ordini-acconti.sql</strong> su Supabase?', 'Errore', '&#10060;');
         return;
     }
     await ordRicarica();
@@ -1879,7 +1986,7 @@ function ordTotaliPdfHtml(o, caselle) {
     }
     righe.push({ cls: '', e: 'TOTALE', v: (o.totale !== null && o.totale !== undefined ? repEuroPdf(o.totale) : ''), tot: true });
     if (!o.pagato && Number(o.acconto) > 0) {
-        righe.push({ cls: 'ordd-acconto', e: 'Acconto versato', m: o.metodo_acconto, v: '&minus; ' + repEuroPdf(o.acconto) });
+        ordAccontiOrdine(o).forEach(a => righe.push({ cls: 'ordd-acconto', e: ordEtichettaAcconto(a), m: a.metodo, v: '&minus; ' + repEuroPdf(a.importo) }));
         righe.push({ cls: 'ordd-saldo', e: 'DA SALDARE', m: o.metodo_saldo, v: repEuroPdf(Math.round((Number(o.totale) - Number(o.acconto)) * 100) / 100) });
     }
     return righe.map((r, i) => '<tr' + (r.cls ? ' class="' + r.cls + '"' : '') + '>' +
@@ -1891,11 +1998,11 @@ function ordTotaliPdfHtml(o, caselle) {
 // Metodo di pagamento nel riquadro Pagamento del PDF
 function ordMetodiPdfHtml(o) {
     const parti = [];
-    if (o.pagato) parti.push('<strong>PAGATO</strong>' + (o.metodo_pagamento ? ' con <strong>' + macEsc(o.metodo_pagamento) + '</strong>' : ''));
+    if (o.pagato) parti.push('<strong>PAGATO</strong>' + (o.saldo_data ? ' il <strong>' + ordDataIt(o.saldo_data) + '</strong>' : '') + (o.metodo_pagamento ? ' con <strong>' + macEsc(o.metodo_pagamento) + '</strong>' : ''));
     else {
         if (o.metodo_pagamento) parti.push('Metodo di pagamento: <strong>' + macEsc(o.metodo_pagamento) + '</strong>');
         if (Number(o.acconto) > 0) {
-            parti.push('Acconto ' + repEuroPdf(o.acconto) + (o.metodo_acconto ? ' con <strong>' + macEsc(o.metodo_acconto) + '</strong>' : ''));
+            parti.push((ordAccontiOrdine(o).length > 1 ? 'Acconti ' : 'Acconto ') + repEuroPdf(o.acconto) + (o.metodo_acconto ? ' con <strong>' + macEsc(o.metodo_acconto) + '</strong>' : ''));
             parti.push('Saldo ' + repEuroPdf(Math.round((Number(o.totale) - Number(o.acconto)) * 100) / 100) +
                 (o.metodo_saldo ? ' con <strong>' + macEsc(o.metodo_saldo) + '</strong>' : ''));
         }
@@ -2493,8 +2600,8 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     document.getElementById('ord-btn-libera').addEventListener('click', ordAggiungiLibera);
     document.getElementById('ord-sconto').addEventListener('input', ordAggiornaTotale);
-    document.getElementById('ord-acconto').addEventListener('input', ordAggiornaTotale);
     document.getElementById('ord-pagato').addEventListener('change', ordAggiornaTotale);
+    document.getElementById('ord-saldo-data').addEventListener('change', ordAggiornaTotale);
     document.getElementById('ord-consegnato').addEventListener('change', (e) => {
         document.getElementById('ord-consegnato-data-box').classList.toggle('hidden', !e.target.checked);
         if (e.target.checked && !document.getElementById('ord-consegnato-data').value) document.getElementById('ord-consegnato-data').value = ordOggiISO();
@@ -2552,6 +2659,9 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 window.openOrdiniClienti = openOrdiniClienti;
+window.ordAggiungiAcconto = ordAggiungiAcconto;
+window.ordTogliAcconto = ordTogliAcconto;
+window.ordAccontoCampo = ordAccontoCampo;
 window.pdfApriInScheda = pdfApriInScheda;
 window.pdfCreaDaHtml = pdfCreaDaHtml;
 window.ordAggiornaPdfOrdini = ordAggiornaPdfOrdini;
