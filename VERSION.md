@@ -1,5 +1,8 @@
 # Changelog App Magazzino
 
+## v8.0.0 - 2026-11-23 (PRODUZIONE)
+mail cliente
+
 ## v7.9.9 - 2026-11-23 (PRODUZIONE)
 finanz
 
