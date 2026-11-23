@@ -1,5 +1,8 @@
 # Changelog App Magazzino
 
+## v8.0.1 - 2026-11-23 (PRODUZIONE)
+nota libera
+
 ## v8.0.0 - 2026-11-23 (PRODUZIONE)
 mail cliente
 

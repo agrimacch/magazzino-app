@@ -235,7 +235,8 @@ function ordPezziRiga(rigaId) {
 }
 
 function ordQtaMinima(r) {
-    if (!r.rigaId || !r.articolo_id) return 1;
+    if (!r.articolo_id) return 0;   // riga libera: anche 0 (riga di testo)
+    if (!r.rigaId) return 1;
     const a = macArticolo(r.articolo_id);
     const consegnate = ordPezziRiga(r.rigaId).filter(p => p.stato === 'CONSEGNATA');
     if (!consegnate.length) return 1;
@@ -520,7 +521,8 @@ function ordAggiungiArticolo(a) {
 }
 
 function ordAggiungiLibera() {
-    ordFormRighe.push({ articolo_id: null, descrizione: '', codice: '', quantita: 1, prezzo_totale: null, disponibilita: 'LIBERA', prezzoManuale: true });
+    // v7.11.7: riga libera con quantita' 0 se non la scrivi (cosi' si usa anche come riga di solo testo)
+    ordFormRighe.push({ articolo_id: null, descrizione: '', codice: '', quantita: 0, prezzo_totale: null, disponibilita: 'LIBERA', prezzoManuale: true });
     ordRenderFormRighe();
     const inputs = document.querySelectorAll('#ord-righe [data-campo="descrizione"]');
     if (inputs.length) inputs[inputs.length - 1].focus();
@@ -754,6 +756,7 @@ function ordLeggiSconto() {
 // Colonna nuova mancante su Supabase: quale script eseguire
 function ordSuggerisciScript(error) {
     const msg = String(error && error.message || '');
+    if (/quantita_check/i.test(msg)) return '<br><br>Esegui su Supabase lo script <strong>supabase/ordini-riga-testo.sql</strong> (righe libere con quantit&agrave; 0).';
     if (/acconti|saldo_data/i.test(msg)) return '<br><br>Esegui su Supabase lo script <strong>supabase/ordini-acconti.sql</strong> (acconti con la data e data del saldo).';
     return '';
 }
@@ -972,7 +975,8 @@ function ordCampoRigaCambiato(e) {
     if (el.tagName === 'SELECT' && e.type !== 'change') return;
     if (campo === 'quantita') {
         const q = parseInt(el.value, 10);
-        r.quantita = (q >= 1 && q <= 999) ? q : 1;
+        const minimo = r.articolo_id ? 1 : 0;   // riga libera: vuota o 0 = riga di testo
+        r.quantita = (q >= minimo && q <= 999) ? q : minimo;
         // Riga gia' salvata: per le macchine in piu' propongo da dove arrivano (in casa / in arrivo / da ordinare)
         if (r.rigaId && r.articolo_id && !r.dispScelta && ordQtaNuove(r) > 0) r.disponibilita = ordDisponibilitaProposta(r);
         ordSistemaScelte(r);
@@ -2026,7 +2030,7 @@ function ordHtmlStampa(o, righeTotali) {
                 (r.montaggio && MAC_MONTAGGIO[r.montaggio] ? '<div class="ordd-matr">' + MAC_MONTAGGIO[r.montaggio].testo + '</div>' : '') +
                 (matricole.length ? '<div class="ordd-matr">Matr. ' + matricole.map(macEsc).join(', ') + '</div>' : '') + '</td>' +
             '<td>' + macEsc(r.codice || '') + '</td>' +
-            '<td class="rpt-n">' + r.quantita + '</td>' +
+            '<td class="rpt-n">' + (r.quantita ? r.quantita : '') + '</td>' +
             '<td class="ordd-mag">' + magazzino + '</td>' +
             '<td class="rpt-n">' + (r.prezzo_totale !== null && r.prezzo_totale !== undefined ? repEuroPdf(r.prezzo_totale) : '') + '</td></tr>';
     }).join('');
