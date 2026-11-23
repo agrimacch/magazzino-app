@@ -31,7 +31,7 @@
 const ORD_TIMBRO_PAGATO = 'timbro-pagato.png';
 // Metodi di pagamento (complessivo; con l'acconto: metodo dell'acconto e del saldo). Colonne metodo_pagamento,
 // metodo_acconto, metodo_saldo di macchine_ordini (supabase/ordini-pagamento.sql)
-const ORD_METODI = ['CONTANTI', 'CARTA DI CREDITO', 'BONIFICO', 'BONIFICO ANTICIPATO', 'ASSEGNO'];
+const ORD_METODI = ['CONTANTI', 'CARTA DI CREDITO', 'BONIFICO', 'BONIFICO ANTICIPATO', 'ASSEGNO', 'FINANZIAMENTO'];   // v7.11.7: + FINANZIAMENTO
 // v7.11.4: il metodo dell'acconto e' su ogni acconto (metodo_acconto = metodi degli acconti, per compatibilita')
 const ORD_CAMPI_METODO = { 'ord-metodo': 'metodo_pagamento', 'ord-metodo-saldo': 'metodo_saldo' };
 // v7.11.4: PIU' ACCONTI, ognuno con data, importo e metodo (colonna acconti jsonb di macchine_ordini:
