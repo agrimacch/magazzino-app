@@ -1250,3 +1250,7 @@
     .ord-acconto-riga { grid-template-columns: 1fr 1fr auto; }
     .ord-acconto-riga select { grid-column: 1 / 3; grid-row: 2; }
 }
+
+/* v7.11.7: dati cliente nel PDF: niente testo fuori dal foglio */
+.ordd-dati .ordd-val { overflow-wrap: anywhere; word-break: break-word; }
+.ordd-dati .ordd-email-lunga { font-size: 12px; }

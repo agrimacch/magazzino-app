@@ -2045,10 +2045,11 @@ function ordHtmlStampa(o, righeTotali) {
             '</td>' +
         '</tr></table>' +
         '<div class="rpt-sezione">Cliente</div>' +
-        '<table class="ordd-dati">' +
+        // v7.11.7: colonne fisse (prima la 2a coppia era stretta e l'e-mail lunga usciva dal foglio)
+        '<table class="ordd-dati"><colgroup><col style="width:13%"><col style="width:39%"><col style="width:10%"><col style="width:38%"></colgroup>' +
             '<tr>' + campo('Sig./Sig.ra', o.cliente, 3) + '</tr>' +
             '<tr>' + campo('Indirizzo', o.indirizzo, 3) + '</tr>' +
-            '<tr>' + campo('Tel / Cell', o.telefono) + campo('E-mail', o.email) + '</tr>' +
+            '<tr>' + campo('Tel / Cell', o.telefono) + '<td class="ordd-etich">E-mail</td><td class="ordd-val ordd-email' + (String(o.email || '').length > 26 ? ' ordd-email-lunga' : '') + '">' + macEsc(o.email || '') + '</td></tr>' +
             '<tr>' + campo('C.F.', o.codice_fiscale) + campo('P.IVA', o.partita_iva) + '</tr>' +
             '<tr><td class="ordd-etich">Documento</td><td class="ordd-val" colspan="3">' +
                 casella(o.documento === 'SCONTRINO') + ' Scontrino &nbsp;&nbsp;&nbsp; ' + casella(o.documento === 'FATTURA') + ' Fattura</td></tr>' +
