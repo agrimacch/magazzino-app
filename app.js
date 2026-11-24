@@ -68,6 +68,8 @@ const BUONI_RUOLI = ['admin', 'operatore'];
 
 function sezioneConsentita(sectionName) {
     if (sectionName === 'tecnici') sectionName = 'assistenza';
+    // Magazzino esterno mezzi (v8.1.0): MZ_RUOLI in mezzi-functions.js (per ora solo admin)
+    if (sectionName === 'mezzi') return typeof mzPuoVedere === 'function' && mzPuoVedere();
     if (SEZIONI_ASSISTENZA_RUOLI[sectionName]) return SEZIONI_ASSISTENZA_RUOLI[sectionName].includes(currentUserRole);
     if (sectionName === 'buoni-regalo') return BUONI_RUOLI.includes(currentUserRole);
     // Listini Vendite > Listini Fornitori (prezzi): LF_RUOLI_VEDERE in listini-fornitori-functions.js (admin e operatori)
@@ -846,6 +848,12 @@ function applyRolePermissions() {
         macchineCard.style.display = sezioneConsentita('inventario-macchine') ? 'flex' : 'none';
     }
 
+    // Card Magazzino esterno mezzi (dentro Magazzino e scorciatoia in Assistenza): MZ_RUOLI
+    ['magazzino-mezzi-card', 'ass-card-mezzi'].forEach(idCard => {
+        const card = document.getElementById(idCard);
+        if (card) card.style.display = sezioneConsentita('mezzi') ? 'flex' : 'none';
+    });
+
     // Card Ordini Clienti (dentro Ordini): admin e operatori
     const ordiniCard = document.getElementById('vendite-ordini-card');
     if (ordiniCard) {
@@ -1063,6 +1071,10 @@ function openSection(sectionName) {
     } else if (sectionName === 'buoni-regalo') {
         if (typeof openBuoniRegalo === 'function') {
             openBuoniRegalo();
+        }
+    } else if (sectionName === 'mezzi') {
+        if (typeof openMagazzinoMezzi === 'function') {
+            openMagazzinoMezzi();
         }
     } else if (sectionName === 'assistenza') {
         // Entrando dal menu Assistenza gli interventi ripartono dall'elenco settimane

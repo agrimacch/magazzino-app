@@ -28,6 +28,7 @@
     <link rel="stylesheet" href="azienda.css?v=8.0.1">
     <link rel="stylesheet" href="richieste.css?v=8.0.1">
     <link rel="stylesheet" href="buoni.css?v=8.0.1">
+    <link rel="stylesheet" href="mezzi.css?v=8.0.1">
     <link rel="stylesheet" href="daltonici.css?v=8.0.1">
 
     <!-- SheetJS per import Excel -->
@@ -246,6 +247,13 @@
                         <span class="card-icon">&#128666;</span>
                         <h3>Inventario Macchine</h3>
                         <p>Macchine in casa, ordinate e da ordinare: il quaderno</p>
+                    </div>
+
+                    <!-- Card Magazzino esterno mezzi (v8.1.0: ricambi nei furgoni; per ora solo admin, MZ_RUOLI) -->
+                    <div class="dashboard-card" id="magazzino-mezzi-card" onclick="mzApriDa('magazzino')" style="display: none;">
+                        <span class="card-icon">&#128656;</span>
+                        <h3>Magazzino esterno mezzi</h3>
+                        <p>Ricambi nei furgoni, ricerca per modello e rapportini</p>
                     </div>
 
                     <!-- Card Scanner (visibile solo su mobile) -->
@@ -1161,6 +1169,34 @@
             </div>
         </div>
 
+        <!-- ========================================== -->
+        <!-- MAGAZZINO ESTERNO MEZZI (v8.1.0, mezzi-functions.js) -->
+        <!-- ========================================== -->
+        <div id="section-mezzi" class="section-container hidden">
+            <div class="back-to-dashboard">
+                <div class="back-buttons">
+                    <button onclick="mzIndietro()" class="btn-back">
+                        &#8592; Indietro
+                    </button>
+                    <button onclick="backToDashboard()" class="btn-back btn-dashboard">
+                        &#127968; Dashboard
+                    </button>
+                </div>
+                <h2 class="section-title">&#128656; Magazzino esterno mezzi <button type="button" class="mac-raf-info-btn" onclick="mzApriGuida()" title="Guida rapida">i</button></h2>
+            </div>
+            <div class="container">
+                <nav class="tabs mz-tabs" id="mz-tabs">
+                    <button class="tab-btn active" data-mz-tab="cerca" onclick="mzCambiaTab('cerca')">&#128269; Cerca</button>
+                    <button class="tab-btn" data-mz-tab="giacenze" onclick="mzCambiaTab('giacenze')">&#128230; Ricambi e furgoni</button>
+                    <button class="tab-btn" data-mz-tab="rapportini" onclick="mzCambiaTab('rapportini')">&#129534; Rapportini</button>
+                    <button class="tab-btn" data-mz-tab="movimenti" onclick="mzCambiaTab('movimenti')">&#128203; Movimenti</button>
+                </nav>
+                <div id="mz-contenuto"></div>
+                <div id="mz-bozza-barra" class="mz-bozza-barra hidden"></div>
+                <input type="file" id="mz-file-excel" accept=".xlsx,.xls,.csv" class="hidden" onchange="mzLeggiFileExcel(this)">
+            </div>
+        </div>
+
         <div id="section-ordini-clienti" class="section-container hidden">
             <div class="back-to-dashboard">
                 <div class="back-buttons">
@@ -1859,6 +1895,13 @@
                         <span class="card-icon">&#128656;</span>
                         <h3>Interventi Esterni</h3>
                         <p>Planning settimanale degli interventi dei tecnici</p>
+                    </div>
+
+                    <!-- Card Magazzino esterno mezzi (stessa sezione della card in Magazzino: scorciatoia per i tecnici) -->
+                    <div class="dashboard-card" id="ass-card-mezzi" onclick="mzApriDa('assistenza')" style="display: none;">
+                        <span class="card-icon">&#128656;</span>
+                        <h3>Ricambi nei furgoni</h3>
+                        <p>Magazzino esterno mezzi: cerca per modello, rapportini</p>
                     </div>
 
                     <!-- Card Richieste interventi robot -->
@@ -3346,6 +3389,90 @@
     <!-- INTERVENTI ESTERNI: modifica riga -->
     <!-- ========================================== -->
     <!-- BUONI REGALO: nuovo / modifica -->
+    <!-- ===== MAGAZZINO ESTERNO MEZZI: finestre (v8.1.0) ===== -->
+    <div id="mz-ric-modal" class="modal hidden">
+        <div class="modal-content mz-modal-content">
+            <div class="modal-header">
+                <h3 id="mz-ric-titolo">&#10133; Nuovo ricambio</h3>
+                <button type="button" class="modal-close" onclick="mzChiudiRicambio()">&times;</button>
+            </div>
+            <div id="mz-ric-campi" class="mz-campi"></div>
+            <div id="mz-ric-furgoni" class="mz-ric-furgoni"></div>
+            <div class="mz-azioni-finestra">
+                <button type="button" class="btn-primary" id="mz-ric-salva" onclick="mzSalvaRicambio()">&#10004; Salva</button>
+                <button type="button" class="btn-back" id="mz-ric-etichetta" onclick="mzStampaEtichettaAperta()">&#127991;&#65039; Etichetta</button>
+                <button type="button" class="btn-back mz-btn-elimina" id="mz-ric-elimina" onclick="mzEliminaRicambio()">&#128465;&#65039; Elimina</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="mz-rap-modal" class="modal hidden">
+        <div class="modal-content mz-modal-content">
+            <div class="modal-header">
+                <h3 id="mz-rap-titolo">&#129534; Nuovo rapportino di intervento</h3>
+                <button type="button" class="modal-close" onclick="mzChiudiRapportino()">&times;</button>
+            </div>
+            <div id="mz-rap-corpo"></div>
+            <div class="mz-azioni-finestra">
+                <button type="button" class="btn-primary" id="mz-rap-salva" onclick="mzSalvaRapportino()">&#10004; Salva rapportino</button>
+                <button type="button" class="btn-back" id="mz-rap-pdf" onclick="mzApriPdfRapportino()">&#128196; PDF</button>
+                <button type="button" class="btn-back mz-btn-elimina" id="mz-rap-elimina" onclick="mzEliminaRapportino()">&#128465;&#65039; Elimina</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="mz-imp-modal" class="modal hidden">
+        <div class="modal-content mz-modal-content">
+            <div class="modal-header">
+                <h3>&#128229; Carica Excel: controlla prima di confermare</h3>
+                <button type="button" class="modal-close" onclick="mzChiudiImport()">&times;</button>
+            </div>
+            <div id="mz-imp-corpo"></div>
+            <div id="mz-imp-stato" class="mz-imp-stato"></div>
+            <div class="mz-azioni-finestra">
+                <button type="button" class="btn-primary" id="mz-imp-conferma" onclick="mzConfermaImport()">&#10004; Conferma e carica</button>
+                <button type="button" class="btn-back" onclick="mzChiudiImport()">Annulla</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="mz-ricarica-modal" class="modal hidden">
+        <div class="modal-content mz-modal-content">
+            <div class="modal-header">
+                <h3>&#128666; Da ricaricare nei furgoni</h3>
+                <button type="button" class="modal-close" onclick="mzChiudiRicarica()">&times;</button>
+            </div>
+            <p class="mz-aiuto">Ricambi arrivati alla soglia di avviso (o finiti). Si ricaricano dalla scheda del ricambio con <strong>Carica</strong>.</p>
+            <div id="mz-ricarica-corpo"></div>
+            <div class="mz-azioni-finestra">
+                <button type="button" class="btn-back" onclick="mzStampaRicarica()">&#128196; PDF da stampare</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="mz-guida-modal" class="modal hidden">
+        <div class="modal-content mac-modal-content mac-raf-guida-content">
+            <div class="modal-header">
+                <h3>&#8505;&#65039; Guida rapida: Magazzino esterno mezzi</h3>
+                <button type="button" class="modal-close" onclick="mzChiudiGuida()">&times;</button>
+            </div>
+            <div class="mac-raf-guida">
+                <h4>1. Scegli il furgone</h4>
+                <p>In <strong>Cerca</strong>, in alto, tocca il furgone in cui sei (<strong>CITROEN</strong> o <strong>FORD</strong>). L'app se lo ricorda su questo telefono / PC.</p>
+                <h4>2. Cerca per modello</h4>
+                <p>Scrivi il modello del robot o della macchina (es. <strong>HRM1500</strong>, <strong>WR155E</strong>): compaiono i ricambi compatibili, prima quelli che hai nel furgone, con la quantit&agrave; e il prezzo <strong>IVA compresa</strong>. Puoi scrivere anche codice o descrizione, o leggere il codice a barre. I ricambi segnati <em>TUTTI</em> / <em>TUTTE</em> valgono per tutti i modelli della marca.</p>
+                <h4>3. Rapportino</h4>
+                <p>Con <strong>&#10133; Rapportino</strong> il ricambio va nel rapportino in corso (barra verde in basso). Premi <strong>Apri</strong>: in alto scegli la <strong>richiesta di intervento</strong> (prima quelle del tecnico nel planning: oggi e ultimi 14 giorni; il tecnico &egrave; chi usa l'app, se la sua email &egrave; nella tabella tecnici, oppure quello scelto) e cliente, telefono, indirizzo, tecnico e data si compilano da soli (dall'ordine cliente anche modello e matricola); poi scrivi cliente, modello e matricola se mancano, lavori eseguiti, ore e minuti di lavoro (30 minuti = 0,5 h; manodopera 40 &euro; + IVA all'ora), uscita e note. Il <strong>tecnico</strong> si vede solo nell'app, non sul PDF del cliente. Salvando, i ricambi <strong>escono dal furgone</strong> e il PDF va su Google Drive (cartella RAPPORTINI INTERVENTO). Se modifichi o elimini un rapportino, i pezzi tornano nel furgone.</p>
+                <h4>4. Caricare il furgone</h4>
+                <p>In <strong>Ricambi e furgoni</strong> tocca un ricambio: <strong>Carica</strong> aggiunge i pezzi presi dal negozio, <strong>Rettifica</strong> mette la quantit&agrave; contata. Con <strong>Carica Excel</strong> carichi il file del magazzino esterno (stesse colonne): i codici doppi vengono uniti da soli (modelli insieme) e prima di confermare vedi cosa cambia.</p>
+                <h4>5. Soglia e avvisi</h4>
+                <p>Ogni ricambio ha una <strong>soglia</strong> per furgone: quando ci arriva (o finisce) parte l'avviso nella campanella e su <strong>Telegram</strong> (gruppo dei consumabili). L'elenco completo &egrave; in <strong>Da ricaricare</strong>, anche in PDF.</p>
+                <h4>6. Etichette Zebra</h4>
+                <p>Spunta i ricambi (casella a sinistra) e premi <strong>Etichette</strong>, oppure <strong>Etichetta</strong> dalla scheda: si apre un PDF della misura dell'etichetta (<strong>50 x 20 mm</strong>) con il codice a barre. Stampa con la Zebra ZD420 con <strong>Dimensione reale / 100%</strong>. Il codice a barre &egrave; il codice del ricambio (o il codice a barre scritto nella scheda).</p>
+            </div>
+        </div>
+    </div>
+
     <div id="buo-modal" class="modal hidden">
         <div class="modal-content buo-modal-content">
             <div class="modal-header">
@@ -3746,6 +3873,7 @@
     <script src="azienda-functions.js?v=8.0.1"></script>
     <script src="richieste-robot-functions.js?v=8.0.1"></script>
     <script src="buoni-functions.js?v=8.0.1"></script>
+    <script src="mezzi-functions.js?v=8.0.1"></script>
     <script src="app.js?v=8.0.1"></script>
 </body>
 </html>

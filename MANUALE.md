@@ -15,6 +15,7 @@
 5. Magazzino &rarr; Inventario Consumabili
 6. Magazzino &rarr; Inventario Ricambi Stock
 7. Magazzino &rarr; Scanner (solo mobile)
+7bis. Magazzino &rarr; Magazzino esterno mezzi (ricambi nei furgoni, rapportini)
 8. Vendite
 8bis. Assistenza (ex Tecnici) &rarr; Interventi Esterni, Richieste e Organizzazione interventi robot
 9. Gestione Utenti (solo admin)
@@ -223,6 +224,26 @@ Percorso: Dashboard &rarr; Magazzino &rarr; Scanner. La card &egrave; nascosta s
 
 Uscendo dalla sezione Scanner la fotocamera si spegne automaticamente.
 Su iPhone serve connessione sicura (HTTPS): il sito su Vercel &egrave; gi&agrave; HTTPS.
+
+---
+
+## 7bis. MAGAZZINO ESTERNO MEZZI (v8.1.0, per ora solo admin)
+
+Percorso: Dashboard &rarr; Magazzino &rarr; **Magazzino esterno mezzi** (scorciatoia anche in Assistenza: card **Ricambi nei furgoni**). File `mezzi-functions.js`, `mezzi.css`; tabelle `mezzi_*` (script `supabase/mezzi-setup.sql`). Pulsante **i** = guida rapida.
+
+- **Furgoni**: CITROEN e FORD (tabella `mezzi_furgoni`), inventari separati. Non sono assegnati ai tecnici: in **Cerca** si sceglie in alto il furgone in cui si &egrave; e l'app lo ricorda su quel dispositivo (`localStorage mzFurgone`).
+- **Catalogo unico** (`mezzi_ricambi`): marca, modelli compatibili separati da virgola (*TUTTI HONDA* / *TUTTE* = tutti i modelli della marca), codice, EAN, codice EASY, codice gestionale, codice precedente, codice a barre, descrizione, prezzo IVA esclusa e **IVA compresa** (quello che vedono i tecnici), note. Niente doppioni: codice (e codice a barre) unici.
+- **Giacenze** (`mezzi_giacenze`): quantit&agrave; e **soglia di avviso** per ricambio e furgone. Ogni variazione passa dalla funzione `mezzi_muovi()` che scrive anche il movimento (`mezzi_movimenti`: CARICO, USO, RESO, RETTIFICA, IMPORT) e non permette quantit&agrave; sotto zero.
+- **Cerca**: si scrive il modello (es. HRM1500, WR155E) e compaiono i ricambi compatibili, prima quelli presenti nel furgone scelto, con quantit&agrave; nei due furgoni e prezzo IVA compresa. Si possono scrivere pi&ugrave; parole (es. *hrm1500 lame*), il codice, la descrizione o leggere il codice a barre (con Invio un codice esatto va direttamente nel rapportino).
+- **Dati del cliente dalla richiesta di intervento**: in cima al rapportino si sceglie la richiesta (Assistenza &rarr; Richieste interventi robot, ultimi 6 mesi; senza scrivere niente compaiono prima quelle del **tecnico** del rapportino nel planning, oggi e ultimi 14 giorni; il tecnico &egrave; quello scelto oppure chi usa l'app, riconosciuto dall'email scritta nella tabella `tecnici`, che viene anche proposto; se non ne ha, quelle con intervento oggi di tutti, poi le ultime aperte). Si compilano cliente, telefono, indirizzo + paese; dal planning (interventi con `richiesta_id`) **tecnico e data**; se la richiesta nasce da un ordine cliente anche **modello e matricola** della macchina venduta. Il rapportino resta collegato (colonna `mezzi_rapportini.richiesta_id`, pulsante Scollega).
+- **Rapportino in corso**: con **&#10133; Rapportino** il ricambio va in una bozza salvata sul dispositivo (barra verde in basso, Apri / Svuota).
+- **Rapportini** (`mezzi_rapportini` + `mezzi_rapportini_righe`), numero per anno (0001/2026): data, cliente, telefono, indirizzo, modello, matricola, lavori eseguiti, ricambi usati (dal furgone scelto, oppure **riga libera** che non tocca il furgone), ore e minuti (30 minuti = 0,5 h), manodopera **40 &euro; + IVA all'ora** (`MZ_TARIFFA_ORA`), uscita (euro IVA compresa, a seconda di dove si va), note, totale da pagare IVA compresa. Il **tecnico** si sceglie (tabella `tecnici` degli interventi) ma **non compare sul PDF** del cliente. Salvando, i ricambi escono dal furgone (USO); modificando o eliminando il rapportino le differenze tornano nel furgone (RESO). Se nel furgone non ce ne sono abbastanza il rapportino non si salva (prima Carica o usa una riga libera).
+- **PDF del rapportino** (Rapporto di intervento N. ...): intestazione aziendale, cliente, macchina, lavori, ricambi con prezzi, ricambi / manodopera / uscita / **totale da pagare**, note. Salvato da solo su **Google Drive** in `RAPPORTINI INTERVENTO / RAPPORTINI INTERVENTO <anno>` (Edge Function `rapportini-drive` + `google/rapportini-drive.gs`, guida `GUIDA_RAPPORTINI_DRIVE.md`); pulsante **Prova Drive** nella scheda Rapportini.
+- **Ricambi e furgoni**: tabella con le quantit&agrave; (rossa = finito, gialla = alla soglia), filtri, **Nuovo ricambio**, scheda del ricambio con **Carica** (pezzi presi dal negozio), **Rettifica** (quantit&agrave; contata) e soglia per furgone, **Scarica Excel**, **Carica Excel**, **Da ricaricare** (anche PDF), **Etichette**.
+- **Carica Excel**: stesso formato del file del magazzino esterno (MARCA, MODELLO, CODICE, CODICE EAN, CODICE EASY, RICAMBIO, PREZZO IVA E, PREZZO IC, NOTE, CODICE A BARRE, CODICE GESTIONALE, Q. MAG. CITROEN, Q. MAG. FORD, SOGLIA AVVISO, CODICE PRECEDENTE; si possono usare anche SOGLIA CITROEN / SOGLIA FORD). I **codici doppi vengono uniti** da soli (modelli insieme, il resto dalla prima riga che ce l'ha); prima di confermare si vedono nuovi, aggiornati, quantit&agrave; che cambiano, righe senza codice o senza modello. Le celle vuote non cancellano niente; Q. MAG. = quantit&agrave; contata (movimento IMPORT). Lo Scarica Excel ha le stesse colonne, cos&igrave; si pu&ograve; correggere e ricaricare.
+- **Avvisi**: quando un ricambio arriva alla soglia (o finisce) in un furgone parte la notifica **SOTTOSOGLIA_FURGONE**: campanella e Telegram nello stesso gruppo dei consumabili (Edge Function `notifica-telegram` aggiornata alla v8.1.0: intestazione *FURGONE - ricambio da ricaricare*). Toccandola nella campanella si apre la tabella filtrata sul codice.
+- **Etichette Zebra ZD420 (50 x 20 mm)**: PDF della misura dell'etichetta con descrizione, codice a barre Code 128 (codice a barre della scheda, altrimenti il codice del ricambio) e codice + marca. Si stampa con il driver Zebra a **dimensione reale / 100%** (da Windows; dal Mac aggiungendo la stampante di rete in Impostazioni &gt; Stampanti). Libreria JsBarcode caricata solo quando serve.
+- **Permessi**: `MZ_RUOLI` in `mezzi-functions.js` + `mezzi_puo_gestire()` su Supabase (per ora solo admin; per aprire a operatori e tecnici vedi il commento in cima a `supabase/mezzi-setup.sql`).
 
 ---
 
@@ -597,6 +618,9 @@ Percorso: Dashboard &rarr; Gestione Utenti.
 | `supabase/pulizia-vecchio-listino-stihl.sql` | Ricopia gli ultimi collegamenti/EAN e cancella le tabelle e funzioni del vecchio Listino STIHL |
 | `interventi-functions.js`, `interventi.css` | Assistenza &rarr; Interventi Esterni (planning, Telegram, archivio, aggancio alle richieste robot) |
 | `buoni-functions.js`, `buoni.css` | Ordini &rarr; Buoni Regalo (elenco, numerazione per anno, PDF del buono su mezzo A4) |
+| `mezzi-functions.js`, `mezzi.css` | Magazzino &rarr; Magazzino esterno mezzi (ricambi nei furgoni, ricerca per modello, rapportini, Excel, etichette Zebra) |
+| `supabase/mezzi-setup.sql` | Tabelle mezzi_* (furgoni, ricambi, giacenze, movimenti, rapportini), funzioni mezzi_puo_gestire() e mezzi_muovi() |
+| `google/rapportini-drive.gs`, `supabase/rapportini-drive.ts`, `GUIDA_RAPPORTINI_DRIVE.md` | PDF dei rapportini di intervento su Google Drive |
 | `google/buoni-drive.gs`, `supabase/buoni-drive.ts` | PDF dei buoni regalo su Google Drive (script Google + funzione Supabase) |
 | `GUIDA_BUONI_DRIVE.md` | Guida di configurazione del salvataggio buoni su Drive |
 | `GUIDA_BACKUP_DRIVE.md` | Guida di configurazione del backup giornaliero su Drive (`supabase/backup-dati.ts` + `google/backup-drive.gs`) |
@@ -719,6 +743,7 @@ git rm --cached localhost.pem localhost-key.pem
 - **v7.11.5 (nov 2026)** - Ordini Fornitore: **sposta righe** in un altro ordine o sezione (es. da ORDINI NORMALE a un prestagionale). Nella finestra della riga di un ordine fatto si spuntano le macchine non ancora arrivate, si sceglie in **Sposta le spuntate in** un ordine in corso dello stesso marchio o *Nuovo ordine in ...* (stessa data e iniziali, consegna da scrivere con modifica) e si preme **Sposta**: clienti e stato non cambiano, movimento nel registro, l'ordine rimasto vuoto si elimina. L'ordine intero si sposta gi&agrave; con *modifica* &rarr; Sezione. Guida &quot;i&quot; punto 4ter.
 - **v7.11.6 (nov 2026)** - Ordini Fornitore: le righe **ancora da ordinare** si spostano da ORDINI NORMALE in una **sezione** (es. PRESTAGIONALE) e viceversa: in *Da ordinare* si spuntano, **Sposta le spuntate in** &rarr; sezione &rarr; **Sposta**. Ogni sezione ha il suo blocco *Da ordinare* (numero sul nome della sezione) con *Segna come ordinate* (propone quella sezione) e *Aggiungi riga*. Restano DA ORDINARE; i nuovi da ordinare dei clienti arrivano sempre in ORDINI NORMALE. Colonna `macchine_pezzi.sezione_da_ordinare` (svuotata quando si ordinano; sezione eliminata = tornano in ORDINI NORMALE): script `supabase/ordini-fornitore-da-ordinare.sql`.
 - **v7.11.7 (nov 2026)** - Ordini clienti: metodo di pagamento **FINANZIAMENTO** (pagamento dell'ordine, acconti e saldo). PDF dell'ordine: colonne dei dati cliente fisse, l'**e-mail lunga** non esce pi&ugrave; dal foglio (va a capo e si rimpicciolisce). **Riga libera**: quantit&agrave; **0** se non la scrivi, per usarla come riga di solo testo (nel PDF la quantit&agrave; resta vuota); script `supabase/ordini-riga-testo.sql`.
+- **v8.1.0 (nov 2026)** - Nuova sezione **Magazzino esterno mezzi** (per ora solo admin): ricambi nei furgoni CITROEN e FORD, ricerca per modello, rapportini di intervento con PDF su Drive (manodopera 40 &euro; + IVA all'ora, uscita, totale; tecnico solo nell'app), carico e rettifica, Excel con unione dei codici doppi, avvisi sotto soglia (campanella + Telegram), etichette Zebra 50 x 20 mm. Dati del cliente presi dalla **richiesta di intervento** (con tecnico e data dal planning). Script `supabase/mezzi-setup.sql`, funzione `rapportini-drive`, `notifica-telegram` aggiornata.
 - **v7.7.0 (nov 2026)** - Listini Fornitori: **Proponi collegamenti** (coppie per codice a barre, codice articolo o modello, con i prezzi dei due listini; anche dopo i caricamenti).
 - **v7.6.0 (nov 2026)** - Ordini clienti: **Documento** obbligatorio (Scontrino / Fattura) prima delle Note, nel dettaglio e nel PDF (colonna `documento`, `supabase/ordini-documento.sql`). PDF di ordini e report con caratteri pi&ugrave; grandi; ragione sociale in MAIUSCOLO nell'intestazione.
 - **v7.5.2 (nov 2026)** - La card Ordini Macchine si chiama **Ordini Fornitore**.

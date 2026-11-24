@@ -1,5 +1,5 @@
 // ============================================================
-// AGRIMAG - Edge Function "notifica-telegram" (v5.0.0)
+// AGRIMAG - Edge Function "notifica-telegram" (v5.0.0, v8.1.0: + furgoni del magazzino esterno mezzi)
 // ------------------------------------------------------------
 // Manda su Telegram la notifica di una modifica al listino
 // o di un articolo di magazzino sotto soglia / esaurito (promemoria ordini).
@@ -33,6 +33,7 @@ const ICONE: Record<string, string> = {
     SOTTOSOGLIA_CONSUMABILI: '\u26A0\uFE0F',
     ESAURITO_CONSUMABILI: '\uD83D\uDEAB',
     ESAURITO_RICAMBI: '\uD83D\uDEAB',
+    SOTTOSOGLIA_FURGONE: '\uD83D\uDE90',
 };
 
 // Intestazione del messaggio: magazzino (promemoria ordini) o listino vendite
@@ -40,6 +41,7 @@ const TIPI_MAGAZZINO: Record<string, string> = {
     SOTTOSOGLIA_CONSUMABILI: 'SOTTO SOGLIA - da ordinare',
     ESAURITO_CONSUMABILI: 'ESAURITO - da ordinare',
     ESAURITO_RICAMBI: 'RICAMBIO ESAURITO - da ordinare',
+    SOTTOSOGLIA_FURGONE: 'FURGONE - ricambio da ricaricare',
 };
 const PACCO = '\uD83D\uDCE6';
 const CAMPANELLA = '\uD83D\uDD14';

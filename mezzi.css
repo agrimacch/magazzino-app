@@ -1,0 +1,322 @@
+/* ============================================ */
+/* MAGAZZINO ESTERNO MEZZI (v8.1.0)             */
+/* ricambi nei furgoni, ricerca per modello,    */
+/* rapportini di intervento, etichette Zebra    */
+/* ============================================ */
+#section-mezzi,
+#mz-ric-modal,
+#mz-rap-modal,
+#mz-imp-modal,
+#mz-ricarica-modal,
+#mz-guida-modal,
+.mz-toast {
+    font-family: 'Roboto Mono', monospace;
+}
+
+#section-mezzi input,
+#section-mezzi select,
+#section-mezzi textarea,
+#section-mezzi button,
+.mz-modal-content input,
+.mz-modal-content select,
+.mz-modal-content textarea,
+.mz-modal-content button {
+    font-family: 'Roboto Mono', monospace;
+}
+
+.mz-tabs { flex-wrap: wrap; }
+
+.mz-vuoto { color: var(--gray, #6b7280); padding: 12px 4px; }
+.mz-aiuto { font-size: 13px; color: var(--gray, #6b7280); margin: 8px 0; line-height: 1.5; }
+.mz-conta { font-size: 13px; color: var(--gray, #6b7280); margin: 6px 0 10px; }
+.mz-btn-piccolo { width: auto !important; padding: 6px 10px !important; font-size: 13px !important; margin: 0 !important; }
+
+/* Scelta del furgone */
+.mz-furgoni {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+.mz-furgoni-et { font-weight: 700; font-size: 14px; }
+.mz-furgone-btn {
+    padding: 8px 18px;
+    border-radius: 999px;
+    border: 2px solid var(--primary, #688E53);
+    background: #fff;
+    color: var(--primary, #688E53);
+    font-weight: 700;
+    cursor: pointer;
+}
+.mz-furgone-btn.active { background: var(--primary, #688E53); color: #fff; }
+
+/* Ricerca */
+.mz-cerca-box { margin-bottom: 10px; }
+.mz-cerca {
+    width: 100%;
+    font-size: 18px !important;
+    padding: 14px 16px !important;
+    border: 2px solid var(--primary, #688E53) !important;
+    border-radius: 12px !important;
+}
+.mz-cerca-piccola { flex: 1; min-width: 220px; margin: 0 !important; }
+
+.mz-avviso {
+    margin: 10px 0;
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    color: #7f1d1d;
+    font-size: 13px;
+}
+.mz-avviso ul { margin: 6px 0 0 18px; padding: 0; }
+.mz-avviso-giallo { background: #fffbeb; border-color: #fde68a; color: #78350f; }
+
+/* Carte dei risultati */
+.mz-carte { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 10px; }
+.mz-carta {
+    border: 1px solid #d1d5db;
+    border-left: 5px solid var(--primary, #688E53);
+    border-radius: 10px;
+    padding: 10px 12px;
+    background: #fff;
+}
+.mz-carta-zero { border-left-color: #d1d5db; background: #f9fafb; }
+.mz-carta-testa { cursor: pointer; display: flex; flex-wrap: wrap; gap: 6px; align-items: baseline; }
+.mz-marca {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: #eef5e8;
+    color: #3f5a2c;
+}
+.mz-codice { font-size: 12px; color: var(--gray, #6b7280); }
+.mz-carta-modelli { font-size: 12px; color: #374151; margin-top: 4px; }
+.mz-carta-note { font-size: 12px; color: #b45309; margin-top: 3px; }
+.mz-carta-piede { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 8px; }
+.mz-qta { font-size: 13px; padding: 3px 8px; border-radius: 6px; margin-left: 6px; }
+.mz-carta-piede .mz-qta { margin-left: 0; }
+.mz-qta-ok { background: #dcfce7; color: #14532d; }
+.mz-qta-poca { background: #fef3c7; color: #78350f; }
+.mz-qta-zero { background: #fee2e2; color: #7f1d1d; }
+.mz-qta-altro { font-size: 12px; color: var(--gray, #6b7280); }
+.mz-prezzo { margin-left: auto; font-weight: 700; font-size: 15px; }
+
+/* Barra del rapportino in corso */
+.mz-bozza-barra {
+    position: sticky;
+    bottom: 0;
+    z-index: 50;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-top: 12px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    background: #3f5a2c;
+    color: #fff;
+}
+.mz-bozza-barra span { flex: 1; min-width: 180px; }
+
+/* Toast */
+.mz-toast {
+    position: fixed;
+    left: 50%;
+    bottom: 24px;
+    transform: translate(-50%, 40px);
+    opacity: 0;
+    pointer-events: none;
+    z-index: 10060;
+    padding: 10px 16px;
+    border-radius: 10px;
+    background: #1f2937;
+    color: #fff;
+    font-size: 14px;
+    transition: opacity 0.2s, transform 0.2s;
+    max-width: 90vw;
+}
+.mz-toast.mz-toast-visibile { opacity: 1; transform: translate(-50%, 0); }
+
+/* Strumenti e tabelle */
+.mz-strumenti { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 10px; }
+.mz-strumenti .btn-primary, .mz-strumenti .btn-back { width: auto; margin: 0; }
+.mz-strumenti select { width: auto; margin: 0; }
+.mz-check { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; margin: 0; }
+.mz-check input { width: 18px !important; min-width: 0 !important; height: 18px; padding: 0 !important; margin: 0 !important; }
+
+.mz-tab-scroll { overflow-x: auto; }
+.mz-tab { width: 100%; border-collapse: collapse; font-size: 13px; background: #fff; }
+.mz-tab th {
+    min-width: 0;
+    text-align: left;
+    font-size: 11px;
+    color: var(--gray, #6b7280);
+    padding: 6px;
+    border-bottom: 2px solid #e5e7eb;
+    white-space: nowrap;
+    position: sticky;
+    top: 0;
+    background: #fff;
+    z-index: 1;
+}
+.mz-tab td { padding: 6px; border-bottom: 1px solid #f1f5f9; vertical-align: top; cursor: pointer; }
+.mz-tab tbody tr:hover td { background: #f8fbf5; }
+.mz-tab .mz-n { text-align: right; white-space: nowrap; }
+.mz-tab .mz-col-sel { width: 1%; cursor: default; }
+.mz-tab .mz-col-sel input { width: 18px !important; min-width: 0 !important; height: 18px; padding: 0 !important; margin: 0 !important; }
+.mz-codice-cella { white-space: nowrap; }
+.mz-modelli-cella { font-size: 12px; color: #374151; max-width: 280px; }
+.mz-cella-poca { background: #fef3c7; }
+.mz-cella-zero { background: #fee2e2; }
+.mz-cella-vuota { color: #9ca3af; }
+.mz-tab-piccola td { cursor: default; }
+.mz-meno { color: #b91c1c; }
+.mz-piu { color: #15803d; }
+
+/* Finestre */
+.mz-modal-content { max-width: 760px; }
+.mz-campi { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
+.mz-campo label { margin-top: 8px; }
+.mz-campo-descrizione, .mz-campo-modelli, .mz-campo-note { grid-column: 1 / -1; }
+.mz-ric-furgoni h4 { margin: 14px 0 6px; }
+.mz-ric-furgone {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 8px;
+    padding: 8px 10px;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    margin-bottom: 8px;
+}
+.mz-ric-furgone-nome { font-weight: 700; min-width: 120px; align-self: center; }
+.mz-ric-furgone label { margin: 0; font-size: 12px; }
+.mz-ric-furgone input { width: 90px; margin: 2px 0 0; }
+.mz-azioni-finestra { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.mz-azioni-finestra button { width: auto; margin: 0; }
+.mz-btn-elimina { margin-left: auto !important; color: #b91c1c !important; border-color: #fca5a5 !important; }
+
+.mz-due { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
+.mz-tre { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0 12px; }
+.mz-sezione-form {
+    margin: 16px 0 6px;
+    padding-bottom: 4px;
+    border-bottom: 2px solid #eef5e8;
+    font-weight: 700;
+    color: #3f5a2c;
+}
+.mz-drive { font-size: 13px; padding: 8px 10px; margin-bottom: 8px; border-radius: 8px; background: #f8fafc; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+
+.mz-r-trovati { display: flex; flex-direction: column; gap: 4px; margin: 4px 0 8px; max-height: 260px; overflow-y: auto; }
+.mz-r-trovato {
+    text-align: left;
+    padding: 6px 10px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    background: #fff;
+    cursor: pointer;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 8px;
+    align-items: baseline;
+    width: 100%;
+    margin: 0;
+}
+.mz-r-trovato span { margin-left: auto; font-size: 12px; }
+.mz-r-trovato-zero { background: #f9fafb; color: #6b7280; }
+
+.mz-r-riga {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 8px;
+    padding: 8px;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    margin-bottom: 6px;
+}
+.mz-r-riga-poca { border-color: #fca5a5; background: #fef2f2; }
+.mz-r-descr { flex: 1 1 220px; }
+.mz-r-descr small { display: inline-block; margin-left: 6px; }
+.mz-r-cod { flex: 0 1 140px; }
+.mz-r-riga input { margin: 2px 0 0; }
+.mz-r-riga label { margin: 0; font-size: 12px; }
+.mz-r-riga label input { width: 80px; }
+.mz-r-disp { color: #15803d; }
+.mz-r-poco { color: #b91c1c; font-weight: 700; }
+.mz-r-tot { min-width: 90px; text-align: right; font-weight: 700; align-self: center; }
+.mz-r-togli {
+    width: auto;
+    margin: 0;
+    background: none;
+    border: 1px solid #fca5a5;
+    color: #b91c1c;
+    border-radius: 6px;
+    padding: 4px 9px;
+    cursor: pointer;
+    align-self: center;
+}
+
+.mz-totali { margin-top: 12px; border: 2px solid #c9dcbb; border-radius: 10px; padding: 8px 12px; background: #f8fbf5; }
+.mz-totali > div { display: flex; justify-content: space-between; padding: 3px 0; font-size: 14px; }
+.mz-totali .mz-totale { border-top: 2px solid #c9dcbb; margin-top: 4px; padding-top: 6px; font-size: 17px; color: #3f5a2c; }
+
+.mz-imp-numeri { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 10px; }
+.mz-imp-numeri div { text-align: center; padding: 8px; border: 1px solid #e5e7eb; border-radius: 10px; }
+.mz-imp-numeri strong { display: block; font-size: 22px; color: #3f5a2c; }
+.mz-imp-numeri span { font-size: 11px; color: var(--gray, #6b7280); }
+.mz-imp-stato { font-size: 13px; color: #3f5a2c; margin-top: 8px; }
+
+@media (max-width: 600px) {
+    .mz-carte { grid-template-columns: 1fr; }
+    .mz-campi, .mz-due { grid-template-columns: 1fr; }
+    .mz-tre { grid-template-columns: 1fr 1fr; }
+    .mz-tre > div:last-child { grid-column: 1 / -1; }
+    .mz-imp-numeri { grid-template-columns: 1fr 1fr; }
+    .mz-cerca { font-size: 16px !important; }
+}
+
+/* ============================================ */
+/* PDF DEL RAPPORTINO                           */
+/* ============================================ */
+.mzr { font-family: 'Roboto Mono', monospace; font-size: 12px; }
+.mzr .rpt-titolo { font-size: 19px; }
+.mzr .mzr-data { font-size: 14px; }
+.mzr-dati { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.mzr-dati td { padding: 5px 6px 3px; border-bottom: 1px solid #d1d5db; vertical-align: bottom; }
+.mzr-et { font-size: 10px; font-weight: 700; color: #6b7280; text-transform: uppercase; white-space: nowrap; }
+.mzr-val { font-size: 13px; color: #111827; overflow-wrap: anywhere; word-break: break-word; }
+.mzr-box {
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    padding: 8px 10px;
+    font-size: 13px;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    min-height: 34px;
+}
+.mzr-box-vuoto { color: #9ca3af; min-height: 0; }
+.mzr-righe td { font-size: 12px; }
+.mzr-totali { width: 72%; margin: 12px 0 0 auto; border-collapse: collapse; font-size: 13px; }
+.mzr-totali td { padding: 4px 6px; border-bottom: 1px solid #e5e7eb; }
+.mzr-totali .rpt-n { text-align: right; }
+.mzr-totale td { font-size: 15px; font-weight: 700; border-top: 2px solid #3f5a2c; border-bottom: none; color: #3f5a2c; }
+
+/* la prima colonna (casella per le etichette) non deve prendere la larghezza minima delle altre tabelle */
+.mz-tab td:first-child,
+.mz-tab th:first-child,
+.mz-tab td:last-child,
+.mz-tab th:last-child { min-width: 0; max-width: none; }
+.mz-tab .mz-col-sel:first-child { width: 30px; min-width: 30px; }
+
+/* Dati del cliente dalla richiesta di intervento */
+.mz-rich { padding: 10px 12px; border: 1px dashed #c9dcbb; border-radius: 10px; background: #f8fbf5; margin-bottom: 6px; }
+.mz-rich label { margin-top: 0; }
+.mz-rich-scelta { font-size: 13px; margin: 4px 0 6px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.mz-rich-scelta:empty { display: none; }
+.mz-rich-nota { flex-basis: 100%; color: #6b7280; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mz-rich-oggi { border-color: #688E53; background: #eef5e8; }

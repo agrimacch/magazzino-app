@@ -1890,7 +1890,8 @@ const LISTINO_NOTIFICHE_ICONE = {
     IMPORT: '&#128194;',
     SOTTOSOGLIA_CONSUMABILI: '&#9888;&#65039;',
     ESAURITO_CONSUMABILI: '&#128683;',
-    ESAURITO_RICAMBI: '&#128683;'
+    ESAURITO_RICAMBI: '&#128683;',
+    SOTTOSOGLIA_FURGONE: '&#128656;'
 };
 
 const LISTINO_NOTIFICHE_TIPI = {
@@ -1901,7 +1902,8 @@ const LISTINO_NOTIFICHE_TIPI = {
     IMPORT: 'Import Excel',
     SOTTOSOGLIA_CONSUMABILI: 'Sotto soglia - consumabili',
     ESAURITO_CONSUMABILI: 'Esaurito - consumabili',
-    ESAURITO_RICAMBI: 'Esaurito - ricambi stock'
+    ESAURITO_RICAMBI: 'Esaurito - ricambi stock',
+    SOTTOSOGLIA_FURGONE: 'Furgone da ricaricare'
 };
 
 const LISTINO_NOTIFICHE_AZIONI = {
@@ -1919,7 +1921,9 @@ const LISTINO_NOTIFICHE_AZIONI = {
 const MAGAZZINO_TIPI_SCORTE = {
     SOTTOSOGLIA_CONSUMABILI: { sezione: 'consumabili', testo: 'Sotto soglia: da ordinare' },
     ESAURITO_CONSUMABILI: { sezione: 'consumabili', testo: 'Esaurito: da ordinare' },
-    ESAURITO_RICAMBI: { sezione: 'ricambi', testo: 'Ricambio esaurito: da ordinare' }
+    ESAURITO_RICAMBI: { sezione: 'ricambi', testo: 'Ricambio esaurito: da ordinare' },
+    // v8.1.0: magazzino esterno mezzi (mezzi-functions.js, mzControllaSoglia)
+    SOTTOSOGLIA_FURGONE: { sezione: 'mezzi', testo: 'Furgone: da ricaricare' }
 };
 
 function magazzinoENotificaScorta(tipo) {
@@ -2234,7 +2238,9 @@ function listinoNotRicevuta(n) {
     if (magazzinoENotificaScorta(n.tipo)) {
         // Un altro utente ha cambiato le quantita' in magazzino: aggiorno la tabella
         // (i filtri impostati restano)
-        if (MAGAZZINO_TIPI_SCORTE[n.tipo].sezione === 'ricambi') {
+        if (MAGAZZINO_TIPI_SCORTE[n.tipo].sezione === 'mezzi') {
+            // le quantita' dei furgoni si aggiornano da sole (tempo reale in mezzi-functions.js)
+        } else if (MAGAZZINO_TIPI_SCORTE[n.tipo].sezione === 'ricambi') {
             if (typeof loadRicambi === 'function') loadRicambi();
         } else if (typeof loadInventory === 'function') {
             loadInventory();
@@ -2429,6 +2435,13 @@ function listinoNotVaiArticolo(cerca, tipo) {
     chiudiNotificheListino();
 
     // Notifiche magazzino: apre Consumabili o Ricambi gia' filtrati sul codice
+    // Furgoni (v8.1.0): apre Magazzino esterno mezzi > Ricambi e furgoni, filtrato sul codice
+    if (magazzinoENotificaScorta(tipo) && MAGAZZINO_TIPI_SCORTE[tipo].sezione === 'mezzi') {
+        if (typeof mzGiacFiltro === 'object') { mzGiacFiltro.testo = cerca || ''; mzGiacFiltro.marca = ''; }
+        sessionStorage.setItem('mzTab', 'giacenze');
+        if (typeof openSection === 'function') openSection('mezzi');
+        return;
+    }
     if (magazzinoENotificaScorta(tipo)) {
         const ricambi = MAGAZZINO_TIPI_SCORTE[tipo].sezione === 'ricambi';
         if (typeof openSection === 'function') openSection(ricambi ? 'ricambi' : 'consumabili');
