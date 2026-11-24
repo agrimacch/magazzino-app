@@ -1,5 +1,8 @@
 # Changelog App Magazzino
 
+## v8.0.2 - 2026-11-24 (PRODUZIONE)
+rapportino tecnici con inventario mezzi
+
 ## v8.0.1 - 2026-11-23 (PRODUZIONE)
 nota libera
 
