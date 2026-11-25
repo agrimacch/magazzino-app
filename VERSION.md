@@ -1,5 +1,8 @@
 # Changelog App Magazzino
 
+## v8.0.3 - 2026-11-25 (PRODUZIONE)
+magazzino esterno
+
 ## v8.0.2 - 2026-11-24 (PRODUZIONE)
 rapportino tecnici con inventario mezzi
 

@@ -320,3 +320,9 @@
 .mz-rich-scelta:empty { display: none; }
 .mz-rich-nota { flex-basis: 100%; color: #6b7280; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mz-rich-oggi { border-color: #688E53; background: #eef5e8; }
+
+/* v8.1.1: ricambi per tutte le marche e a metri */
+.mz-marca-tutte { background: #e0f2fe; color: #075985; }
+.mz-unita { font-size: 11px; padding: 1px 6px; border-radius: 4px; background: #fef3c7; color: #78350f; }
+.mz-prezzo small { font-weight: 400; font-size: 11px; color: var(--gray, #6b7280); }
+.mz-r-riga select { width: auto; margin: 2px 0 0; }

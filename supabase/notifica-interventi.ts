@@ -1,5 +1,5 @@
 // ============================================================
-// AGRIMAG - Edge Function "notifica-interventi" (v7.1.0)
+// AGRIMAG - Edge Function "notifica-interventi" (v8.2.0)
 // ------------------------------------------------------------
 // Pulsante "Invia a Telegram" degli Interventi Esterni.
 // Confronta il planning (tabella interventi, da OGGI in avanti) con
@@ -14,6 +14,9 @@
 // in attesa: partono quando l'esito cambia. Colori ed esito OK non generano avvisi.
 // v7.1.0: { chiamata: id } = messaggio "Chiamata eseguita" di una telefonata (tipo TEL)
 // chiusa con OK. Puo' mandarlo anche il ruolo tecnico (funzione puo_registrare_chiamata).
+// v8.2.0: furgoni del planning (tabella interventi_furgoni, script interventi-furgoni.sql):
+// accanto a ogni intervento c'e' il furgone del tecnico in quella mezza giornata e i cambi
+// di furgone partono nel blocco "Furgone per ...". Se lo script non e' stato eseguito si salta.
 // Poi aggiorna interventi_inviati (la "fotografia" di cosa e' stato mandato).
 // Tutto con i permessi dell'utente collegato: deve essere admin o operatore.
 //
@@ -291,6 +294,32 @@ Deno.serve(async (req: Request) => {
         attuali.forEach((r: Riga) => { mappaAttuali[chiave(r)] = r; });
         const mappaInviati: Record<string, Riga> = {};
         inviati.forEach((r: Riga) => { mappaInviati[chiave(r)] = r; });
+        // Furgoni (v8.2.0): se le tabelle non ci sono si va avanti senza
+        let furAttivi = true;
+        const [furAtt, furInv, furNomi] = await Promise.all([
+            db.leggiTutto('interventi_furgoni?select=data,turno,tecnico_id,furgone_id&data=gte.' + oggi),
+            db.leggiTutto('interventi_furgoni_inviati?select=data,turno,tecnico_id,furgone_id&data=gte.' + oggi),
+            db.leggiTutto('mezzi_furgoni?select=id,nome'),
+        ]).catch(() => { furAttivi = false; return [[], [], []] as any[][]; });
+        const nomeFurgone: Record<number, string> = {};
+        furNomi.forEach((f: any) => { nomeFurgone[f.id] = f.nome; });
+        const chiaveFur = (tid: number, data: string, turno: string) => tid + '|' + data + '|' + turno;
+        const furOra: Record<string, number> = {};
+        furAtt.forEach((r: any) => { furOra[chiaveFur(r.tecnico_id, r.data, r.turno)] = r.furgone_id; });
+        const furPrima: Record<string, number> = {};
+        furInv.forEach((r: any) => { if (r.furgone_id) furPrima[chiaveFur(r.tecnico_id, r.data, r.turno)] = r.furgone_id; });
+        // Cambi di furgone: { tecnico_id, data, turno, prima, dopo }
+        const furCambi: { tecnico_id: number; data: string; turno: string; prima: number | null; dopo: number | null }[] = [];
+        if (furAttivi) {
+            Array.from(new Set([...Object.keys(furOra), ...Object.keys(furPrima)])).forEach((k) => {
+                const prima = furPrima[k] || null;
+                const dopo = furOra[k] || null;
+                if (prima === dopo) return;
+                const [tid, data, turno] = k.split('|');
+                furCambi.push({ tecnico_id: Number(tid), data, turno, prima, dopo });
+            });
+        }
+
         const nomi: Record<number, { nome: string; ordine: number }> = {};
         tecnici.forEach((t: any) => { nomi[t.id] = { nome: t.nome, ordine: t.ordine || 0 }; });
 
@@ -311,6 +340,7 @@ Deno.serve(async (req: Request) => {
             else if (prima) daTogliere.push(prima);
         });
 
+        const righe: string[] = [];
         if (eventi.length > 0) {
             // Gruppi: tecnico -> tipo (aggiunti, modificati, riprogrammati, cancellati) -> giorno
             const ordTec = (id: number) => nomi[id]?.ordine ?? 999;
@@ -331,7 +361,6 @@ Deno.serve(async (req: Request) => {
                 else gruppi.push({ titolo: chiaveGruppo, eventi: [ev] });
             });
 
-            const righe: string[] = [];
             gruppi.forEach((gr) => {
                 const primo = gr.eventi[0];
                 const g = GRUPPI[primo.tipo];
@@ -341,7 +370,9 @@ Deno.serve(async (req: Request) => {
                     const r = ev.rif;
                     blocco += CALENDARIO + ' ' + giornoCorto(r.data) + PUNTO + (r.turno === 'P' ? 'pom.' : 'mat.') +
                         (r.ora ? PUNTO + 'ore <b>' + esc(r.ora) + '</b>' : '') +
-                        (r.tipo ? PUNTO + esc(r.tipo) : '') + '\n';
+                        (r.tipo ? PUNTO + esc(r.tipo) : '') +
+                        (ev.tipo !== 'ANNULLATO' && ev.tipo !== 'RIMOSSO' && furOra[chiaveFur(r.tecnico_id, r.data, r.turno)]
+                            ? PUNTO + FURGONE + ' ' + esc(nomeFurgone[furOra[chiaveFur(r.tecnico_id, r.data, r.turno)]] || '') : '') + '\n';
                     if (r.cliente) blocco += '      ' + esc(r.cliente) + '\n';
                     if (ev.tipo === 'MODIFICA' && ev.prima && ev.dopo) {
                         CAMPI.forEach((c) => {
@@ -353,8 +384,34 @@ Deno.serve(async (req: Request) => {
                 });
                 righe.push(blocco);
             });
+        }
+        if (furCambi.length > 0) {
+            // Per tecnico e giorno; mattina e pomeriggio con lo stesso cambio = "giornata"
+            const ordTec = (id: number) => nomi[id]?.ordine ?? 999;
+            furCambi.sort((a, b) => ordTec(a.tecnico_id) - ordTec(b.tecnico_id) || a.tecnico_id - b.tecnico_id ||
+                a.data.localeCompare(b.data) || a.turno.localeCompare(b.turno));
+            const perTecnico: Record<number, string[]> = {};
+            const ordine: number[] = [];
+            for (let i = 0; i < furCambi.length; i++) {
+                const c = furCambi[i];
+                const dopo = furCambi[i + 1];
+                const giornata = c.turno === 'M' && !!dopo && dopo.tecnico_id === c.tecnico_id && dopo.data === c.data &&
+                    dopo.turno === 'P' && dopo.dopo === c.dopo && dopo.prima === c.prima;
+                if (!perTecnico[c.tecnico_id]) { perTecnico[c.tecnico_id] = []; ordine.push(c.tecnico_id); }
+                perTecnico[c.tecnico_id].push(CALENDARIO + ' ' + giornoCorto(c.data) + PUNTO +
+                    (giornata ? 'giornata' : (c.turno === 'P' ? 'pom.' : 'mat.')) + ' ' + FRECCIA + ' ' +
+                    (c.dopo ? '<b>' + esc(nomeFurgone[c.dopo] || 'FURGONE') + '</b>' : '<i>nessun furgone</i>') +
+                    (c.prima ? ' <i>(prima ' + esc(nomeFurgone[c.prima] || '') + ')</i>' : '') + '\n');
+                if (giornata) i++;
+            }
+            ordine.forEach((tid) => {
+                const n = perTecnico[tid].length;
+                righe.push('\n' + FURGONE + ' <b>' + (n === 1 ? 'Furgone' : 'Furgoni') + ' per ' + esc(nomi[tid]?.nome || 'TECNICO') + '</b>\n' +
+                    perTecnico[tid].join(''));
+            });
+        }
+        if (righe.length > 0) {
             righe.push(firma(email, iniziali));
-
             const intestazione = FURGONE + ' <b>AGRIMAG - Interventi esterni</b>\n';
             for (const testo of dividi(righe, intestazione)) {
                 const esito = await inviaTelegram(testo);
@@ -378,7 +435,24 @@ Deno.serve(async (req: Request) => {
                 '&turno=eq.' + r.turno + '&posizione=eq.' + r.posizione, 'DELETE');
         }
 
-        return risposta({ ok: true, inviati: eventi.length });
+        // Fotografia dei furgoni
+        if (furCambi.length) {
+            const conFurgone = furCambi.filter((c) => c.dopo);
+            if (conFurgone.length) {
+                await db.scrivi('interventi_furgoni_inviati?on_conflict=data,turno,tecnico_id', 'POST',
+                    conFurgone.map((c) => ({
+                        data: c.data, turno: c.turno, tecnico_id: c.tecnico_id, furgone_id: c.dopo,
+                        inviato_at: adesso, inviato_da: email,
+                    })),
+                    { Prefer: 'return=minimal,resolution=merge-duplicates' });
+            }
+            for (const c of furCambi.filter((x) => !x.dopo)) {
+                await db.scrivi('interventi_furgoni_inviati?tecnico_id=eq.' + c.tecnico_id + '&data=eq.' + c.data +
+                    '&turno=eq.' + c.turno, 'DELETE');
+            }
+        }
+
+        return risposta({ ok: true, inviati: eventi.length + furCambi.length });
     } catch (err) {
         return risposta({ ok: false, errore: String((err as Error)?.message || err) }, 500);
     }

@@ -353,6 +353,7 @@ async function intCaricaSettimana() {
         intDati[intChiave(r.tecnico_id, r.data, r.turno, r.posizione)] = r;
     });
     await intCaricaRichiesteAgganciate(resInt.data || []);
+    await intFurCarica(lun, sab);
     if (intSettimana !== lun) return;
     intRender();
     intAggiornaDaInviare();
@@ -471,6 +472,7 @@ function intRenderTabellaTecnico(t) {
                         (intFesta(data) ? '<span class="int-giorno-festa" title="' + intEsc(intFesta(data)) + '">FESTA</span>' : '') +
                         (eMio && intMieiNelGiorno(data, mioId) ? '<span class="int-mio-pallino">' + intMieiNelGiorno(data, mioId) + '</span>' : '') +
                         (intPioggiaNelGiorno(data, t.id) ? '<span class="int-giorno-pioggia" title="Pioggia prevista">&#127783;&#65039;</span>' : '') +
+                        intFurHtmlGiorno(t.id, data) +
                         (modificabile ? '<span class="int-giorno-colora">&#127912;</span>' : '') +
                         '</td>';
                 }
@@ -524,7 +526,7 @@ function intRenderMobile(tecnici) {
             (modificabile ? '<button type="button" class="int-m-colora" onclick="intApriColora(' + t.id + ',\'' + data + '\')">&#127912; Colora</button>' : '') +
             '</div>';
         ['M', 'P'].forEach(turno => {
-            html += '<div class="int-m-turno">' + INT_TURNI[turno] + '</div>';
+            html += '<div class="int-m-turno"><span>' + INT_TURNI[turno] + '</span>' + intFurHtmlTurno(t.id, data, turno) + '</div>';
             for (let pos = 1; pos <= 4; pos++) {
                 const r = intDati[intChiave(t.id, data, turno, pos)];
                 const classi = ['int-m-riga'];
@@ -1309,6 +1311,7 @@ function intAvviaTempoReale() {
             .on('postgres_changes', { event: '*', schema: 'public', table: 'tecnici' }, ricarica)
             .on('postgres_changes', { event: '*', schema: 'public', table: 'interventi_settimana_tecnici' }, ricarica)
             .on('postgres_changes', { event: '*', schema: 'public', table: 'interventi_inviati' }, ricarica)
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'interventi_furgoni' }, ricarica)
             .subscribe();
     } catch (err) {
         console.log('Tempo reale interventi non disponibile:', err);
@@ -1329,6 +1332,7 @@ function intRicaricaDaRemoto() {
             intCaricaSettimana().then(() => {
                 const finestra = document.getElementById('int-tecnici-modal');
                 if (finestra && !finestra.classList.contains('hidden')) intRenderTecnici();
+                if (intFurCtx) intFurRender();
             });
         } else {
             intCaricaElenco();
@@ -1651,7 +1655,8 @@ const INT_ETICHETTE_EVENTO = {
     MODIFICA: 'MODIFICATO',
     RIPRISTINATO: 'RIPROGRAMMATO',
     ANNULLATO: 'CANCELLATO',
-    RIMOSSO: 'CANCELLATO'
+    RIMOSSO: 'CANCELLATO',
+    FURGONE: 'FURGONE'
 };
 let intDaInviare = [];          // modifiche in attesa di essere mandate
 let intContaTimer = null;
@@ -1698,6 +1703,8 @@ async function intCalcolaDaInviare() {
         const tipo = intTipoEvento(prima, dopo);
         if (tipo) elenco.push({ tipo: tipo, riga: intHaContenuto(dopo) ? dopo : prima });
     });
+    // Furgoni cambiati (v8.2.0)
+    (await intFurDaInviare(oggi)).forEach(e => elenco.push(e));
     elenco.sort((a, b) => a.riga.data.localeCompare(b.riga.data) || a.riga.turno.localeCompare(b.riga.turno) || a.riga.posizione - b.riga.posizione);
     return { elenco: elenco, inAttesa: inAttesa };
 }
@@ -2038,3 +2045,308 @@ window.intImpostaFisso = intImpostaFisso;
 window.intImpostaAttivo = intImpostaAttivo;
 window.intImpostaInSettimana = intImpostaInSettimana;
 window.intAggiungiTecnico = intAggiungiTecnico;
+
+// ========================================
+// FURGONI NEL PLANNING (v8.2.0)
+// ----------------------------------------
+// Per ogni tecnico, giorno e mezza giornata (M / P) si sceglie con che furgone esce
+// (tabella interventi_furgoni, script supabase/interventi-furgoni.sql).
+// Lo scelgono admin e operatori; i tecnici lo vedono soltanto.
+// Lo stesso furgone non puo' andare a due tecnici nella stessa mezza giornata (controllo qui e nel database).
+// Sul furgone: triangolino con il numero di ricambi sotto scorta (dal Magazzino esterno mezzi).
+// Nella finestra del furgone: i modelli trovati negli interventi del giorno (campo cliente e note
+// della richiesta agganciata) con quanti ricambi compatibili ha ogni furgone ("HRM1500: CITROEN 12 - FORD 5").
+// Il furgone parte anche nel riepilogo "Invia a Telegram".
+// Se lo script SQL non e' stato eseguito la funzione resta nascosta e il planning funziona come prima.
+// ========================================
+let intFurAttivi = false;        // tabelle presenti?
+let intFurgoni = [];             // [{ id, nome, ordine }]
+let intFurDati = {};             // "tecnico|data|turno" -> furgone_id
+let intFurRicambi = [];          // [{ id, marca, modelli, codice, descrizione, unita, q: { furgone_id: { q, s } } }]
+let intFurCtx = null;            // { tid, data } della finestra aperta
+
+function intFurChiave(tid, data, turno) { return tid + '|' + data + '|' + turno; }
+function intFurNome(id) { const f = intFurgoni.find(x => x.id === id); return f ? f.nome : ''; }
+function intFurCorto(id) { return intFurNome(id).slice(0, 3); }
+function intFurNorm(s) { return String(s || '').toUpperCase().replace(/[^A-Z0-9]/g, ''); }
+function intFurQ(n) {
+    const v = Number(n) || 0;
+    return Number.isInteger(v) ? String(v) : v.toFixed(2).replace('.', ',').replace(/,?0+$/, '');
+}
+
+async function intFurCarica(lun, sab) {
+    try {
+        const [f, d, s] = await Promise.all([
+            supabaseClient.from('mezzi_furgoni').select('id, nome, ordine, attivo').order('ordine').order('nome'),
+            supabaseClient.from('interventi_furgoni').select('data, turno, tecnico_id, furgone_id').gte('data', lun).lte('data', sab),
+            supabaseClient.rpc('mezzi_stato_planning')
+        ]);
+        if (f.error || d.error) throw (f.error || d.error);
+        intFurgoni = (f.data || []).filter(x => x.attivo !== false);
+        intFurDati = {};
+        (d.data || []).forEach(r => { intFurDati[intFurChiave(r.tecnico_id, r.data, r.turno)] = r.furgone_id; });
+        const mappa = {};
+        if (!s.error) {
+            (s.data || []).forEach(x => {
+                if (!mappa[x.ricambio_id]) {
+                    mappa[x.ricambio_id] = { id: x.ricambio_id, marca: x.marca, modelli: x.modelli, codice: x.codice,
+                        descrizione: x.descrizione, unita: x.unita, q: {} };
+                }
+                mappa[x.ricambio_id].q[x.furgone_id] = { q: Number(x.quantita) || 0, s: Number(x.soglia) || 0 };
+            });
+        } else {
+            console.log('Stato furgoni non disponibile:', s.error);
+        }
+        intFurRicambi = Object.values(mappa);
+        intFurAttivi = intFurgoni.length > 0;
+    } catch (err) {
+        // Script supabase/interventi-furgoni.sql non ancora eseguito: niente furgoni nel planning
+        console.log('Furgoni nel planning non disponibili:', err);
+        intFurAttivi = false;
+        intFurDati = {};
+    }
+}
+
+// Ricambi sotto scorta in un furgone (soglia impostata e quantita' arrivata alla soglia)
+function intFurSottoScorta(fid) {
+    return intFurRicambi.filter(r => r.q[fid] && r.q[fid].s > 0 && r.q[fid].q <= r.q[fid].s);
+}
+
+// Tecnico che ha gia' quel furgone nella stessa mezza giornata (escluso tid)
+function intFurOccupatoDa(fid, data, turno, tid) {
+    const t = intTecnici.find(x => x.id !== tid && intFurDati[intFurChiave(x.id, data, turno)] === fid);
+    return t || null;
+}
+
+// Segnalino nella cella del giorno (PC) - M e P uguali = uno solo
+function intFurHtmlGiorno(tid, data) {
+    if (!intFurAttivi) return '';
+    const m = intFurDati[intFurChiave(tid, data, 'M')];
+    const p = intFurDati[intFurChiave(tid, data, 'P')];
+    const modificabile = intPuoModificare();
+    if (!m && !p && !modificabile) return '';
+    const click = ' onclick="event.stopPropagation(); intApriFurgone(' + tid + ',\'' + data + '\')"';
+    const chip = (turno, fid) => {
+        const n = intFurSottoScorta(fid).length;
+        return '<span class="int-fur-chip" title="' + intEsc((turno ? INT_TURNI[turno] + ': ' : 'Tutto il giorno: ') + intFurNome(fid)) +
+            (n ? ' - ' + n + ' ricambi sotto scorta' : '') + '">' + (turno ? turno + ' ' : '') + intEsc(intFurCorto(fid)) +
+            (n ? '<span class="int-fur-avviso">' + n + '</span>' : '') + '</span>';
+    };
+    let html = '';
+    if (m && m === p) html = chip('', m);
+    else html = (m ? chip('M', m) : '') + (p ? chip('P', p) : '');
+    if (!html) html = '<span class="int-fur-chip vuoto" title="Scegli il furgone">&#128656;+</span>';
+    return '<span class="int-fur-giorno"' + click + '>' + html + '</span>';
+}
+
+// Segnalino accanto a "Mattina" / "Pomeriggio" (telefono)
+function intFurHtmlTurno(tid, data, turno) {
+    if (!intFurAttivi) return '';
+    const fid = intFurDati[intFurChiave(tid, data, turno)];
+    if (!fid && !intPuoModificare()) return '';
+    const n = fid ? intFurSottoScorta(fid).length : 0;
+    return '<button type="button" class="int-fur-m' + (fid ? '' : ' vuoto') + '" onclick="event.stopPropagation(); intApriFurgone(' + tid + ',\'' + data + '\')">' +
+        '&#128656; ' + (fid ? intEsc(intFurNome(fid)) : 'scegli furgone') +
+        (n ? ' <span class="int-fur-avviso" title="Ricambi sotto scorta">&#9888;&#65039; ' + n + '</span>' : '') + '</button>';
+}
+
+// ---------- Modelli scritti negli interventi del giorno ----------
+// Testo del giorno: campo cliente + cliente e note della richiesta agganciata
+function intFurTestoGiorno(tid, data) {
+    const pezzi = [];
+    ['M', 'P'].forEach(turno => {
+        for (let pos = 1; pos <= 4; pos++) {
+            const r = intDati[intChiave(tid, data, turno, pos)];
+            if (!intHaContenuto(r) || r.esito === 'NO') continue;
+            pezzi.push(r.cliente || '');
+            const ric = r.richiesta_id ? intRichiesteMappa[r.richiesta_id] : null;
+            if (ric) pezzi.push(ric.note || '', ric.tipo || '');
+        }
+    });
+    return pezzi.join(' ');
+}
+
+function intFurUniversale(m) { return /^TUTT[IE]\b/i.test(String(m).trim()); }
+function intFurModelliRicambio(r) {
+    return String(r.modelli || '').split(',').map(x => x.trim()).filter(x => x && !intFurUniversale(x));
+}
+
+// Modelli conosciuti (dai ricambi dei furgoni) trovati nel testo: i piu' lunghi vincono ("HRM1500" batte "HRM150")
+function intFurModelliTrovati(testo) {
+    const parole = String(testo || '').toUpperCase().split(/[^A-Z0-9]+/).filter(Boolean);
+    const tutto = intFurNorm(testo);
+    if (!tutto) return [];
+    const conosciuti = {};
+    intFurRicambi.forEach(r => intFurModelliRicambio(r).forEach(m => {
+        const n = intFurNorm(m);
+        if (n.length >= 3 && !conosciuti[n]) conosciuti[n] = { nome: m.toUpperCase(), marca: String(r.marca || '').toUpperCase() };
+    }));
+    const trovati = Object.keys(conosciuti).filter(n =>
+        // modello con numeri (es. HRM1500, anche scritto "HRM 1500"): basta trovarlo nel testo;
+        // senza numeri (es. "MIIMO"): deve essere una parola intera
+        (/\d/.test(n) && n.length >= 4) ? tutto.indexOf(n) !== -1 : parole.indexOf(n) !== -1);
+    return trovati
+        .filter(n => !trovati.some(a => a !== n && a.length > n.length && a.indexOf(n) !== -1))
+        .map(n => ({ norm: n, nome: conosciuti[n].nome, marca: conosciuti[n].marca }));
+}
+
+// Ricambi compatibili con un modello (anche quelli "TUTTI" della stessa marca), con la quantita' per furgone
+function intFurCompatibili(modello) {
+    return intFurRicambi.filter(r => {
+        const mod = String(r.modelli || '').split(',').map(x => x.trim()).filter(Boolean);
+        if (mod.some(x => !intFurUniversale(x) && intFurNorm(x) === modello.norm)) return true;
+        return mod.some(intFurUniversale) && intFurNorm(r.marca) && intFurNorm(r.marca) === intFurNorm(modello.marca);
+    });
+}
+
+// ---------- Finestra del furgone ----------
+function intApriFurgone(tid, data) {
+    if (!intFurAttivi) return;
+    intFurCtx = { tid: tid, data: data };
+    intFurRender();
+    document.getElementById('int-furgone-modal').classList.remove('hidden');
+}
+
+function intChiudiFurgone() {
+    document.getElementById('int-furgone-modal').classList.add('hidden');
+    intFurCtx = null;
+}
+
+function intFurRender() {
+    if (!intFurCtx) return;
+    const { tid, data } = intFurCtx;
+    const modificabile = intPuoModificare();
+    document.getElementById('int-furgone-dove').innerHTML = intDescrizioneCasella(tid, data, 'M', 0).replace(' &middot; MATTINA', '');
+
+    let html = '';
+    // Scelta del furgone: giornata intera, mattina, pomeriggio
+    const righe = [['G', 'Tutto il giorno'], ['M', INT_TURNI.M], ['P', INT_TURNI.P]];
+    righe.forEach(([parte, etichetta]) => {
+        if (parte === 'G' && !modificabile) return;
+        const turni = parte === 'G' ? ['M', 'P'] : [parte];
+        const attuali = turni.map(t => intFurDati[intFurChiave(tid, data, t)] || null);
+        const uguali = attuali.every(x => x === attuali[0]);
+        const scelto = uguali ? attuali[0] : undefined;
+        html += '<div class="int-fur-riga"><div class="int-fur-etichetta">' + etichetta + '</div><div class="int-scelte int-fur-scelte">';
+        if (modificabile) {
+            html += '<button type="button" class="' + (scelto === null ? 'attivo' : '') + '" onclick="intFurImposta(\'' + parte + '\', null)">Nessuno</button>';
+            intFurgoni.forEach(f => {
+                const occ = turni.map(t => intFurOccupatoDa(f.id, data, t, tid)).find(Boolean);
+                const n = intFurSottoScorta(f.id).length;
+                html += '<button type="button" class="' + (scelto === f.id ? 'attivo' : '') + (occ ? ' occupato' : '') + '"' +
+                    (occ ? ' disabled title="Gi&agrave; assegnato a ' + intEsc(occ.nome) + '"' : '') +
+                    ' onclick="intFurImposta(\'' + parte + '\', ' + f.id + ')">&#128656; ' + intEsc(f.nome) +
+                    (n ? ' <span class="int-fur-avviso">' + n + '</span>' : '') +
+                    (occ ? '<small>con ' + intEsc(occ.nome) + '</small>' : '') + '</button>';
+            });
+        } else {
+            html += '<span class="int-fur-sola">' + (attuali[0] ? '&#128656; ' + intEsc(intFurNome(attuali[0])) : 'nessun furgone') + '</span>';
+        }
+        html += '</div></div>';
+    });
+
+    // Ricambi sotto scorta per furgone
+    html += '<h4 class="int-fur-titolo">&#9888;&#65039; Ricambi sotto scorta</h4>';
+    if (!intFurRicambi.length) {
+        html += '<p class="int-nota">Nessun ricambio caricato nei furgoni (Magazzino esterno mezzi).</p>';
+    } else {
+        intFurgoni.forEach(f => {
+            const sotto = intFurSottoScorta(f.id);
+            html += '<details class="int-fur-elenco' + (sotto.length ? '' : ' vuoto') + '"><summary>&#128656; ' + intEsc(f.nome) + ': ' +
+                (sotto.length ? '<strong>' + sotto.length + (sotto.length === 1 ? ' ricambio' : ' ricambi') + '</strong>' : 'nessuno') + '</summary>' +
+                (sotto.length ? '<ul>' + sotto.map(r => '<li><strong>' + intEsc(r.codice || '') + '</strong> ' + intEsc(r.descrizione || '') +
+                    ' <small>(' + intEsc(r.marca || '') + ')</small> &mdash; ' + intFurQ(r.q[f.id].q) + (r.unita === 'MT' ? ' m' : '') +
+                    ' / scorta ' + intFurQ(r.q[f.id].s) + '</li>').join('') + '</ul>' : '') + '</details>';
+        });
+    }
+
+    // Modelli trovati negli interventi del giorno
+    const modelli = intFurModelliTrovati(intFurTestoGiorno(tid, data));
+    html += '<h4 class="int-fur-titolo">&#128295; Modelli negli interventi del giorno</h4>';
+    if (!modelli.length) {
+        html += '<p class="int-nota">Nessun modello riconosciuto. Scrivilo nel campo cliente o nelle note della richiesta (es. HRM1500).</p>';
+    } else {
+        modelli.forEach(m => {
+            const comp = intFurCompatibili(m);
+            const conteggi = intFurgoni.map(f => intEsc(f.nome) + ' <strong>' + comp.filter(r => r.q[f.id] && r.q[f.id].q > 0).length + '</strong>');
+            html += '<details class="int-fur-elenco"><summary>' + intEsc(m.nome) + ': ' + conteggi.join(' &middot; ') + '</summary>' +
+                (comp.length ? '<table class="int-fur-tab"><thead><tr><th>RICAMBIO</th>' + intFurgoni.map(f => '<th>' + intEsc(intFurCorto(f.id)) + '</th>').join('') +
+                    '</tr></thead><tbody>' + comp.map(r => '<tr><td><strong>' + intEsc(r.codice || '') + '</strong> ' + intEsc(r.descrizione || '') + '</td>' +
+                    intFurgoni.map(f => {
+                        const g = r.q[f.id];
+                        const q = g ? g.q : 0;
+                        return '<td class="' + (q > 0 ? (g.s > 0 && q <= g.s ? 'basso' : 'ok') : 'zero') + '">' + intFurQ(q) + '</td>';
+                    }).join('') + '</tr>').join('') + '</tbody></table>' : '<p class="int-nota">Nessun ricambio compatibile nei furgoni.</p>') +
+                '</details>';
+        });
+    }
+    document.getElementById('int-furgone-corpo').innerHTML = html;
+}
+
+async function intFurImposta(parte, fid) {
+    if (!intFurCtx || !intPuoModificare()) return;
+    const { tid, data } = intFurCtx;
+    const turni = parte === 'G' ? ['M', 'P'] : [parte];
+    if (fid) {
+        const occ = turni.map(t => intFurOccupatoDa(fid, data, t, tid)).find(Boolean);
+        if (occ) {
+            showCustomAlert('Il furgone <strong>' + intEsc(intFurNome(fid)) + '</strong> &egrave; gi&agrave; assegnato a <strong>' +
+                intEsc(occ.nome) + '</strong> in quella mezza giornata.', 'Furgone occupato', '&#9888;&#65039;');
+            return;
+        }
+    }
+    try {
+        if (fid) {
+            const adesso = new Date().toISOString();
+            const { error } = await supabaseClient.from('interventi_furgoni').upsert(turni.map(t => ({
+                data: data, turno: t, tecnico_id: tid, furgone_id: fid, updated_at: adesso, updated_by: loggedInUserEmail || null
+            })), { onConflict: 'data,turno,tecnico_id' });
+            if (error) throw error;
+        } else {
+            const { error } = await supabaseClient.from('interventi_furgoni').delete()
+                .eq('data', data).eq('tecnico_id', tid).in('turno', turni);
+            if (error) throw error;
+        }
+        turni.forEach(t => {
+            if (fid) intFurDati[intFurChiave(tid, data, t)] = fid;
+            else delete intFurDati[intFurChiave(tid, data, t)];
+        });
+        intFurRender();
+        intRender();
+        intAggiornaDaInviare();
+    } catch (err) {
+        if (err && err.code === '23505') {
+            showCustomAlert('Il furgone &egrave; appena stato assegnato a un altro tecnico in quella mezza giornata. Ricarico il planning.',
+                'Furgone occupato', '&#9888;&#65039;');
+            await intCaricaSettimana();
+            intFurRender();
+            return;
+        }
+        intErrore(err, 'scelta furgone');
+    }
+}
+
+// Cambi dei furgoni da mandare su Telegram (stessa logica della funzione notifica-interventi)
+async function intFurDaInviare(oggi) {
+    if (!intFurAttivi) return [];
+    const campi = 'data, turno, tecnico_id, furgone_id';
+    const [att, inv] = await Promise.all([
+        intLeggiTutti(() => supabaseClient.from('interventi_furgoni').select(campi).gte('data', oggi).order('data')),
+        intLeggiTutti(() => supabaseClient.from('interventi_furgoni_inviati').select(campi).gte('data', oggi).order('data'))
+    ]);
+    if (att.error || inv.error) return [];
+    const a = {};
+    (att.data || []).forEach(r => { a[intFurChiave(r.tecnico_id, r.data, r.turno)] = r; });
+    const b = {};
+    (inv.data || []).forEach(r => { if (r.furgone_id) b[intFurChiave(r.tecnico_id, r.data, r.turno)] = r; });
+    const elenco = [];
+    new Set(Object.keys(a).concat(Object.keys(b))).forEach(k => {
+        const prima = b[k] ? b[k].furgone_id : null;
+        const dopo = a[k] ? a[k].furgone_id : null;
+        if (prima === dopo) return;
+        const rif = a[k] || b[k];
+        elenco.push({ tipo: 'FURGONE', riga: { tecnico_id: rif.tecnico_id, data: rif.data, turno: rif.turno, posizione: 0,
+            ora: '', cliente: dopo ? intFurNome(dopo) : 'NESSUN FURGONE' } });
+    });
+    return elenco;
+}
