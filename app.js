@@ -11,7 +11,7 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 // ========================================
 // VARIABILI GLOBALI
 // ========================================
-const CURRENT_VERSION = '8.0.4';
+const CURRENT_VERSION = '8.0.5';
 const SHOW_WHATS_NEW_POPUP = false;
 
 let currentUser = null;
@@ -68,7 +68,7 @@ const BUONI_RUOLI = ['admin', 'operatore'];
 
 function sezioneConsentita(sectionName) {
     if (sectionName === 'tecnici') sectionName = 'assistenza';
-    // Magazzino esterno mezzi (v8.1.0): MZ_RUOLI in mezzi-functions.js (per ora solo admin)
+    // Magazzino esterno mezzi (v8.1.0): MZ_RUOLI in mezzi-functions.js (dalla v8.5.0 admin, operatori e tecnici)
     if (sectionName === 'mezzi') return typeof mzPuoVedere === 'function' && mzPuoVedere();
     if (SEZIONI_ASSISTENZA_RUOLI[sectionName]) return SEZIONI_ASSISTENZA_RUOLI[sectionName].includes(currentUserRole);
     if (sectionName === 'buoni-regalo') return BUONI_RUOLI.includes(currentUserRole);

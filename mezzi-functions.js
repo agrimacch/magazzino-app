@@ -24,11 +24,15 @@
 // - Carico dal negozio: a mano (scheda del ricambio) o da Excel (stesso formato del file del magazzino esterno:
 //   i codici doppi vengono uniti da soli, modelli compresi).
 // - Etichette Zebra ZD420 50 x 20 mm: PDF della misura dell'etichetta con il codice a barre (Code 128).
-// Tabelle Supabase: mezzi_* (script supabase/mezzi-setup.sql). Permessi: MZ_RUOLI qui sotto
-// + funzione mezzi_puo_gestire() su Supabase (per ora solo admin).
+// Tabelle Supabase: mezzi_* (script supabase/mezzi-setup.sql). Permessi (v8.5.0, script supabase/mezzi-ruoli.sql):
+//   admin e operatori (MZ_RUOLI_GESTIONE, mezzi_puo_gestire()): tutto (catalogo, carico/rettifica, Excel, etichette,
+//     da ricaricare, movimenti, eliminare rapportini).
+//   tecnici (mezzi_puo_usare()): Cerca, Ricambi e furgoni in sola lettura (solo prezzo IVA compresa), Rapportini
+//     (nuovi e modifica, PDF, Drive: i ricambi usati si scaricano dal furgone). Non eliminano i rapportini.
 // ========================================
 
-const MZ_RUOLI = ['admin'];          // poi anche 'operatore' e 'tecnico'
+const MZ_RUOLI = ['admin', 'operatore', 'tecnico'];   // chi vede la sezione
+const MZ_RUOLI_GESTIONE = ['admin', 'operatore'];      // chi gestisce catalogo e quantita'
 const MZ_TARIFFA_ORA = 40;           // manodopera: euro all'ora IVA esclusa
 const MZ_IVA = 22;
 const MZ_ETICHETTA = { larghezza: 50, altezza: 20 };   // mm (Zebra ZD420)
@@ -60,6 +64,9 @@ const mzDriveErrore = {};
 
 function mzPuoVedere() {
     return typeof currentUserRole !== 'undefined' && MZ_RUOLI.includes(currentUserRole);
+}
+function mzPuoGestire() {
+    return typeof currentUserRole !== 'undefined' && MZ_RUOLI_GESTIONE.includes(currentUserRole);
 }
 
 // ---------- Utilita' ----------
@@ -199,10 +206,50 @@ async function openMagazzinoMezzi() {
     mzAvviaTempoReale();
     mzTab = sessionStorage.getItem('mzTab') || 'cerca';
     mzRender();
+    mzApriDaIntervento();
 }
 
 function mzIndietro() {
-    openSection(sessionStorage.getItem('mzDa') === 'assistenza' ? 'assistenza' : 'magazzino');
+    const da = sessionStorage.getItem('mzDa');
+    // il tecnico non vede Magazzino: torna ad Assistenza
+    openSection(da === 'interventi' ? 'interventi-esterni' : (da === 'assistenza' || currentUserRole === 'tecnico') ? 'assistenza' : 'magazzino');
+}
+
+// ---------- Rapportino dal planning Interventi esterni (v8.4.0) ----------
+// Il pulsante "Crea rapportino" nella finestra del cliente (planning) lascia qui i dati dell'intervento:
+// apro un rapportino nuovo con cliente, indirizzo, telefono (dalla richiesta agganciata), data e tecnico.
+async function mzApriDaIntervento() {
+    let dati = null;
+    try { dati = JSON.parse(sessionStorage.getItem('mzDaIntervento') || 'null'); } catch (e) { dati = null; }
+    sessionStorage.removeItem('mzDaIntervento');
+    if (!dati) return;
+    mzCambiaTab('rapportini');
+    mzApriNuovoRapportino();
+    const imposta = (campo, valore) => { const el = document.getElementById(campo); if (el && valore) el.value = valore; };
+    if (dati.richiesta_id) {
+        await mzRichCarica();
+        if (!mzRichieste.some(x => x.id === dati.richiesta_id)) {
+            // richiesta piu' vecchia di 180 giorni: la leggo da sola
+            const { data } = await supabaseClient.from('richieste_robot')
+                .select('id, data, cliente, indirizzo, paese, telefono, note, tipo, esito, ordine_id').eq('id', dati.richiesta_id).maybeSingle();
+            if (data) mzRichieste.push(data);
+        }
+        if (mzRichieste.some(x => x.id === dati.richiesta_id)) await mzRichScegli(dati.richiesta_id);
+        else imposta('mz-r-cliente', mzTesto(dati.cliente));
+    } else {
+        // riga del planning senza richiesta: il testo scritto nel planning (es. "ROSSI MARIO - MIRA")
+        imposta('mz-r-cliente', mzTesto(dati.cliente));
+        mzRapUscitaAuto(true, dati.cliente);
+    }
+    // data e tecnico: quelli della riga del planning
+    imposta('mz-r-data', dati.data);
+    const sel = document.getElementById('mz-r-tecnico');
+    if (sel && dati.tecnico) {
+        if (!Array.from(sel.options).some(o => o.value === dati.tecnico)) sel.insertAdjacentHTML('beforeend', '<option>' + mzEsc(dati.tecnico) + '</option>');
+        sel.value = dati.tecnico;
+    }
+    const elenco = document.getElementById('mz-r-rich-elenco');
+    if (elenco && dati.richiesta_id) elenco.innerHTML = '';
 }
 function mzApriDa(da) {
     sessionStorage.setItem('mzDa', da);
@@ -217,6 +264,9 @@ function mzCambiaTab(tab) {
 
 // ---------- Disegno ----------
 function mzRender() {
+    if (mzTab === 'movimenti' && !mzPuoGestire()) mzTab = 'cerca';
+    const tabMov = document.querySelector('#mz-tabs [data-mz-tab="movimenti"]');
+    if (tabMov) tabMov.classList.toggle('hidden', !mzPuoGestire());
     document.querySelectorAll('#mz-tabs [data-mz-tab]').forEach(b => b.classList.toggle('active', b.dataset.mzTab === mzTab));
     const box = document.getElementById('mz-contenuto');
     if (!box) return;
@@ -452,13 +502,14 @@ function mzHtmlGiacenze() {
                 marche.map(m => '<option' + (m === mzGiacFiltro.marca ? ' selected' : '') + '>' + mzEsc(m) + '</option>').join('') + '</select>' +
             '<label class="mz-check"><input type="checkbox"' + (mzGiacFiltro.sotto ? ' checked' : '') + ' onchange="mzGiacImposta(\'sotto\', this.checked)"> Solo da ricaricare</label>' +
         '</div>' +
+        (!mzPuoGestire() ? '<p class="mz-aiuto">Tocca un ricambio per vedere la scheda. Carico e rettifiche li fanno admin e operatori.</p>' :
         '<div class="mz-strumenti">' +
             '<button type="button" class="btn-primary" onclick="mzApriRicambio(null)">&#10133; Nuovo ricambio</button>' +
             '<button type="button" class="btn-back" onclick="document.getElementById(\'mz-file-excel\').click()">&#128229; Carica Excel</button>' +
             '<button type="button" class="btn-back" onclick="mzScaricaExcel()">&#128228; Scarica Excel</button>' +
             '<button type="button" class="btn-back" onclick="mzApriRicarica()">&#128666; Da ricaricare</button>' +
             '<button type="button" class="btn-back" id="mz-btn-etichette" onclick="mzStampaEtichetteSelezionate()">&#127991;&#65039; Etichette</button>' +
-        '</div>' +
+        '</div>') +
         '<p id="mz-giac-conta" class="mz-conta"></p>' +
         '<div class="mz-tab-scroll"><table class="mz-tab" id="mz-giac-tab"></table></div>';
 }
@@ -496,13 +547,14 @@ function mzRenderTabellaGiacenze() {
         return;
     }
     const tutti = lista.every(r => mzSelezionati[r.id]);
+    const sel = mzPuoGestire();
     tab.innerHTML = '<thead><tr>' +
-            '<th class="mz-col-sel"><input type="checkbox" title="Seleziona tutti (etichette)"' + (tutti ? ' checked' : '') + ' onchange="mzSelezionaTutti(this.checked)"></th>' +
+            (sel ? '<th class="mz-col-sel"><input type="checkbox" title="Seleziona tutti (etichette)"' + (tutti ? ' checked' : '') + ' onchange="mzSelezionaTutti(this.checked)"></th>' : '') +
             '<th>Marca</th><th>Codice</th><th>Ricambio</th><th>Modelli</th><th class="mz-n">Prezzo IC</th>' +
             mzFurgoni.map(f => '<th class="mz-n">' + mzEsc(f.nome) + '</th>').join('') +
         '</tr></thead><tbody>' +
         lista.map(r => '<tr>' +
-            '<td class="mz-col-sel"><input type="checkbox"' + (mzSelezionati[r.id] ? ' checked' : '') + ' onchange="mzSeleziona(' + r.id + ', this.checked)"></td>' +
+            (sel ? '<td class="mz-col-sel"><input type="checkbox"' + (mzSelezionati[r.id] ? ' checked' : '') + ' onchange="mzSeleziona(' + r.id + ', this.checked)"></td>' : '') +
             '<td onclick="mzApriRicambio(' + r.id + ')">' + mzEsc(r.marca) + '</td>' +
             '<td onclick="mzApriRicambio(' + r.id + ')" class="mz-codice-cella">' + mzEsc(r.codice || '') + '</td>' +
             '<td onclick="mzApriRicambio(' + r.id + ')"><strong>' + mzEsc(r.descrizione) + '</strong>' + (r.note ? '<div class="mz-carta-note">' + mzEsc(r.note) + '</div>' : '') + '</td>' +
@@ -537,9 +589,21 @@ const MZ_CAMPI_RICAMBIO = [
     ['note', 'Note', 'area']
 ];
 
+// Scheda in sola lettura per i tecnici (niente prezzo IVA esclusa, niente carico/rettifica)
+function mzSchedaSolaLettura(r) {
+    const riga = (et, v) => v ? '<tr><td><strong>' + et + '</strong></td><td>' + v + '</td></tr>' : '';
+    const html = '<table class="mz-scheda-ro">' +
+        riga('Codice', mzEsc(r.codice || '')) + riga('Marca', mzEsc(r.marca || '')) + riga('Modelli', mzEsc(r.modelli || '')) +
+        riga('Prezzo IVA compresa', mzEuro(r.prezzo_ic) + (mzMetri(r) ? ' al metro' : '')) +
+        mzFurgoni.map(f => riga('&#128656; ' + mzEsc(f.nome), mzQU(mzQta(r.id, f.id), r) + (mzSottoSoglia(r.id, f.id) ? ' &#9888;&#65039;' : ''))).join('') +
+        riga('Codice a barre', mzEsc(r.codice_barre || '')) + riga('Note', mzEsc(r.note || '')) + '</table>';
+    showCustomAlert(html, mzEsc(r.descrizione), '&#128295;');
+}
+
 function mzApriRicambio(id) {
     const r = id ? mzRicambio(id) : null;
     if (id && !r) return;
+    if (!mzPuoGestire()) { if (r) mzSchedaSolaLettura(r); return; }
     mzRicAperto = r;
     document.getElementById('mz-ric-titolo').innerHTML = r ? '&#128295; ' + mzEsc(r.descrizione) : '&#10133; Nuovo ricambio';
     document.getElementById('mz-ric-campi').innerHTML = MZ_CAMPI_RICAMBIO.map(([campo, etichetta, tipo]) => {
@@ -610,6 +674,7 @@ function mzUnisciModelli(elenchi) {
 }
 
 async function mzSalvaRicambio() {
+    if (!mzPuoGestire()) return;   // solo admin e operatori
     const v = mzRicLeggi();
     if (!v.descrizione) { await showCustomAlert('Scrivi la <strong>descrizione</strong> del ricambio.', 'Ricambio', '&#9888;&#65039;'); return; }
     const doppio = v.codice && mzRicambi.find(r => r.id !== (mzRicAperto && mzRicAperto.id) && mzNorm(r.codice) === mzNorm(v.codice));
@@ -663,6 +728,7 @@ async function mzSalvaRicambio() {
 
 // Carica (+) o rettifica (=) la quantita' di un furgone dalla scheda
 async function mzRicMuovi(furgoneId, tipo) {
+    if (!mzPuoGestire()) return;   // solo admin e operatori
     const r = mzRicAperto;
     if (!r) return;
     const el = document.getElementById('mz-ric-q-' + furgoneId);
@@ -719,6 +785,7 @@ function mzControllaSoglia(ricambioId, furgoneId, prima, dopo, soglia) {
 }
 
 async function mzEliminaRicambio() {
+    if (!mzPuoGestire()) return;   // solo admin e operatori
     const r = mzRicAperto;
     if (!r) return;
     const tot = mzFurgoni.reduce((t, f) => t + mzQta(r.id, f.id), 0);
@@ -734,6 +801,7 @@ async function mzEliminaRicambio() {
 
 // ---------- Da ricaricare (per furgone) ----------
 function mzApriRicarica() {
+    if (!mzPuoGestire()) return;   // solo admin e operatori
     const html = mzFurgoni.map(f => {
         const lista = mzRicambi.filter(r => mzSottoSoglia(r.id, f.id));
         return '<h4>&#128656; ' + mzEsc(f.nome) + ' <small>(' + lista.length + ')</small></h4>' +
@@ -757,6 +825,7 @@ function mzStampaRicarica() {
 
 // ---------- Movimenti ----------
 async function mzCaricaMovimenti() {
+    if (!mzPuoGestire()) return;   // solo admin e operatori
     const box = document.getElementById('mz-contenuto');
     const { data, error } = await supabaseClient.from('mezzi_movimenti').select('*').order('created_at', { ascending: false }).limit(300);
     if (mzTab !== 'movimenti' || !box) return;
@@ -785,7 +854,7 @@ function mzHtmlRapportini() {
             '<input type="search" class="mz-cerca-piccola" placeholder="Cerca numero, cliente, modello, matricola, tecnico..." value="' + mzEsc(mzRapCerca) + '" oninput="mzRapCerca = this.value; mzRenderElencoRapportini()">' +
             '<select onchange="mzRapAnno = this.value; mzRenderElencoRapportini()"><option value="TUTTI">Tutti gli anni</option>' +
                 anni.map(a => '<option' + (String(a) === String(mzRapAnno) ? ' selected' : '') + '>' + a + '</option>').join('') + '</select>' +
-            '<button type="button" class="btn-back" id="mz-prova-drive" onclick="mzProvaDrive()">&#128193; Prova Drive</button>' +
+            (mzPuoGestire() ? '<button type="button" class="btn-back" id="mz-prova-drive" onclick="mzProvaDrive()">&#128193; Prova Drive</button>' : '') +
         '</div><p id="mz-rap-conta" class="mz-conta"></p><div class="mz-tab-scroll"><table class="mz-tab" id="mz-rap-tab"></table></div>';
 }
 
@@ -900,7 +969,7 @@ function mzRapMostra() {
         '<p class="mz-aiuto" id="mz-r-uscita-nota"></p>' +
         '<label for="mz-r-note">Note</label><textarea id="mz-r-note" rows="2">' + mzEsc(x.note || '') + '</textarea>' +
         '<div id="mz-r-totali" class="mz-totali"></div>';
-    document.getElementById('mz-rap-elimina').classList.toggle('hidden', nuovo);
+    document.getElementById('mz-rap-elimina').classList.toggle('hidden', nuovo || !mzPuoGestire());
     document.getElementById('mz-rap-pdf').classList.toggle('hidden', nuovo);
     document.getElementById('mz-rap-modal').classList.remove('hidden');
     mzRapRenderRighe();
@@ -1342,6 +1411,7 @@ async function mzSalvaRapportino() {
 }
 
 async function mzEliminaRapportino() {
+    if (!mzPuoGestire()) return;   // solo admin e operatori
     const x = mzRap;
     if (!x || !x.id) return;
     if (!window.confirm('Eliminare il rapportino N. ' + mzNumeroRap(x) + ' di ' + x.cliente + '?\n\nI ricambi tornano nel furgone e il PDF su Drive va nel cestino.')) return;
@@ -1521,6 +1591,7 @@ function mzColonneExcel() {
 }
 
 function mzScaricaExcel() {
+    if (!mzPuoGestire()) return;   // solo admin e operatori
     if (typeof XLSX === 'undefined') { showCustomAlert('Libreria Excel non caricata: aggiorna la pagina e riprova.', 'Errore', '&#10060;'); return; }
     const righe = [mzColonneExcel()];
     mzGiacFiltrati().forEach(r => righe.push([r.marca, r.modelli, r.codice || '', r.codice_ean || '', r.codice_easy || '', r.descrizione,
@@ -1536,6 +1607,7 @@ function mzScaricaExcel() {
 }
 
 async function mzLeggiFileExcel(input) {
+    if (!mzPuoGestire()) return;   // solo admin e operatori
     const file = input.files && input.files[0];
     input.value = '';
     if (!file) return;
@@ -1686,6 +1758,7 @@ function mzChiudiImport() {
 }
 
 async function mzConfermaImport() {
+    if (!mzPuoGestire()) return;   // solo admin e operatori
     const m = mzImport;
     if (!m) return;
     const btn = document.getElementById('mz-imp-conferma');
@@ -1795,6 +1868,7 @@ function mzStampaEtichette(ricambi) {
 }
 
 function mzStampaEtichetteSelezionate() {
+    if (!mzPuoGestire()) return;   // solo admin e operatori
     mzStampaEtichette(mzRicambi.filter(r => mzSelezionati[r.id]));
 }
 

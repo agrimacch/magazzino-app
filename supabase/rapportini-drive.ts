@@ -4,7 +4,7 @@
 // Copia SEPARATA di "buoni-drive" (che non viene toccata): fa da ponte
 // tra l'app e lo script Google dei RAPPORTINI DI INTERVENTO:
 // 1. controlla che chi chiede abbia fatto il login e possa usare
-//    il magazzino dei furgoni (funzione mezzi_puo_gestire(), per ora solo admin)
+//    il magazzino dei furgoni (funzione mezzi_puo_usare(): admin, operatori e tecnici - v8.5.0)
 // 2. manda allo script Google il PDF del rapportino (o la richiesta di
 //    prova / cestino) aggiungendo la chiave segreta
 //    (la chiave resta qui su Supabase, non e' mai nell'app)
@@ -47,12 +47,18 @@ Deno.serve(async (req: Request) => {
     });
     if (!utenteRes.ok) return risposta({ ok: false, errore: 'Utente non collegato' }, 401);
 
-    const permessoRes = await fetch(supabaseUrl + '/rest/v1/rpc/mezzi_puo_gestire', {
-        method: 'POST',
-        headers: { Authorization: auth, apikey: apikey, 'Content-Type': 'application/json' },
-        body: '{}',
-    });
-    const permesso = permessoRes.ok ? await permessoRes.json() : false;
+    // v8.5.0: i rapportini li salvano anche operatori e tecnici (mezzi_puo_usare, script mezzi-ruoli.sql).
+    // Se lo script non e' ancora stato eseguito la funzione non c'e': resta il controllo di prima (mezzi_puo_gestire).
+    const chiedi = async (funzione: string) => {
+        const res = await fetch(supabaseUrl + '/rest/v1/rpc/' + funzione, {
+            method: 'POST',
+            headers: { Authorization: auth, apikey: apikey, 'Content-Type': 'application/json' },
+            body: '{}',
+        });
+        return res.ok ? await res.json() : null;
+    };
+    let permesso = await chiedi('mezzi_puo_usare');
+    if (permesso === null) permesso = await chiedi('mezzi_puo_gestire');
     if (permesso !== true) return risposta({ ok: false, errore: 'Non hai i permessi per i rapportini' }, 403);
 
     // 2. Configurazione

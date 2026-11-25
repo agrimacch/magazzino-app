@@ -330,3 +330,8 @@
 /* v8.3.0: style.css forza "opacity: 1 !important" sui div: il toast si nasconde con visibility */
 .mz-toast { visibility: hidden; transition: opacity 0.2s, transform 0.2s, visibility 0s linear 0.2s; }
 .mz-toast.mz-toast-visibile { visibility: visible; transition: opacity 0.2s, transform 0.2s, visibility 0s; }
+
+/* Scheda del ricambio in sola lettura (tecnici, v8.5.0) */
+.mz-scheda-ro { width: 100%; border-collapse: collapse; font-size: 13px; text-align: left; font-family: 'Roboto Mono', monospace; }
+.mz-scheda-ro td { padding: 4px 6px; border-bottom: 1px solid #e5e7eb; min-width: 0 !important; vertical-align: top; }
+.mz-scheda-ro td:first-child { white-space: nowrap; color: #4b5563; }

@@ -1008,8 +1008,25 @@ function intApriInfo(id) {
     if (!r) return;
     document.getElementById('int-info-dove').innerHTML = intDescrizioneCasella(r.tecnico_id, r.data, r.turno, null) +
         (r.tipo ? ' &middot; ' + intEsc(r.tipo) : '') + (r.esito ? ' &middot; esito ' + intEsc(r.esito) : '');
-    document.getElementById('int-info-corpo').innerHTML = intHtmlDatiCliente(r) + (r.tipo === 'TEL' ? intHtmlTelefonata(r) : '');
+    // v8.4.0: pulsante per il rapportino (chi puo' usare il Magazzino esterno mezzi; non per le telefonate)
+    const rap = r.tipo !== 'TEL' && typeof mzPuoVedere === 'function' && mzPuoVedere()
+        ? '<button type="button" class="btn-primary int-info-rap" onclick="intApriRapportino(' + r.id + ')">&#129534; Crea rapportino</button>' +
+          '<p class="int-nota">Apre un rapportino nuovo con cliente, indirizzo e telefono della richiesta, data e tecnico di questo intervento.</p>'
+        : '';
+    document.getElementById('int-info-corpo').innerHTML = intHtmlDatiCliente(r) + (r.tipo === 'TEL' ? intHtmlTelefonata(r) : '') + rap;
     document.getElementById('int-info-modal').classList.remove('hidden');
+}
+
+// Rapportino dall'intervento: i dati passano al Magazzino esterno mezzi (mzApriDaIntervento)
+function intApriRapportino(id) {
+    const r = intRigaPerId(id);
+    if (!r || typeof mzApriDa !== 'function') return;
+    const tec = intTecnici.find(t => t.id === r.tecnico_id);
+    sessionStorage.setItem('mzDaIntervento', JSON.stringify({
+        richiesta_id: r.richiesta_id || null, cliente: r.cliente || '', data: String(r.data).slice(0, 10), tecnico: tec ? tec.nome : ''
+    }));
+    intChiudiInfo();
+    mzApriDa('interventi');
 }
 
 function intChiudiInfo() {

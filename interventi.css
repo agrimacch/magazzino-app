@@ -1374,3 +1374,6 @@ body.ruolo-tecnico #notifiche-btn {
 .int-furgone-content { max-width: 560px; }
 .int-furgone-content #int-furgone-corpo { max-height: 62vh; overflow-y: auto; }
 .int-scelte.int-fur-scelte button.occupato { background: #f3f4f6; color: #6b7280; }
+
+/* Pulsante "Crea rapportino" nella finestra del cliente (v8.4.0) */
+.int-info-rap { width: 100%; margin-top: 12px; }
