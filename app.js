@@ -1237,7 +1237,10 @@ async function handleLogout() {
 
     authLogoutVolontario = true;
     daltSalvaLocale(false);
-    await supabaseClient.auth.signOut();
+    // v8.5.1: scope 'local' = esce solo QUESTO browser. Senza, Supabase chiude la sessione dell'utente
+    // su tutti i dispositivi (telefono, altri PC, altro browser): l'uscita per inattivita' di un PC
+    // scollegava anche gli altri, prima dei 60 minuti.
+    await supabaseClient.auth.signOut({ scope: 'local' });
     currentUser = null;
     currentUserRole = null;
     loggedInUserEmail = null;
