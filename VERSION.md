@@ -1,5 +1,8 @@
 # Changelog App Magazzino
 
+## v8.0.6 - 2026-11-25 (PRODUZIONE)
+ok logout
+
 ## v8.0.5 - 2026-11-25 (PRODUZIONE)
 ok tecnici e operatori magazzino mobile
 
