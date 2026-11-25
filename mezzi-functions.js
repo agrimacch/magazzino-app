@@ -874,7 +874,7 @@ function mzRapMostra() {
         '<label for="mz-r-cliente">Cliente *</label><input type="text" id="mz-r-cliente" autocomplete="off" value="' + mzEsc(x.cliente || '') + '">' +
         '<div class="mz-due">' +
             '<div><label for="mz-r-telefono">Telefono</label><input type="tel" id="mz-r-telefono" autocomplete="off" value="' + mzEsc(x.telefono || '') + '"></div>' +
-            '<div><label for="mz-r-indirizzo">Indirizzo / paese</label><input type="text" id="mz-r-indirizzo" autocomplete="off" value="' + mzEsc(x.indirizzo || '') + '"></div>' +
+            '<div><label for="mz-r-indirizzo">Indirizzo / paese</label><input type="text" id="mz-r-indirizzo" autocomplete="off" value="' + mzEsc(x.indirizzo || '') + '" oninput="mzRapUscitaAuto(true)"></div>' +
         '</div>' +
         '<div class="mz-due">' +
             '<div><label for="mz-r-modello">Modello della macchina</label><input type="text" id="mz-r-modello" autocomplete="off" value="' + mzEsc(x.modello || '') + '"></div>' +
@@ -894,15 +894,17 @@ function mzRapMostra() {
         '<div class="mz-tre">' +
             '<div><label for="mz-r-ore">Ore</label><input type="number" id="mz-r-ore" min="0" max="99" value="' + od.h + '" oninput="mzRapTotali()"></div>' +
             '<div><label for="mz-r-minuti">Minuti</label><input type="number" id="mz-r-minuti" min="0" max="59" step="5" value="' + od.m + '" oninput="mzRapTotali()"></div>' +
-            '<div><label for="mz-r-uscita">Uscita &euro; <small>(IVA compresa)</small></label><input type="text" id="mz-r-uscita" inputmode="decimal" autocomplete="off" value="' + mzEsc(mzNumForm(x.uscita)) + '" oninput="mzRapTotali()"></div>' +
+            '<div><label for="mz-r-uscita">Uscita &euro; <small>(IVA compresa)</small></label><input type="text" id="mz-r-uscita" inputmode="decimal" autocomplete="off" value="' + mzEsc(mzNumForm(x.uscita)) + '" oninput="mzRapTotali(); mzRapUscitaAuto(false)"></div>' +
         '</div>' +
         '<p class="mz-aiuto" id="mz-r-ore-testo"></p>' +
+        '<p class="mz-aiuto" id="mz-r-uscita-nota"></p>' +
         '<label for="mz-r-note">Note</label><textarea id="mz-r-note" rows="2">' + mzEsc(x.note || '') + '</textarea>' +
         '<div id="mz-r-totali" class="mz-totali"></div>';
     document.getElementById('mz-rap-elimina').classList.toggle('hidden', nuovo);
     document.getElementById('mz-rap-pdf').classList.toggle('hidden', nuovo);
     document.getElementById('mz-rap-modal').classList.remove('hidden');
     mzRapRenderRighe();
+    mzRapUscitaAuto(false);
     // richieste di intervento: si caricano in sottofondo; a rapportino nuovo e vuoto propongo quelle di oggi
     mzRichCarica().then(() => {
         if (!mzRap) return;
@@ -1018,6 +1020,7 @@ async function mzRichScegli(id) {
     imposta('mz-r-telefono', r.telefono);
     const indirizzo = [r.indirizzo, r.paese].filter(Boolean).join(', ');
     imposta('mz-r-indirizzo', indirizzo);
+    mzRapUscitaAuto(true, r.paese);
     // dal planning: tecnico e data dell'intervento (il piu' recente, non nel futuro)
     const tec = (document.getElementById('mz-r-tecnico') || {}).value || '';
     const ints = (mzRichInterventi[id] || []).filter(x => x.data <= mzOggi());
@@ -1173,6 +1176,49 @@ function mzCalcolaTotali(righe, ore, uscita, tariffa, iva) {
     const manodopera = mzCent((Number(ore) || 0) * tariffaIc);
     const usc = mzCent(uscita);
     return { ricambi: ricambi, tariffaIc: tariffaIc, manodopera: manodopera, uscita: usc, totale: mzCent(ricambi + manodopera + usc) };
+}
+
+// ---------- Diritto di uscita automatico (v8.3.0) ----------
+// Zone e importi (IVA compresa) in Dati aziendali. L'uscita si compila da sola quando cambia
+// l'indirizzo / paese, ma solo se il campo e' vuoto o ha ancora il valore messo dall'app:
+// se l'utente l'ha scritta a mano non la tocco.
+function mzRapUscitaAuto(cambiato, paese) {
+    if (!mzRap) return;
+    const campo = document.getElementById('mz-r-uscita');
+    const nota = document.getElementById('mz-r-uscita-nota');
+    if (!campo || !nota) return;
+    const indirizzo = (document.getElementById('mz-r-indirizzo') || {}).value || '';
+    const trovata = typeof aziendaUscitaPer === 'function' ? (aziendaUscitaPer(paese || '') || aziendaUscitaPer(indirizzo)) : null;
+    const attuale = mzNum(campo.value) || 0;
+    if (cambiato && trovata) {
+        const automatica = mzRap._uscitaAuto !== undefined && attuale === mzRap._uscitaAuto;
+        if (!attuale || automatica) {
+            campo.value = mzNumForm(trovata.importo);
+            mzRap._uscitaAuto = trovata.importo;
+            mzRapTotali();
+        }
+    } else if (cambiato && !trovata && mzRap._uscitaAuto !== undefined && attuale === mzRap._uscitaAuto) {
+        // indirizzo cambiato in un comune fuori zona: tolgo l'uscita messa dall'app
+        campo.value = '';
+        delete mzRap._uscitaAuto;
+        mzRapTotali();
+    }
+    const ora = mzNum(campo.value) || 0;
+    if (trovata) {
+        nota.innerHTML = '&#128656; ' + mzEsc(trovata.comune) + ': uscita ' + mzEuro(trovata.importo) + ' (IVA compresa)' +
+            (ora !== trovata.importo ? ' &middot; <a href="#" onclick="mzRapUsaUscita(' + trovata.importo + '); return false;">usa questa</a>' : '');
+    } else {
+        nota.innerHTML = indirizzo.trim() ? '&#128656; Comune non in elenco: scrivi l&#39;uscita a mano (zone in Dati aziendali).' : '';
+    }
+}
+
+function mzRapUsaUscita(importo) {
+    const campo = document.getElementById('mz-r-uscita');
+    if (!campo || !mzRap) return;
+    campo.value = mzNumForm(importo);
+    mzRap._uscitaAuto = importo;
+    mzRapTotali();
+    mzRapUscitaAuto(false);
 }
 
 function mzRapTotali() {

@@ -1254,3 +1254,8 @@
 /* v7.11.7: dati cliente nel PDF: niente testo fuori dal foglio */
 .ordd-dati .ordd-val { overflow-wrap: anywhere; word-break: break-word; }
 .ordd-dati .ordd-email-lunga { font-size: 12px; }
+
+/* v8.3.0: style.css forza "opacity: 1 !important" su tutti i div, quindi l'avviso non spariva mai.
+   Lo nascondo con visibility (dopo la dissolvenza). */
+.ord-bozza-avviso { visibility: hidden; transition: opacity 0.2s, transform 0.2s, visibility 0s linear 0.2s; }
+.ord-bozza-avviso.visibile { visibility: visible; transition: opacity 0.2s, transform 0.2s, visibility 0s; }

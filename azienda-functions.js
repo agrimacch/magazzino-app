@@ -19,10 +19,22 @@ const AZIENDA_PREDEFINITA = {
 };
 const AZIENDA_CAMPI = ['ragione_sociale', 'indirizzo', 'telefono_whatsapp', 'telefono', 'email',
     'partita_iva', 'codice_fiscale', 'codice_univoco', 'sito_web'];
-const AZIENDA_LOGO_MAX = 700;   // lato massimo del logo salvato (px): basta per i PDF e resta leggero
+const AZIENDA_LOGO_MAX = 700;
+// Diritto di uscita (v8.3.0): importo IVA compresa per zona di comuni. Modificabile dall'admin
+// in questo pannello (colonna impostazioni_azienda.uscita_zone, script supabase/azienda-uscita.sql).
+const AZIENDA_USCITA_PREDEFINITA = [
+    { importo: 45, comuni: ['FAVARO VENETO', 'MARTELLAGO', 'MIRANO', 'MOGLIANO VENETO', 'NOALE', 'PREGANZIOL',
+        'QUINTO DI TREVISO', 'SALZANO', 'SCORZ\u00C8', 'SPINEA', 'TREBASELEGHE', 'ZERO BRANCO', 'MARGHERA', 'MESTRE'] },
+    { importo: 65, comuni: ['BORGORICCO', 'CAMPOSAMPIERO', 'CASALE SUL SILE', 'CASIER', 'DOLO', "FIESSO D'ARTICO",
+        'ISTRANA', 'LOREGGIA', 'MARCON', 'MASSANZAGO', 'MIRA', 'MORGANO', 'PAESE', 'PIANIGA', 'PIOMBINO DESE',
+        "QUARTO D'ALTINO", 'RONCADE', 'SANTA MARIA DI SALA', 'SILEA', 'TREVISO', 'VEDELAGO', 'VIGONZA', 'VILLANOVA',
+        'VILLORBA', 'CAMPALTO', 'MALCONTENTA', 'TESSERA'] }
+];
+let aziendaUscitaBozza = null;  // zone mentre l'admin le modifica nel pannello   // lato massimo del logo salvato (px): basta per i PDF e resta leggero
 
 let aziendaDati = Object.assign({}, AZIENDA_PREDEFINITA);
 let aziendaCaricata = false;
+let aziendaUscitaColonna = false;  // colonna uscita_zone presente su Supabase?
 let aziendaLogoNuovo = null;    // logo scelto nel pannello e non ancora salvato ('' = togli)
 
 function aziendaEsc(v) {
@@ -37,6 +49,8 @@ async function aziendaCarica() {
         if (data) {
             const d = Object.assign({}, AZIENDA_PREDEFINITA);
             AZIENDA_CAMPI.concat(['logo']).forEach(c => { if (data[c] !== null && data[c] !== undefined) d[c] = data[c]; });
+            if (Array.isArray(data.uscita_zone)) d.uscita_zone = data.uscita_zone;
+            aziendaUscitaColonna = Object.prototype.hasOwnProperty.call(data, 'uscita_zone');
             aziendaDati = d;
         }
         aziendaCaricata = true;
@@ -66,6 +80,72 @@ function aziendaIntestazioneHtml() {
     return righe.join('<br>');
 }
 
+// ---------- Diritto di uscita per comune ----------
+function aziendaZoneUscita() {
+    const z = Array.isArray(aziendaDati.uscita_zone) && aziendaDati.uscita_zone.length ? aziendaDati.uscita_zone : AZIENDA_USCITA_PREDEFINITA;
+    return z.map(x => ({ importo: Number(x.importo) || 0, comuni: (x.comuni || []).map(c => String(c).trim()).filter(Boolean) }));
+}
+
+// "Scorz\u00E8" -> "SCORZE", "Marghera-VE" -> "MARGHERA", "Fiesso d'Artico" -> "FIESSO D ARTICO"
+function aziendaNormComune(t) {
+    return String(t || '').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .replace(/[-\s]\(?VE\)?\s*$/, ' ').replace(/[^A-Z0-9]+/g, ' ').trim();
+}
+
+// Cerca nel testo (paese o indirizzo del cliente) un comune delle zone. Il paese di solito e' in fondo
+// ("VIA TREVISO 5, MIRANO"): vince il comune trovato piu' a destra; a pari fine il nome piu' lungo
+// ("QUINTO DI TREVISO" batte "TREVISO", "MIRANO" non diventa "MIRA"). Restituisce { importo, comune } oppure null.
+function aziendaUscitaPer(testo) {
+    const t = ' ' + aziendaNormComune(testo) + ' ';
+    if (!t.trim()) return null;
+    let migliore = null;
+    aziendaZoneUscita().forEach(z => z.comuni.forEach(c => {
+        const n = aziendaNormComune(c);
+        if (!n) return;
+        const pos = t.lastIndexOf(' ' + n + ' ');
+        if (pos === -1) return;
+        const fine = pos + n.length;
+        if (!migliore || fine > migliore.fine || (fine === migliore.fine && n.length > migliore.n.length)) {
+            migliore = { n: n, fine: fine, importo: z.importo, comune: c };
+        }
+    }));
+    return migliore ? { importo: migliore.importo, comune: migliore.comune } : null;
+}
+
+// Pannello: zone modificabili
+function aziendaUscitaRender() {
+    const box = document.getElementById('az-uscita');
+    if (!box) return;
+    box.innerHTML = aziendaUscitaBozza.map((z, i) =>
+        '<div class="az-zona">' +
+            '<div class="az-zona-testa">' +
+                '<label for="az-zona-imp-' + i + '">Zona ' + (i + 1) + ' &middot; uscita &euro; <small>(IVA compresa)</small></label>' +
+                '<input type="text" id="az-zona-imp-' + i + '" inputmode="decimal" value="' + aziendaEsc(String(z.importo).replace('.', ',')) + '" oninput="aziendaUscitaCampo(' + i + ', \'importo\', this.value)">' +
+                '<button type="button" class="btn-back mac-btn-piccolo" onclick="aziendaUscitaTogli(' + i + ')">&#10006; Togli zona</button>' +
+            '</div>' +
+            '<label for="az-zona-com-' + i + '">Comuni <small>(separati da virgola)</small></label>' +
+            '<textarea id="az-zona-com-' + i + '" rows="3" oninput="aziendaUscitaCampo(' + i + ', \'comuni\', this.value)">' + aziendaEsc(z.comuni.join(', ')) + '</textarea>' +
+        '</div>').join('') +
+        '<button type="button" class="btn-back mac-btn-piccolo" onclick="aziendaUscitaAggiungi()">&#10133; Aggiungi zona</button>' +
+        (aziendaUscitaColonna ? '' : '<div class="az-avviso">&#9888;&#65039; Per salvare le zone esegui una volta su Supabase lo script <strong>supabase/azienda-uscita.sql</strong>. Intanto il rapportino usa queste zone predefinite.</div>');
+}
+
+function aziendaUscitaCampo(i, campo, valore) {
+    if (!aziendaUscitaBozza[i]) return;
+    if (campo === 'importo') aziendaUscitaBozza[i].importo = Number(String(valore).replace(',', '.')) || 0;
+    else aziendaUscitaBozza[i].comuni = String(valore).split(',').map(x => x.trim()).filter(Boolean);
+}
+
+function aziendaUscitaAggiungi() {
+    aziendaUscitaBozza.push({ importo: 0, comuni: [] });
+    aziendaUscitaRender();
+}
+
+function aziendaUscitaTogli(i) {
+    aziendaUscitaBozza.splice(i, 1);
+    aziendaUscitaRender();
+}
+
 // ---------- Pannello (solo admin) ----------
 async function openDatiAzienda() {
     aziendaLogoNuovo = null;
@@ -75,6 +155,8 @@ async function openDatiAzienda() {
         if (el) el.value = aziendaDati[c] || '';
     });
     document.getElementById('az-logo-file').value = '';
+    aziendaUscitaBozza = aziendaZoneUscita().map(z => ({ importo: z.importo, comuni: z.comuni.slice() }));
+    aziendaUscitaRender();
     aziendaMostraLogo();
     aziendaAnteprima();
     const avviso = document.getElementById('az-avviso');
@@ -143,6 +225,16 @@ async function aziendaSalva() {
         return;
     }
     if (aziendaLogoNuovo !== null) dati.logo = aziendaLogoNuovo || null;
+    if (aziendaUscitaColonna && aziendaUscitaBozza) {
+        const zone = aziendaUscitaBozza
+            .map(z => ({ importo: Math.round((Number(z.importo) || 0) * 100) / 100, comuni: z.comuni.map(c => c.toUpperCase()) }))
+            .filter(z => z.comuni.length);
+        if (zone.some(z => !(z.importo > 0))) {
+            await showCustomAlert('Ogni zona deve avere un importo di uscita maggiore di zero.', 'Diritto di uscita', '&#9888;&#65039;');
+            return;
+        }
+        dati.uscita_zone = zone;
+    }
     dati.id = 1;
     dati.updated_at = new Date().toISOString();
     dati.updated_by = (currentUser && currentUser.email) || null;
@@ -153,6 +245,8 @@ async function aziendaSalva() {
         if (error) throw error;
         aziendaLogoNuovo = null;
         await aziendaCarica();
+        aziendaUscitaBozza = aziendaZoneUscita().map(z => ({ importo: z.importo, comuni: z.comuni.slice() }));
+        aziendaUscitaRender();
         aziendaMostraLogo();
         aziendaAnteprima();
         document.getElementById('az-avviso').classList.add('hidden');
@@ -192,3 +286,4 @@ document.addEventListener('DOMContentLoaded', () => {
 
 window.openDatiAzienda = openDatiAzienda;
 window.aziendaCarica = aziendaCarica;
+window.aziendaUscitaPer = aziendaUscitaPer;

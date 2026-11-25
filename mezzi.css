@@ -326,3 +326,7 @@
 .mz-unita { font-size: 11px; padding: 1px 6px; border-radius: 4px; background: #fef3c7; color: #78350f; }
 .mz-prezzo small { font-weight: 400; font-size: 11px; color: var(--gray, #6b7280); }
 .mz-r-riga select { width: auto; margin: 2px 0 0; }
+
+/* v8.3.0: style.css forza "opacity: 1 !important" sui div: il toast si nasconde con visibility */
+.mz-toast { visibility: hidden; transition: opacity 0.2s, transform 0.2s, visibility 0s linear 0.2s; }
+.mz-toast.mz-toast-visibile { visibility: visible; transition: opacity 0.2s, transform 0.2s, visibility 0s; }

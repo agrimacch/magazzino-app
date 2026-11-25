@@ -47,3 +47,35 @@
 /* Logo nei documenti: qualsiasi proporzione resta dentro l'intestazione */
 .rpt-logo { max-width: 230px; object-fit: contain; }
 .rpt-azienda strong { color: #374151; }
+
+/* Diritto di uscita per comune (v8.3.0) */
+.az-titolo {
+    font-weight: 700;
+    color: var(--primary-dark);
+    border-top: 1px solid #e5e7eb;
+    padding-top: 14px;
+    margin: 6px 0 6px;
+}
+.az-zona {
+    border: 1px solid #e5e7eb;
+    border-radius: var(--border-radius-sm);
+    padding: 10px 12px;
+    margin-bottom: 10px;
+    background: #fafcf8;
+}
+.az-zona-testa {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 110px auto;
+    gap: 8px;
+    align-items: center;
+}
+.az-zona-testa label { margin: 0; }
+.az-zona-testa input { margin: 0; }
+.az-zona-testa .mac-btn-piccolo { width: auto; margin: 0; }
+.az-zona textarea { text-transform: uppercase; margin-bottom: 0; }
+#az-uscita > .mac-btn-piccolo { width: auto; margin-bottom: 14px; }
+#az-uscita .az-avviso { margin-top: 4px; }
+@media (max-width: 600px) {
+    .az-zona-testa { grid-template-columns: minmax(0, 1fr) 90px; }
+    .az-zona-testa .mac-btn-piccolo { grid-column: 1 / -1; justify-self: start; }
+}

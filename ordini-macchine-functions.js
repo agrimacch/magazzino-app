@@ -256,8 +256,9 @@ function omHtmlMarchio(marchio) {
             'per il magazzino usa <strong>&#10133; Aggiungi riga</strong> (si ordina insieme alle altre), scrivi in <strong>quante</strong> pi&ugrave; di quelle richieste, ' +
             'oppure <strong>Nuovo ordine</strong> per un ordine gi&agrave; fatto solo per il magazzino.</div>' +
             '<div class="om-sez-azioni">' + (macOfPronto ? '<button type="button" class="btn-primary mac-btn-piccolo" data-om-azione="nuovo-of">&#10133; Nuovo ordine</button>' : '') + '</div></div>';
-        html += omHtmlDaOrdinare(daOrdinare, null);
+        // v8.3.0: prima gli ordini fatti (dal piu' vecchio), in fondo le macchine ancora da ordinare
         html += omHtmlOrdiniFatti(marchio, null);
+        html += omHtmlDaOrdinare(daOrdinare, null);
     } else {
         html += '<div class="om-sez-testa">' +
             '<div><strong>' + macEsc(sezScelta.nome) + '</strong>' + (sezScelta.chiusa ? ' <span class="om-tag-chiusa">chiusa</span>' : '') +
@@ -270,8 +271,8 @@ function omHtmlMarchio(marchio) {
         '</div>';
         html += '<p class="mac-aiuto">Ordini con consegna programmata (prestagionali). Le righe senza cliente sono macchine <strong>in arrivo libere</strong>: ' +
             'il primo ordine cliente di quel modello le prende da solo. Le macchine ancora da ordinare si portano qui da <strong>ORDINI NORMALE</strong>: spunta le righe e <strong>Sposta in</strong> questa sezione; quando le ordini, <strong>Segna come ordinate</strong>.</p>';
-        html += omHtmlDaOrdinare(omDaOrdinare(marchio, sezScelta.id), sezScelta);
         html += omHtmlOrdiniFatti(marchio, sezScelta.id);
+        html += omHtmlDaOrdinare(omDaOrdinare(marchio, sezScelta.id), sezScelta);
     }
     return html;
 }
@@ -375,7 +376,8 @@ async function omDaoSposta() {
 function omHtmlOrdiniFatti(marchio, sezioneId) {
     const mostraArrivati = document.getElementById('om-mostra-arrivati') && document.getElementById('om-mostra-arrivati').checked;
     const tutti = macOrdiniFornitore.filter(of => of.marchio === marchio && (of.sezione_id || null) === (sezioneId || null))
-        .sort((a, b) => (String(b.data) + String(b.id).padStart(9, '0')).localeCompare(String(a.data) + String(a.id).padStart(9, '0')));
+        // v8.3.0: dal piu' vecchio (in alto) al piu' recente (in basso)
+        .sort((a, b) => (String(a.data) + String(a.id).padStart(9, '0')).localeCompare(String(b.data) + String(b.id).padStart(9, '0')));
     const visibili = tutti.filter(of => mostraArrivati || !omOfArrivato(of));
     const nascosti = tutti.length - visibili.length;
     let html = '<div class="om-fatti-titolo">Ordini fatti' + (nascosti ? ' <small>(' + nascosti + ' gi&agrave; arrivati nascosti)</small>' : '') + '</div>';
@@ -490,6 +492,8 @@ function omApriFinestraOf(modo, marchio, pezzi) {
     document.getElementById('om-of-righe-titolo').innerHTML = modo === 'nuovo' ? 'Righe dell\'ordine (macchine in arrivo libere)'
         : 'Aggiungi altri modelli per il magazzino <small>(in arrivo liberi)</small>';
     document.getElementById('om-of-art-search').value = '';
+    const veloce = document.getElementById('om-of-veloce');
+    if (veloce) veloce.value = '';
     omRenderOfRighe();
     document.getElementById('om-of-elimina').classList.toggle('hidden', modo !== 'modifica');
     document.getElementById('om-of-salva').disabled = false;
@@ -519,6 +523,74 @@ function omRenderOfRighe() {
             '<button type="button" class="mac-set-togli" data-om-of-togli="' + i + '" title="Togli">&times;</button>' +
         '</div>'
     ).join('');
+}
+
+// ---------- Inserimento veloce di piu' righe (v8.3.0) ----------
+// Una riga per modello: "5 HRM1500", "HRM1500 5", "HRM1500 x 5" oppure il codice articolo.
+// Senza numero = 1. Si cercano solo i modelli del marchio aperto.
+function omOfVeloceRighe(testo) {
+    return String(testo || '').split(/\r?\n|;/).map(r => r.trim()).filter(Boolean).map(riga => {
+        let n = 1;
+        let nome = riga;
+        let m = riga.match(/^(\d{1,3})\s*(?:X|PZ|PZ\.)?\s+(.+)$/i);
+        if (m) { n = parseInt(m[1], 10); nome = m[2]; }
+        else {
+            m = riga.match(/^(.+?)\s+(?:X\s*|QTA\s*|Q\.?\s*)?(\d{1,3})\s*(?:PZ\.?)?$/i);
+            if (m) { nome = m[1]; n = parseInt(m[2], 10); }
+        }
+        // numero in fondo: potrebbe essere parte del modello ("MIIMO 520"), lo controllo dopo
+        return { riga: riga, nome: listinoPulisciTesto(nome) || '', n: n, coda: !!m && nome !== riga && !/^\d/.test(riga) };
+    });
+}
+
+function omOfVeloceTrova(nome) {
+    const marchio = omSessione('omMarchio');
+    const tutti = listinoArticoli.filter(a => a.attivo && a.marchio === marchio);
+    const norm = t => String(t || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+    const n = norm(nome);
+    if (!n) return { art: null, quanti: 0 };
+    // 1) codice articolo esatto  2) modello o nome esatto  3) ricerca con un solo risultato
+    let trovati = tutti.filter(a => norm(a.codice_articolo) === n);
+    if (!trovati.length) trovati = tutti.filter(a => norm(a.modello) === n || norm(macNome(a)) === n);
+    if (!trovati.length) trovati = tutti.filter(a => listinoCorrispondeRicerca(a, nome));
+    return { art: trovati.length === 1 ? trovati[0] : null, quanti: trovati.length };
+}
+
+async function omOfVeloceAggiungi() {
+    const area = document.getElementById('om-of-veloce');
+    const righe = omOfVeloceRighe(area.value);
+    if (!righe.length) { await showCustomAlert('Scrivi una riga per modello, es. <strong>5 HRM1500</strong>.', 'Inserimento veloce', '&#9888;&#65039;'); return; }
+    const restano = [];
+    const problemi = [];
+    let aggiunte = 0;
+    righe.forEach(r => {
+        if (r.coda) {
+            // "MIIMO 520": se la riga intera e' un modello, il numero fa parte del nome (quantita' 1)
+            const intero = omOfVeloceTrova(listinoPulisciTesto(r.riga));
+            const n = String(r.riga).toUpperCase().replace(/[^A-Z0-9]/g, '');
+            if (intero.art && [intero.art.codice_articolo, intero.art.modello, macNome(intero.art)].some(x => String(x || '').toUpperCase().replace(/[^A-Z0-9]/g, '') === n)) {
+                r.nome = listinoPulisciTesto(r.riga);
+                r.n = 1;
+            }
+        }
+        if (!(r.n >= 1 && r.n <= MAC_MAX_QTA)) { restano.push(r.riga); problemi.push(macEsc(r.riga) + ': quantit&agrave; da 1 a ' + MAC_MAX_QTA); return; }
+        const t = omOfVeloceTrova(r.nome);
+        if (!t.art) {
+            restano.push(r.riga);
+            problemi.push(macEsc(r.riga) + ': ' + (t.quanti > 1 ? t.quanti + ' modelli trovati, scrivi il codice o il nome completo' : 'modello non trovato in questo marchio'));
+            return;
+        }
+        const gia = omOfRighe.find(x => x.art.id === t.art.id);
+        if (gia) gia.n = Math.min(MAC_MAX_QTA, gia.n + r.n);
+        else omOfRighe.push({ art: t.art, n: r.n });
+        aggiunte++;
+    });
+    area.value = restano.join('\n');
+    omRenderOfRighe();
+    if (problemi.length) {
+        await showCustomAlert((aggiunte ? '<strong>' + aggiunte + '</strong> righe aggiunte.<br><br>' : '') +
+            'Da sistemare (sono rimaste nel riquadro):<br>' + problemi.join('<br>'), 'Inserimento veloce', '&#9888;&#65039;');
+    }
 }
 
 function omOfAggiungiArticolo(a) {

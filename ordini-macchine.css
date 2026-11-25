@@ -706,3 +706,15 @@
 .om-dao-sposta select { flex: 1; min-width: 180px; margin: 0; }
 .om-dao-sposta .btn-back { width: auto; margin: 0; }
 .om-dao-sposta small { flex-basis: 100%; color: var(--gray); }
+
+/* Inserimento veloce di piu' righe (v8.3.0) */
+.om-veloce {
+    border: 1px dashed #c7d7bd;
+    border-radius: 8px;
+    padding: 8px 10px;
+    margin: 10px 0 4px;
+    background: #fafcf8;
+}
+.om-veloce summary { cursor: pointer; font-weight: 700; font-size: 13px; }
+.om-veloce textarea { margin: 6px 0 8px; text-transform: uppercase; font-family: 'Roboto Mono', monospace; }
+.om-veloce .mac-btn-piccolo { width: auto; }

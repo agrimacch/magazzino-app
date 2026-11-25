@@ -17,19 +17,19 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Kalam:wght@400;700&family=Roboto+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=8.0.3">
-    <link rel="stylesheet" href="listino.css?v=8.0.3">
-    <link rel="stylesheet" href="listini-fornitori.css?v=8.0.3">
-    <link rel="stylesheet" href="fornitori.css?v=8.0.3">
-    <link rel="stylesheet" href="interventi.css?v=8.0.3">
-    <link rel="stylesheet" href="macchine.css?v=8.0.3">
-    <link rel="stylesheet" href="ordini.css?v=8.0.3">
-    <link rel="stylesheet" href="ordini-macchine.css?v=8.0.3">
-    <link rel="stylesheet" href="azienda.css?v=8.0.3">
-    <link rel="stylesheet" href="richieste.css?v=8.0.3">
-    <link rel="stylesheet" href="buoni.css?v=8.0.3">
-    <link rel="stylesheet" href="mezzi.css?v=8.0.3">
-    <link rel="stylesheet" href="daltonici.css?v=8.0.3">
+    <link rel="stylesheet" href="style.css?v=8.0.4">
+    <link rel="stylesheet" href="listino.css?v=8.0.4">
+    <link rel="stylesheet" href="listini-fornitori.css?v=8.0.4">
+    <link rel="stylesheet" href="fornitori.css?v=8.0.4">
+    <link rel="stylesheet" href="interventi.css?v=8.0.4">
+    <link rel="stylesheet" href="macchine.css?v=8.0.4">
+    <link rel="stylesheet" href="ordini.css?v=8.0.4">
+    <link rel="stylesheet" href="ordini-macchine.css?v=8.0.4">
+    <link rel="stylesheet" href="azienda.css?v=8.0.4">
+    <link rel="stylesheet" href="richieste.css?v=8.0.4">
+    <link rel="stylesheet" href="buoni.css?v=8.0.4">
+    <link rel="stylesheet" href="mezzi.css?v=8.0.4">
+    <link rel="stylesheet" href="daltonici.css?v=8.0.4">
 
     <!-- SheetJS per import Excel -->
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
@@ -90,7 +90,7 @@
 
 <body class="loading">
     <!-- Version badge -->
-    <div class="version-badge">v8.0.3</div>
+    <div class="version-badge">v8.0.4</div>
 
     <!-- SCHERMATA LOGIN -->
     <div id="login-screen" class="screen">
@@ -2213,6 +2213,10 @@
                         <label>Anteprima dell'intestazione</label>
                         <div id="az-anteprima" class="az-anteprima"></div>
 
+                        <div class="az-titolo">&#128656; Diritto di uscita (rapportini)</div>
+                        <p class="mac-aiuto">Nel rapportino del Magazzino esterno mezzi l'uscita si compila da sola in base al paese del cliente (resta modificabile a mano). Se il comune non &egrave; in nessuna zona l'uscita si scrive a mano.</p>
+                        <div id="az-uscita"></div>
+
                         <button type="submit" id="az-salva" class="btn-primary">&#128190; Salva dati aziendali</button>
                     </form>
                 </div>
@@ -2965,6 +2969,12 @@
                     <input type="text" id="om-of-art-search" placeholder="&#128269; Cerca il modello (solo questo marchio)..." autocomplete="off">
                     <div id="om-of-art-results" class="mac-picker-lista hidden"></div>
                 </div>
+                <details class="om-veloce">
+                    <summary>&#9889; Inserimento veloce: pi&ugrave; righe insieme</summary>
+                    <p class="mac-aiuto">Una riga per modello con la quantit&agrave;, es. <strong>5 HRM1500</strong> oppure <strong>HRM1500 5</strong> (anche il codice articolo; senza numero = 1). Puoi incollarle da Excel o da una mail. Poi <strong>Aggiungi tutte</strong> e alla fine un solo <strong>Salva</strong>.</p>
+                    <textarea id="om-of-veloce" rows="5" placeholder="5 HRM1500&#10;3 HRM2500&#10;HRM3000 2"></textarea>
+                    <button type="button" class="btn-back mac-btn-piccolo" onclick="omOfVeloceAggiungi()">&#10133; Aggiungi tutte</button>
+                </details>
             </div>
             <div class="modal-buttons">
                 <button type="button" id="om-of-salva" class="btn-primary">Salva</button>
@@ -3347,7 +3357,7 @@
     <div id="whats-new-modal" class="modal hidden">
         <div class="modal-content whats-new-content">
             <div class="whats-new-header">
-                <h3>&#127881; AGRIDESK v8.0.3 - Aggiornamento!</h3>
+                <h3>&#127881; AGRIDESK v8.0.4 - Aggiornamento!</h3>
                 <p class="version-date">25 Novembre 2026</p>
             </div>
 
@@ -3887,20 +3897,20 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- Versione bloccata (la libreria non e' piu' mantenuta: cosi' non cambia mai da sola) -->
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-    <script src="ricambi-functions.js?v=8.0.3"></script>
-    <script src="listino-functions.js?v=8.0.3"></script>
-    <script src="fornitori-functions.js?v=8.0.3"></script>
-    <script src="interventi-functions.js?v=8.0.3"></script>
-    <script src="macchine-functions.js?v=8.0.3"></script>
-    <script src="macchine-report.js?v=8.0.3"></script>
-    <script src="macchine-raffica.js?v=8.0.3"></script>
-    <script src="listini-fornitori-functions.js?v=8.0.3"></script>
-    <script src="ordini-functions.js?v=8.0.3"></script>
-    <script src="ordini-macchine-functions.js?v=8.0.3"></script>
-    <script src="azienda-functions.js?v=8.0.3"></script>
-    <script src="richieste-robot-functions.js?v=8.0.3"></script>
-    <script src="buoni-functions.js?v=8.0.3"></script>
-    <script src="mezzi-functions.js?v=8.0.3"></script>
-    <script src="app.js?v=8.0.3"></script>
+    <script src="ricambi-functions.js?v=8.0.4"></script>
+    <script src="listino-functions.js?v=8.0.4"></script>
+    <script src="fornitori-functions.js?v=8.0.4"></script>
+    <script src="interventi-functions.js?v=8.0.4"></script>
+    <script src="macchine-functions.js?v=8.0.4"></script>
+    <script src="macchine-report.js?v=8.0.4"></script>
+    <script src="macchine-raffica.js?v=8.0.4"></script>
+    <script src="listini-fornitori-functions.js?v=8.0.4"></script>
+    <script src="ordini-functions.js?v=8.0.4"></script>
+    <script src="ordini-macchine-functions.js?v=8.0.4"></script>
+    <script src="azienda-functions.js?v=8.0.4"></script>
+    <script src="richieste-robot-functions.js?v=8.0.4"></script>
+    <script src="buoni-functions.js?v=8.0.4"></script>
+    <script src="mezzi-functions.js?v=8.0.4"></script>
+    <script src="app.js?v=8.0.4"></script>
 </body>
 </html>
