@@ -3153,6 +3153,14 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('mac-pezzo-close').addEventListener('click', macChiudiPezzo);
     document.getElementById('mac-pezzo-elimina').addEventListener('click', macEliminaPezzo);
 
+    // ----- Carico di piu' modelli (v8.8.0) -----
+    macPickerImposta('mac-multi-search', 'mac-multi-results', null, macMultiAggiungi);
+    document.getElementById('mac-btn-multi').addEventListener('click', macMultiApri);
+    document.getElementById('mac-multi-close').addEventListener('click', macMultiChiudi);
+    document.getElementById('mac-multi-annulla').addEventListener('click', macMultiChiudi);
+    document.getElementById('mac-multi-salva').addEventListener('click', macMultiSalva);
+    document.getElementById('mac-multi-assegna').addEventListener('change', macMultiAnteprima);
+
     // ----- Finestra carico -----
     macPickerImposta('mac-carico-art-search', 'mac-carico-art-results', null, (a) => {
         document.getElementById('mac-carico-art-search').value = '';
@@ -3476,3 +3484,180 @@ window.macComponentePrincipale = macComponentePrincipale;
 window.macCaricaPerListino = macCaricaPerListino;
 window.macDopoSalvataggioListino = macDopoSalvataggioListino;
 window.macSwitchTab = macSwitchTab;
+
+// ========================================
+// CARICO DI PIU' MODELLI INSIEME (v8.8.0)
+// ----------------------------------------
+// Senza lettore: si cercano i modelli per descrizione (o marchio, codice) e si aggiungono a un elenco,
+// ognuno con quantita', netto e (se si vuole) le matricole. "Carica tutto" li carica uno dopo l'altro
+// con lo stesso salvataggio del Carico macchine (macCaricaPezzi): prima ai clienti in attesa (se spuntato),
+// il resto disponibili; i set caricano i componenti (matricole al componente principale).
+// ========================================
+let macMultiRighe = [];   // [{ art, n, netto: testo, matricole: testo }]
+
+function macMultiApri() {
+    macMultiRighe = [];
+    document.getElementById('mac-multi-search').value = '';
+    document.getElementById('mac-multi-assegna').checked = true;
+    macMultiRender();
+    document.getElementById('mac-multi-modal').classList.remove('hidden');
+    setTimeout(() => document.getElementById('mac-multi-search').focus(), 50);
+}
+
+function macMultiChiudi() {
+    document.getElementById('mac-multi-modal').classList.add('hidden');
+    macPickerChiudi('mac-multi-search');
+    macMultiRighe = [];
+}
+
+function macMultiAggiungi(a) {
+    if (!a) return;
+    document.getElementById('mac-multi-search').value = '';
+    macMultiLeggi();
+    const gia = macMultiRighe.find(r => r.art.id === a.id);
+    if (gia) gia.n = Math.min(MAC_MAX_QTA, gia.n + 1);
+    else macMultiRighe.push({ art: a, n: 1, netto: macIsSet(a.id) || a.netto_1 === null || a.netto_1 === undefined ? '' : String(a.netto_1).replace('.', ','), matricole: '' });
+    macMultiRender();
+    setTimeout(() => document.getElementById('mac-multi-search').focus(), 30);
+}
+
+// Legge quantita', netti e matricole scritti nell'elenco (prima di ridisegnarlo)
+function macMultiLeggi() {
+    macMultiRighe.forEach((r, i) => {
+        const q = document.getElementById('mac-multi-q-' + i);
+        const n = document.getElementById('mac-multi-n-' + i);
+        const m = document.getElementById('mac-multi-m-' + i);
+        if (q) r.n = parseInt(q.value, 10) || 0;
+        if (n) r.netto = n.value;
+        if (m) r.matricole = m.value;
+    });
+}
+
+function macMultiMatricole(r) {
+    return String(r.matricole || '').split(/[\s,;]+/).map(x => listinoPulisciTesto(x)).filter(Boolean);
+}
+
+function macMultiRender() {
+    const box = document.getElementById('mac-multi-righe');
+    if (!macMultiRighe.length) {
+        box.innerHTML = '<p class="mac-aiuto">Cerca il modello qui sopra e toccalo: si aggiunge all&#39;elenco. Puoi aggiungerne quanti vuoi, poi <strong>Carica tutto</strong>.</p>';
+        macMultiAnteprima();
+        return;
+    }
+    box.innerHTML = macMultiRighe.map((r, i) => {
+        const set = macIsSet(r.art.id);
+        return '<div class="mac-multi-riga">' +
+            '<div class="mac-multi-nome"><span class="mac-picker-attrezzo">' + listinoVal(r.art.attrezzo) + '</span>' + macNomeHtml(r.art) +
+                (set ? ' <small>(set: carica i componenti)</small>' : '') + '</div>' +
+            '<div class="mac-multi-campi">' +
+                '<label>Q.t&agrave;<input type="number" id="mac-multi-q-' + i + '" min="1" max="' + MAC_MAX_QTA + '" value="' + r.n + '" inputmode="numeric" oninput="macMultiLeggi(); macMultiAnteprima()"></label>' +
+                (set ? '' : '<label>Netto &euro;<input type="text" id="mac-multi-n-' + i + '" inputmode="decimal" value="' + macEsc(r.netto) + '" placeholder="netto 1" oninput="macMultiLeggi()"></label>') +
+                '<label class="mac-multi-matr">Matricole <small>(facoltative, separate da virgola)</small><input type="text" id="mac-multi-m-' + i + '" value="' + macEsc(r.matricole) + '" oninput="macMultiLeggi()"></label>' +
+                '<button type="button" class="btn-back mac-btn-piccolo" onclick="macMultiTogli(' + i + ')" title="Togli">&#10006;</button>' +
+            '</div>' +
+        '</div>';
+    }).join('');
+    macMultiAnteprima();
+}
+
+function macMultiTogli(i) {
+    macMultiLeggi();
+    macMultiRighe.splice(i, 1);
+    macMultiRender();
+}
+
+// Cosa caricare: [{ art, n, netto, matricole, setArt }] (i set diventano i loro componenti)
+function macMultiElenco() {
+    const elenco = [];
+    macMultiRighe.forEach(r => {
+        if (!(r.n >= 1)) return;
+        const matr = macMultiMatricole(r);
+        if (macIsSet(r.art.id)) {
+            const princ = macComponentePrincipale(r.art.id);
+            macComponenti(r.art.id).forEach(c => {
+                const art = macArticolo(c.componente_id);
+                if (!art) return;
+                elenco.push({ art: art, n: c.quantita * r.n, netto: art.netto_1, matricole: princ && art.id === princ.id ? matr : [], setArt: r.art });
+            });
+        } else {
+            const netto = listinoParseNumero(r.netto);
+            elenco.push({ art: r.art, n: r.n, netto: (typeof netto === 'number' && !isNaN(netto)) ? netto : null, matricole: matr, setArt: null });
+        }
+    });
+    return elenco;
+}
+
+function macMultiAnteprima() {
+    const box = document.getElementById('mac-multi-anteprima');
+    const btn = document.getElementById('mac-multi-salva');
+    const elenco = macMultiElenco();
+    const tot = elenco.reduce((t, x) => t + x.n, 0);
+    btn.textContent = tot ? 'Carica tutto (' + tot + (tot === 1 ? ' macchina)' : ' macchine)') : 'Carica tutto';
+    if (!elenco.length) { box.innerHTML = ''; return; }
+    const assegna = document.getElementById('mac-multi-assegna').checked;
+    // simulo in ordine (stesso modello su piu' righe: i clienti non si contano due volte)
+    const usati = {};
+    let html = '<strong>Cosa succede:</strong><ul>';
+    elenco.forEach(x => {
+        let clienti = [];
+        if (assegna) {
+            const gia = usati[x.art.id] || 0;
+            clienti = macPianoCarico(x.art.id, gia + x.n).clienti.slice(gia);
+            usati[x.art.id] = gia + x.n;
+        }
+        const liberi = x.n - clienti.length;
+        html += '<li><strong>' + macEsc(macNome(x.art)) + '</strong>' + (x.setArt ? ' <small>(' + macEsc(macNome(x.setArt)) + ')</small>' : '') + ': ' + x.n +
+            (clienti.length ? ' &middot; &#128100; ' + clienti.map(p => macEsc(p.cliente)).join(', ') : '') +
+            (liberi > 0 ? ' &middot; &#9989; ' + liberi + ' disponibil' + (liberi === 1 ? 'e' : 'i') : '') + '</li>';
+    });
+    box.innerHTML = html + '</ul>';
+}
+
+async function macMultiSalva() {
+    macMultiLeggi();
+    const errori = [];
+    macMultiRighe.forEach(r => {
+        const nome = macNome(r.art);
+        if (!(r.n >= 1 && r.n <= MAC_MAX_QTA)) errori.push(macEsc(nome) + ': quantit&agrave; da 1 a ' + MAC_MAX_QTA);
+        const netto = listinoParseNumero(r.netto);
+        if (!macIsSet(r.art.id) && typeof netto === 'number' && isNaN(netto)) errori.push(macEsc(nome) + ': il netto non &egrave; un numero');
+        const matr = macMultiMatricole(r);
+        if (matr.length > r.n) errori.push(macEsc(nome) + ': ' + matr.length + ' matricole per ' + r.n + ' pezz' + (r.n === 1 ? 'o' : 'i'));
+    });
+    const tutte = [].concat(...macMultiRighe.map(macMultiMatricole));
+    const doppie = tutte.filter((m, i) => tutte.indexOf(m) !== i);
+    if (doppie.length) errori.push('Matricola ripetuta: ' + macEsc(doppie[0]));
+    if (!macMultiRighe.length) errori.push('Aggiungi almeno un modello');
+    if (errori.length) { await showCustomAlert(errori.join('<br>'), 'Controlla i dati', '&#9888;&#65039;'); return; }
+    const elenco = macMultiElenco();
+    const tot = elenco.reduce((t, x) => t + x.n, 0);
+    if (!window.confirm('Caricare ' + tot + (tot === 1 ? ' macchina' : ' macchine') + ' di ' + macMultiRighe.length + (macMultiRighe.length === 1 ? ' modello' : ' modelli') + '?')) return;
+    const assegna = document.getElementById('mac-multi-assegna').checked;
+    const btn = document.getElementById('mac-multi-salva');
+    btn.disabled = true;
+    const riepilogo = [];
+    macArriviInizia();
+    try {
+        for (const x of elenco) {
+            const res = await macCaricaPezzi({ art: x.art, n: x.n, netto: x.netto, matricole: x.matricole, assegna: assegna, setArt: x.setArt,
+                dettaglio: 'CARICO DI PIU\' MODELLI' });
+            riepilogo.push('<strong>' + macEsc(macNome(x.art)) + '</strong>: ' + x.n + ' caricat' + (x.n === 1 ? 'o' : 'i') +
+                (res.clienti.length ? ' (' + res.clienti.length + ' ai clienti in attesa)' : '') +
+                (res.declassati.length ? '<br><small>&#8617;&#65039; tornano da ordinare: ' + res.declassati.map(macEsc).join(', ') + '</small>' : ''));
+        }
+    } catch (error) {
+        console.error('Errore carico di piu\' modelli:', error);
+        btn.disabled = false;
+        await macRicarica();
+        await showCustomAlert('Errore durante il carico:<br>' + macEsc(error.message) +
+            (riepilogo.length ? '<br><br>Gi&agrave; caricati:<br>' + riepilogo.join('<br>') : '') +
+            '<br><br>Controlla nel quaderno cosa &egrave; stato salvato prima di riprovare.', 'Errore', '&#10060;');
+        macArriviMostra();
+        return;
+    }
+    btn.disabled = false;
+    macMultiChiudi();
+    await macRicarica();
+    await showCustomAlert(riepilogo.join('<br>'), 'Carico registrato', '&#10004;');
+    macArriviMostra();
+}

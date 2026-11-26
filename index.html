@@ -801,6 +801,7 @@
             <!-- Azioni principali -->
             <div class="container mac-azioni-top">
                 <button type="button" id="mac-btn-carico" class="btn-primary">&#128230; Carico macchine</button>
+                <button type="button" id="mac-btn-multi" class="btn-primary">&#128230;&#10133; Carico pi&ugrave; modelli</button>
                 <button type="button" id="mac-btn-raffica" class="btn-primary">&#9889; Carico a raffica</button>
                 <button type="button" id="mac-btn-nuova-voce" class="btn-back">&#9997;&#65039; Nuova voce</button>
             </div>
@@ -2581,6 +2582,31 @@
                     <button type="button" id="mac-carico-annulla" class="btn-secondary">Annulla</button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- Carico di piu' modelli insieme, cercando per descrizione (v8.8.0) -->
+    <div id="mac-multi-modal" class="modal hidden">
+        <div class="modal-content mac-modal-content mac-multi-content">
+            <div class="modal-header">
+                <h3>&#128230;&#10133; Carico pi&ugrave; modelli</h3>
+                <button type="button" class="modal-close" id="mac-multi-close">&times;</button>
+            </div>
+            <p class="mac-aiuto">Cerca ogni modello per descrizione, marchio o codice e toccalo: si aggiunge all&#39;elenco (toccandolo di nuovo aumenta la quantit&agrave;). Per ognuno scrivi quantit&agrave;, netto e, se vuoi, le matricole. Alla fine <strong>Carica tutto</strong>: funziona come il Carico macchine, un modello dopo l&#39;altro.</p>
+            <div class="mac-picker">
+                <input type="text" id="mac-multi-search" placeholder="&#128269; Cerca modello, descrizione, marchio, codice..." autocomplete="off">
+                <div id="mac-multi-results" class="mac-picker-lista hidden"></div>
+            </div>
+            <div id="mac-multi-righe" class="mac-multi-righe"></div>
+            <label class="mac-check mac-check-blocco">
+                <input type="checkbox" id="mac-multi-assegna" checked>
+                Assegna in automatico ai clienti che aspettano questi modelli
+            </label>
+            <div id="mac-multi-anteprima" class="mac-anteprima"></div>
+            <div class="modal-buttons">
+                <button type="button" id="mac-multi-salva" class="btn-primary">Carica tutto</button>
+                <button type="button" id="mac-multi-annulla" class="btn-secondary">Annulla</button>
+            </div>
         </div>
     </div>
 
