@@ -1,5 +1,8 @@
 # Changelog App Magazzino
 
+## v8.0.7 - 2026-11-26 (PRODUZIONE)
+carico magazzino esterno
+
 ## v8.0.6 - 2026-11-25 (PRODUZIONE)
 ok logout
 
