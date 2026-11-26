@@ -1,5 +1,8 @@
 # Changelog App Magazzino
 
+## v8.1.2 - 2026-11-26 (PRODUZIONE)
+ok stampa ettichetta
+
 ## v8.1.1 - 2026-11-26 (PRODUZIONE)
 stampa ettichette
 
