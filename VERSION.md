@@ -1,5 +1,8 @@
 # Changelog App Magazzino
 
+## v8.1.1 - 2026-11-26 (PRODUZIONE)
+stampa ettichette
+
 ## v8.1.0 - 2026-11-26 (PRODUZIONE)
 ok colonne excel
 

@@ -17,19 +17,19 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Kalam:wght@400;700&family=Roboto+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=8.1.0">
-    <link rel="stylesheet" href="listino.css?v=8.1.0">
-    <link rel="stylesheet" href="listini-fornitori.css?v=8.1.0">
-    <link rel="stylesheet" href="fornitori.css?v=8.1.0">
-    <link rel="stylesheet" href="interventi.css?v=8.1.0">
-    <link rel="stylesheet" href="macchine.css?v=8.1.0">
-    <link rel="stylesheet" href="ordini.css?v=8.1.0">
-    <link rel="stylesheet" href="ordini-macchine.css?v=8.1.0">
-    <link rel="stylesheet" href="azienda.css?v=8.1.0">
-    <link rel="stylesheet" href="richieste.css?v=8.1.0">
-    <link rel="stylesheet" href="buoni.css?v=8.1.0">
-    <link rel="stylesheet" href="mezzi.css?v=8.1.0">
-    <link rel="stylesheet" href="daltonici.css?v=8.1.0">
+    <link rel="stylesheet" href="style.css?v=8.1.1">
+    <link rel="stylesheet" href="listino.css?v=8.1.1">
+    <link rel="stylesheet" href="listini-fornitori.css?v=8.1.1">
+    <link rel="stylesheet" href="fornitori.css?v=8.1.1">
+    <link rel="stylesheet" href="interventi.css?v=8.1.1">
+    <link rel="stylesheet" href="macchine.css?v=8.1.1">
+    <link rel="stylesheet" href="ordini.css?v=8.1.1">
+    <link rel="stylesheet" href="ordini-macchine.css?v=8.1.1">
+    <link rel="stylesheet" href="azienda.css?v=8.1.1">
+    <link rel="stylesheet" href="richieste.css?v=8.1.1">
+    <link rel="stylesheet" href="buoni.css?v=8.1.1">
+    <link rel="stylesheet" href="mezzi.css?v=8.1.1">
+    <link rel="stylesheet" href="daltonici.css?v=8.1.1">
 
     <!-- SheetJS per import Excel -->
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
@@ -90,7 +90,7 @@
 
 <body class="loading">
     <!-- Version badge -->
-    <div class="version-badge">v8.1.0</div>
+    <div class="version-badge">v8.1.1</div>
 
     <!-- SCHERMATA LOGIN -->
     <div id="login-screen" class="screen">
@@ -3358,7 +3358,7 @@
     <div id="whats-new-modal" class="modal hidden">
         <div class="modal-content whats-new-content">
             <div class="whats-new-header">
-                <h3>&#127881; AGRIDESK v8.1.0 - Aggiornamento!</h3>
+                <h3>&#127881; AGRIDESK v8.1.1 - Aggiornamento!</h3>
                 <p class="version-date">26 Novembre 2026</p>
             </div>
 
@@ -3496,7 +3496,7 @@
                 <h4>5. Soglia e avvisi</h4>
                 <p>Ogni ricambio ha una <strong>soglia</strong> per furgone: quando ci arriva (o finisce) parte l'avviso nella campanella e su <strong>Telegram</strong> (gruppo dei consumabili). L'elenco completo &egrave; in <strong>Da ricaricare</strong>, anche in PDF.</p>
                 <h4>6. Etichette Zebra</h4>
-                <p>Spunta i ricambi (casella a sinistra) e premi <strong>Etichette</strong>, oppure <strong>Etichetta</strong> dalla scheda: si apre un PDF della misura dell'etichetta (<strong>50 x 20 mm</strong>) con il codice a barre. Stampa con la Zebra ZD420 con <strong>Dimensione reale / 100%</strong>. Il codice a barre &egrave; il codice del ricambio (o il codice a barre scritto nella scheda).</p>
+                <p>Spunta i ricambi (casella a sinistra) e premi <strong>Etichette</strong>, oppure <strong>Etichetta</strong> dalla scheda: si apre un PDF con un'etichetta per pagina (<strong>50 x 20 mm</strong>, girata come esce dalla stampante: pagina 20 x 50) con il codice a barre. Stampa con la Zebra ZD420 con <strong>Dimensione reale / 100%</strong>, margini nessuno (nel driver: larghezza 20 mm, altezza 50 mm). Il codice a barre &egrave; il codice del ricambio (o il codice a barre scritto nella scheda).</p>
                 <h4>Excel: righe cancellate e codici cambiati</h4>
                 <p>Il caricamento dell'Excel <strong>non cancella mai da solo</strong>: i ricambi che nel file non ci sono restano, a meno di spuntare <strong>Toglili dall'app</strong> nell'anteprima (solo con il file completo, scaricato senza filtri). Se cambi il codice di un ricambio, scrivi quello nuovo in <strong>CODICE</strong> e il vecchio in <strong>CODICE PRECEDENTE</strong>: resta lo stesso ricambio, con quantit&agrave; e storia. <strong>SENZA SCORTA</strong> = SI per i ricambi che servono solo nei rapportini e non si contano (olio, grasso, minuteria): si spunta anche nella scheda del ricambio.</p>
                 <h4>7. Inventario (primo carico o conta)</h4>
@@ -3917,20 +3917,20 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- Versione bloccata (la libreria non e' piu' mantenuta: cosi' non cambia mai da sola) -->
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-    <script src="ricambi-functions.js?v=8.1.0"></script>
-    <script src="listino-functions.js?v=8.1.0"></script>
-    <script src="fornitori-functions.js?v=8.1.0"></script>
-    <script src="interventi-functions.js?v=8.1.0"></script>
-    <script src="macchine-functions.js?v=8.1.0"></script>
-    <script src="macchine-report.js?v=8.1.0"></script>
-    <script src="macchine-raffica.js?v=8.1.0"></script>
-    <script src="listini-fornitori-functions.js?v=8.1.0"></script>
-    <script src="ordini-functions.js?v=8.1.0"></script>
-    <script src="ordini-macchine-functions.js?v=8.1.0"></script>
-    <script src="azienda-functions.js?v=8.1.0"></script>
-    <script src="richieste-robot-functions.js?v=8.1.0"></script>
-    <script src="buoni-functions.js?v=8.1.0"></script>
-    <script src="mezzi-functions.js?v=8.1.0"></script>
-    <script src="app.js?v=8.1.0"></script>
+    <script src="ricambi-functions.js?v=8.1.1"></script>
+    <script src="listino-functions.js?v=8.1.1"></script>
+    <script src="fornitori-functions.js?v=8.1.1"></script>
+    <script src="interventi-functions.js?v=8.1.1"></script>
+    <script src="macchine-functions.js?v=8.1.1"></script>
+    <script src="macchine-report.js?v=8.1.1"></script>
+    <script src="macchine-raffica.js?v=8.1.1"></script>
+    <script src="listini-fornitori-functions.js?v=8.1.1"></script>
+    <script src="ordini-functions.js?v=8.1.1"></script>
+    <script src="ordini-macchine-functions.js?v=8.1.1"></script>
+    <script src="azienda-functions.js?v=8.1.1"></script>
+    <script src="richieste-robot-functions.js?v=8.1.1"></script>
+    <script src="buoni-functions.js?v=8.1.1"></script>
+    <script src="mezzi-functions.js?v=8.1.1"></script>
+    <script src="app.js?v=8.1.1"></script>
 </body>
 </html>

@@ -35,7 +35,10 @@ const MZ_RUOLI = ['admin', 'operatore', 'tecnico'];   // chi vede la sezione
 const MZ_RUOLI_GESTIONE = ['admin', 'operatore'];      // chi gestisce catalogo e quantita'
 const MZ_TARIFFA_ORA = 40;           // manodopera: euro all'ora IVA esclusa
 const MZ_IVA = 22;
-const MZ_ETICHETTA = { larghezza: 50, altezza: 20 };   // mm (Zebra ZD420)
+// Etichette Zebra ZD420 (203 dpi = 8 punti per mm). v8.7.3: il rotolo esce dalla stampante dal lato corto
+// (largo 20 mm, lungo 50): la pagina del PDF e' 20 x 50 e l'etichetta e' disegnata girata di 90 gradi.
+// Se un giorno cambia il rotolo (50 mm sotto la testina) basta ruota: false.
+const MZ_ETICHETTA = { larghezza: 50, altezza: 20, ruota: true, puntiMm: 8 };
 const MZ_LIB_BARCODE = 'https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js';
 
 let mzFurgoni = [];
@@ -1938,25 +1941,70 @@ function mzTaglia(pdf, testo, larghezza) {
     return t + '...';
 }
 
+// Disegna l'etichetta (50 x 20 mm) su un'immagine alla risoluzione della stampante, poi la mette nel PDF
+// (girata se il rotolo esce dal lato corto). Codice a barre a punti interi: niente righe sfocate.
+function mzDisegnaEtichetta(r) {
+    const k = MZ_ETICHETTA.puntiMm;
+    const W = MZ_ETICHETTA.larghezza * k;
+    const H = MZ_ETICHETTA.altezza * k;
+    const c = document.createElement('canvas');
+    c.width = W;
+    c.height = H;
+    const ctx = c.getContext('2d');
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#000';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'alphabetic';
+    const taglia = (testo, max) => {
+        let t = String(testo || '');
+        if (ctx.measureText(t).width <= max) return t;
+        while (t.length > 1 && ctx.measureText(t + '...').width > max) t = t.slice(0, -1);
+        return t + '...';
+    };
+    const valore = mzValoreBarcode(r);
+    // descrizione in alto
+    ctx.font = 'bold ' + Math.round(2.6 * k) + 'px Arial, Helvetica, sans-serif';
+    ctx.fillText(taglia(mzTesto(r.descrizione), W - 3 * k), W / 2, 3 * k);
+    // codice a barre: modulo di 2 punti, 1 se il codice e' lungo; 3 mm liberi ai lati
+    const bc = document.createElement('canvas');
+    let modulo = 2;
+    window.JsBarcode(bc, valore, { format: 'CODE128', displayValue: false, margin: 0, height: Math.round(10 * k), width: modulo });
+    if (bc.width > W - 6 * k) {
+        modulo = 1;
+        window.JsBarcode(bc, valore, { format: 'CODE128', displayValue: false, margin: 0, height: Math.round(10 * k), width: modulo });
+    }
+    ctx.imageSmoothingEnabled = false;
+    const bw = Math.min(bc.width, W - 2 * k);
+    ctx.drawImage(bc, Math.round((W - bw) / 2), Math.round(4.2 * k), bw, Math.round(10 * k));
+    // codice e marca in basso
+    ctx.font = Math.round(2.6 * k) + 'px Arial, Helvetica, sans-serif';
+    ctx.fillText(taglia(valore + (r.marca ? '  ' + mzTesto(r.marca) : ''), W - 3 * k), W / 2, 17.6 * k);
+    if (!MZ_ETICHETTA.ruota) return c;
+    // girata di 90 gradi (in senso orario): pagina 20 x 50 mm
+    const g = document.createElement('canvas');
+    g.width = H;
+    g.height = W;
+    const gx = g.getContext('2d');
+    gx.translate(H, 0);
+    gx.rotate(Math.PI / 2);
+    gx.drawImage(c, 0, 0);
+    return g;
+}
+
 async function mzCreaEtichette(ricambi) {
     await pdfCaricaLibrerie();
     await mzCaricaBarcode();
     const L = MZ_ETICHETTA.larghezza;
     const H = MZ_ETICHETTA.altezza;
-    const pdf = new window.jspdf.jsPDF({ unit: 'mm', format: [H, L], orientation: 'landscape' });
+    // pagina della misura dell'etichetta come esce dalla stampante
+    const pw = MZ_ETICHETTA.ruota ? H : L;
+    const ph = MZ_ETICHETTA.ruota ? L : H;
+    const orient = pw > ph ? 'landscape' : 'portrait';
+    const pdf = new window.jspdf.jsPDF({ unit: 'mm', format: [pw, ph], orientation: orient });
     ricambi.forEach((r, i) => {
-        if (i > 0) pdf.addPage([H, L], 'landscape');
-        const valore = mzValoreBarcode(r);
-        pdf.setFont('helvetica', 'bold');
-        pdf.setFontSize(7);
-        pdf.text(mzTaglia(pdf, mzTesto(r.descrizione), L - 4), L / 2, 3.4, { align: 'center' });
-        const canvas = document.createElement('canvas');
-        window.JsBarcode(canvas, valore, { format: 'CODE128', displayValue: false, margin: 0, height: 80, width: 2 });
-        const larg = Math.min(L - 8, Math.max(20, canvas.width / 8));   // 4 mm liberi ai lati: il lettore lo legge meglio
-        pdf.addImage(canvas.toDataURL('image/png'), 'PNG', (L - larg) / 2, 4.6, larg, 10.2);
-        pdf.setFont('helvetica', 'normal');
-        pdf.setFontSize(7.5);
-        pdf.text(mzTaglia(pdf, valore + (r.marca ? '  ' + mzTesto(r.marca) : ''), L - 4), L / 2, 18, { align: 'center' });
+        if (i > 0) pdf.addPage([pw, ph], orient);
+        pdf.addImage(mzDisegnaEtichetta(r).toDataURL('image/png'), 'PNG', 0, 0, pw, ph, undefined, 'FAST');
     });
     return pdf.output('blob');
 }
