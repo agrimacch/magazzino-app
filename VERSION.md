@@ -1,5 +1,8 @@
 # Changelog App Magazzino
 
+## v8.0.8 - 2026-11-26 (PRODUZIONE)
+ok modifiche inv. esterno
+
 ## v8.0.7 - 2026-11-26 (PRODUZIONE)
 carico magazzino esterno
 
