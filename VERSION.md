@@ -1,5 +1,8 @@
 # Changelog App Magazzino
 
+## v8.1.3 - 2026-11-26 (PRODUZIONE)
+ok lett codice a barre
+
 ## v8.1.2 - 2026-11-26 (PRODUZIONE)
 ok stampa ettichetta
 

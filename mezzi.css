@@ -52,7 +52,12 @@
 .mz-furgone-btn.active { background: var(--primary, #688E53); color: #fff; }
 
 /* Ricerca */
-.mz-cerca-box { margin-bottom: 10px; }
+.mz-cerca-box { margin-bottom: 10px; display: flex; gap: 8px; align-items: stretch; }
+.mz-cerca-box .mz-cerca { flex: 1; min-width: 0; }
+.mz-cerca-foto {
+    flex-shrink: 0; width: 56px; border: 2px solid var(--primary, #688E53); border-radius: 12px;
+    background: #fff; font-size: 24px; cursor: pointer;
+}
 .mz-cerca {
     width: 100%;
     font-size: 18px !important;

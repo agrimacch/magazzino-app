@@ -316,8 +316,22 @@ function mzHtmlCerca() {
     return mzHtmlScegliFurgone() +
         '<div class="mz-cerca-box">' +
             '<input type="search" id="mz-cerca" class="mz-cerca" placeholder="Modello della macchina (es. HRM1500), codice o descrizione..." autocomplete="off" value="' + mzEsc(mzTestoCerca) + '" oninput="mzCambiaCerca(this.value)" onkeydown="mzCercaTasto(event)">' +
+            '<button type="button" class="mz-cerca-foto" onclick="mzCercaConFotocamera()" title="Leggi il codice a barre con la fotocamera">&#128247;</button>' +
         '</div>' +
         '<div id="mz-risultati"></div>';
+}
+
+// v8.7.5: codice a barre letto con la fotocamera (telefono): cerco quel codice e mostro il ricambio
+function mzCercaConFotocamera() {
+    mzApriScanner(testo => {
+        const n = mzNorm(testo);
+        const r = mzRicambi.find(x => [x.codice, x.codice_barre, x.codice_ean, x.codice_precedente].map(mzNorm).indexOf(n) !== -1);
+        mzTestoCerca = r ? (r.codice || testo) : testo;
+        const campo = document.getElementById('mz-cerca');
+        if (campo) campo.value = mzTestoCerca;
+        mzRenderRisultati();
+        if (!r) showCustomAlert('Codice <strong>' + mzEsc(testo) + '</strong> non trovato tra i ricambi dei furgoni.', 'Codice a barre', '&#9888;&#65039;');
+    });
 }
 
 function mzCambiaCerca(v) {
@@ -2318,9 +2332,10 @@ function mzInvVaiACodice(codice) {
 }
 
 // Fotocamera (stessa libreria dello Scanner)
-function mzInvApriScanner() {
+// Fotocamera che legge un codice a barre e lo passa a "poi" (Cerca e Inventario)
+function mzApriScanner(poi) {
     if (typeof Html5Qrcode === 'undefined') {
-        showCustomAlert('Lettore non disponibile: scrivi il codice nella ricerca.', 'Inventario', '&#9888;&#65039;');
+        showCustomAlert('Lettore non disponibile: scrivi il codice nella ricerca.', 'Codice a barre', '&#9888;&#65039;');
         return;
     }
     document.getElementById('mz-inv-scan-modal').classList.remove('hidden');
@@ -2328,15 +2343,21 @@ function mzInvApriScanner() {
     mzInvScanner.start({ facingMode: 'environment' }, { fps: 20, qrbox: { width: 240, height: 120 } }, async (testo) => {
         await mzInvChiudiScanner();
         if (navigator.vibrate) navigator.vibrate(150);
+        poi(String(testo || '').trim());
+    }, () => {}).catch(err => {
+        console.error('Fotocamera:', err);
+        mzInvChiudiScanner();
+        showCustomAlert('Impossibile avviare la fotocamera. Controlla i permessi.', 'Codice a barre', '&#10060;');
+    });
+}
+
+function mzInvApriScanner() {
+    mzApriScanner(testo => {
         if (!mzInvVaiACodice(testo)) {
             showCustomAlert('Codice <strong>' + mzEsc(testo) + '</strong> non in elenco: se il ricambio &egrave; nel furgone aggiungilo in <strong>Ricambi trovati ma non in elenco</strong>.', 'Inventario', '&#9888;&#65039;');
             const cod = document.getElementById('mz-inv-ex-cod');
             if (cod) cod.value = testo;
         }
-    }, () => {}).catch(err => {
-        console.error('Fotocamera inventario:', err);
-        mzInvChiudiScanner();
-        showCustomAlert('Impossibile avviare la fotocamera. Controlla i permessi.', 'Inventario', '&#10060;');
     });
 }
 
