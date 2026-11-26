@@ -2281,11 +2281,13 @@
 .mac-multi-righe { margin: 10px 0; }
 .mac-multi-riga { border: 1px solid #e5e7eb; border-radius: 10px; padding: 8px 10px; margin-bottom: 8px; background: #fafcf8; }
 .mac-multi-nome { font-size: 13px; margin-bottom: 6px; }
-.mac-multi-campi { display: grid; grid-template-columns: 80px 120px minmax(0, 1fr) auto; gap: 8px; align-items: end; }
+.mac-multi-campi { display: grid; grid-template-columns: 80px 140px auto; gap: 8px; align-items: end; }
+.mac-multi-matr { margin-top: 6px; font-size: 11px; color: #4b5563; }
+.mac-multi-mbox { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; margin-top: 3px; }
+.mac-multi-mbox input { margin: 0; text-transform: uppercase; }
 .mac-multi-campi label { font-size: 11px; font-weight: 700; color: #4b5563; margin: 0; }
 .mac-multi-campi input { margin: 2px 0 0; width: 100%; }
 .mac-multi-campi .mac-btn-piccolo { width: auto; margin: 0; }
 @media (max-width: 600px) {
     .mac-multi-campi { grid-template-columns: 70px minmax(0, 1fr) auto; }
-    .mac-multi-campi .mac-multi-matr { grid-column: 1 / -1; grid-row: 2; }
 }

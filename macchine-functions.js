@@ -3493,7 +3493,7 @@ window.macSwitchTab = macSwitchTab;
 // con lo stesso salvataggio del Carico macchine (macCaricaPezzi): prima ai clienti in attesa (se spuntato),
 // il resto disponibili; i set caricano i componenti (matricole al componente principale).
 // ========================================
-let macMultiRighe = [];   // [{ art, n, netto: testo, matricole: testo }]
+let macMultiRighe = [];   // [{ art, n, netto: testo, matricole: [una per pezzo] }] - l'ultima aggiunta e' la prima
 
 function macMultiApri() {
     macMultiRighe = [];
@@ -3515,8 +3515,13 @@ function macMultiAggiungi(a) {
     document.getElementById('mac-multi-search').value = '';
     macMultiLeggi();
     const gia = macMultiRighe.find(r => r.art.id === a.id);
-    if (gia) gia.n = Math.min(MAC_MAX_QTA, gia.n + 1);
-    else macMultiRighe.push({ art: a, n: 1, netto: macIsSet(a.id) || a.netto_1 === null || a.netto_1 === undefined ? '' : String(a.netto_1).replace('.', ','), matricole: '' });
+    if (gia) {
+        gia.n = Math.min(MAC_MAX_QTA, gia.n + 1);
+        // la riga toccata di nuovo torna in cima
+        macMultiRighe = [gia].concat(macMultiRighe.filter(r => r !== gia));
+    } else {
+        macMultiRighe.unshift({ art: a, n: 1, netto: macIsSet(a.id) || a.netto_1 === null || a.netto_1 === undefined ? '' : String(a.netto_1).replace('.', ','), matricole: [] });
+    }
     macMultiRender();
     setTimeout(() => document.getElementById('mac-multi-search').focus(), 30);
 }
@@ -3529,12 +3534,47 @@ function macMultiLeggi() {
         const m = document.getElementById('mac-multi-m-' + i);
         if (q) r.n = parseInt(q.value, 10) || 0;
         if (n) r.netto = n.value;
-        if (m) r.matricole = m.value;
+        r.matricole = (r.matricole || []).slice();
+        for (let k = 0; k < Math.min(r.n, MAC_MAX_QTA); k++) {
+            const m = document.getElementById('mac-multi-m-' + i + '-' + k);
+            if (m) r.matricole[k] = m.value;
+        }
     });
 }
 
+// Matricole di una riga: una per pezzo (vuote = null), solo le prime n
 function macMultiMatricole(r) {
-    return String(r.matricole || '').split(/[\s,;]+/).map(x => listinoPulisciTesto(x)).filter(Boolean);
+    const n = Math.max(0, Math.min(r.n || 0, MAC_MAX_QTA));
+    const out = [];
+    for (let k = 0; k < n; k++) out.push(listinoPulisciTesto((r.matricole || [])[k] || '') || null);
+    return out;
+}
+
+// Campi matricola: tanti quanti i pezzi
+function macMultiHtmlMatricole(r, i) {
+    const n = Math.max(0, Math.min(r.n || 0, MAC_MAX_QTA));
+    let html = '';
+    for (let k = 0; k < n; k++) {
+        html += '<input type="text" id="mac-multi-m-' + i + '-' + k + '" value="' + macEsc((r.matricole || [])[k] || '') + '"' +
+            ' placeholder="Matricola ' + (k + 1) + '" oninput="macMultiLeggi()" onkeydown="macMultiMatrTasto(event, ' + i + ', ' + k + ')">';
+    }
+    return html;
+}
+
+// Quantita' cambiata: rifaccio solo i campi matricola di quella riga
+function macMultiQta(i) {
+    macMultiLeggi();
+    const box = document.getElementById('mac-multi-mbox-' + i);
+    if (box && macMultiRighe[i]) box.innerHTML = macMultiHtmlMatricole(macMultiRighe[i], i);
+    macMultiAnteprima();
+}
+
+// Invio (anche dal lettore) passa alla matricola dopo
+function macMultiMatrTasto(e, i, k) {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    const dopo = document.getElementById('mac-multi-m-' + i + '-' + (k + 1));
+    if (dopo) dopo.focus();
 }
 
 function macMultiRender() {
@@ -3550,11 +3590,12 @@ function macMultiRender() {
             '<div class="mac-multi-nome"><span class="mac-picker-attrezzo">' + listinoVal(r.art.attrezzo) + '</span>' + macNomeHtml(r.art) +
                 (set ? ' <small>(set: carica i componenti)</small>' : '') + '</div>' +
             '<div class="mac-multi-campi">' +
-                '<label>Q.t&agrave;<input type="number" id="mac-multi-q-' + i + '" min="1" max="' + MAC_MAX_QTA + '" value="' + r.n + '" inputmode="numeric" oninput="macMultiLeggi(); macMultiAnteprima()"></label>' +
+                '<label>Q.t&agrave;<input type="number" id="mac-multi-q-' + i + '" min="1" max="' + MAC_MAX_QTA + '" value="' + r.n + '" inputmode="numeric" oninput="macMultiQta(' + i + ')"></label>' +
                 (set ? '' : '<label>Netto &euro;<input type="text" id="mac-multi-n-' + i + '" inputmode="decimal" value="' + macEsc(r.netto) + '" placeholder="netto 1" oninput="macMultiLeggi()"></label>') +
-                '<label class="mac-multi-matr">Matricole <small>(facoltative, separate da virgola)</small><input type="text" id="mac-multi-m-' + i + '" value="' + macEsc(r.matricole) + '" oninput="macMultiLeggi()"></label>' +
                 '<button type="button" class="btn-back mac-btn-piccolo" onclick="macMultiTogli(' + i + ')" title="Togli">&#10006;</button>' +
             '</div>' +
+            '<div class="mac-multi-matr"><small>Matricole' + (set ? ' (componente principale)' : '') + ', una per pezzo:</small>' +
+                '<div class="mac-multi-mbox" id="mac-multi-mbox-' + i + '">' + macMultiHtmlMatricole(r, i) + '</div></div>' +
         '</div>';
     }).join('');
     macMultiAnteprima();
@@ -3621,10 +3662,8 @@ async function macMultiSalva() {
         if (!(r.n >= 1 && r.n <= MAC_MAX_QTA)) errori.push(macEsc(nome) + ': quantit&agrave; da 1 a ' + MAC_MAX_QTA);
         const netto = listinoParseNumero(r.netto);
         if (!macIsSet(r.art.id) && typeof netto === 'number' && isNaN(netto)) errori.push(macEsc(nome) + ': il netto non &egrave; un numero');
-        const matr = macMultiMatricole(r);
-        if (matr.length > r.n) errori.push(macEsc(nome) + ': ' + matr.length + ' matricole per ' + r.n + ' pezz' + (r.n === 1 ? 'o' : 'i'));
     });
-    const tutte = [].concat(...macMultiRighe.map(macMultiMatricole));
+    const tutte = [].concat(...macMultiRighe.map(macMultiMatricole)).filter(Boolean);
     const doppie = tutte.filter((m, i) => tutte.indexOf(m) !== i);
     if (doppie.length) errori.push('Matricola ripetuta: ' + macEsc(doppie[0]));
     if (!macMultiRighe.length) errori.push('Aggiungi almeno un modello');

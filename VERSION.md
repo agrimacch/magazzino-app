@@ -1,5 +1,11 @@
 # Changelog App Magazzino
 
+## v8.1.9 - 2026-11-26 (PRODUZIONE)
+okok
+
+## v8.1.4 - 2026-11-26 (PRODUZIONE)
+ok carico macchine
+
 ## v8.1.3 - 2026-11-26 (PRODUZIONE)
 ok lett codice a barre
 
