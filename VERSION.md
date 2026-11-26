@@ -1,5 +1,8 @@
 # Changelog App Magazzino
 
+## v8.1.0 - 2026-11-26 (PRODUZIONE)
+ok colonne excel
+
 ## v8.0.9 - 2026-11-26 (PRODUZIONE)
 agg file excel magazzino esterno
 
