@@ -2011,7 +2011,41 @@ async function mzCreaEtichette(ricambi) {
 
 function mzStampaEtichette(ricambi) {
     if (!ricambi.length) { showCustomAlert('Seleziona i ricambi (casella a sinistra) per stampare le etichette.', 'Etichette', '&#8505;&#65039;'); return; }
-    pdfApriInScheda(() => mzCreaEtichette(ricambi), 'ETICHETTE ' + ricambi.length + '.pdf');
+    mzApriPdfDiretto(() => mzCreaEtichette(ricambi), 'ETICHETTE ' + ricambi.length + '.pdf');
+}
+
+// v8.7.4: le etichette si aprono DIRETTAMENTE nel lettore PDF del browser (senza la pagina con la barra verde).
+// Il pulsante "Stampa" di quella pagina stampava la pagina intera e non il PDF: sulla Zebra usciva solo
+// un angolo dell'etichetta. Dal lettore PDF (icona stampante o Ctrl+P) la pagina 20 x 50 va giusta.
+// Se la scheda non si apre (o su iPhone/iPad) il PDF viene scaricato.
+async function mzApriPdfDiretto(creaBlob, nomeFile) {
+    let finestra = null;
+    const ios = typeof pdfSuIos === 'function' && pdfSuIos();
+    if (!ios) { try { finestra = window.open('', '_blank'); } catch (e) { finestra = null; } }
+    if (finestra) {
+        try { finestra.document.body.innerHTML = '<p style="font-family:Arial,sans-serif;padding:24px;color:#555">&#8987; Preparo le etichette...</p>'; } catch (e) { /* niente */ }
+    }
+    try {
+        const blob = await creaBlob();
+        let file = blob;
+        try { file = new File([blob], nomeFile, { type: 'application/pdf' }); } catch (e) { /* va bene il blob */ }
+        const url = URL.createObjectURL(file);
+        if (finestra && !finestra.closed) {
+            finestra.location.href = url;
+        } else {
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = nomeFile;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+        }
+        setTimeout(() => URL.revokeObjectURL(url), 1800000);
+    } catch (err) {
+        console.error('Etichette non create:', err);
+        if (finestra && !finestra.closed) finestra.close();
+        showCustomAlert('Non riesco a creare le etichette:<br>' + mzEsc(err && err.message ? err.message : err), 'Errore', '&#10060;');
+    }
 }
 
 function mzStampaEtichetteSelezionate() {

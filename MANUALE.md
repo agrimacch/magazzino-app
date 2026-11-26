@@ -778,6 +778,7 @@ git rm --cached localhost.pem localhost-key.pem
 - **v8.7.1 (nov 2026)** - Magazzino esterno mezzi: l'Excel scaricato ha la **prima riga bloccata** e le colonne CODICE A BARRE e CODICE GESTIONALE **in fondo** (il caricamento riconosce le colonne dal titolo, l'ordine non conta).
 - **v8.7.2 (nov 2026)** - Excel del Magazzino esterno mezzi senza le colonne CODICE EAN e CODICE EASY.
 - **v8.7.3 (nov 2026)** - Etichette Zebra: il rotolo esce dal lato corto (20 mm sotto la testina, 50 di lunghezza), quindi il PDF ha pagine **20 x 50 mm** con l'etichetta girata di 90 gradi e disegnata alla risoluzione della stampante (203 dpi). Prima la stampa usciva tagliata. Nel driver: larghezza 20 mm, altezza 50 mm; stampa al 100%, margini nessuno.
+- **v8.7.4 (nov 2026)** - Etichette: il PDF si apre **direttamente nel lettore PDF** del browser (stampa con l'icona della stampante del lettore o Ctrl+P). Il pulsante verde *Stampa* della pagina dei PDF stampava la pagina e non il PDF, e sulla Zebra usciva solo un angolo.
 - **v7.7.0 (nov 2026)** - Listini Fornitori: **Proponi collegamenti** (coppie per codice a barre, codice articolo o modello, con i prezzi dei due listini; anche dopo i caricamenti).
 - **v7.6.0 (nov 2026)** - Ordini clienti: **Documento** obbligatorio (Scontrino / Fattura) prima delle Note, nel dettaglio e nel PDF (colonna `documento`, `supabase/ordini-documento.sql`). PDF di ordini e report con caratteri pi&ugrave; grandi; ragione sociale in MAIUSCOLO nell'intestazione.
 - **v7.5.2 (nov 2026)** - La card Ordini Macchine si chiama **Ordini Fornitore**.
