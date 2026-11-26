@@ -3580,21 +3580,23 @@ function macMultiMatrTasto(e, i, k) {
 function macMultiRender() {
     const box = document.getElementById('mac-multi-righe');
     if (!macMultiRighe.length) {
-        box.innerHTML = '<p class="mac-aiuto">Cerca il modello qui sopra e toccalo: si aggiunge all&#39;elenco. Puoi aggiungerne quanti vuoi, poi <strong>Carica tutto</strong>.</p>';
+        box.innerHTML = '<p class="mac-multi-vuoto">&#128269; Cerca il modello qui sopra e toccalo: si aggiunge all&#39;elenco.<br>Puoi aggiungerne quanti vuoi, poi <strong>Carica tutto</strong>.</p>';
         macMultiAnteprima();
         return;
     }
     box.innerHTML = macMultiRighe.map((r, i) => {
         const set = macIsSet(r.art.id);
         return '<div class="mac-multi-riga">' +
-            '<div class="mac-multi-nome"><span class="mac-picker-attrezzo">' + listinoVal(r.art.attrezzo) + '</span>' + macNomeHtml(r.art) +
-                (set ? ' <small>(set: carica i componenti)</small>' : '') + '</div>' +
-            '<div class="mac-multi-campi">' +
-                '<label>Q.t&agrave;<input type="number" id="mac-multi-q-' + i + '" min="1" max="' + MAC_MAX_QTA + '" value="' + r.n + '" inputmode="numeric" oninput="macMultiQta(' + i + ')"></label>' +
-                (set ? '' : '<label>Netto &euro;<input type="text" id="mac-multi-n-' + i + '" inputmode="decimal" value="' + macEsc(r.netto) + '" placeholder="netto 1" oninput="macMultiLeggi()"></label>') +
-                '<button type="button" class="btn-back mac-btn-piccolo" onclick="macMultiTogli(' + i + ')" title="Togli">&#10006;</button>' +
+            '<div class="mac-multi-testa">' +
+                '<span class="mac-multi-num">' + (macMultiRighe.length - i) + '</span>' +
+                '<div class="mac-multi-nome"><span class="mac-picker-attrezzo">' + listinoVal(r.art.attrezzo) + '</span>' + macNomeHtml(r.art) +
+                    (set ? ' <small class="mac-multi-set">set: carica i componenti</small>' : '') + '</div>' +
+                '<label class="mac-multi-campo mac-multi-campo-q">Q.t&agrave;<input type="number" id="mac-multi-q-' + i + '" min="1" max="' + MAC_MAX_QTA + '" value="' + r.n + '" inputmode="numeric" oninput="macMultiQta(' + i + ')"></label>' +
+                (set ? '<span class="mac-multi-campo mac-multi-campo-n"></span>' :
+                    '<label class="mac-multi-campo mac-multi-campo-n">Netto &euro;<input type="text" id="mac-multi-n-' + i + '" inputmode="decimal" value="' + macEsc(r.netto) + '" placeholder="netto 1" oninput="macMultiLeggi()"></label>') +
+                '<button type="button" class="mac-multi-togli" onclick="macMultiTogli(' + i + ')" title="Togli dall&#39;elenco" aria-label="Togli">&#10006;</button>' +
             '</div>' +
-            '<div class="mac-multi-matr"><small>Matricole' + (set ? ' (componente principale)' : '') + ', una per pezzo:</small>' +
+            '<div class="mac-multi-matr"><span>Matricole' + (set ? ' <small>(componente principale)</small>' : '') + '</span>' +
                 '<div class="mac-multi-mbox" id="mac-multi-mbox-' + i + '">' + macMultiHtmlMatricole(r, i) + '</div></div>' +
         '</div>';
     }).join('');

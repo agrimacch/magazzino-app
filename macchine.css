@@ -2276,18 +2276,82 @@
     color: #b45309;
 }
 
-/* Carico di piu' modelli (v8.8.0) */
-.mac-multi-content { max-width: 760px; }
-.mac-multi-righe { margin: 10px 0; }
-.mac-multi-riga { border: 1px solid #e5e7eb; border-radius: 10px; padding: 8px 10px; margin-bottom: 8px; background: #fafcf8; }
-.mac-multi-nome { font-size: 13px; margin-bottom: 6px; }
-.mac-multi-campi { display: grid; grid-template-columns: 80px 140px auto; gap: 8px; align-items: end; }
-.mac-multi-matr { margin-top: 6px; font-size: 11px; color: #4b5563; }
-.mac-multi-mbox { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; margin-top: 3px; }
-.mac-multi-mbox input { margin: 0; text-transform: uppercase; }
-.mac-multi-campi label { font-size: 11px; font-weight: 700; color: #4b5563; margin: 0; }
-.mac-multi-campi input { margin: 2px 0 0; width: 100%; }
-.mac-multi-campi .mac-btn-piccolo { width: auto; margin: 0; }
-@media (max-width: 600px) {
-    .mac-multi-campi { grid-template-columns: 70px minmax(0, 1fr) auto; }
+/* Carico di piu' modelli (v8.8.0): finestra a tutto schermo, elenco che scorre, pulsanti sempre in fondo */
+#mac-multi-modal { padding: 12px; }
+#mac-multi-modal .mac-multi-content {
+    max-width: none;
+    width: 100%;
+    height: calc(100vh - 24px);
+    height: calc(100dvh - 24px);
+    max-height: none;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding: 18px 22px;
+}
+#mac-multi-modal .modal-header { flex-shrink: 0; margin-bottom: 4px; }
+#mac-multi-modal .mac-multi-aiuto { flex-shrink: 0; margin: 0 0 10px; }
+#mac-multi-modal .mac-picker { flex-shrink: 0; max-width: 900px; position: relative; z-index: 2; }   /* risultati sopra all'elenco */
+.mac-multi-righe {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    margin: 12px 0 8px;
+    padding-right: 4px;
+}
+.mac-multi-piede { flex-shrink: 0; border-top: 1px solid #e5e7eb; padding-top: 10px; }
+.mac-multi-piede .mac-anteprima { max-height: 22vh; overflow-y: auto; margin-bottom: 8px; }
+.mac-multi-piede .modal-buttons { margin-top: 8px; }
+.mac-multi-vuoto { text-align: center; color: #6b7280; padding: 40px 10px; }
+.mac-multi-riga {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-left: 4px solid var(--primary, #688E53);
+    border-radius: 10px;
+    padding: 10px 12px;
+    margin-bottom: 10px;
+}
+.mac-multi-riga:first-child { box-shadow: 0 0 0 2px rgba(104, 142, 83, 0.25); }   /* l'ultima aggiunta */
+.mac-multi-testa {
+    display: grid;
+    grid-template-columns: 30px minmax(0, 1fr) 90px 130px 40px;
+    gap: 12px;
+    align-items: center;
+}
+.mac-multi-num {
+    width: 26px; height: 26px; border-radius: 50%;
+    background: var(--primary, #688E53); color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 700;
+}
+.mac-multi-nome { font-size: 14px; line-height: 1.35; min-width: 0; }
+.mac-multi-nome .mac-picker-attrezzo { display: block; }
+.mac-multi-set { color: #6b7280; }
+.mac-multi-campo { display: flex; flex-direction: column; gap: 2px; font-size: 11px; font-weight: 700; color: #4b5563; margin: 0; }
+.mac-multi-campo input { margin: 0; width: 100%; height: 38px; font-size: 15px; }
+.mac-multi-togli {
+    width: 36px; height: 36px; border-radius: 8px;
+    border: 1px solid #fecaca; background: #fff; color: #b91c1c;
+    font-size: 14px; cursor: pointer; padding: 0; align-self: end;
+}
+.mac-multi-togli:hover { background: #fef2f2; }
+.mac-multi-matr {
+    display: flex; gap: 10px; align-items: flex-start;
+    margin: 8px 0 0 42px; font-size: 11px; font-weight: 700; color: #4b5563;
+}
+.mac-multi-matr > span { padding-top: 10px; white-space: nowrap; }
+.mac-multi-mbox { flex: 1; display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 6px; }
+.mac-multi-mbox input { margin: 0; height: 36px; text-transform: uppercase; font-size: 14px; }
+@media (max-width: 700px) {
+    #mac-multi-modal { padding: 0; }
+    #mac-multi-modal .mac-multi-content { height: 100vh; height: 100dvh; border-radius: 0; padding: 14px; }
+    #mac-multi-modal .mac-multi-aiuto { display: none; }   /* sul telefono serve spazio per l'elenco */
+    .mac-multi-piede .mac-anteprima { max-height: 14vh; font-size: 12px; }
+    .mac-multi-testa { grid-template-columns: 26px minmax(0, 1fr) minmax(0, 1fr) 36px; gap: 8px; }
+    .mac-multi-nome { grid-column: 2 / 4; grid-row: 1; }
+    .mac-multi-togli { grid-column: 4; grid-row: 1; align-self: start; }
+    .mac-multi-campo-q { grid-column: 2; grid-row: 2; }
+    .mac-multi-campo-n { grid-column: 3; grid-row: 2; }
+    .mac-multi-matr { margin-left: 0; flex-direction: column; gap: 4px; }
+    .mac-multi-matr > span { padding-top: 0; }
 }
