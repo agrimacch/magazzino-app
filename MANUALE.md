@@ -776,6 +776,7 @@ git rm --cached localhost.pem localhost-key.pem
 - **v8.6.0 (nov 2026)** - Magazzino esterno mezzi: **Inventario** dei furgoni dal telefono (primo carico / conta), con bozza condivisa, ricambi non in elenco e conferma che aggiorna le quantit&agrave;. Script `supabase/mezzi-inventario.sql`.
 - **v8.7.0 (nov 2026)** - Magazzino esterno mezzi: Excel che riconosce i **codici cambiati** (colonna CODICE PRECEDENTE) e, se lo si sceglie, toglie i ricambi non pi&ugrave; nel file; ricambi **senza scorta** (solo per i rapportini, non si contano). Script `supabase/mezzi-senza-scorta.sql`.
 - **v8.7.1 (nov 2026)** - Magazzino esterno mezzi: l'Excel scaricato ha la **prima riga bloccata** e le colonne CODICE A BARRE e CODICE GESTIONALE **in fondo** (il caricamento riconosce le colonne dal titolo, l'ordine non conta).
+- **v8.7.2 (nov 2026)** - Excel del Magazzino esterno mezzi senza le colonne CODICE EAN e CODICE EASY.
 - **v7.7.0 (nov 2026)** - Listini Fornitori: **Proponi collegamenti** (coppie per codice a barre, codice articolo o modello, con i prezzi dei due listini; anche dopo i caricamenti).
 - **v7.6.0 (nov 2026)** - Ordini clienti: **Documento** obbligatorio (Scontrino / Fattura) prima delle Note, nel dettaglio e nel PDF (colonna `documento`, `supabase/ordini-documento.sql`). PDF di ordini e report con caratteri pi&ugrave; grandi; ragione sociale in MAIUSCOLO nell'intestazione.
 - **v7.5.2 (nov 2026)** - La card Ordini Macchine si chiama **Ordini Fornitore**.

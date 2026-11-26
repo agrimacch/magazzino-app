@@ -1606,7 +1606,8 @@ async function mzProvaDrive() {
 // ---------- EXCEL: scarica e carica (stesso formato del file del magazzino esterno) ----------
 function mzColonneExcel() {
     // v8.7.1: CODICE A BARRE e CODICE GESTIONALE in fondo (il caricamento riconosce le colonne dal titolo, l'ordine non conta)
-    return ['MARCA', 'MODELLO', 'CODICE', 'CODICE EAN', 'CODICE EASY', 'RICAMBIO', 'PREZZO IVA E', 'PREZZO IC', 'NOTE', 'UNITA']
+    // (v8.7.2: senza CODICE EAN e CODICE EASY; se un file li ha ancora, il caricamento li legge lo stesso)
+    return ['MARCA', 'MODELLO', 'CODICE', 'RICAMBIO', 'PREZZO IVA E', 'PREZZO IC', 'NOTE', 'UNITA']
         .concat(mzFurgoni.map(f => 'Q. MAG. ' + f.nome))
         .concat(mzFurgoni.map(f => 'SOGLIA ' + f.nome))
         .concat(['CODICE PRECEDENTE', 'SENZA SCORTA', 'CODICE A BARRE', 'CODICE GESTIONALE']);
@@ -1616,13 +1617,13 @@ function mzScaricaExcel() {
     if (!mzPuoGestire()) return;   // solo admin e operatori
     if (typeof XLSX === 'undefined') { showCustomAlert('Libreria Excel non caricata: aggiorna la pagina e riprova.', 'Errore', '&#10060;'); return; }
     const righe = [mzColonneExcel()];
-    mzGiacFiltrati().forEach(r => righe.push([r.marca, r.modelli, r.codice || '', r.codice_ean || '', r.codice_easy || '', r.descrizione,
+    mzGiacFiltrati().forEach(r => righe.push([r.marca, r.modelli, r.codice || '', r.descrizione,
         r.prezzo_ivae === null ? '' : Number(r.prezzo_ivae), r.prezzo_ic === null ? '' : Number(r.prezzo_ic), r.note || '', mzMetri(r) ? 'MT' : 'PZ']
         .concat(mzFurgoni.map(f => mzQta(r.id, f.id)))
         .concat(mzFurgoni.map(f => mzSoglia(r.id, f.id)))
         .concat([r.codice_precedente || '', mzSenzaScorta(r) ? 'SI' : '', r.codice_barre || '', r.codice_gestionale || ''])));
     const ws = XLSX.utils.aoa_to_sheet(righe);
-    ws['!cols'] = righe[0].map((c, i) => ({ wch: i === 1 ? 40 : (i === 5 ? 36 : (/^CODICE (A BARRE|GESTIONALE|PRECEDENTE)$/.test(c) ? 20 : 14)) }));
+    ws['!cols'] = righe[0].map((c, i) => ({ wch: i === 1 ? 40 : (i === 3 ? 36 : (/^CODICE (A BARRE|GESTIONALE|PRECEDENTE)$/.test(c) ? 20 : 14)) }));
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'MAGAZZINO ESTERNO');
     mzScriviXlsxPrimaRigaBloccata(wb, 'MAGAZZINO_ESTERNO_MEZZI_' + mzOggi() + '.xlsx');
