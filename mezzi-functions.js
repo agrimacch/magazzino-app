@@ -277,8 +277,11 @@ function mzRender() {
     if (mzTab === 'giacenze') box.innerHTML = mzHtmlGiacenze();
     else if (mzTab === 'rapportini') box.innerHTML = mzHtmlRapportini();
     else if (mzTab === 'movimenti') { box.innerHTML = '<p class="mz-vuoto">&#8987; Caricamento movimenti...</p>'; mzCaricaMovimenti(); }
+    else if (mzTab === 'inventario') { box.innerHTML = mzHtmlInventario(); mzInvMostra(); }
     else box.innerHTML = mzHtmlCerca();
     mzAggiornaBozzaBarra();
+    // nell'inventario la barra del rapportino coprirebbe la barra "Conferma inventario"
+    if (mzTab === 'inventario') { const b = document.getElementById('mz-bozza-barra'); if (b) b.classList.add('hidden'); }
     if (mzTab === 'cerca') {
         const el = document.getElementById('mz-cerca');
         if (el && window.matchMedia && window.matchMedia('(pointer: fine)').matches) el.focus();
@@ -1890,6 +1893,7 @@ function mzAvviaTempoReale() {
                 // non ridisegno mentre si scrive in una finestra aperta
                 const aperta = ['mz-rap-modal', 'mz-ric-modal', 'mz-imp-modal'].some(id => !document.getElementById(id).classList.contains('hidden'));
                 try { await mzCarica(); } catch (e) { return; }
+                if (mzTab === 'inventario') { if (!aperta && mzInv) mzInvAggiornaConta(); return; }   // non ridisegno mentre si conta
                 if (!aperta) mzRender(); else if (mzRap) mzRapRenderRighe();
             }, 800);
         };
@@ -1901,6 +1905,386 @@ function mzAvviaTempoReale() {
     } catch (err) {
         console.log('Tempo reale furgoni non attivo:', err);
     }
+}
+
+// ========================================
+// INVENTARIO DEI FURGONI (v8.6.0)
+// ----------------------------------------
+// Primo carico / conta della merce, pensato per il telefono. Si sceglie il furgone, si scrive quanti
+// pezzi (o metri) ci sono di ogni ricambio: ogni numero si salva subito nella BOZZA su Supabase
+// (si riprende anche da un altro telefono). I ricambi non in elenco si annotano a parte (li crea l'ufficio).
+// "Conferma inventario": le quantita' contate diventano quelle del furgone (movimento RETTIFICA
+// "INVENTARIO N. x"); i ricambi non contati restano come sono.
+// Admin, operatori e tecnici. Script supabase/mezzi-inventario.sql.
+// ========================================
+let mzInv = null;                    // bozza aperta: { id, furgone_id, righe: {id: q}, extra: [], ... }
+let mzInvStorico = [];
+let mzInvCaricato = false;
+let mzInvErrore = '';
+let mzInvFiltro = { testo: '', marca: '', vista: 'DA_CONTARE' };
+const mzInvTimer = {};
+const MZ_INV_MAX_RIGHE = 80;         // righe disegnate alla volta (telefono)
+let mzInvScanner = null;
+
+async function mzInvCarica() {
+    const furgone = mzFurgoneCorrente();
+    const { data, error } = await supabaseClient.from('mezzi_inventari')
+        .select('*').order('created_at', { ascending: false }).limit(40);
+    if (error) throw error;
+    mzInvStorico = (data || []).filter(x => x.stato === 'CONFERMATO');
+    mzInv = (data || []).find(x => x.stato === 'BOZZA' && x.furgone_id === furgone) || null;
+    if (mzInv) { mzInv.righe = mzInv.righe || {}; mzInv.extra = mzInv.extra || []; }
+    mzInvCaricato = true;
+}
+
+function mzHtmlInventario() {
+    return mzHtmlScegliFurgone() + '<div id="mz-inv-corpo"><p class="mz-vuoto">&#8987; Caricamento...</p></div>';
+}
+
+async function mzInvMostra() {
+    const box = document.getElementById('mz-inv-corpo');
+    if (!box) return;
+    try {
+        await mzInvCarica();
+        mzInvErrore = '';
+    } catch (err) {
+        console.error('Inventario furgoni:', err);
+        mzInvErrore = /mezzi_inventari|does not exist|schema cache/i.test(err && err.message ? err.message : '')
+            ? 'Esegui su Supabase lo script <strong>supabase/mezzi-inventario.sql</strong>.'
+            : mzEsc(err && err.message ? err.message : String(err));
+    }
+    mzInvRender();
+}
+
+function mzInvRender() {
+    const box = document.getElementById('mz-inv-corpo');
+    if (!box) return;
+    if (mzInvErrore) { box.innerHTML = '<p class="mz-vuoto">' + mzInvErrore + '</p>'; return; }
+    const furgone = mzFurgoneCorrente();
+    let html = '';
+    if (!mzInv) {
+        html += '<div class="mz-inv-inizio">' +
+            '<p>Conta i ricambi che ci sono nel furgone <strong>' + mzEsc(mzNomeFurgone(furgone)) + '</strong> e scrivi per ognuno quanti pezzi (o metri) hai trovato. ' +
+            'Ogni numero si salva subito: puoi fermarti e riprendere anche da un altro telefono. Alla fine premi <strong>Conferma inventario</strong>.</p>' +
+            '<button type="button" class="btn-primary" onclick="mzInvInizia()">&#128203; Inizia inventario ' + mzEsc(mzNomeFurgone(furgone)) + '</button></div>';
+    } else {
+        const marche = Array.from(new Set(mzRicambi.map(r => r.marca).filter(Boolean))).sort();
+        html += '<p class="mz-aiuto">Inventario N. ' + mzInv.id + ' iniziato il ' + mzDataIt(String(mzInv.created_at).slice(0, 10)) +
+            (mzInv.created_by ? ' da ' + mzEsc(mzInv.created_by) : '') + '. Scrivi quanti ne trovi; <strong>vuoto</strong> = non contato (resta com&rsquo;&egrave;), <strong>0</strong> = non ce n&rsquo;&egrave;.</p>' +
+            '<div class="mz-inv-cerca">' +
+                '<input type="search" id="mz-inv-testo" placeholder="Cerca codice, descrizione, modello..." autocomplete="off" value="' + mzEsc(mzInvFiltro.testo) + '" oninput="mzInvImposta(\'testo\', this.value)" onkeydown="mzInvTasto(event)">' +
+                '<button type="button" class="btn-back mz-btn-piccolo" onclick="mzInvApriScanner()" title="Leggi il codice a barre con la fotocamera">&#128247;</button>' +
+            '</div>' +
+            '<div class="mz-inv-filtri">' +
+                '<select onchange="mzInvImposta(\'marca\', this.value)"><option value="">Tutte le marche</option>' +
+                    marche.map(m => '<option' + (m === mzInvFiltro.marca ? ' selected' : '') + '>' + mzEsc(m) + '</option>').join('') + '</select>' +
+                '<div class="mz-inv-viste">' +
+                    [['DA_CONTARE', 'Da contare'], ['CONTATI', 'Contati'], ['TUTTI', 'Tutti']].map(([v, et]) =>
+                        '<button type="button" class="' + (mzInvFiltro.vista === v ? 'active' : '') + '" onclick="mzInvImposta(\'vista\', \'' + v + '\')">' + et + '</button>').join('') +
+                '</div>' +
+            '</div>' +
+            '<div id="mz-inv-lista"></div>' +
+            '<div class="mz-inv-extra">' +
+                '<h4>&#10067; Ricambi trovati ma non in elenco</h4>' +
+                '<div id="mz-inv-extra-lista"></div>' +
+                '<div class="mz-inv-extra-form">' +
+                    '<input type="text" id="mz-inv-ex-desc" placeholder="Descrizione (es. LAMA HONDA)">' +
+                    '<input type="text" id="mz-inv-ex-cod" placeholder="Codice (se c\'&egrave;)">' +
+                    '<input type="text" id="mz-inv-ex-q" inputmode="decimal" placeholder="Quantit&agrave;">' +
+                    '<button type="button" class="btn-back mz-btn-piccolo" onclick="mzInvAggiungiExtra()">&#10133; Aggiungi</button>' +
+                '</div>' +
+            '</div>' +
+            '<div class="mz-inv-barra">' +
+                '<span id="mz-inv-conta"></span>' +
+                '<button type="button" class="btn-primary mz-btn-piccolo" onclick="mzInvConferma()">&#10004;&#65039; Conferma inventario</button>' +
+                (mzPuoGestire() ? '<button type="button" class="btn-back mz-btn-piccolo" onclick="mzInvAnnulla()">Annulla</button>' : '') +
+            '</div>';
+    }
+    html += mzInvHtmlStorico();
+    box.innerHTML = html;
+    if (mzInv) { mzInvRenderLista(); mzInvRenderExtra(); mzInvAggiornaConta(); }
+}
+
+function mzInvImposta(campo, valore) {
+    mzInvFiltro[campo] = valore;
+    if (campo === 'vista') {
+        document.querySelectorAll('.mz-inv-viste button').forEach(b => b.classList.remove('active'));
+        const btn = Array.from(document.querySelectorAll('.mz-inv-viste button')).find(b => b.getAttribute('onclick').indexOf("'" + valore + "'") !== -1);
+        if (btn) btn.classList.add('active');
+    }
+    mzInvRenderLista();
+}
+
+function mzInvContato(id) {
+    return !!mzInv && Object.prototype.hasOwnProperty.call(mzInv.righe, String(id));
+}
+
+function mzInvFiltrati() {
+    const parole = String(mzInvFiltro.testo || '').split(/\s+/).map(mzNorm).filter(Boolean);
+    return mzRicambi.filter(r => {
+        if (mzInvFiltro.marca && r.marca !== mzInvFiltro.marca) return false;
+        const contato = mzInvContato(r.id);
+        // in "Da contare" cercando qualcosa mostro anche i gia' contati (per correggerli)
+        if (mzInvFiltro.vista === 'DA_CONTARE' && contato && !parole.length) return false;
+        if (mzInvFiltro.vista === 'CONTATI' && !contato) return false;
+        if (parole.length) {
+            const t = mzNorm([r.marca, r.modelli, r.codice, r.codice_barre, r.codice_ean, r.descrizione].join(' '));
+            if (!parole.every(p => t.indexOf(p) !== -1)) return false;
+        }
+        return true;
+    }).sort((a, b) => String(a.marca + ' ' + a.descrizione).localeCompare(String(b.marca + ' ' + b.descrizione), 'it'));
+}
+
+function mzInvRenderLista() {
+    const box = document.getElementById('mz-inv-lista');
+    if (!box || !mzInv) return;
+    const lista = mzInvFiltrati();
+    if (!lista.length) {
+        box.innerHTML = '<p class="mz-vuoto">' + (mzInvFiltro.vista === 'DA_CONTARE' && !mzInvFiltro.testo && !mzInvFiltro.marca
+            ? 'Hai contato tutti i ricambi in elenco. Controlla i <strong>Contati</strong> e premi <strong>Conferma inventario</strong>.'
+            : 'Nessun ricambio. Se lo hai nel furgone ma non &egrave; in elenco, aggiungilo qui sotto in <strong>Ricambi trovati ma non in elenco</strong>.') + '</p>';
+        return;
+    }
+    const furgone = mzInv.furgone_id;
+    box.innerHTML = lista.slice(0, MZ_INV_MAX_RIGHE).map(r => {
+        const contato = mzInvContato(r.id);
+        const q = contato ? mzInv.righe[String(r.id)] : null;
+        return '<div class="mz-inv-riga' + (contato ? ' contato' : '') + '" id="mz-inv-r-' + r.id + '">' +
+            '<div class="mz-inv-testo">' +
+                '<div><strong>' + mzEsc(r.descrizione) + '</strong></div>' +
+                '<div class="mz-inv-sotto">' + [r.marca, r.codice].filter(Boolean).map(mzEsc).join(' &middot; ') +
+                    ' &middot; in app: ' + mzQU(mzQta(r.id, furgone), r) + '</div>' +
+            '</div>' +
+            '<div class="mz-inv-q">' +
+                '<button type="button" onclick="mzInvPiu(' + r.id + ', -1)" aria-label="Meno">&minus;</button>' +
+                '<input type="text" inputmode="decimal" id="mz-inv-q-' + r.id + '" value="' + (q === null ? '' : mzNumForm(q)) + '" placeholder="&ndash;"' +
+                    ' oninput="mzInvScrivi(' + r.id + ', this.value)" onfocus="this.select()">' +
+                '<button type="button" onclick="mzInvPiu(' + r.id + ', 1)" aria-label="Pi&ugrave;">+</button>' +
+                (mzMetri(r) ? '<span class="mz-inv-u">m</span>' : '') +
+            '</div>' +
+        '</div>';
+    }).join('') +
+    (lista.length > MZ_INV_MAX_RIGHE ? '<p class="mz-aiuto">Ne vedi ' + MZ_INV_MAX_RIGHE + ' su ' + lista.length + ': cerca o scegli la marca per trovare gli altri.</p>' : '');
+}
+
+function mzInvAggiornaConta() {
+    const el = document.getElementById('mz-inv-conta');
+    if (!el || !mzInv) return;
+    const n = Object.keys(mzInv.righe).length;
+    const ex = (mzInv.extra || []).length;
+    el.innerHTML = 'Contati <strong>' + n + '</strong> su ' + mzRicambi.length + (ex ? ' &middot; ' + ex + ' non in elenco' : '');
+}
+
+// Scrive la quantita' (vuoto = non contato) e la salva dopo un attimo
+function mzInvScrivi(id, valore) {
+    if (!mzInv) return;
+    const r = mzRicambio(id);
+    const testo = String(valore || '').trim();
+    let q = null;
+    if (testo !== '') {
+        q = mzLeggiQ(testo, mzMetri(r));
+        if (q === null || q < 0) return;   // numero non valido: aspetto
+    }
+    if (q === null) delete mzInv.righe[String(id)]; else mzInv.righe[String(id)] = q;
+    const riga = document.getElementById('mz-inv-r-' + id);
+    if (riga) riga.classList.toggle('contato', q !== null);
+    mzInvAggiornaConta();
+    clearTimeout(mzInvTimer[id]);
+    mzInvTimer[id] = setTimeout(() => { mzInvTimer[id] = null; mzInvSalvaRiga(id, q); }, 600);
+}
+
+function mzInvPiu(id, passo) {
+    const input = document.getElementById('mz-inv-q-' + id);
+    if (!input) return;
+    const attuale = mzNum(input.value) || 0;
+    const nuovo = Math.max(0, mzCent(attuale + passo));
+    input.value = mzNumForm(nuovo);
+    mzInvScrivi(id, input.value);
+}
+
+async function mzInvSalvaRiga(id, q) {
+    if (!mzInv) return;
+    const { error } = await supabaseClient.rpc('mezzi_inventario_segna', { p_inventario: mzInv.id, p_ricambio: id, p_quantita: q });
+    if (error) {
+        if (/INVENTARIO_GIA_CONFERMATO/.test(error.message || '')) {
+            showCustomAlert('Questo inventario &egrave; gi&agrave; stato confermato da un altro telefono.', 'Inventario', '&#9888;&#65039;');
+            mzInvMostra();
+            return;
+        }
+        mzErrore(error, 'inventario, salvataggio');
+    }
+}
+
+// Lettore di codici a barre (o Invio): se il codice e' preciso porto sul numero di quel ricambio
+function mzInvTasto(e) {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    mzInvVaiACodice(mzInvFiltro.testo);
+}
+
+function mzInvVaiACodice(codice) {
+    const n = mzNorm(codice);
+    const r = mzRicambi.find(x => [x.codice, x.codice_barre, x.codice_ean].map(mzNorm).indexOf(n) !== -1);
+    if (!r) {
+        mzInvImposta('testo', codice);
+        return false;
+    }
+    mzInvFiltro.testo = r.codice || codice;
+    mzInvFiltro.vista = 'TUTTI';
+    mzInvFiltro.marca = '';
+    mzInvRender();
+    const input = document.getElementById('mz-inv-q-' + r.id);
+    if (input) { input.focus(); input.scrollIntoView({ block: 'center' }); }
+    return true;
+}
+
+// Fotocamera (stessa libreria dello Scanner)
+function mzInvApriScanner() {
+    if (typeof Html5Qrcode === 'undefined') {
+        showCustomAlert('Lettore non disponibile: scrivi il codice nella ricerca.', 'Inventario', '&#9888;&#65039;');
+        return;
+    }
+    document.getElementById('mz-inv-scan-modal').classList.remove('hidden');
+    mzInvScanner = new Html5Qrcode('mz-inv-reader');
+    mzInvScanner.start({ facingMode: 'environment' }, { fps: 20, qrbox: { width: 240, height: 120 } }, async (testo) => {
+        await mzInvChiudiScanner();
+        if (navigator.vibrate) navigator.vibrate(150);
+        if (!mzInvVaiACodice(testo)) {
+            showCustomAlert('Codice <strong>' + mzEsc(testo) + '</strong> non in elenco: se il ricambio &egrave; nel furgone aggiungilo in <strong>Ricambi trovati ma non in elenco</strong>.', 'Inventario', '&#9888;&#65039;');
+            const cod = document.getElementById('mz-inv-ex-cod');
+            if (cod) cod.value = testo;
+        }
+    }, () => {}).catch(err => {
+        console.error('Fotocamera inventario:', err);
+        mzInvChiudiScanner();
+        showCustomAlert('Impossibile avviare la fotocamera. Controlla i permessi.', 'Inventario', '&#10060;');
+    });
+}
+
+async function mzInvChiudiScanner() {
+    document.getElementById('mz-inv-scan-modal').classList.add('hidden');
+    if (mzInvScanner) {
+        const s = mzInvScanner;
+        mzInvScanner = null;
+        try { if (s.isScanning) await s.stop(); } catch (e) { /* niente */ }
+    }
+}
+
+// ---------- Ricambi non in elenco ----------
+function mzInvRenderExtra() {
+    const box = document.getElementById('mz-inv-extra-lista');
+    if (!box || !mzInv) return;
+    const ex = mzInv.extra || [];
+    box.innerHTML = ex.length ? '<ul>' + ex.map((x, i) => '<li><strong>' + mzEsc(x.descrizione) + '</strong>' +
+        (x.codice ? ' &middot; ' + mzEsc(x.codice) : '') + ' &middot; ' + mzEsc(mzNumForm(x.quantita)) +
+        (x.da ? ' <small>(' + mzEsc(x.da) + ')</small>' : '') +
+        ' <button type="button" class="mz-inv-x" onclick="mzInvTogliExtra(' + i + ')" title="Togli">&#10006;</button></li>').join('') + '</ul>'
+        : '<p class="mz-aiuto">Nessuno. Se trovi un ricambio che non &egrave; in elenco scrivilo qui: lo crea l&rsquo;ufficio e poi si carica.</p>';
+}
+
+async function mzInvSalvaExtra() {
+    const { error } = await supabaseClient.from('mezzi_inventari')
+        .update({ extra: mzInv.extra, updated_at: new Date().toISOString(), updated_by: mzEmail() }).eq('id', mzInv.id);
+    if (error) mzErrore(error, 'inventario, ricambi non in elenco');
+}
+
+async function mzInvAggiungiExtra() {
+    if (!mzInv) return;
+    const desc = mzTesto(document.getElementById('mz-inv-ex-desc').value);
+    const cod = mzTesto(document.getElementById('mz-inv-ex-cod').value);
+    const q = mzNum(document.getElementById('mz-inv-ex-q').value);
+    if (!desc) { showCustomAlert('Scrivi la descrizione del ricambio.', 'Inventario', '&#9888;&#65039;'); return; }
+    if (q === null || q <= 0) { showCustomAlert('Scrivi la quantit&agrave; trovata.', 'Inventario', '&#9888;&#65039;'); return; }
+    mzInv.extra = (mzInv.extra || []).concat([{ descrizione: desc, codice: cod, quantita: mzCent(q), da: mzUtente() }]);
+    ['mz-inv-ex-desc', 'mz-inv-ex-cod', 'mz-inv-ex-q'].forEach(id => { document.getElementById(id).value = ''; });
+    mzInvRenderExtra();
+    mzInvAggiornaConta();
+    await mzInvSalvaExtra();
+}
+
+async function mzInvTogliExtra(i) {
+    if (!mzInv) return;
+    mzInv.extra.splice(i, 1);
+    mzInvRenderExtra();
+    mzInvAggiornaConta();
+    await mzInvSalvaExtra();
+}
+
+// ---------- Inizio, conferma, annulla ----------
+async function mzInvInizia() {
+    const furgone = mzFurgoneCorrente();
+    const { error } = await supabaseClient.from('mezzi_inventari')
+        .insert([{ furgone_id: furgone, created_by: mzEmail(), updated_by: mzEmail() }]);
+    if (error && !/duplicate key|unique/i.test(error.message || '')) { mzErrore(error, 'inizio inventario'); return; }
+    mzInvFiltro = { testo: '', marca: '', vista: 'DA_CONTARE' };
+    await mzInvMostra();
+}
+
+async function mzInvConferma() {
+    if (!mzInv) return;
+    // salvo subito i numeri ancora in attesa
+    const inAttesa = Object.keys(mzInvTimer).filter(k => mzInvTimer[k]);
+    for (const k of inAttesa) {
+        clearTimeout(mzInvTimer[k]);
+        mzInvTimer[k] = null;
+        await mzInvSalvaRiga(Number(k), mzInvContato(k) ? mzInv.righe[k] : null);
+    }
+    const furgone = mzInv.furgone_id;
+    const contati = Object.keys(mzInv.righe);
+    const cambiano = contati.filter(k => mzCent(mzQta(Number(k), furgone)) !== mzCent(mzInv.righe[k])).length;
+    const ex = (mzInv.extra || []).length;
+    if (!contati.length && !ex) { showCustomAlert('Non hai ancora contato nessun ricambio.', 'Inventario', '&#9888;&#65039;'); return; }
+    if (!window.confirm('Confermare l\'inventario del furgone ' + mzNomeFurgone(furgone) + '?\n\n' +
+        contati.length + ' ricambi contati, di cui ' + cambiano + ' con una quantità diversa da quella in app.\n' +
+        'I ricambi non contati restano come sono.' + (ex ? '\n' + ex + ' ricambi non in elenco: li crea l\'ufficio.' : ''))) return;
+    const { data, error } = await supabaseClient.rpc('mezzi_inventario_conferma', { p_inventario: mzInv.id });
+    if (error) {
+        if (/INVENTARIO_GIA_CONFERMATO/.test(error.message || '')) {
+            showCustomAlert('Questo inventario era gi&agrave; stato confermato.', 'Inventario', '&#9888;&#65039;');
+            await mzInvMostra();
+            return;
+        }
+        mzErrore(error, 'conferma inventario');
+        return;
+    }
+    const numero = mzInv.id;
+    try { await mzCarica(); } catch (e) { /* il tempo reale ricarica comunque */ }
+    await mzInvMostra();
+    showCustomAlert('Inventario N. ' + numero + ' confermato.<br><br>Quantit&agrave; aggiornate: <strong>' + (data && data.cambiati || 0) + '</strong>' +
+        '<br>Gi&agrave; giuste: ' + (data && data.uguali || 0) + (ex ? '<br>Non in elenco (da creare): ' + ex : ''), 'Inventario', '&#9989;');
+}
+
+async function mzInvAnnulla() {
+    if (!mzInv || !mzPuoGestire()) return;
+    if (!window.confirm('Annullare l\'inventario N. ' + mzInv.id + '? I numeri scritti finora vengono persi, le quantità del furgone non cambiano.')) return;
+    const { error } = await supabaseClient.from('mezzi_inventari').delete().eq('id', mzInv.id);
+    if (error) { mzErrore(error, 'annulla inventario'); return; }
+    await mzInvMostra();
+}
+
+// ---------- Inventari confermati ----------
+function mzInvHtmlStorico() {
+    if (!mzInvStorico.length) return '';
+    return '<h4 class="mz-inv-titolo">Inventari confermati</h4><div class="mz-tab-scroll"><table class="mz-tab mz-inv-storico"><thead><tr>' +
+        '<th>N.</th><th>Data</th><th>Furgone</th><th>Chi</th><th class="mz-n">Contati</th><th class="mz-n">Cambiati</th><th class="mz-n">Non in elenco</th></tr></thead><tbody>' +
+        mzInvStorico.map(x => {
+            const r = x.riepilogo || {};
+            const ex = (x.extra || []).length;
+            return '<tr onclick="mzInvDettaglio(' + x.id + ')"><td><strong>' + x.id + '</strong></td><td>' + mzDataIt(String(x.confermato_at || x.created_at).slice(0, 10)) + '</td>' +
+                '<td>' + mzEsc(mzNomeFurgone(x.furgone_id)) + '</td><td>' + mzEsc(String(x.confermato_da || '').split('@')[0]) + '</td>' +
+                '<td class="mz-n">' + (r.contati || 0) + '</td><td class="mz-n">' + (r.cambiati || 0) + '</td><td class="mz-n">' + (ex ? '<strong>' + ex + '</strong>' : '0') + '</td></tr>';
+        }).join('') + '</tbody></table></div>';
+}
+
+function mzInvDettaglio(id) {
+    const x = mzInvStorico.find(v => v.id === id);
+    if (!x) return;
+    const ex = x.extra || [];
+    showCustomAlert('Furgone <strong>' + mzEsc(mzNomeFurgone(x.furgone_id)) + '</strong>, confermato il ' + mzDataIt(String(x.confermato_at || '').slice(0, 10)) +
+        ' da ' + mzEsc(x.confermato_da || '') + '.<br>Ricambi contati: ' + Object.keys(x.righe || {}).length +
+        (ex.length ? '<br><br><strong>Non in elenco (da creare e caricare):</strong><ul class="mz-inv-ul">' +
+            ex.map(e => '<li>' + mzEsc(e.descrizione) + (e.codice ? ' &middot; ' + mzEsc(e.codice) : '') + ' &middot; ' + mzEsc(mzNumForm(e.quantita)) + '</li>').join('') + '</ul>' : ''),
+        'Inventario N. ' + x.id, '&#128203;');
 }
 
 window.openMagazzinoMezzi = openMagazzinoMezzi;

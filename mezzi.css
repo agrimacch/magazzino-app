@@ -335,3 +335,60 @@
 .mz-scheda-ro { width: 100%; border-collapse: collapse; font-size: 13px; text-align: left; font-family: 'Roboto Mono', monospace; }
 .mz-scheda-ro td { padding: 4px 6px; border-bottom: 1px solid #e5e7eb; min-width: 0 !important; vertical-align: top; }
 .mz-scheda-ro td:first-child { white-space: nowrap; color: #4b5563; }
+
+/* ---------- Inventario dei furgoni (v8.6.0, pensato per il telefono) ---------- */
+.mz-inv-inizio { background: #f6f9f3; border: 1px solid #dfe8d6; border-radius: 12px; padding: 14px; margin: 10px 0; }
+.mz-inv-inizio .btn-primary { width: 100%; }
+.mz-inv-cerca { display: flex; gap: 8px; margin: 8px 0; }
+.mz-inv-cerca input { flex: 1; min-width: 0; margin: 0; font-size: 16px; }
+.mz-inv-cerca .mz-btn-piccolo { width: auto; margin: 0; font-size: 20px; padding: 6px 12px; }
+.mz-inv-filtri { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 8px; }
+.mz-inv-filtri select { margin: 0; flex: 1; min-width: 140px; }
+.mz-inv-viste { display: flex; border: 1px solid #c7d7bd; border-radius: 8px; overflow: hidden; }
+.mz-inv-viste button {
+    border: none; background: #fff; padding: 8px 10px; font-family: 'Roboto Mono', monospace;
+    font-size: 12px; cursor: pointer; color: #374151;
+}
+.mz-inv-viste button.active { background: var(--primary, #688E53); color: #fff; font-weight: 700; }
+.mz-inv-riga {
+    display: flex; align-items: center; gap: 10px; padding: 10px; margin-bottom: 6px;
+    border: 1px solid #e5e7eb; border-left: 4px solid #d1d5db; border-radius: 10px; background: #fff;
+}
+.mz-inv-riga.contato { border-left-color: var(--primary, #688E53); background: #f6f9f3; }
+.mz-inv-testo { flex: 1; min-width: 0; font-size: 13px; }
+.mz-inv-sotto { font-size: 11px; color: #6b7280; margin-top: 2px; }
+.mz-inv-q { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+.mz-inv-q button {
+    width: 40px; height: 40px; border-radius: 8px; border: 1px solid #c7d7bd; background: #fff;
+    font-size: 20px; font-weight: 700; color: var(--primary-dark, #3f5a2c); cursor: pointer; padding: 0;
+}
+.mz-inv-q input {
+    width: 62px; height: 40px; margin: 0; padding: 0 4px; text-align: center;
+    font-size: 17px; font-weight: 700; font-family: 'Roboto Mono', monospace;
+}
+.mz-inv-u { font-size: 12px; color: #6b7280; }
+.mz-inv-extra { border: 1px dashed #c7d7bd; border-radius: 10px; padding: 10px 12px; margin: 14px 0; background: #fafcf8; }
+.mz-inv-extra h4 { margin: 0 0 6px; font-size: 14px; }
+.mz-inv-extra ul { margin: 0 0 8px 18px; padding: 0; font-size: 13px; }
+.mz-inv-extra li { margin-bottom: 4px; }
+.mz-inv-extra-form { display: grid; grid-template-columns: 2fr 1fr 80px auto; gap: 6px; }
+.mz-inv-extra-form input { margin: 0; min-width: 0; text-transform: uppercase; }
+.mz-inv-extra-form .mz-btn-piccolo { width: auto; margin: 0; }
+.mz-inv-x { border: none; background: none; color: #b91c1c; cursor: pointer; font-size: 13px; }
+.mz-inv-barra {
+    position: sticky; bottom: 0; z-index: 50;   /* come la barra del rapportino, sotto alle finestre */
+    display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+    margin-top: 12px; padding: 10px 12px; border-radius: 12px; background: #3f5a2c; color: #fff;
+}
+.mz-inv-barra span { flex: 1; min-width: 160px; }
+.mz-inv-barra .mz-btn-piccolo { width: auto; margin: 0; }
+.mz-inv-titolo { margin: 18px 0 6px; font-size: 14px; }
+.mz-inv-ul { text-align: left; margin: 6px 0 0 18px; padding: 0; }
+.mz-inv-scan-content { max-width: 420px; }
+#mz-inv-reader { width: 100%; min-height: 220px; }
+@media (max-width: 600px) {
+    .mz-inv-extra-form { grid-template-columns: 1fr 1fr; }
+    .mz-inv-extra-form input:first-child { grid-column: 1 / -1; }
+    .mz-inv-q button { width: 38px; height: 38px; }
+}
+.mz-inv-storico th, .mz-inv-storico td { white-space: nowrap; }
