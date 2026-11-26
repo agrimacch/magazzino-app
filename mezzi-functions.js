@@ -1605,10 +1605,11 @@ async function mzProvaDrive() {
 
 // ---------- EXCEL: scarica e carica (stesso formato del file del magazzino esterno) ----------
 function mzColonneExcel() {
-    return ['MARCA', 'MODELLO', 'CODICE', 'CODICE EAN', 'CODICE EASY', 'RICAMBIO', 'PREZZO IVA E', 'PREZZO IC', 'NOTE', 'CODICE A BARRE', 'CODICE GESTIONALE', 'UNITA']
+    // v8.7.1: CODICE A BARRE e CODICE GESTIONALE in fondo (il caricamento riconosce le colonne dal titolo, l'ordine non conta)
+    return ['MARCA', 'MODELLO', 'CODICE', 'CODICE EAN', 'CODICE EASY', 'RICAMBIO', 'PREZZO IVA E', 'PREZZO IC', 'NOTE', 'UNITA']
         .concat(mzFurgoni.map(f => 'Q. MAG. ' + f.nome))
         .concat(mzFurgoni.map(f => 'SOGLIA ' + f.nome))
-        .concat(['CODICE PRECEDENTE', 'SENZA SCORTA']);
+        .concat(['CODICE PRECEDENTE', 'SENZA SCORTA', 'CODICE A BARRE', 'CODICE GESTIONALE']);
 }
 
 function mzScaricaExcel() {
@@ -1616,15 +1617,49 @@ function mzScaricaExcel() {
     if (typeof XLSX === 'undefined') { showCustomAlert('Libreria Excel non caricata: aggiorna la pagina e riprova.', 'Errore', '&#10060;'); return; }
     const righe = [mzColonneExcel()];
     mzGiacFiltrati().forEach(r => righe.push([r.marca, r.modelli, r.codice || '', r.codice_ean || '', r.codice_easy || '', r.descrizione,
-        r.prezzo_ivae === null ? '' : Number(r.prezzo_ivae), r.prezzo_ic === null ? '' : Number(r.prezzo_ic), r.note || '', r.codice_barre || '', r.codice_gestionale || '', mzMetri(r) ? 'MT' : 'PZ']
+        r.prezzo_ivae === null ? '' : Number(r.prezzo_ivae), r.prezzo_ic === null ? '' : Number(r.prezzo_ic), r.note || '', mzMetri(r) ? 'MT' : 'PZ']
         .concat(mzFurgoni.map(f => mzQta(r.id, f.id)))
         .concat(mzFurgoni.map(f => mzSoglia(r.id, f.id)))
-        .concat([r.codice_precedente || '', mzSenzaScorta(r) ? 'SI' : ''])));
+        .concat([r.codice_precedente || '', mzSenzaScorta(r) ? 'SI' : '', r.codice_barre || '', r.codice_gestionale || ''])));
     const ws = XLSX.utils.aoa_to_sheet(righe);
-    ws['!cols'] = righe[0].map((c, i) => ({ wch: i === 1 ? 40 : (i === 5 ? 36 : 14) }));
+    ws['!cols'] = righe[0].map((c, i) => ({ wch: i === 1 ? 40 : (i === 5 ? 36 : (/^CODICE (A BARRE|GESTIONALE|PRECEDENTE)$/.test(c) ? 20 : 14)) }));
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'MAGAZZINO ESTERNO');
-    XLSX.writeFile(wb, 'MAGAZZINO_ESTERNO_MEZZI_' + mzOggi() + '.xlsx');
+    mzScriviXlsxPrimaRigaBloccata(wb, 'MAGAZZINO_ESTERNO_MEZZI_' + mzOggi() + '.xlsx');
+}
+
+// Scarica l'Excel con la prima riga bloccata (titoli sempre visibili scorrendo).
+// SheetJS gratuito non scrive il "blocca riquadri": lo aggiungo io nel file (xl/worksheets/sheet1.xml).
+// Se qualcosa non va scarico il file normale.
+function mzScriviXlsxPrimaRigaBloccata(wb, nome) {
+    try {
+        const CFB = XLSX.CFB;
+        const dati = XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
+        const zip = CFB.read(new Uint8Array(dati), { type: 'array' });
+        const i = zip.FullPaths.findIndex(p => /xl\/worksheets\/sheet1\.xml$/.test(p));
+        if (i === -1) throw new Error('foglio non trovato');
+        const voce = zip.FileIndex[i];
+        let xml = new TextDecoder().decode(new Uint8Array(voce.content));
+        const pane = '<pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/><selection pane="bottomLeft" activeCell="A2" sqref="A2"/>';
+        if (/<sheetView workbookViewId="0"\/>/.test(xml)) xml = xml.replace('<sheetView workbookViewId="0"/>', '<sheetView workbookViewId="0">' + pane + '</sheetView>');
+        else if (/<sheetData/.test(xml) && !/<sheetViews/.test(xml)) xml = xml.replace('<sheetData', '<sheetViews><sheetView workbookViewId="0">' + pane + '</sheetView></sheetViews><sheetData');
+        else throw new Error('formato inatteso');
+        voce.content = new TextEncoder().encode(xml);
+        voce.size = voce.content.length;
+        const out = CFB.write(zip, { fileType: 'zip', type: 'array' });
+        const blob = new Blob([out], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = nome;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 5000);
+    } catch (err) {
+        console.log('Excel senza riga bloccata:', err);
+        XLSX.writeFile(wb, nome);
+    }
 }
 
 async function mzLeggiFileExcel(input) {
