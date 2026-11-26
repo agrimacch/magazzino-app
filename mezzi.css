@@ -392,3 +392,11 @@
     .mz-inv-q button { width: 38px; height: 38px; }
 }
 .mz-inv-storico th, .mz-inv-storico td { white-space: nowrap; }
+
+/* Ricambi "senza scorta" (v8.7.0) e opzioni dell'import Excel */
+.mz-qta-senza { background: #eef2ff; color: #3730a3; }
+.mz-cella-senza { color: #6366f1; font-size: 16px; }
+.mz-senza-scorta { display: flex; gap: 8px; align-items: flex-start; grid-column: 1 / -1; font-size: 13px; cursor: pointer; }
+.mz-senza-scorta input { width: auto; margin: 3px 0 0; flex-shrink: 0; }
+.mz-imp-togli { display: flex; gap: 8px; align-items: flex-start; margin: 8px 0 4px; font-size: 13px; cursor: pointer; }
+.mz-imp-togli input { width: auto; margin: 3px 0 0; flex-shrink: 0; }

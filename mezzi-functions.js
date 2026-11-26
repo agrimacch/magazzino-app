@@ -157,7 +157,13 @@ function mzUniversaleTutto(r) {
 }
 function mzFurgone(id) { return mzFurgoni.find(f => f.id === id) || null; }
 function mzNomeFurgone(id) { const f = mzFurgone(id); return f ? f.nome : ''; }
+// Ricambio "senza scorta" (v8.7.0): si usa nei rapportini (prezzo) ma non si conta nei furgoni:
+// niente quantita', niente scarico, niente avvisi, fuori dall'inventario
+function mzSenzaScorta(r) { return !!(r && r.senza_scorta); }
+function mzSenzaScortaId(id) { return mzSenzaScorta(mzRicambio(id)); }
+let mzColSenzaScorta = false;   // colonna presente su Supabase (script supabase/mezzi-senza-scorta.sql)
 function mzSottoSoglia(ricambioId, furgoneId) {
+    if (mzSenzaScortaId(ricambioId)) return false;
     const s = mzSoglia(ricambioId, furgoneId);
     return s > 0 && mzQta(ricambioId, furgoneId) <= s;
 }
@@ -186,6 +192,7 @@ async function mzCarica() {
     if (err) throw err;
     mzFurgoni = f.data || [];
     mzRicambi = r.data || [];
+    mzColSenzaScorta = mzRicambi.some(x => Object.prototype.hasOwnProperty.call(x, 'senza_scorta'));
     mzGiacenze = {};
     (g.data || []).forEach(x => { mzGiacenze[mzChiave(x.ricambio_id, x.furgone_id)] = { quantita: x.quantita, soglia: x.soglia }; });
     mzRapportini = rap.data || [];
@@ -380,8 +387,8 @@ function mzCercaRicambi(testo) {
         risultati.push({ r: r, punti: punti, esatto: esatto && parole.length === 1 });
     });
     risultati.sort((a, b) => {
-        const qa = mzQta(a.r.id, furgone) > 0 ? 1 : 0;
-        const qb = mzQta(b.r.id, furgone) > 0 ? 1 : 0;
+        const qa = mzQta(a.r.id, furgone) > 0 || mzSenzaScorta(a.r) ? 1 : 0;
+        const qb = mzQta(b.r.id, furgone) > 0 || mzSenzaScorta(b.r) ? 1 : 0;
         if (qa !== qb) return qb - qa;
         if (a.punti !== b.punti) return b.punti - a.punti;
         return String(a.r.marca + a.r.descrizione).localeCompare(String(b.r.marca + b.r.descrizione), 'it');
@@ -406,7 +413,7 @@ function mzRenderRisultati() {
         box.innerHTML = '<p class="mz-vuoto">Nessun ricambio trovato per <strong>' + mzEsc(mzTestoCerca) + '</strong>.</p>';
         return;
     }
-    const nelFurgone = trovati.filter(x => mzQta(x.r.id, furgone) > 0).length;
+    const nelFurgone = trovati.filter(x => mzQta(x.r.id, furgone) > 0 || mzSenzaScorta(x.r)).length;
     box.innerHTML = '<p class="mz-conta">' + trovati.length + (trovati.length === 1 ? ' ricambio' : ' ricambi') + ' &middot; <strong>' + nelFurgone + '</strong> nel furgone ' + mzEsc(mzNomeFurgone(furgone)) + '</p>' +
         '<div class="mz-carte">' + trovati.slice(0, 200).map(x => mzHtmlCarta(x.r, furgone)).join('') + '</div>' +
         (trovati.length > 200 ? '<p class="mz-conta">Ne mostro 200: scrivi qualcosa in pi&ugrave; per restringere.</p>' : '');
@@ -416,7 +423,8 @@ function mzHtmlCarta(r, furgone) {
     const q = mzQta(r.id, furgone);
     const altri = mzFurgoni.filter(f => f.id !== furgone);
     const sotto = mzSottoSoglia(r.id, furgone);
-    return '<div class="mz-carta' + (q > 0 ? '' : ' mz-carta-zero') + '">' +
+    const senza = mzSenzaScorta(r);
+    return '<div class="mz-carta' + (q > 0 || senza ? '' : ' mz-carta-zero') + '">' +
         '<div class="mz-carta-testa" onclick="mzApriRicambio(' + r.id + ')">' +
             '<span class="mz-marca' + (mzUniversaleTutto(r) ? ' mz-marca-tutte' : '') + '">' + mzEsc(r.marca || 'TUTTE') + '</span>' +
             '<strong>' + mzEsc(r.descrizione) + '</strong>' +
@@ -426,8 +434,9 @@ function mzHtmlCarta(r, furgone) {
         (r.modelli ? '<div class="mz-carta-modelli">' + mzEsc(r.modelli) + '</div>' : '') +
         (r.note ? '<div class="mz-carta-note">&#9888;&#65039; ' + mzEsc(r.note) + '</div>' : '') +
         '<div class="mz-carta-piede">' +
+            (senza ? '<span class="mz-qta mz-qta-senza" title="Non si conta nei furgoni">&#8734; senza scorta</span>' :
             '<span class="mz-qta' + (q > 0 ? (sotto ? ' mz-qta-poca' : ' mz-qta-ok') : ' mz-qta-zero') + '">' + mzEsc(mzNomeFurgone(furgone)) + ': <strong>' + mzQU(q, r) + '</strong></span>' +
-            altri.map(f => '<span class="mz-qta-altro">' + mzEsc(f.nome) + ': ' + mzQU(mzQta(r.id, f.id), r) + '</span>').join('') +
+            altri.map(f => '<span class="mz-qta-altro">' + mzEsc(f.nome) + ': ' + mzQU(mzQta(r.id, f.id), r) + '</span>').join('')) +
             '<span class="mz-prezzo">' + mzEuro(r.prezzo_ic) + (mzMetri(r) ? '<small> al metro</small>' : '') + '</span>' +
             '<button type="button" class="btn-primary mz-btn-piccolo" onclick="mzAggiungiABozza(' + r.id + ')" title="Aggiungi al rapportino">&#10133; Rapportino</button>' +
         '</div>' +
@@ -564,6 +573,7 @@ function mzRenderTabellaGiacenze() {
             '<td onclick="mzApriRicambio(' + r.id + ')" class="mz-modelli-cella">' + mzEsc(r.modelli || '') + '</td>' +
             '<td onclick="mzApriRicambio(' + r.id + ')" class="mz-n">' + mzEuro(r.prezzo_ic) + '</td>' +
             mzFurgoni.map(f => {
+                if (mzSenzaScorta(r)) return '<td onclick="mzApriRicambio(' + r.id + ')" class="mz-n mz-cella-senza" title="Senza scorta: non si conta">&#8734;</td>';
                 const q = mzQta(r.id, f.id);
                 const s = mzSoglia(r.id, f.id);
                 const cls = mzSottoSoglia(r.id, f.id) ? (q === 0 ? 'mz-cella-zero' : 'mz-cella-poca') : (q === 0 ? 'mz-cella-vuota' : '');
@@ -598,7 +608,8 @@ function mzSchedaSolaLettura(r) {
     const html = '<table class="mz-scheda-ro">' +
         riga('Codice', mzEsc(r.codice || '')) + riga('Marca', mzEsc(r.marca || '')) + riga('Modelli', mzEsc(r.modelli || '')) +
         riga('Prezzo IVA compresa', mzEuro(r.prezzo_ic) + (mzMetri(r) ? ' al metro' : '')) +
-        mzFurgoni.map(f => riga('&#128656; ' + mzEsc(f.nome), mzQU(mzQta(r.id, f.id), r) + (mzSottoSoglia(r.id, f.id) ? ' &#9888;&#65039;' : ''))).join('') +
+        (mzSenzaScorta(r) ? riga('Furgoni', 'senza scorta (non si conta, si usa nei rapportini)') :
+        mzFurgoni.map(f => riga('&#128656; ' + mzEsc(f.nome), mzQU(mzQta(r.id, f.id), r) + (mzSottoSoglia(r.id, f.id) ? ' &#9888;&#65039;' : ''))).join('')) +
         riga('Codice a barre', mzEsc(r.codice_barre || '')) + riga('Note', mzEsc(r.note || '')) + '</table>';
     showCustomAlert(html, mzEsc(r.descrizione), '&#128295;');
 }
@@ -618,7 +629,9 @@ function mzApriRicambio(id) {
             : '<input type="text" id="mz-ric-' + campo + '" autocomplete="off"' + (tipo === 'euro' ? ' inputmode="decimal"' : '') +
                 (campo === 'prezzo_ivae' ? ' oninput="mzRicPrezzoIc()"' : '') + ' value="' + mzEsc(tipo === 'euro' ? mzNumForm(v) : (v || '')) + '">';
         return '<div class="mz-campo mz-campo-' + campo + '"><label for="mz-ric-' + campo + '">' + etichetta + '</label>' + input + '</div>';
-    }).join('');
+    }).join('') +
+        (mzColSenzaScorta ? '<label class="mz-campo mz-senza-scorta"><input type="checkbox" id="mz-ric-senza_scorta"' + (mzSenzaScorta(r) ? ' checked' : '') + '> ' +
+            '<span><strong>Senza scorta</strong>: non si conta nei furgoni (niente quantit&agrave;, avvisi e inventario), ma si pu&ograve; mettere nei rapportini con il suo prezzo. Es. olio, grasso, minuteria.</span></label>' : '');
     document.getElementById('mz-ric-furgoni').innerHTML = '<h4>&#128656; Nei furgoni</h4>' + mzFurgoni.map(f => {
         const q = r ? mzQta(r.id, f.id) : 0;
         const s = r ? mzSoglia(r.id, f.id) : 0;
@@ -662,6 +675,8 @@ function mzRicLeggi() {
         else if (campo === 'modelli') v[campo] = mzUnisciModelli([String(el.value || '')]);
         else v[campo] = mzTesto(el.value) || (campo === 'marca' ? '' : null);
     });
+    const senza = document.getElementById('mz-ric-senza_scorta');
+    if (senza && mzColSenzaScorta) v.senza_scorta = senza.checked;
     return v;
 }
 
@@ -1153,9 +1168,9 @@ function mzRapCerca2(testo) {
     if (!String(testo).trim()) { box.innerHTML = ''; return; }
     const f = mzRap.furgone_id;
     const trovati = mzCercaRicambi(testo).slice(0, 12);
-    box.innerHTML = trovati.length ? trovati.map(t => '<button type="button" class="mz-r-trovato' + (mzQta(t.r.id, f) > 0 ? '' : ' mz-r-trovato-zero') + '" onclick="mzRapAggiungiRicambio(' + t.r.id + ')">' +
+    box.innerHTML = trovati.length ? trovati.map(t => '<button type="button" class="mz-r-trovato' + (mzQta(t.r.id, f) > 0 || mzSenzaScorta(t.r) ? '' : ' mz-r-trovato-zero') + '" onclick="mzRapAggiungiRicambio(' + t.r.id + ')">' +
         '<strong>' + mzEsc(t.r.descrizione) + '</strong> <small>' + mzEsc(t.r.marca) + ' ' + mzEsc(t.r.codice || '') + '</small>' +
-        '<span>' + mzEsc(mzNomeFurgone(f)) + ': ' + mzQU(mzQta(t.r.id, f), t.r) + ' &middot; ' + mzEuro(t.r.prezzo_ic) + (mzMetri(t.r) ? ' al metro' : '') + '</span></button>').join('')
+        '<span>' + (mzSenzaScorta(t.r) ? 'senza scorta' : mzEsc(mzNomeFurgone(f)) + ': ' + mzQU(mzQta(t.r.id, f), t.r)) + ' &middot; ' + mzEuro(t.r.prezzo_ic) + (mzMetri(t.r) ? ' al metro' : '') + '</span></button>').join('')
         : '<p class="mz-vuoto">Nessun ricambio trovato.</p>';
 }
 
@@ -1188,14 +1203,16 @@ function mzRapRenderRighe() {
             const libera = !r.ricambio_id;
             const ric = libera ? null : (mzRicambio(r.ricambio_id) || { unita: r.unita });
             const metri = libera ? r.unita === 'MT' : mzMetri(ric);
-            const disp = libera ? null : mzCent(mzQta(r.ricambio_id, r.furgone_id) + mzRapQtaOrig(r.ricambio_id, r.furgone_id));
-            const poco = !libera && Number(r.quantita) > disp + 0.001;
+            const senza = !libera && mzSenzaScortaId(r.ricambio_id);
+            const disp = libera || senza ? null : mzCent(mzQta(r.ricambio_id, r.furgone_id) + mzRapQtaOrig(r.ricambio_id, r.furgone_id));
+            const poco = !libera && !senza && Number(r.quantita) > disp + 0.001;
             return '<div class="mz-r-riga' + (poco ? ' mz-r-riga-poca' : '') + '">' +
                 (libera
                     ? '<input type="text" class="mz-r-descr" placeholder="Descrizione ricambio" value="' + mzEsc(r.descrizione) + '" oninput="mzRapCampo(' + i + ', \'descrizione\', this.value)">' +
                       '<input type="text" class="mz-r-cod" placeholder="Codice" value="' + mzEsc(r.codice || '') + '" oninput="mzRapCampo(' + i + ', \'codice\', this.value)">'
                     : '<div class="mz-r-descr"><strong>' + mzEsc(r.descrizione) + '</strong> <small>' + mzEsc(r.codice || '') + '</small>' +
-                        '<small class="' + (poco ? 'mz-r-poco' : 'mz-r-disp') + '">' + mzEsc(mzNomeFurgone(r.furgone_id)) + ': disponibili ' + mzQU(disp, ric) + '</small></div>') +
+                        (senza ? '<small class="mz-r-disp">senza scorta (non si scarica)</small></div>' :
+                        '<small class="' + (poco ? 'mz-r-poco' : 'mz-r-disp') + '">' + mzEsc(mzNomeFurgone(r.furgone_id)) + ': disponibili ' + mzQU(disp, ric) + '</small></div>')) +
                 (libera ? '<label>Unit&agrave; <select onchange="mzRapCampo(' + i + ', \'unita\', this.value)"><option value="PZ"' + (metri ? '' : ' selected') + '>pezzi</option><option value="MT"' + (metri ? ' selected' : '') + '>metri</option></select></label>' : '') +
                 '<label>' + (metri ? 'Metri' : 'Q.t&agrave;') + ' <input type="number" min="' + (metri ? '0.1' : '1') + '" max="9999" step="' + (metri ? '0.1' : '1') + '" value="' + (Number(r.quantita) || 1) + '" onchange="mzRapCampo(' + i + ', \'quantita\', this.value)"></label>' +
                 '<label>&euro; ' + (metri ? 'al metro' : 'cad.') + ' <input type="text" inputmode="decimal" value="' + mzEsc(mzNumForm(r.prezzo_ic)) + '" oninput="mzRapCampo(' + i + ', \'prezzo_ic\', this.value)"></label>' +
@@ -1349,8 +1366,9 @@ async function mzSalvaRapportino() {
     righe.forEach((r, i) => { if (!r.descrizione) errori.push('Ricambio ' + (i + 1) + ': manca la descrizione'); });
     // Quanti pezzi in piu' (o in meno) escono da ogni furgone rispetto a prima
     const delta = {};
-    righe.filter(r => r.ricambio_id).forEach(r => { const k = mzChiave(r.ricambio_id, r.furgone_id); delta[k] = mzCent((delta[k] || 0) + r.quantita); });
-    mzRapRigheOrig.filter(r => r.ricambio_id && r.furgone_id).forEach(r => { const k = mzChiave(r.ricambio_id, r.furgone_id); delta[k] = mzCent((delta[k] || 0) - (Number(r.quantita) || 0)); });
+    // (i ricambi "senza scorta" non escono dal furgone)
+    righe.filter(r => r.ricambio_id && !mzSenzaScortaId(r.ricambio_id)).forEach(r => { const k = mzChiave(r.ricambio_id, r.furgone_id); delta[k] = mzCent((delta[k] || 0) + r.quantita); });
+    mzRapRigheOrig.filter(r => r.ricambio_id && r.furgone_id && !mzSenzaScortaId(r.ricambio_id)).forEach(r => { const k = mzChiave(r.ricambio_id, r.furgone_id); delta[k] = mzCent((delta[k] || 0) - (Number(r.quantita) || 0)); });
     Object.keys(delta).forEach(k => {
         const [rid, fid] = k.split('_').map(Number);
         if (delta[k] > 0 && delta[k] > mzQta(rid, fid) + 0.001) {
@@ -1420,7 +1438,7 @@ async function mzEliminaRapportino() {
     if (!window.confirm('Eliminare il rapportino N. ' + mzNumeroRap(x) + ' di ' + x.cliente + '?\n\nI ricambi tornano nel furgone e il PDF su Drive va nel cestino.')) return;
     try {
         for (const r of mzRapRigheOrig) {
-            if (r.ricambio_id && r.furgone_id) await mzMuovi(r.ricambio_id, r.furgone_id, Number(r.quantita) || 0, 'RESO', null, 'RAPPORTINO ' + mzNumeroRap(x) + ' ELIMINATO');
+            if (r.ricambio_id && r.furgone_id && !mzSenzaScortaId(r.ricambio_id)) await mzMuovi(r.ricambio_id, r.furgone_id, Number(r.quantita) || 0, 'RESO', null, 'RAPPORTINO ' + mzNumeroRap(x) + ' ELIMINATO');
         }
         const { error } = await supabaseClient.from('mezzi_rapportini').delete().eq('id', x.id);
         if (error) throw error;
@@ -1590,7 +1608,7 @@ function mzColonneExcel() {
     return ['MARCA', 'MODELLO', 'CODICE', 'CODICE EAN', 'CODICE EASY', 'RICAMBIO', 'PREZZO IVA E', 'PREZZO IC', 'NOTE', 'CODICE A BARRE', 'CODICE GESTIONALE', 'UNITA']
         .concat(mzFurgoni.map(f => 'Q. MAG. ' + f.nome))
         .concat(mzFurgoni.map(f => 'SOGLIA ' + f.nome))
-        .concat(['CODICE PRECEDENTE']);
+        .concat(['CODICE PRECEDENTE', 'SENZA SCORTA']);
 }
 
 function mzScaricaExcel() {
@@ -1601,7 +1619,7 @@ function mzScaricaExcel() {
         r.prezzo_ivae === null ? '' : Number(r.prezzo_ivae), r.prezzo_ic === null ? '' : Number(r.prezzo_ic), r.note || '', r.codice_barre || '', r.codice_gestionale || '', mzMetri(r) ? 'MT' : 'PZ']
         .concat(mzFurgoni.map(f => mzQta(r.id, f.id)))
         .concat(mzFurgoni.map(f => mzSoglia(r.id, f.id)))
-        .concat([r.codice_precedente || ''])));
+        .concat([r.codice_precedente || '', mzSenzaScorta(r) ? 'SI' : ''])));
     const ws = XLSX.utils.aoa_to_sheet(righe);
     ws['!cols'] = righe[0].map((c, i) => ({ wch: i === 1 ? 40 : (i === 5 ? 36 : 14) }));
     const wb = XLSX.utils.book_new();
@@ -1644,6 +1662,7 @@ function mzColonneDa(intestazione) {
         barre: trova(x => /BARRE/.test(x)),
         gestionale: trova(x => /GESTIONALE/.test(x)),
         precedente: trova(x => /PRECEDENTE/.test(x)),
+        senza: trova(x => /SENZA SCORTA|NON SI CONTA/.test(x)),
         soglia: trova(x => x === 'SOGLIA AVVISO' || x === 'SOGLIA'),
         unita: trova(x => x === 'UNITA' || x === 'UNIT\u00C0' || x === 'U.M.' || x === 'UM' || x === 'UNITA DI MISURA' || x === 'UNIT\u00C0 DI MISURA'),
         qta: {}, sogliaF: {}
@@ -1699,6 +1718,9 @@ function mzPreparaImport(tabella) {
             unita: /^(MT|M|METR[IO]|ML)$/.test(testo(riga, col.unita).replace(/\./g, '')) ? 'MT' : (testo(riga, col.unita) ? 'PZ' : null),
             qta: {}, soglia: {}
         };
+        // SENZA SCORTA: SI / X / 1 = si', NO / 0 = no, vuoto = non cambia
+        const senza = testo(riga, col.senza);
+        dato.senza_scorta = !senza ? null : /^(SI|S|X|1|TRUE|VERO)$/.test(senza) ? true : /^(NO|N|0|FALSE|FALSO)$/.test(senza) ? false : null;
         if (dato.prezzo_ic === null && dato.prezzo_ivae !== null) dato.prezzo_ic = mzCent(dato.prezzo_ivae * (1 + MZ_IVA / 100));
         const sogliaUnica = intero(riga, col.soglia);
         mzFurgoni.forEach(f => {
@@ -1711,7 +1733,7 @@ function mzPreparaImport(tabella) {
         const g = gruppi[chiave];
         g.righeUnite.push(i + 1);
         g.modelli = mzUnisciModelli([g.modelli, dato.modelli]);
-        ['marca', 'codice_ean', 'codice_easy', 'prezzo_ivae', 'prezzo_ic', 'note', 'codice_barre', 'codice_gestionale', 'codice_precedente', 'unita'].forEach(c => {
+        ['marca', 'codice_ean', 'codice_easy', 'prezzo_ivae', 'prezzo_ic', 'note', 'codice_barre', 'codice_gestionale', 'codice_precedente', 'unita', 'senza_scorta'].forEach(c => {
             if ((g[c] === null || g[c] === '') && dato[c] !== null && dato[c] !== '') g[c] = dato[c];
         });
         mzFurgoni.forEach(f => {
@@ -1722,10 +1744,20 @@ function mzPreparaImport(tabella) {
     const elenco = ordine.map(k => gruppi[k]);
     // Abbinamento con i ricambi gia' presenti
     let nuovi = 0, aggiornati = 0, quantita = 0;
+    const presi = {};
     elenco.forEach(d => {
-        const esistente = d.codice
+        let esistente = d.codice
             ? mzRicambi.find(r => mzNorm(r.codice) === mzNorm(d.codice))
             : mzRicambi.find(r => !r.codice && mzNorm(r.marca) === mzNorm(d.marca) && mzNorm(r.descrizione) === mzNorm(d.descrizione));
+        // Codice cambiato (v8.7.0): il codice nuovo non c'e' ma il CODICE PRECEDENTE e' il codice di un ricambio in app
+        // -> e' lo stesso ricambio: cambio il codice e tengo quantita', soglie e storia
+        d.cambioCodice = null;
+        if (!esistente && d.codice && d.codice_precedente) {
+            esistente = mzRicambi.find(r => mzNorm(r.codice) === mzNorm(d.codice_precedente)) || null;
+            if (esistente) d.cambioCodice = { da: esistente.codice, a: d.codice };
+        }
+        if (esistente && presi[esistente.id]) esistente = null;   // gia' abbinato a un'altra riga
+        if (esistente) presi[esistente.id] = true;
         d.esistente = esistente || null;
         if (esistente) aggiornati++; else nuovi++;
         mzFurgoni.forEach(f => {
@@ -1733,7 +1765,10 @@ function mzPreparaImport(tabella) {
         });
     });
     const uniti = elenco.filter(d => d.righeUnite.length > 1);
-    return { elenco: elenco, avvisi: avvisi, uniti: uniti, nuovi: nuovi, aggiornati: aggiornati, quantita: quantita };
+    // Ricambi in app che nel file non ci sono (righe cancellate): si tolgono solo se lo si sceglie
+    const mancanti = mzRicambi.filter(r => !presi[r.id]);
+    const cambiCodice = elenco.filter(d => d.cambioCodice);
+    return { elenco: elenco, avvisi: avvisi, uniti: uniti, nuovi: nuovi, aggiornati: aggiornati, quantita: quantita, mancanti: mancanti, cambiCodice: cambiCodice };
 }
 
 function mzMostraImport() {
@@ -1748,10 +1783,18 @@ function mzMostraImport() {
         '</div>' +
         (m.uniti.length ? '<div class="mz-avviso">&#128279; <strong>Codici doppi uniti</strong> (un solo ricambio, modelli insieme):<ul>' +
             m.uniti.map(d => '<li><strong>' + mzEsc(d.codice || d.descrizione) + '</strong> ' + mzEsc(d.descrizione) + ' &mdash; righe ' + d.righeUnite.join(', ') + ' &rarr; ' + mzEsc(d.modelli) + '</li>').join('') + '</ul></div>' : '') +
+        (m.cambiCodice.length ? '<div class="mz-avviso">&#128260; <strong>Codici cambiati</strong> (riconosciuti dal CODICE PRECEDENTE: stesso ricambio, restano quantit&agrave; e storia):<ul>' +
+            m.cambiCodice.map(d => '<li>' + mzEsc(d.cambioCodice.da) + ' &rarr; <strong>' + mzEsc(d.cambioCodice.a) + '</strong> ' + mzEsc(d.descrizione) + '</li>').join('') + '</ul></div>' : '') +
+        (m.mancanti.length ? '<div class="mz-avviso mz-avviso-giallo">&#128465;&#65039; <strong>' + m.mancanti.length + '</strong> ricambi in app non sono nel file. Di solito restano come sono.' +
+            '<label class="mz-imp-togli"><input type="checkbox" id="mz-imp-togli"><span>Toglili dall&#39;app (solo se il file contiene <strong>tutti</strong> i ricambi: scaricalo senza filtri). I rapportini gi&agrave; fatti non cambiano.</span></label>' +
+            '<details><summary>Vedi quali</summary><ul>' + m.mancanti.slice(0, 300).map(r => {
+                const tot = mzFurgoni.reduce((t, f) => t + mzQta(r.id, f.id), 0);
+                return '<li>' + mzEsc(r.codice || '') + ' ' + mzEsc(r.descrizione) + ' <small>(' + mzEsc(r.marca || '') + ')</small>' + (tot ? ' &mdash; <strong>nei furgoni: ' + mzQ(tot) + '</strong>' : '') + '</li>';
+            }).join('') + '</ul></details></div>' : '') +
         (m.avvisi.length ? '<div class="mz-avviso mz-avviso-giallo">&#9888;&#65039; <strong>Da completare</strong> (vengono caricati lo stesso):<ul>' +
             m.avvisi.map(a => '<li>' + mzEsc(a) + '</li>').join('') + '</ul></div>' : '') +
         '<p class="mz-aiuto">Le celle <strong>vuote</strong> del file non cancellano quello che c&#39;&egrave; gi&agrave;. Le colonne <strong>Q. MAG.</strong> mettono nel furgone la quantit&agrave; scritta (inventario); ' +
-        'la colonna <strong>SOGLIA AVVISO</strong> vale per tutti i furgoni.</p>';
+        'la colonna <strong>SOGLIA AVVISO</strong> vale per tutti i furgoni. Colonna <strong>SENZA SCORTA</strong>: SI = il ricambio non si conta (solo per i rapportini).</p>';
     document.getElementById('mz-imp-modal').classList.remove('hidden');
 }
 
@@ -1775,6 +1818,7 @@ async function mzConfermaImport() {
             ['marca', 'modelli', 'codice', 'descrizione', 'codice_ean', 'codice_easy', 'prezzo_ivae', 'prezzo_ic', 'note', 'codice_barre', 'codice_gestionale', 'codice_precedente', 'unita'].forEach(c => {
                 if (d[c] !== null && d[c] !== '') campi[c] = d[c];
             });
+            if (mzColSenzaScorta && d.senza_scorta !== null && d.senza_scorta !== undefined) campi.senza_scorta = d.senza_scorta;
             let id;
             if (d.esistente) {
                 if (campi.modelli) campi.modelli = mzUnisciModelli([d.esistente.modelli, campi.modelli]);
@@ -1801,12 +1845,28 @@ async function mzConfermaImport() {
             fatti++;
             if (stato) stato.innerHTML = '&#8987; Caricati ' + fatti + ' di ' + m.elenco.length + '...';
         }
+        // Ricambi non piu' nel file: solo se l'utente l'ha scelto
+        let tolti = 0;
+        const togli = document.getElementById('mz-imp-togli');
+        if (togli && togli.checked && m.mancanti.length) {
+            if (window.confirm('Togliere dall\'app ' + m.mancanti.length + ' ricambi che non sono nel file?\n\nI rapportini gi\u00E0 fatti non cambiano.')) {
+                for (const r of m.mancanti) {
+                    const { error } = await supabaseClient.from('mezzi_ricambi').delete().eq('id', r.id);
+                    if (error) throw new Error('Eliminazione ' + (r.codice || r.descrizione) + ': ' + error.message);
+                    delete mzSelezionati[r.id];
+                    tolti++;
+                }
+            }
+        }
+        m.tolti = tolti;
         await mzCarica();
         mzChiudiImport();
         mzTab = 'giacenze';
         sessionStorage.setItem('mzTab', mzTab);
         mzRender();
-        await showCustomAlert('Caricati <strong>' + fatti + '</strong> ricambi (' + m.nuovi + ' nuovi, ' + m.aggiornati + ' aggiornati).', 'Excel caricato', '&#10004;');
+        await showCustomAlert('Caricati <strong>' + fatti + '</strong> ricambi (' + m.nuovi + ' nuovi, ' + m.aggiornati + ' aggiornati' +
+            (m.cambiCodice.length ? ', ' + m.cambiCodice.length + ' con il codice cambiato' : '') + ').' +
+            (m.tolti ? '<br>Tolti dall&#39;app: <strong>' + m.tolti + '</strong>.' : ''), 'Excel caricato', '&#10004;');
     } catch (err) {
         mzErrore(err, 'caricamento Excel (fatti ' + fatti + ' di ' + m.elenco.length + ')');
         try { await mzCarica(); mzRender(); } catch (e) { /* niente */ }
@@ -2022,6 +2082,7 @@ function mzInvContato(id) {
 function mzInvFiltrati() {
     const parole = String(mzInvFiltro.testo || '').split(/\s+/).map(mzNorm).filter(Boolean);
     return mzRicambi.filter(r => {
+        if (mzSenzaScorta(r)) return false;   // non si contano
         if (mzInvFiltro.marca && r.marca !== mzInvFiltro.marca) return false;
         const contato = mzInvContato(r.id);
         // in "Da contare" cercando qualcosa mostro anche i gia' contati (per correggerli)
@@ -2072,7 +2133,7 @@ function mzInvAggiornaConta() {
     if (!el || !mzInv) return;
     const n = Object.keys(mzInv.righe).length;
     const ex = (mzInv.extra || []).length;
-    el.innerHTML = 'Contati <strong>' + n + '</strong> su ' + mzRicambi.length + (ex ? ' &middot; ' + ex + ' non in elenco' : '');
+    el.innerHTML = 'Contati <strong>' + n + '</strong> su ' + mzRicambi.filter(r => !mzSenzaScorta(r)).length + (ex ? ' &middot; ' + ex + ' non in elenco' : '');
 }
 
 // Scrive la quantita' (vuoto = non contato) e la salva dopo un attimo
