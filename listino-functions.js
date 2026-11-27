@@ -743,14 +743,17 @@ function renderListinoCancellati() {
             '<td class="listino-col-note">' + listinoVal(a.note) + '</td>' +
             '<td class="listino-col-netto"><span class="netto-val">' + listinoFormatEuro(a.netto_1) + '</span></td>' +
             '<td class="listino-col-prezzo">' + listinoFormatEuro(a.listino) + '</td>' +
-            '<td class="listino-col-azioni"><button type="button" class="listino-restore-btn btn-back" data-id="' + a.id + '">&#9851;&#65039; Ripristina</button></td>' +
+            '<td class="listino-col-azioni"><button type="button" class="listino-restore-btn btn-back" data-id="' + a.id + '">&#9851;&#65039; Ripristina</button>' +
+                (listinoPuoEliminareDefinitivo() ? '<button type="button" class="listino-elimina-btn" data-id="' + a.id + '" title="Elimina per sempre (solo admin)">&#128465;&#65039; Elimina per sempre</button>' : '') + '</td>' +
             '</tr>';
     });
 
     container.innerHTML =
         '<div class="card">' +
             '<p class="listino-help">Articoli tolti dal file Excel o spostati qui dall\'app. ' +
-            'Puoi ripristinarli con il pulsante, oppure rimetterli nel file: al prossimo caricamento tornano nel listino.</p>' +
+            'Puoi ripristinarli con il pulsante, oppure rimetterli nel file: al prossimo caricamento tornano nel listino.' +
+            (listinoPuoEliminareDefinitivo() ? ' <strong>Elimina per sempre</strong> (solo admin) lo toglie del tutto, con il suo storico dei netti: non si pu&ograve; annullare. ' +
+                'Non si possono eliminare gli articoli che hanno macchine in Inventario Macchine (anche gi&agrave; consegnate).' : '') + '</p>' +
             '<div class="table-container">' +
                 '<table class="listino-table listino-table-cancellati">' +
                     '<thead><tr><th>Cancellato il</th><th>Attrezzo</th><th>Marchio</th><th>Modello</th><th>Note</th>' +
@@ -1710,6 +1713,37 @@ async function ripristinaListino(id) {
     }
     listinoRegistraNotifica('RIPRISTINATO', listinoNotNome(a), [], a);
     await loadListino();
+}
+
+// ---------- Elimina per sempre (v8.9.0, solo admin, script supabase/listino-elimina-definitivo.sql) ----------
+function listinoPuoEliminareDefinitivo() {
+    return typeof currentUserRole !== 'undefined' && currentUserRole === 'admin';
+}
+
+async function eliminaDefinitivoListino(id) {
+    const a = listinoArticoli.find(x => x.id === id);
+    if (!a || a.attivo || !listinoPuoEliminareDefinitivo()) return;
+    if (!window.confirm('Eliminare PER SEMPRE "' + listinoNotNome(a) + '"?\n\nSi cancella anche il suo storico dei netti. Non si pu\u00F2 annullare.')) return;
+    const { data, error } = await supabaseClient.rpc('listino_elimina_definitivo', { p_id: id });
+    if (error) {
+        const manca = /listino_elimina_definitivo|schema cache|does not exist/i.test(error.message || '');
+        await showCustomAlert(manca
+            ? 'Per usare questa funzione esegui una volta su Supabase lo script <strong>supabase/listino-elimina-definitivo.sql</strong>.'
+            : 'Non eliminato:<br>' + listinoEsc(error.message), 'Elimina per sempre', '&#10060;');
+        return;
+    }
+    const esito = String(data || '');
+    if (esito.indexOf('MACCHINE:') === 0) {
+        await showCustomAlert('Non si pu&ograve; eliminare: ha <strong>' + esito.split(':')[1] + '</strong> macchine in Inventario Macchine (anche consegnate). ' +
+            'Resta tra gli articoli cancellati.', 'Elimina per sempre', '&#9888;&#65039;');
+        return;
+    }
+    if (esito.indexOf('COMPONENTE:') === 0) {
+        await showCustomAlert('Non si pu&ograve; eliminare: &egrave; un componente di ' + esito.split(':')[1] + ' set. Toglilo prima dai set.', 'Elimina per sempre', '&#9888;&#65039;');
+        return;
+    }
+    await loadListino();
+    showCustomAlert('&quot;' + listinoEsc(listinoNotNome(a)) + '&quot; eliminato per sempre.', 'Elimina per sempre', '&#10004;');
 }
 
 // ========================================
@@ -2701,7 +2735,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const restore = e.target.closest('.listino-restore-btn');
             if (restore) {
                 ripristinaListino(parseInt(restore.dataset.id, 10));
+                return;
             }
+            const elimina = e.target.closest('.listino-elimina-btn');
+            if (elimina) eliminaDefinitivoListino(parseInt(elimina.dataset.id, 10));
         });
     }
 

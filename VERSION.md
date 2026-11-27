@@ -1,5 +1,8 @@
 # Changelog App Magazzino
 
+## v8.2.4 - 2026-11-27 (PRODUZIONE)
+ELIMINAZIONE ARTICOLI DEF
+
 ## v8.2.3 - 2026-11-27 (PRODUZIONE)
 migliorie excel
 

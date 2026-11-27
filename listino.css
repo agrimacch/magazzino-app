@@ -1080,3 +1080,18 @@
         display: none !important;
     }
 }
+
+/* Elimina per sempre (articoli cancellati, solo admin - v8.9.0) */
+.listino-table td.listino-col-azioni { white-space: nowrap; }
+.listino-elimina-btn {
+    margin-left: 6px;
+    font-family: 'Roboto Mono', monospace;
+    font-size: 12px;
+    padding: 6px 10px;
+    border-radius: 8px;
+    border: 1px solid #fecaca;
+    background: #fff;
+    color: #b91c1c;
+    cursor: pointer;
+}
+.listino-elimina-btn:hover { background: #fef2f2; }
