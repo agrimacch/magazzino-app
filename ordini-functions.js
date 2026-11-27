@@ -757,6 +757,7 @@ function ordLeggiSconto() {
 function ordSuggerisciScript(error) {
     const msg = String(error && error.message || '');
     if (/quantita_check/i.test(msg)) return '<br><br>Esegui su Supabase lo script <strong>supabase/ordini-riga-testo.sql</strong> (righe libere con quantit&agrave; 0).';
+    if (/saldo_operatore/i.test(msg)) return '<br><br>Esegui su Supabase lo script <strong>supabase/ordini-incasso.sql</strong> (iniziali di chi riceve il saldo).';
     if (/acconti|saldo_data/i.test(msg)) return '<br><br>Esegui su Supabase lo script <strong>supabase/ordini-acconti.sql</strong> (acconti con la data e data del saldo).';
     return '';
 }
@@ -767,6 +768,11 @@ function ordAccontiOrdine(o) {
     if (!o) return [];
     if (Array.isArray(o.acconti) && o.acconti.length) return o.acconti;
     return Number(o.acconto) > 0 ? [{ data: null, importo: Number(o.acconto), metodo: o.metodo_acconto || null }] : [];
+}
+
+// v8.3.0: iniziali di chi ha registrato un acconto / il saldo (chi ha ricevuto i soldi)
+function ordChi(email) {
+    return email && typeof macChi === 'function' ? macChi(email) : '';
 }
 
 // Testo "Acconto del 21/11/2026" (o "Acconto versato" se manca la data)
@@ -783,6 +789,7 @@ function ordRenderAcconti() {
             '<input type="date" value="' + macEsc(a.data || '') + '" max="' + ordOggiISO() + '" title="Data dell&#39;acconto" onchange="ordAccontoCampo(' + i + ', \'data\', this.value)">' +
             '<input type="text" inputmode="decimal" autocomplete="off" placeholder="euro" value="' + macEsc(a.importo === null || a.importo === undefined ? '' : String(a.importo).replace('.', ',')) + '" oninput="ordAccontoCampo(' + i + ', \'importo\', this.value)">' +
             '<select title="Pagato con" onchange="ordAccontoCampo(' + i + ', \'metodo\', this.value)">' + opz(a.metodo) + '</select>' +
+            '<span class="ord-chi" title="Registrato da (chi ha ricevuto i soldi)">' + macEsc(ordChi(a.operatore || macUtente())) + '</span>' +
             '<button type="button" class="ord-acconto-togli" title="Togli questo acconto" onclick="ordTogliAcconto(' + i + ')">&#10006;</button>' +
         '</div>').join('');
 }
@@ -850,6 +857,9 @@ function ordCampiPagamento(prima) {
     // data del saldo (quando e' stato pagato tutto)
     const dataSaldo = pagato ? (document.getElementById('ord-saldo-data').value || ordOggiISO()) : null;
     if (dataSaldo || (prima && prima.saldo_data)) c.saldo_data = dataSaldo;
+    // v8.3.0: chi registra il saldo (resta quello di prima se era gia' pagato)
+    if (pagato && !(prima && prima.pagato)) c.saldo_operatore = macUtente();
+    else if (!pagato && prima && prima.saldo_operatore) c.saldo_operatore = null;
     Object.keys(ORD_CAMPI_METODO).forEach(id => {
         const campo = ORD_CAMPI_METODO[id];
         let v = document.getElementById(id).value || null;
@@ -1612,9 +1622,10 @@ function ordApriDettaglio(id) {
         }).join('') + '</div>' +
         (Number(o.sconto) > 0 ? '<div class="ord-det-sconto"><span>Totale articoli</span><span>' + macEuro(Number(o.totale) + Number(o.sconto)) + '</span></div>' +
             '<div class="ord-det-sconto"><span>Sconto</span><span>&minus; ' + macEuro(o.sconto) + '</span></div>' : '') +
-        '<div class="ord-det-totale"><span>TOTALE' + (o.pagato ? '<span class="ord-badge-pagato">&#128182; PAGATO' + (o.saldo_data ? ' IL ' + ordDataIt(o.saldo_data) : '') + '</span>' : '') + '</span><strong>' + macEuro(o.totale) + '</strong></div>' +
+        '<div class="ord-det-totale"><span>TOTALE' + (o.pagato ? '<span class="ord-badge-pagato">&#128182; PAGATO' + (o.saldo_data ? ' IL ' + ordDataIt(o.saldo_data) : '') + (o.saldo_operatore ? ' &middot; ' + macEsc(ordChi(o.saldo_operatore)) : '') + '</span>' : '') + '</span><strong>' + macEuro(o.totale) + '</strong></div>' +
         (o.consegnato_at && !o.annullato_at ? '<div class="ord-det-consegnato">&#9989; Consegnato al cliente il <strong>' + ordDataIt(ordDataLocaleISO(o.consegnato_at)) + '</strong></div>' : '') +
-        ordAccontiOrdine(o).map(a => '<div class="ord-det-saldo"><span>' + ordEtichettaAcconto(a) + (a.metodo ? ' (' + macEsc(a.metodo) + ')' : '') + '</span><span>&minus; ' + macEuro(a.importo) + '</span></div>').join('') +
+        ordAccontiOrdine(o).map(a => '<div class="ord-det-saldo"><span>' + ordEtichettaAcconto(a) + (a.metodo ? ' (' + macEsc(a.metodo) + ')' : '') +
+            (a.operatore ? ' <span class="ord-chi" title="Registrato da">' + macEsc(ordChi(a.operatore)) + '</span>' : '') + '</span><span>&minus; ' + macEuro(a.importo) + '</span></div>').join('') +
         (!o.pagato && Number(o.acconto) > 0 ? '<div class="ord-det-saldo ord-da-saldare"><span>DA SALDARE' + (o.metodo_saldo ? ' (' + macEsc(o.metodo_saldo) + ')' : '') + '</span><span>' + macEuro(Math.round((Number(o.totale) - Number(o.acconto)) * 100) / 100) + '</span></div>' : '') +
         (o.metodo_pagamento ? '<div class="ord-det-saldo"><span>Metodo di pagamento</span><span>' + macEsc(o.metodo_pagamento) + '</span></div>' : '') +
         (o.firma ? '<div class="ord-det-firma"><span>Firma per accettazione</span><img src="' + o.firma + '" alt="Firma"></div>' : '<p class="mac-aiuto">Ordine non firmato.</p>') +
@@ -1887,14 +1898,16 @@ async function ordSegnaPagato(o) {
             });
         if (!data) return;
         campi.saldo_data = data;
+        campi.saldo_operatore = macUtente();   // v8.3.0: chi ha ricevuto il saldo
     } else {
         if (!window.confirm('Togliere "Pagato" dall\'ordine N. ' + ordNumero(o) + '?')) return;
         if (o.saldo_data) campi.saldo_data = null;
+        if (o.saldo_operatore) campi.saldo_operatore = null;
     }
     const { error } = await supabaseClient.from('macchine_ordini').update(campi).eq('id', o.id);
     if (error) {
         console.error('Errore pagato:', error);
-        await showCustomAlert('Non salvato:<br>' + macEsc(error.message) + '<br><br>Hai eseguito gli script <strong>ordini-pagamento.sql</strong> e <strong>ordini-acconti.sql</strong> su Supabase?', 'Errore', '&#10060;');
+        await showCustomAlert('Non salvato:<br>' + macEsc(error.message) + '<br><br>Hai eseguito gli script <strong>ordini-pagamento.sql</strong>, <strong>ordini-acconti.sql</strong> e <strong>ordini-incasso.sql</strong> su Supabase?', 'Errore', '&#10060;');
         return;
     }
     await ordRicarica();
@@ -1990,6 +2003,7 @@ function ordTotaliPdfHtml(o, caselle) {
     }
     righe.push({ cls: '', e: 'TOTALE', v: (o.totale !== null && o.totale !== undefined ? repEuroPdf(o.totale) : ''), tot: true });
     if (!o.pagato && Number(o.acconto) > 0) {
+        // (chi ha ricevuto i soldi NON va sul PDF del cliente: si vede solo nell'app)
         ordAccontiOrdine(o).forEach(a => righe.push({ cls: 'ordd-acconto', e: ordEtichettaAcconto(a), m: a.metodo, v: '&minus; ' + repEuroPdf(a.importo) }));
         righe.push({ cls: 'ordd-saldo', e: 'DA SALDARE', m: o.metodo_saldo, v: repEuroPdf(Math.round((Number(o.totale) - Number(o.acconto)) * 100) / 100) });
     }

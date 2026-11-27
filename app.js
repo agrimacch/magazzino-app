@@ -72,6 +72,8 @@ function sezioneConsentita(sectionName) {
     if (sectionName === 'mezzi') return typeof mzPuoVedere === 'function' && mzPuoVedere();
     // Cartellini negozio (v8.3.0): CART_RUOLI in cartellini-functions.js (admin e operatori)
     if (sectionName === 'cartellini') return typeof cartPuoVedere === 'function' && cartPuoVedere();
+    // Contanti (v8.3.0): CONT_RUOLI in contanti-functions.js (admin e operatori)
+    if (sectionName === 'contanti') return typeof contPuoVedere === 'function' && contPuoVedere();
     if (SEZIONI_ASSISTENZA_RUOLI[sectionName]) return SEZIONI_ASSISTENZA_RUOLI[sectionName].includes(currentUserRole);
     if (sectionName === 'buoni-regalo') return BUONI_RUOLI.includes(currentUserRole);
     // Listini Vendite > Listini Fornitori (prezzi): LF_RUOLI_VEDERE in listini-fornitori-functions.js (admin e operatori)
@@ -79,7 +81,7 @@ function sezioneConsentita(sectionName) {
     // Ordini > Ordini Macchine: ORDINI_RUOLI in ordini-macchine-functions.js (admin e operatori)
     if (sectionName === 'ordini-macchine') return typeof omPuoVedere === 'function' && omPuoVedere();
     // Menu Ordini: visibile se si vede almeno una sezione dentro (Buoni Regalo, Ordini Clienti, Ordini Macchine)
-    if (sectionName === 'ordini') return ['buoni-regalo', 'ordini-clienti', 'ordini-macchine'].some(sezioneConsentita);
+    if (sectionName === 'ordini') return ['buoni-regalo', 'ordini-clienti', 'ordini-macchine', 'contanti'].some(sezioneConsentita);
     if (currentUserRole === 'tecnico') return SEZIONI_TECNICI.includes(sectionName);
     if (SEZIONI_MACCHINE.includes(sectionName)) return typeof macPuoGestire === 'function' && macPuoGestire();
     if (ADMIN_ONLY_SECTIONS.includes(sectionName)) return currentUserRole === 'admin';
@@ -869,6 +871,12 @@ function applyRolePermissions() {
         lfCard.style.display = sezioneConsentita('listini-prezzi') ? 'flex' : 'none';
     }
 
+    // Card Contanti (dentro Ordini): CONT_RUOLI
+    const contCard = document.getElementById('ordini-contanti-card');
+    if (contCard) {
+        contCard.style.display = sezioneConsentita('contanti') ? 'flex' : 'none';
+    }
+
     // Card Cartellini negozio (dentro Listini Vendite): CART_RUOLI
     const cartCard = document.getElementById('vendite-cart-card');
     if (cartCard) {
@@ -1015,6 +1023,11 @@ function openSection(sectionName) {
     if (sectionName !== 'scanner') {
         stopScanner();
     }
+    // Contanti: uscendo dalla sezione si spegne la fotocamera e si chiudono i QR
+    if (sectionName !== 'contanti') {
+        if (typeof contChiudiRicevi === 'function' && document.getElementById('cont-ricevi-modal')) contChiudiRicevi();
+        if (typeof contChiudiQr === 'function' && document.getElementById('cont-qr-modal')) contChiudiQr();
+    }
 
     // Nascondi dashboard
     document.getElementById('dashboard-view').style.display = 'none';
@@ -1079,6 +1092,10 @@ function openSection(sectionName) {
     } else if (sectionName === 'buoni-regalo') {
         if (typeof openBuoniRegalo === 'function') {
             openBuoniRegalo();
+        }
+    } else if (sectionName === 'contanti') {
+        if (typeof openContanti === 'function') {
+            openContanti();
         }
     } else if (sectionName === 'cartellini') {
         if (typeof openCartellini === 'function') {

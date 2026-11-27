@@ -10,6 +10,13 @@ echo ""
 # Chiedi la nuova versione
 read -p "Inserisci la nuova versione (es: 4.5.3): " NEW_VERSION
 
+# Versione obbligatoria e nel formato giusto (es. 8.3.0): se vuota lo script si ferma
+if ! [[ "$NEW_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    echo "[ERRORE] Versione non valida: \"$NEW_VERSION\". Scrivila cosi': 8.3.0"
+    echo "Nessun file modificato."
+    exit 1
+fi
+
 # Chiedi la descrizione breve per VERSION.md
 read -p "Descrizione breve per changelog: " DESCRIPTION
 
@@ -141,7 +148,7 @@ if [ -f "index.html" ]; then
 
     # 3b. Cache CSS e JS (cosi' i browser scaricano sempre i file nuovi)
     #     Vale per TUTTI i file .css e .js dell'app che hanno "?v=" (anche quelli aggiunti in futuro)
-    sed -i.bak -E "s/([A-Za-z0-9_-]+\.(css|js))\?v=[0-9.]+/\1?v=$NEW_VERSION/g" index.html
+    sed -i.bak -E "s/([A-Za-z0-9_-]+\.(css|js))\?v=[0-9.]*/\1?v=$NEW_VERSION/g" index.html
 
     # 3c. Titolo popup
     perl -i.bak -pe "s|<h3>&#127881; (AGRIMAG\|AGRIDESK) v[0-9.]+[^<]*</h3>|<h3>&#127881; AGRIDESK v$NEW_VERSION - Aggiornamento!</h3>|g" index.html

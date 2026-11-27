@@ -1,0 +1,102 @@
+/* ============================================ */
+/* CONTANTI (v8.3.0) - contanti-functions.js    */
+/* ============================================ */
+#section-contanti,
+#cont-qr-modal,
+#cont-ricevi-modal { font-family: 'Roboto Mono', monospace; }
+#section-contanti button,
+#cont-qr-modal button,
+#cont-ricevi-modal button { font-family: 'Roboto Mono', monospace; }
+
+.cont-vuoto { color: var(--gray, #6b7280); padding: 10px 4px; }
+.cont-aiuto { font-size: 12px; color: var(--gray, #6b7280); margin: 16px 0 4px; line-height: 1.5; }
+.cont-tit { font-size: 15px; color: var(--primary, #688E53); margin: 22px 0 8px; }
+
+/* I miei contanti */
+.cont-mio {
+    background: #fff;
+    border: 2px solid var(--primary, #688E53);
+    border-radius: 14px;
+    padding: 14px;
+    text-align: center;
+    margin-top: 12px;
+}
+.cont-mio-et { font-size: 13px; color: #4b5563; font-weight: 700; }
+.cont-mio-tot { font-size: 34px; font-weight: 700; color: #1f2937; margin: 4px 0 0; }
+.cont-mio-n { font-size: 12px; color: #6b7280; }
+.cont-pulsanti { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 12px; }
+.cont-pulsanti button { width: auto; margin: 0; padding: 12px 16px; font-size: 14px; }
+.cont-pulsanti button:disabled { opacity: 0.45; cursor: not-allowed; }
+.cont-btn-ricevi { background: #2563eb !important; border-color: #2563eb !important; }
+.cont-btn-piccolo { width: auto !important; margin: 8px auto 0 !important; padding: 8px 12px !important; font-size: 13px !important; }
+
+.cont-lista, .cont-persone, .cont-passaggi { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+.cont-inc {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    padding: 9px 12px;
+    margin: 0;
+    cursor: pointer;
+    font-weight: 400;
+}
+.cont-inc-sola { cursor: default; margin: 4px 0 0; }
+.cont-inc input { width: 20px !important; height: 20px; min-width: 0 !important; margin: 0 !important; padding: 0 !important; flex-shrink: 0; }
+.cont-inc-testo { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.cont-inc-ord { font-size: 14px; overflow-wrap: anywhere; }
+.cont-inc-sub { font-size: 11px; color: #6b7280; }
+.cont-inc-euro { font-size: 15px; white-space: nowrap; }
+
+/* Contanti in giro, per persona */
+.cont-persona { background: #f8fbf5; border: 1px solid #c9dcbb; border-radius: 10px; padding: 8px 12px; }
+.cont-persona summary { display: flex; align-items: center; gap: 10px; cursor: pointer; list-style: none; }
+.cont-persona summary::-webkit-details-marker { display: none; }
+.cont-persona summary strong { margin-left: auto; font-size: 16px; }
+.cont-persona summary small { color: #6b7280; font-size: 11px; }
+.cont-chi {
+    display: inline-block;
+    min-width: 36px;
+    text-align: center;
+    font-weight: 700;
+    font-size: 13px;
+    padding: 3px 8px;
+    border-radius: 999px;
+    background: var(--primary, #688E53);
+    color: #fff;
+}
+
+/* Passaggi */
+.cont-pass { display: flex; align-items: center; gap: 10px; font-size: 13px; background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 7px 10px; }
+.cont-pass-quando { color: #6b7280; font-size: 12px; white-space: nowrap; }
+.cont-pass-chi { flex: 1; font-weight: 700; }
+.cont-pass-versato { background: #f0fdf4; border-color: #bbf7d0; }
+
+/* Finestre QR */
+.cont-modal-content { max-width: 420px; text-align: center; }
+.cont-qr-euro { font-size: 32px; font-weight: 700; color: #1f2937; }
+.cont-qr-n { font-size: 12px; color: #6b7280; margin-bottom: 8px; }
+.cont-qr-img { background: #fff; padding: 6px; display: inline-block; }
+.cont-qr-img svg { width: 260px; height: 260px; max-width: 70vw; max-height: 70vw; display: block; }
+.cont-qr-scaduto { opacity: 0.12; }
+.cont-qr-aiuto { font-size: 13px; color: #4b5563; margin: 10px 0; line-height: 1.5; }
+.cont-qr-tempo { font-size: 15px; color: #92400e; margin: 8px 0; }
+.cont-qr-fatto { font-size: 56px; line-height: 1.1; }
+.cont-reader { width: 100%; min-height: 240px; }
+.cont-btn-ricevo {
+    width: 100%;
+    margin: 12px 0 4px;
+    padding: 18px 14px !important;
+    font-size: 22px !important;
+    font-weight: 700;
+    background: #16a34a !important;
+    border-color: #16a34a !important;
+}
+.cont-btn-ricevo:disabled { opacity: 0.4; }
+
+@media (max-width: 600px) {
+    .cont-pulsanti button { flex: 1 1 100%; }
+    .cont-mio-tot { font-size: 30px; }
+}

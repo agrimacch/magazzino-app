@@ -17,20 +17,21 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Kalam:wght@400;700&family=Roboto+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=">
-    <link rel="stylesheet" href="listino.css?v=">
-    <link rel="stylesheet" href="listini-fornitori.css?v=">
-    <link rel="stylesheet" href="fornitori.css?v=">
-    <link rel="stylesheet" href="interventi.css?v=">
-    <link rel="stylesheet" href="macchine.css?v=">
-    <link rel="stylesheet" href="ordini.css?v=">
-    <link rel="stylesheet" href="ordini-macchine.css?v=">
-    <link rel="stylesheet" href="azienda.css?v=">
-    <link rel="stylesheet" href="richieste.css?v=">
-    <link rel="stylesheet" href="buoni.css?v=">
-    <link rel="stylesheet" href="mezzi.css?v=">
-    <link rel="stylesheet" href="cartellini.css?v=">
-    <link rel="stylesheet" href="daltonici.css?v=">
+    <link rel="stylesheet" href="style.css?v=8.2.8">
+    <link rel="stylesheet" href="listino.css?v=8.2.8">
+    <link rel="stylesheet" href="listini-fornitori.css?v=8.2.8">
+    <link rel="stylesheet" href="fornitori.css?v=8.2.8">
+    <link rel="stylesheet" href="interventi.css?v=8.2.8">
+    <link rel="stylesheet" href="macchine.css?v=8.2.8">
+    <link rel="stylesheet" href="ordini.css?v=8.2.8">
+    <link rel="stylesheet" href="ordini-macchine.css?v=8.2.8">
+    <link rel="stylesheet" href="azienda.css?v=8.2.8">
+    <link rel="stylesheet" href="richieste.css?v=8.2.8">
+    <link rel="stylesheet" href="buoni.css?v=8.2.8">
+    <link rel="stylesheet" href="mezzi.css?v=8.2.8">
+    <link rel="stylesheet" href="cartellini.css?v=8.2.8">
+    <link rel="stylesheet" href="contanti.css?v=8.2.8">
+    <link rel="stylesheet" href="daltonici.css?v=8.2.8">
 
     <!-- SheetJS per import Excel -->
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
@@ -316,6 +317,27 @@
         </div>
 
         <!-- ========================================== -->
+        <!-- CONTANTI (v8.3.0, contanti-functions.js)     -->
+        <!-- Admin e operatori (CONT_RUOLI)               -->
+        <!-- ========================================== -->
+        <div id="section-contanti" class="section-container hidden">
+            <div class="back-to-dashboard">
+                <div class="back-buttons">
+                    <button onclick="openSection('ordini')" class="btn-back">
+                        &#8592; Torna a Ordini
+                    </button>
+                    <button onclick="backToDashboard()" class="btn-back btn-dashboard">
+                        &#127968; Dashboard
+                    </button>
+                </div>
+                <h2 class="section-title">&#128181; Contanti</h2>
+            </div>
+            <div class="container">
+                <div id="cont-contenuto"></div>
+            </div>
+        </div>
+
+        <!-- ========================================== -->
         <!-- CARTELLINI NEGOZIO (v8.3.0, cartellini-functions.js) -->
         <!-- Admin e operatori (CART_RUOLI)               -->
         <!-- ========================================== -->
@@ -374,6 +396,13 @@
                         <span class="card-icon">&#128666;</span>
                         <h3>Ordini Fornitore</h3>
                         <p>Il libro degli ordini ai fornitori, diviso per marchio</p>
+                    </div>
+
+                    <!-- Card Contanti (v8.3.0, contanti-functions.js): admin e operatori -->
+                    <div class="dashboard-card" id="ordini-contanti-card" onclick="openSection('contanti')" style="display: none;">
+                        <span class="card-icon">&#128181;</span>
+                        <h3>Contanti</h3>
+                        <p>Chi ha in mano i contanti degli ordini: si passano col QR</p>
                     </div>
                 </div>
             </div>
@@ -3565,6 +3594,28 @@
         </div>
     </div>
 
+    <!-- Contanti: QR di chi da' i soldi (contanti-functions.js) -->
+    <div id="cont-qr-modal" class="modal hidden">
+        <div class="modal-content cont-modal-content">
+            <div class="modal-header">
+                <h3>&#128228; Dai contanti</h3>
+                <button type="button" class="modal-close" onclick="contChiudiQr()">&times;</button>
+            </div>
+            <div id="cont-qr-corpo"></div>
+        </div>
+    </div>
+
+    <!-- Contanti: chi riceve legge il QR (contanti-functions.js) -->
+    <div id="cont-ricevi-modal" class="modal hidden">
+        <div class="modal-content cont-modal-content">
+            <div class="modal-header">
+                <h3>&#128229; Ricevo contanti</h3>
+                <button type="button" class="modal-close" onclick="contChiudiRicevi()">&times;</button>
+            </div>
+            <div id="cont-ricevi-corpo"></div>
+        </div>
+    </div>
+
     <!-- Finestra Cartellini negozio (cartellini-functions.js) -->
     <div id="cart-modal" class="modal hidden">
         <div class="modal-content cart-modal-content">
@@ -4018,21 +4069,22 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- Versione bloccata (la libreria non e' piu' mantenuta: cosi' non cambia mai da sola) -->
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-    <script src="ricambi-functions.js?v="></script>
-    <script src="listino-functions.js?v="></script>
-    <script src="fornitori-functions.js?v="></script>
-    <script src="interventi-functions.js?v="></script>
-    <script src="macchine-functions.js?v="></script>
-    <script src="macchine-report.js?v="></script>
-    <script src="macchine-raffica.js?v="></script>
-    <script src="listini-fornitori-functions.js?v="></script>
-    <script src="ordini-functions.js?v="></script>
-    <script src="ordini-macchine-functions.js?v="></script>
-    <script src="azienda-functions.js?v="></script>
-    <script src="richieste-robot-functions.js?v="></script>
-    <script src="buoni-functions.js?v="></script>
-    <script src="mezzi-functions.js?v="></script>
-    <script src="cartellini-functions.js?v="></script>
-    <script src="app.js?v="></script>
+    <script src="ricambi-functions.js?v=8.2.8"></script>
+    <script src="listino-functions.js?v=8.2.8"></script>
+    <script src="fornitori-functions.js?v=8.2.8"></script>
+    <script src="interventi-functions.js?v=8.2.8"></script>
+    <script src="macchine-functions.js?v=8.2.8"></script>
+    <script src="macchine-report.js?v=8.2.8"></script>
+    <script src="macchine-raffica.js?v=8.2.8"></script>
+    <script src="listini-fornitori-functions.js?v=8.2.8"></script>
+    <script src="ordini-functions.js?v=8.2.8"></script>
+    <script src="ordini-macchine-functions.js?v=8.2.8"></script>
+    <script src="azienda-functions.js?v=8.2.8"></script>
+    <script src="richieste-robot-functions.js?v=8.2.8"></script>
+    <script src="buoni-functions.js?v=8.2.8"></script>
+    <script src="mezzi-functions.js?v=8.2.8"></script>
+    <script src="cartellini-functions.js?v=8.2.8"></script>
+    <script src="contanti-functions.js?v=8.2.8"></script>
+    <script src="app.js?v=8.2.8"></script>
 </body>
 </html>

@@ -850,3 +850,26 @@ Storico completo in `VERSION.md`.
 
 ### Linguette colorate nel quaderno (v8.3.0)
 Nel quaderno di Inventario Macchine e nel libro Ordini Fornitore ogni marchio ha la sua linguetta colorata. Il colore viene dal nome del marchio, quindi resta sempre lo stesso; due linguette vicine non hanno mai lo stesso colore. La linguetta aperta e' piena del suo colore con la scritta bianca. Colori in `MAC_COLORI_DIVISORI` (macchine-functions.js).
+
+---
+
+## Contanti degli ordini clienti (v8.3.0)
+
+**Prima volta su Supabase**, in quest'ordine: `supabase/ordini-incasso.sql`, poi `supabase/contanti-setup.sql`.
+
+**Iniziali:** ogni acconto e ogni saldo registrati mostrano nell'app le iniziali di chi li ha registrati (chi ha ricevuto i soldi). Sul PDF del cliente NON compaiono.
+
+**Dove:** Dashboard > Ordini > **Contanti** (admin e operatori; i tecnici no).
+- In alto: i **tuoi contanti** (totale e incassi), poi i contanti in mano a ciascun collega e gli ultimi passaggi.
+- Contano solo acconti e saldi in **CONTANTI** registrati da quando la sezione e' attiva.
+
+**Passare i soldi a un collega (QR, 60 secondi):**
+1. Chi **da'** spunta gli incassi e preme **Dai contanti**: compare un QR valido 60 secondi.
+2. Chi **riceve** preme **Ricevo contanti**, inquadra il QR e preme **Ricevo EUR ...** (il totale).
+3. Da quel momento i soldi sono suoi. Solo chi riceve puo' fare il passaggio; un QR usato o scaduto non vale piu'.
+
+**Fine del giro:** l'admin, con i soldi in mano, preme **Versato in cassa / banca**.
+
+File: `contanti-functions.js`, `contanti.css`, `supabase/contanti-setup.sql`, `supabase/ordini-incasso.sql`.
+
+**update-version.sh:** ora si ferma se la versione e' vuota o scritta male (es. va scritto 8.3.0).
