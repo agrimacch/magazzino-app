@@ -1,5 +1,8 @@
 # Changelog App Magazzino
 
+## v8.2.3 - 2026-11-27 (PRODUZIONE)
+migliorie excel
+
 ## v8.2.2 - 2026-11-27 (PRODUZIONE)
 cambio modello
 
