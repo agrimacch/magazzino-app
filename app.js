@@ -11,7 +11,7 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 // ========================================
 // VARIABILI GLOBALI
 // ========================================
-const CURRENT_VERSION = '8.2.5';
+const CURRENT_VERSION = '8.2.6';
 const SHOW_WHATS_NEW_POPUP = false;
 
 let currentUser = null;
@@ -848,8 +848,8 @@ function applyRolePermissions() {
         macchineCard.style.display = sezioneConsentita('inventario-macchine') ? 'flex' : 'none';
     }
 
-    // Card Magazzino esterno mezzi (dentro Magazzino e scorciatoia in Assistenza): MZ_RUOLI
-    ['magazzino-mezzi-card', 'ass-card-mezzi'].forEach(idCard => {
+    // Card Magazzino esterno mezzi (dentro Magazzino e scorciatoie in Assistenza: Ricambi nei furgoni e Rapportini): MZ_RUOLI
+    ['magazzino-mezzi-card', 'ass-card-mezzi', 'ass-card-rapportini'].forEach(idCard => {
         const card = document.getElementById(idCard);
         if (card) card.style.display = sezioneConsentita('mezzi') ? 'flex' : 'none';
     });

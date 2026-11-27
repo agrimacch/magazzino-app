@@ -1,5 +1,8 @@
 # Changelog App Magazzino
 
+## v8.2.6 - 2026-11-27 (PRODUZIONE)
+rapportini tecnici
+
 ## v8.2.5 - 2026-11-27 (PRODUZIONE)
 sposta vecchio
 

@@ -405,3 +405,57 @@
 .mz-senza-scorta input { width: auto; margin: 3px 0 0; flex-shrink: 0; }
 .mz-imp-togli { display: flex; gap: 8px; align-items: flex-start; margin: 8px 0 4px; font-size: 13px; cursor: pointer; }
 .mz-imp-togli input { width: auto; margin: 3px 0 0; flex-shrink: 0; }
+
+/* ============================================ */
+/* Elenco RAPPORTINI (v8.2.6)                   */
+/* il numero non va mai a capo; su mobile ogni  */
+/* rapportino diventa una scheda                */
+/* ============================================ */
+.mz-rap-tab .mz-rap-num { white-space: nowrap; }
+.mz-rap-tab .mz-rap-data { white-space: nowrap; }
+
+@media (max-width: 700px) {
+    /* barra strumenti: pulsante e ricerca a tutta larghezza, anno e Drive affiancati */
+    .mz-strumenti > .btn-primary { width: 100%; }
+    .mz-strumenti .mz-cerca-piccola { flex: 1 1 100%; min-width: 0; font-size: 15px !important; }
+    .mz-strumenti .mz-rap-anno { flex: 1 1 0; min-width: 0; }
+    .mz-strumenti #mz-prova-drive { flex: 1 1 0; min-width: 0; white-space: nowrap; }
+
+    /* tabella -> schede */
+    .mz-rap-scroll { overflow-x: visible; }
+    .mz-rap-tab, .mz-rap-tab tbody { display: block; width: 100%; background: transparent; }
+    .mz-rap-tab thead { display: none; }
+    .mz-rap-tab tbody tr {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        grid-template-areas:
+            "num  data"
+            "cli  tot"
+            "mac  mac"
+            "tec  drive";
+        column-gap: 10px;
+        row-gap: 2px;
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-left: 4px solid var(--primary, #688E53);
+        border-radius: 12px;
+        padding: 10px 12px;
+        margin-bottom: 10px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        cursor: pointer;
+    }
+    .mz-rap-tab tbody tr:active { background: #f8fbf5; }
+    .mz-rap-tab tbody tr:hover td { background: transparent; }
+    .mz-rap-tab td { display: block; padding: 0; border: none; min-width: 0; max-width: none; }
+    .mz-rap-tab td:empty { display: none; }
+    .mz-rap-tab .mz-rap-num { grid-area: num; font-size: 14px; color: var(--primary, #688E53); }
+    .mz-rap-tab .mz-rap-data { grid-area: data; text-align: right; font-size: 12px; color: var(--gray, #6b7280); }
+    .mz-rap-tab .mz-rap-cli { grid-area: cli; font-size: 15px; font-weight: 700; color: #111827; overflow-wrap: anywhere; margin-top: 2px; }
+    .mz-rap-tab .mz-rap-tot { grid-area: tot; font-size: 15px; align-self: center; }
+    .mz-rap-tab .mz-rap-mac { grid-area: mac; font-size: 13px; color: #374151; overflow-wrap: anywhere; }
+    .mz-rap-tab .mz-rap-mac::before { content: "\1F69C  "; }
+    .mz-rap-tab .mz-rap-tec { grid-area: tec; font-size: 12px; color: var(--gray, #6b7280); overflow-wrap: anywhere; }
+    .mz-rap-tab .mz-rap-tec::before { content: "\1F527  "; }
+    .mz-rap-tab .mz-rap-drive { grid-area: drive; text-align: right; font-size: 14px; }
+    .mz-rap-tab .mz-vuoto { display: block; }
+}

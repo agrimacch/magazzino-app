@@ -266,6 +266,12 @@ function mzApriDa(da) {
     openSection('mezzi');
 }
 
+// Card "Rapportini" in Assistenza (v8.2.6): apre il Magazzino esterno mezzi direttamente sulla scheda Rapportini
+function mzApriRapportiniDa(da) {
+    sessionStorage.setItem('mzTab', 'rapportini');
+    mzApriDa(da);
+}
+
 function mzCambiaTab(tab) {
     mzTab = tab;
     sessionStorage.setItem('mzTab', tab);
@@ -887,10 +893,10 @@ function mzHtmlRapportini() {
     return '<div class="mz-strumenti">' +
             '<button type="button" class="btn-primary" onclick="mzApriNuovoRapportino()">&#10133; Nuovo rapportino</button>' +
             '<input type="search" class="mz-cerca-piccola" placeholder="Cerca numero, cliente, modello, matricola, tecnico..." value="' + mzEsc(mzRapCerca) + '" oninput="mzRapCerca = this.value; mzRenderElencoRapportini()">' +
-            '<select onchange="mzRapAnno = this.value; mzRenderElencoRapportini()"><option value="TUTTI">Tutti gli anni</option>' +
+            '<select class="mz-rap-anno" onchange="mzRapAnno = this.value; mzRenderElencoRapportini()"><option value="TUTTI">Tutti gli anni</option>' +
                 anni.map(a => '<option' + (String(a) === String(mzRapAnno) ? ' selected' : '') + '>' + a + '</option>').join('') + '</select>' +
             (mzPuoGestire() ? '<button type="button" class="btn-back" id="mz-prova-drive" onclick="mzProvaDrive()">&#128193; Prova Drive</button>' : '') +
-        '</div><p id="mz-rap-conta" class="mz-conta"></p><div class="mz-tab-scroll"><table class="mz-tab" id="mz-rap-tab"></table></div>';
+        '</div><p id="mz-rap-conta" class="mz-conta"></p><div class="mz-tab-scroll mz-rap-scroll"><table class="mz-tab mz-rap-tab" id="mz-rap-tab"></table></div>';
 }
 
 function mzRenderElencoRapportini() {
@@ -908,12 +914,12 @@ function mzRenderElencoRapportini() {
     const conta = document.getElementById('mz-rap-conta');
     if (conta) conta.innerHTML = lista.length + (lista.length === 1 ? ' rapportino' : ' rapportini') + ' &middot; totale ' + mzEuro(lista.reduce((t, x) => t + Number(x.totale || 0), 0));
     if (!lista.length) { tab.innerHTML = '<tbody><tr><td class="mz-vuoto">Nessun rapportino.</td></tr></tbody>'; return; }
-    tab.innerHTML = '<thead><tr><th>N.</th><th>Data</th><th>Cliente</th><th>Macchina</th><th>Tecnico</th><th class="mz-n">Totale</th><th>Drive</th></tr></thead><tbody>' +
+    tab.innerHTML = '<thead><tr><th class="mz-rap-num">N.</th><th>Data</th><th>Cliente</th><th>Macchina</th><th>Tecnico</th><th class="mz-n">Totale</th><th>Drive</th></tr></thead><tbody>' +
         lista.map(x => '<tr onclick="mzApriRapportino(' + x.id + ')">' +
-            '<td><strong>' + mzNumeroRap(x) + '</strong></td><td>' + mzDataIt(x.data) + '</td><td>' + mzEsc(x.cliente) + '</td>' +
-            '<td>' + mzEsc([x.modello, x.matricola ? 'MATR. ' + x.matricola : ''].filter(Boolean).join(' - ')) + '</td>' +
-            '<td>' + mzEsc(x.tecnico || '') + '</td><td class="mz-n"><strong>' + mzEuro(x.totale) + '</strong></td>' +
-            '<td>' + (mzDriveInCorso[x.id] ? '&#8987;' : (x.drive_url ? '&#128193;' : (mzDriveErrore[x.id] ? '&#10060;' : ''))) + '</td></tr>').join('') + '</tbody>';
+            '<td class="mz-rap-num"><strong>' + mzNumeroRap(x) + '</strong></td><td class="mz-rap-data">' + mzDataIt(x.data) + '</td><td class="mz-rap-cli">' + mzEsc(x.cliente) + '</td>' +
+            '<td class="mz-rap-mac">' + mzEsc([x.modello, x.matricola ? 'MATR. ' + x.matricola : ''].filter(Boolean).join(' - ')) + '</td>' +
+            '<td class="mz-rap-tec">' + mzEsc(x.tecnico || '') + '</td><td class="mz-n mz-rap-tot"><strong>' + mzEuro(x.totale) + '</strong></td>' +
+            '<td class="mz-rap-drive">' + (mzDriveInCorso[x.id] ? '&#8987;' : (x.drive_url ? '&#128193;' : (mzDriveErrore[x.id] ? '&#10060;' : ''))) + '</td></tr>').join('') + '</tbody>';
 }
 
 // Il tecnico collegato all'app (email uguale a quella scritta nella tabella tecnici)
