@@ -170,16 +170,16 @@
     letter-spacing: 0;
 }
 .cart-bianco * { box-sizing: border-box; font-family: inherit; }
-.cart-bi-logo { height: 15mm; display: flex; align-items: center; flex-shrink: 0; }
-.cart-bi-logo img { max-height: 15mm; max-width: 65mm; width: auto; height: auto; display: block; object-fit: contain; }
+.cart-bi-logo { height: 17mm; display: flex; align-items: center; flex-shrink: 0; }
+.cart-bi-logo img { max-height: 17mm; max-width: 70mm; width: auto; height: auto; display: block; object-fit: contain; }
 .cart-bi-marca { display: block; max-width: 89mm; font-size: 10mm; font-weight: 900; font-style: italic; white-space: nowrap; overflow: hidden; }
 .cart-bi-titolo { display: flex; align-items: baseline; justify-content: space-between; gap: 3mm; margin-top: 6mm; flex-shrink: 0; }
-.cart-bi-tipo { display: block; max-width: 46%; flex-shrink: 0; font-size: 4mm; white-space: nowrap; overflow: hidden; }
-.cart-bi-modello { display: block; flex: 1; min-width: 0; font-size: 5.8mm; white-space: nowrap; overflow: hidden; text-align: right; }
+.cart-bi-tipo { display: block; max-width: 46%; flex-shrink: 0; font-size: 5mm; white-space: nowrap; overflow: hidden; }
+.cart-bi-modello { display: block; flex: 1; min-width: 0; font-size: 7.5mm; white-space: nowrap; overflow: hidden; text-align: right; }
 .cart-bi-titolo-due { flex-direction: column; align-items: stretch; gap: 1mm; }
 .cart-bi-titolo-due .cart-bi-tipo { max-width: 100%; }
 .cart-bi-titolo-due .cart-bi-modello { flex: none; width: 100%; text-align: left; }
-.cart-bi-car { flex: 1; min-height: 0; overflow: hidden; margin-top: 6mm; font-size: 3.4mm; line-height: 1.5; }
+.cart-bi-car { flex: 1; min-height: 0; overflow: hidden; margin-top: 5mm; font-size: 4.4mm; line-height: 1.45; }
 .cart-bi-car-tit { margin-bottom: 0.3em; }
 .cart-bi-listino {
     display: flex;
@@ -188,10 +188,10 @@
     border-bottom: 0.4mm solid #111;
     padding: 0 1mm 1mm;
     margin-top: 3mm;
-    font-size: 4.3mm;
+    font-size: 5.2mm;
     flex-shrink: 0;
 }
-.cart-bi-prezzo { position: relative; font-size: 5.6mm; padding: 0 1mm; }
+.cart-bi-prezzo { position: relative; font-size: 7mm; padding: 0 1mm; }
 /* prezzo barrato con una riga spessa (text-decoration non viene bene nel PDF) */
 .cart-bi-prezzo::after {
     content: "";
@@ -206,23 +206,23 @@
     margin-top: 2.5mm;
     background: #ffe600;
     border: 0.5mm solid #111;
-    padding: 1.5mm 2mm;
-    font-size: 4mm;
+    padding: 1.8mm 2mm;
+    font-size: 4.6mm;
     line-height: 1.25;
     text-align: center;
     flex-shrink: 0;
 }
-.cart-bi-icona { display: flex; align-items: center; gap: 3mm; margin-top: 3mm; font-size: 4mm; flex-shrink: 0; }
+.cart-bi-icona { display: flex; align-items: center; gap: 3mm; margin-top: 3mm; font-size: 5mm; flex-shrink: 0; }
 .cart-bi-ic {
-    width: 9mm;
-    height: 9mm;
+    width: 10mm;
+    height: 10mm;
     flex-shrink: 0;
     display: flex;
     align-items: center;
     justify-content: center;
     background: #e5e7eb;
     border-radius: 1mm;
-    font-size: 5.5mm;
+    font-size: 6.2mm;
     line-height: 1;
 }
 
@@ -247,10 +247,10 @@
     line-height: 1.1;
 }
 .cart-promo * { box-sizing: border-box; font-family: inherit; }
-.cart-pr-fino { font-size: 8mm; }
-.cart-pr-data { font-size: 11mm; }
+.cart-pr-fino { font-size: 9mm; }
+.cart-pr-data { font-size: 12mm; }
 .cart-pr-prezzo { display: block; width: 100%; font-size: 22mm; white-space: nowrap; overflow: hidden; }
-.cart-pr-scorte { font-size: 3.6mm; }
+.cart-pr-scorte { font-size: 4.2mm; }
 .cart-pr-vuota { margin: auto; font-size: 4mm; color: #6b7280; }
 
 /* Foglio usato per creare il PDF (.pdf-foglio in macchine.css) */
