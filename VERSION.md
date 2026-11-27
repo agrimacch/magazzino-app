@@ -1,5 +1,8 @@
 # Changelog App Magazzino
 
+## v8.2.5 - 2026-11-27 (PRODUZIONE)
+sposta vecchio
+
 ## v8.2.4 - 2026-11-27 (PRODUZIONE)
 ELIMINAZIONE ARTICOLI DEF
 
