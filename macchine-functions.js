@@ -3160,6 +3160,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('mac-multi-annulla').addEventListener('click', macMultiChiudi);
     document.getElementById('mac-multi-salva').addEventListener('click', macMultiSalva);
     document.getElementById('mac-multi-assegna').addEventListener('change', macMultiAnteprima);
+    document.getElementById('mac-multi-search').addEventListener('keydown', macMultiCercaTasto);
 
     // ----- Finestra carico -----
     macPickerImposta('mac-carico-art-search', 'mac-carico-art-results', null, (a) => {
@@ -3494,9 +3495,12 @@ window.macSwitchTab = macSwitchTab;
 // il resto disponibili; i set caricano i componenti (matricole al componente principale).
 // ========================================
 let macMultiRighe = [];   // [{ art, n, netto: testo, matricole: [una per pezzo] }] - l'ultima aggiunta e' la prima
+let macMultiCodiceSospeso = null;   // codice a barre letto nella ricerca e non ancora di nessun articolo (v8.8.1)
 
 function macMultiApri() {
     macMultiRighe = [];
+    macMultiCodiceSospeso = null;
+    macMultiMessaggio('');
     document.getElementById('mac-multi-search').value = '';
     document.getElementById('mac-multi-assegna').checked = true;
     macMultiRender();
@@ -3510,10 +3514,20 @@ function macMultiChiudi() {
     macMultiRighe = [];
 }
 
-function macMultiAggiungi(a) {
+async function macMultiAggiungi(a) {
     if (!a) return;
     document.getElementById('mac-multi-search').value = '';
     macMultiLeggi();
+    // codice a barre letto prima e non riconosciuto: lo salvo su questo articolo
+    if (macMultiCodiceSospeso) {
+        const codice = macMultiCodiceSospeso;
+        macMultiCodiceSospeso = null;
+        if (await macMultiSalvaCodiceSu(a, codice)) {
+            macMultiMessaggio('&#10004; Codice ' + macEsc(codice) + ' salvato su <strong>' + macEsc(macNome(a)) + '</strong>: le prossime volte lo riconosce da solo.', 'ok');
+        } else {
+            macMultiMessaggio('');
+        }
+    }
     const gia = macMultiRighe.find(r => r.art.id === a.id);
     if (gia) {
         gia.n = Math.min(MAC_MAX_QTA, gia.n + 1);
@@ -3594,6 +3608,9 @@ function macMultiRender() {
                 '<label class="mac-multi-campo mac-multi-campo-q">Q.t&agrave;<input type="number" id="mac-multi-q-' + i + '" min="1" max="' + MAC_MAX_QTA + '" value="' + r.n + '" inputmode="numeric" oninput="macMultiQta(' + i + ')"></label>' +
                 (set ? '<span class="mac-multi-campo mac-multi-campo-n"></span>' :
                     '<label class="mac-multi-campo mac-multi-campo-n">Netto &euro;<input type="text" id="mac-multi-n-' + i + '" inputmode="decimal" value="' + macEsc(r.netto) + '" placeholder="netto 1" oninput="macMultiLeggi()"></label>') +
+                '<label class="mac-multi-campo mac-multi-campo-cb">Codice a barre <span class="mac-multi-cb-stato" id="mac-multi-cbs-' + i + '"></span>' +
+                    '<input type="text" id="mac-multi-cb-' + i + '" value="' + macEsc(r.art.codice_barre || '') + '" placeholder="leggi o scrivi" autocomplete="off"' +
+                    ' onkeydown="macMultiCbTasto(event, ' + i + ')" onchange="macMultiCbSalva(' + i + ')"></label>' +
                 '<button type="button" class="mac-multi-togli" onclick="macMultiTogli(' + i + ')" title="Togli dall&#39;elenco" aria-label="Togli">&#10006;</button>' +
             '</div>' +
             '<div class="mac-multi-matr"><span>Matricole' + (set ? ' <small>(componente principale)</small>' : '') + '</span>' +
@@ -3601,6 +3618,76 @@ function macMultiRender() {
         '</div>';
     }).join('');
     macMultiAnteprima();
+}
+
+// ---------- Codice a barre dell'articolo (v8.8.1) ----------
+function macMultiMessaggio(html, tipo) {
+    const el = document.getElementById('mac-multi-msg');
+    if (!el) return;
+    el.innerHTML = html || '';
+    el.className = 'mac-multi-msg' + (html ? ' mac-multi-msg-' + (tipo || 'info') : '');
+}
+
+// Salva il codice a barre sull'articolo del listino (controlla che non sia gia' di un altro)
+async function macMultiSalvaCodiceSu(a, codiceGrezzo) {
+    const codice = listinoPulisciCodiceBarre(codiceGrezzo);
+    if (!codice) return false;
+    if (listinoStessoCodiceBarre(a.codice_barre, codice)) return true;
+    const proprietario = listinoArticoloDaCodiceBarre(codice);
+    if (proprietario && proprietario.id !== a.id) {
+        await showCustomAlert('Il codice ' + macEsc(codice) + ' &egrave; gi&agrave; di &quot;' + macEsc(macNome(proprietario)) + '&quot;.', 'Codice gi&agrave; usato', '&#9888;&#65039;');
+        return false;
+    }
+    if (a.codice_barre && !window.confirm('"' + macNome(a) + '" ha gi\u00e0 il codice a barre ' + a.codice_barre + '.\n\nSostituirlo con ' + codice + '?')) return false;
+    return await macAssociaCodice(a, codice);
+}
+
+// Invio nel campo (anche dal lettore): salva
+function macMultiCbTasto(e, i) {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    e.target.blur();   // fa partire onchange una volta sola
+}
+
+async function macMultiCbSalva(i) {
+    const r = macMultiRighe[i];
+    const campo = document.getElementById('mac-multi-cb-' + i);
+    const stato = document.getElementById('mac-multi-cbs-' + i);
+    if (!r || !campo) return;
+    const codice = listinoPulisciCodiceBarre(campo.value);
+    if (!codice) {
+        campo.value = r.art.codice_barre || '';   // per togliere un codice si usa la scheda del listino
+        return;
+    }
+    if (stato) stato.innerHTML = '&#8987;';
+    const ok = await macMultiSalvaCodiceSu(r.art, codice);
+    campo.value = r.art.codice_barre || '';
+    if (stato) {
+        stato.innerHTML = ok ? '&#10004;&#65039; salvato' : '';
+        if (ok) setTimeout(() => { if (stato) stato.innerHTML = ''; }, 3000);
+    }
+}
+
+// Invio nella ricerca (es. codice letto dal lettore): se e' il codice di un articolo lo aggiungo,
+// altrimenti resta "in sospeso" e va sull'articolo che si tocca dopo
+async function macMultiCercaTasto(e) {
+    if (e.key !== 'Enter') return;
+    const campo = e.target;
+    const codice = listinoPulisciCodiceBarre(campo.value);
+    if (!codice || codice.length < 4) return;
+    e.preventDefault();
+    const a = listinoArticoloDaCodiceBarre(codice);
+    if (a) {
+        macPickerChiudi('mac-multi-search');
+        macMultiMessaggio('');
+        await macMultiAggiungi(a);
+        return;
+    }
+    macMultiCodiceSospeso = codice;
+    macMultiMessaggio('&#127991;&#65039; Codice <strong>' + macEsc(codice) + '</strong> non &egrave; di nessun articolo: cerca il modello e toccalo, il codice viene salvato su quell&#39;articolo. ' +
+        '<button type="button" class="mac-link" onclick="macMultiCodiceSospeso = null; macMultiMessaggio(\'\')">Non salvarlo</button>', 'avviso');
+    campo.value = '';
+    campo.focus();
 }
 
 function macMultiTogli(i) {

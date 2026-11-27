@@ -1,5 +1,8 @@
 # Changelog App Magazzino
 
+## v8.2.1 - 2026-11-27 (PRODUZIONE)
+ok cb
+
 ## v8.2.0 - 2026-11-26 (PRODUZIONE)
 ok grafiche carico
 

@@ -2314,7 +2314,7 @@
 .mac-multi-riga:first-child { box-shadow: 0 0 0 2px rgba(104, 142, 83, 0.25); }   /* l'ultima aggiunta */
 .mac-multi-testa {
     display: grid;
-    grid-template-columns: 30px minmax(0, 1fr) 90px 130px 40px;
+    grid-template-columns: 30px minmax(0, 1fr) 90px 130px 210px 40px;
     gap: 12px;
     align-items: center;
 }
@@ -2352,6 +2352,17 @@
     .mac-multi-togli { grid-column: 4; grid-row: 1; align-self: start; }
     .mac-multi-campo-q { grid-column: 2; grid-row: 2; }
     .mac-multi-campo-n { grid-column: 3; grid-row: 2; }
+    .mac-multi-campo-cb { grid-column: 2 / 4; grid-row: 3; }
     .mac-multi-matr { margin-left: 0; flex-direction: column; gap: 4px; }
     .mac-multi-matr > span { padding-top: 0; }
 }
+
+/* Codice a barre nel Carico piu' modelli (v8.8.1) */
+.mac-multi-campo-cb input { text-transform: uppercase; font-size: 13px; }
+.mac-multi-campo-cb { position: relative; }
+.mac-multi-cb-stato { position: absolute; right: 0; top: 0; font-weight: 400; color: #15803d; }
+#mac-multi-msg { flex-shrink: 0; margin-top: 8px; }
+#mac-multi-msg:empty { display: none; }
+.mac-multi-msg-info { background: #eff6ff; color: #1e40af; border-radius: 8px; padding: 8px 10px; }
+.mac-multi-msg-ok { background: #f0fdf4; color: #166534; border-radius: 8px; padding: 8px 10px; }
+.mac-multi-msg-avviso { background: #fffbeb; color: #92400e; border-radius: 8px; padding: 8px 10px; }
