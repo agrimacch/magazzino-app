@@ -559,7 +559,7 @@ async function openInventarioMacchine() {
         container.innerHTML = '<div class="card"><p style="text-align:center">&#8987; Caricamento inventario...</p></div>';
     }
     try {
-        if (!listinoCaricato) await loadListino();
+        await listinoArticoliAggiorna();   // v8.8.2: sempre gli articoli aggiornati
         await macCaricaDati();
     } catch (error) {
         console.error('Errore caricamento inventario macchine:', error);

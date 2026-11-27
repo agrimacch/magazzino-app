@@ -298,7 +298,7 @@ async function openOrdiniClienti() {
         container.innerHTML = '<div class="card"><p style="text-align:center">&#8987; Caricamento ordini...</p></div>';
     }
     try {
-        if (!listinoCaricato) await loadListino();
+        await listinoArticoliAggiorna();   // v8.8.2: sempre gli articoli aggiornati
         await macCaricaDati();
         await ordCaricaDati();
         if (typeof loadAllUsers === 'function') {

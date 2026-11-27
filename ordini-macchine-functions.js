@@ -157,7 +157,7 @@ async function openOrdiniMacchine() {
     const pagina = document.getElementById('om-pagina');
     if (pagina && !omCaricato) pagina.innerHTML = '<p class="mac-q-vuoto">&#8987; Caricamento ordini...</p>';
     try {
-        if (!listinoCaricato) await loadListino();
+        await listinoArticoliAggiorna();   // v8.8.2: sempre gli articoli aggiornati
         await macCaricaDati();
         if (typeof loadAllUsers === 'function' && Object.keys(userInitials || {}).length === 0) await loadAllUsers();
     } catch (error) {

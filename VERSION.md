@@ -1,5 +1,8 @@
 # Changelog App Magazzino
 
+## v8.2.2 - 2026-11-27 (PRODUZIONE)
+cambio modello
+
 ## v8.2.1 - 2026-11-27 (PRODUZIONE)
 ok cb
 

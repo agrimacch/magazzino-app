@@ -270,7 +270,7 @@ async function rafApri() {
     if (typeof macPuoGestire === 'function' && !macPuoGestire()) return;
     if (!macCaricato) {
         try {
-            if (!listinoCaricato) await loadListino();
+            await listinoArticoliAggiorna();   // v8.8.2: sempre gli articoli aggiornati
             await macCaricaDati();
         } catch (error) {
             await showCustomAlert('Inventario macchine non disponibile:<br>' + macEsc(error.message), 'Errore', '&#10060;');

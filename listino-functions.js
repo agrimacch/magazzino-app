@@ -307,6 +307,24 @@ async function listinoFetchAll(tabella) {
     return tutti;
 }
 
+// v8.8.2: rilegge gli articoli del listino (senza ridisegnare il listino) quando si apre una sezione che li usa
+// (Inventario Macchine, Ordini Fornitore, Ordini, Carico a raffica): prima si teneva la copia del primo
+// caricamento e un articolo rinominato o modificato (da un altro PC, da un collega) compariva col nome vecchio.
+async function listinoArticoliAggiorna() {
+    if (!listinoCaricato) { await loadListino(); return; }
+    try {
+        listinoArticoli = await listinoFetchAll('listino_articoli');
+    } catch (error) {
+        console.warn('Articoli del listino non riletti (resta la copia di prima):', error.message || error);
+    }
+}
+
+// Sezioni che mostrano gli articoli del listino: le ridisegno dopo averli riletti
+function listinoRidisegnaSezioniCollegate() {
+    const visibile = id => { const el = document.getElementById(id); return el && !el.classList.contains('hidden'); };
+    if (visibile('section-inventario-macchine') && typeof macRenderTutto === 'function') macRenderTutto();
+}
+
 async function loadListino() {
     const container = document.getElementById('listino-container');
     if (container && !listinoCaricato) {
@@ -1580,6 +1598,7 @@ async function saveListinoEdit(e) {
     closeListinoEdit();
     listinoStoricoCaricato = false;
     await loadListino();
+    listinoRidisegnaSezioniCollegate();
     // Se l'articolo e' stato creato dal carico dell'inventario macchine, lo seleziona li'
     if (typeof macDopoSalvataggioListino === 'function') macDopoSalvataggioListino(idSalvato, !a);
     // Se l'articolo e' stato creato da Listini Fornitori ("Crea"), lo collega li'
@@ -2267,7 +2286,11 @@ function listinoAggiornaDaRemoto() {
     if (!listinoCaricato) return; // il listino verra' caricato quando si apre
 
     const sezione = document.getElementById('section-listino-vendite');
-    if (!sezione || sezione.classList.contains('hidden')) return; // si ricarica comunque all'apertura
+    if (!sezione || sezione.classList.contains('hidden')) {
+        // Listino chiuso: rileggo solo gli articoli, cosi' Inventario Macchine & co. mostrano i nomi nuovi
+        listinoArticoliAggiorna().then(listinoRidisegnaSezioniCollegate);
+        return;
+    }
 
     const editModal = document.getElementById('listino-edit-modal');
     if ((editModal && !editModal.classList.contains('hidden')) || listinoImportPlan) {
