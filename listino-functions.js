@@ -903,17 +903,38 @@ function listinoCostruisciPiano(righeFile, articoliDb) {
         errori: [],        // bloccano l'import (es. codice a barre doppio)
         codiciBarre: [],   // codici a barre nuovi o cambiati
         upserts: [],
+        rinomine: [],      // v8.8.3: articoli rinominati nel file -> si aggiorna l'articolo esistente (per id)
+        rinominati: [],    // [{ riga, vecchio }] per l'anteprima
         storico: []
     };
 
     const dbPerChiave = new Map();
     articoliDb.forEach(a => dbPerChiave.set(a.chiave, a));
     const chiaviFile = new Set();
+    righeFile.forEach(r => chiaviFile.add(r.chiave));
     const origineNuovi = piano.primoCaricamento ? 'IMPORT INIZIALE' : 'NUOVO ARTICOLO';
 
+    // v8.8.3: ARTICOLI RINOMINATI. Una riga del file che non corrisponde a nessun articolo (marchio/modello/note
+    // cambiati) ma ha lo stesso CODICE A BARRE o CODICE ARTICOLO di un articolo attivo che nel file non c'e' piu'
+    // e' lo stesso articolo con il nome nuovo: si aggiorna quello (restano macchine in inventario, ordini, storico).
+    const rinominaDi = new Map();   // chiave nuova -> articolo esistente
+    const rinominatiId = new Set();
+    const normCod = c => String(c || '').toUpperCase().replace(/\s+/g, '');
+    const orfani = articoliDb.filter(a => a.attivo && !chiaviFile.has(a.chiave));
     righeFile.forEach(r => {
-        chiaviFile.add(r.chiave);
-        const esistente = dbPerChiave.get(r.chiave);
+        if (dbPerChiave.has(r.chiave)) return;
+        const candidati = orfani.filter(a => !rinominatiId.has(a.id) && (
+            (r.codice_barre && a.codice_barre && listinoStessoCodiceBarre(a.codice_barre, r.codice_barre)) ||
+            (r.codice_articolo && a.codice_articolo && normCod(a.codice_articolo) === normCod(r.codice_articolo))));
+        if (candidati.length === 1) {
+            rinominaDi.set(r.chiave, candidati[0]);
+            rinominatiId.add(candidati[0].id);
+        }
+    });
+
+    righeFile.forEach(r => {
+        const rinominato = rinominaDi.get(r.chiave) || null;
+        const esistente = dbPerChiave.get(r.chiave) || rinominato;
 
         if (!esistente) {
             // ARTICOLO NUOVO: prendo anche netto 2 e netto 3 dal file
@@ -984,6 +1005,13 @@ function listinoCostruisciPiano(righeFile, articoliDb) {
 
         if (!esistente.attivo) piano.riattivati.push(r);
 
+        if (rinominato) {
+            // stesso articolo con il nome nuovo: aggiorno per id (l'upsert per chiave ne creerebbe uno nuovo)
+            piano.rinomine.push({ id: rinominato.id, dati: aggiornato });
+            piano.rinominati.push({ riga: r, vecchio: rinominato });
+            r._differenze = listinoNotDifferenze(esistente, aggiornato);
+            return;
+        }
         if (cambiato) {
             piano.upserts.push(aggiornato);
             // Per la notifica: quali campi sono cambiati
@@ -996,7 +1024,7 @@ function listinoCostruisciPiano(righeFile, articoliDb) {
 
     // Articoli attivi che non sono piu' nel file -> cancellati
     articoliDb.forEach(a => {
-        if (a.attivo && !chiaviFile.has(a.chiave)) piano.cancellati.push(a);
+        if (a.attivo && !chiaviFile.has(a.chiave) && !rinominatiId.has(a.id)) piano.cancellati.push(a);
     });
 
     // Codici a barre doppi: dopo l'import ogni codice deve appartenere a un solo articolo
@@ -1013,7 +1041,7 @@ function listinoCostruisciPiano(righeFile, articoliDb) {
             'riga ' + r.riga_excel + ' (' + listinoDescrizione(r) + ')');
     });
     articoliDb.forEach(a => {
-        if (!chiaviFile.has(a.chiave)) {
+        if (!chiaviFile.has(a.chiave) && !rinominatiId.has(a.id)) {
             aggiungi(listinoPulisciCodiceBarre(a.codice_barre), listinoDescrizione(a) + (a.attivo ? ' (non &#232; nel file)' : ' (tra gli articoli cancellati)'));
         }
     });
@@ -1091,13 +1119,19 @@ function listinoElenco(titolo, voci, aperto) {
         '</details>';
 }
 
+// Macchine non ancora consegnate di un articolo (in casa, ordinate, da ordinare), se l'inventario e' caricato
+function listinoMacchineInCasa(articoloId) {
+    if (typeof macPezzi === 'undefined' || !Array.isArray(macPezzi)) return 0;
+    return macPezzi.filter(p => p.articolo_id === articoloId && p.stato !== 'CONSEGNATA').length;
+}
+
 function renderListinoAnteprima(piano) {
     const anteprima = document.getElementById('listino-import-anteprima');
     const nAttiviPrima = piano.invariati + piano.aggiornati.length + piano.nettiCambiati.length +
         piano.cancellati.length - piano.riattivati.length;
     const tantiCancellati = !piano.primoCaricamento && piano.cancellati.length > 0 &&
         piano.cancellati.length >= Math.max(20, nAttiviPrima * 0.3);
-    const nienteDaFare = piano.upserts.length === 0 && piano.cancellati.length === 0;
+    const nienteDaFare = piano.upserts.length === 0 && piano.cancellati.length === 0 && !(piano.rinomine || []).length;
     const bloccato = piano.errori && piano.errori.length > 0;
 
     let html =
@@ -1108,6 +1142,18 @@ function renderListinoAnteprima(piano) {
         html += '<div class="listino-box listino-box-info"><strong>&#128640; Primo caricamento</strong><br>' +
             'Il listino &#232; vuoto: verranno importati tutti gli articoli del file, con netto 1, netto 2 e netto 3 cos&#236; come sono. ' +
             'Dai prossimi caricamenti aggiorni solo NETTO 1 e NOTE 1: lo scalamento lo fa l\'app.</div>';
+    }
+
+    // v8.8.3: articoli che vanno in cancellati ma hanno macchine in inventario o ordinate per i clienti
+    const conMacchine = piano.cancellati.filter(a => listinoMacchineInCasa(a.id) > 0);
+    if (conMacchine.length) {
+        html += '<div class="listino-box listino-box-errore"><strong>&#9888;&#65039; ' + conMacchine.length +
+            (conMacchine.length === 1 ? ' articolo che va' : ' articoli che vanno') + ' in "Articoli cancellati" ' +
+            (conMacchine.length === 1 ? 'ha' : 'hanno') + ' macchine in Inventario Macchine</strong> (in casa, ordinate o da ordinare):<ul>' +
+            conMacchine.slice(0, 20).map(a => '<li>' + listinoDescrizione(a) + ' &mdash; ' + listinoMacchineInCasa(a.id) + '</li>').join('') + '</ul>' +
+            'Le macchine non si perdono (restano sull&#39;articolo cancellato, che si pu&ograve; ripristinare), ma l&#39;articolo sparisce dal listino. ' +
+            'Se l&#39;hai <strong>cancellato per sbaglio</strong> rimettilo nel file. Se l&#39;hai <strong>rinominato</strong>, scrivi nella riga nuova il suo ' +
+            '<strong>codice a barre</strong> o <strong>codice articolo</strong>: l&#39;app lo riconosce e lo rinomina invece di crearne uno nuovo.</div>';
     }
 
     if (tantiCancellati) {
@@ -1122,6 +1168,7 @@ function renderListinoAnteprima(piano) {
             '<div class="listino-riepilogo-item"><span>&#128176; Netti cambiati</span><strong>' + piano.nettiCambiati.length + '</strong></div>' +
             '<div class="listino-riepilogo-item"><span>&#9999;&#65039; Altre modifiche</span><strong>' + piano.aggiornati.length + '</strong></div>' +
             '<div class="listino-riepilogo-item"><span>&#9851;&#65039; Ripristinati</span><strong>' + piano.riattivati.length + '</strong></div>' +
+            ((piano.rinominati || []).length ? '<div class="listino-riepilogo-item"><span>&#128260; Rinominati</span><strong>' + piano.rinominati.length + '</strong></div>' : '') +
             '<div class="listino-riepilogo-item"><span>&#128465; Cancellati</span><strong>' + piano.cancellati.length + '</strong></div>' +
             '<div class="listino-riepilogo-item"><span>&#10004; Invariati</span><strong>' + piano.invariati + '</strong></div>' +
         '</div>';
@@ -1133,7 +1180,12 @@ function renderListinoAnteprima(piano) {
     html += listinoElenco('&#10133; Nuovi articoli', piano.primoCaricamento ? [] : piano.nuovi.map(listinoDescrizione), true);
     html += listinoElenco('&#9999;&#65039; Altre modifiche (descrizioni o prezzi di vendita)', piano.aggiornati.map(listinoDescrizione), false);
     html += listinoElenco('&#9851;&#65039; Tornano nel listino', piano.riattivati.map(listinoDescrizione), true);
-    html += listinoElenco('&#128465; Vanno in "Articoli cancellati"', piano.cancellati.map(listinoDescrizione), true);
+    html += listinoElenco('&#128260; Rinominati (riconosciuti dal codice a barre o dal codice articolo: restano macchine, ordini e storico)',
+        (piano.rinominati || []).map(x => listinoDescrizione(x.vecchio) + ' &#8594; <strong>' + listinoDescrizione(x.riga) + '</strong>'), true);
+    html += listinoElenco('&#128465; Vanno in "Articoli cancellati"', piano.cancellati.map(a => {
+        const n = listinoMacchineInCasa(a.id);
+        return listinoDescrizione(a) + (n ? ' <strong class="listino-in-inventario">&#9888;&#65039; ' + n + ' in Inventario Macchine</strong>' : '');
+    }), true);
     html += listinoElenco('&#127991;&#65039; Codici a barre nuovi o cambiati',
         piano.codiciBarre.map(c => listinoDescrizione(c.riga) + ': <strong>' +
             (c.vecchio ? listinoEsc(c.vecchio) + ' &#8594; ' : '') + listinoEsc(c.nuovo) + '</strong>'), false);
@@ -1178,6 +1230,10 @@ function cancelListinoImport() {
 // IMPORT EXCEL - SCRITTURA SU SUPABASE
 // ========================================
 async function confirmListinoImport() {
+    const pianoCtrl = listinoImportPlan;
+    const conMacchine = pianoCtrl ? pianoCtrl.cancellati.filter(a => listinoMacchineInCasa(a.id) > 0).length : 0;
+    if (conMacchine && !window.confirm(conMacchine + (conMacchine === 1 ? ' articolo che va' : ' articoli che vanno') +
+        ' in "Articoli cancellati" ' + (conMacchine === 1 ? 'ha' : 'hanno') + ' macchine in Inventario Macchine.\n\nConfermare lo stesso l\'import?')) return;
     const piano = listinoImportPlan;
     if (!piano || (piano.errori && piano.errori.length > 0)) return;
 
@@ -1202,6 +1258,13 @@ async function confirmListinoImport() {
                 .select('id, chiave');
             if (error) throw error;
             (data || []).forEach(d => { idPerChiave[d.chiave] = d.id; });
+        }
+        // 1bis. Articoli rinominati (v8.8.3): aggiorno l'articolo esistente, con il nome nuovo
+        for (const rn of (piano.rinomine || [])) {
+            const { error } = await supabaseClient.from('listino_articoli')
+                .update(listinoTogliCodiceArticoloSeManca(Object.assign({}, rn.dati))).eq('id', rn.id);
+            if (error) throw error;
+            idPerChiave[rn.dati.chiave] = rn.id;
         }
 
         // 2. Storico netti
@@ -1250,6 +1313,7 @@ async function confirmListinoImport() {
         'Netti cambiati: <strong>' + piano.nettiCambiati.length + '</strong><br>' +
         'Altre modifiche: <strong>' + piano.aggiornati.length + '</strong><br>' +
         'Ripristinati: <strong>' + piano.riattivati.length + '</strong><br>' +
+        ((piano.rinominati || []).length ? 'Rinominati: <strong>' + piano.rinominati.length + '</strong><br>' : '') +
         'Spostati in cancellati: <strong>' + piano.cancellati.length + '</strong>';
 
     // Notifica (campanella + Telegram): un solo messaggio di riepilogo
@@ -2061,6 +2125,7 @@ function listinoNotRigheImport(piano) {
         [piano.nuovi.length, 'nuovi'],
         [piano.aggiornati.length, 'altre modifiche'],
         [piano.riattivati.length, 'ripristinati'],
+        [(piano.rinominati || []).length, 'rinominati'],
         [piano.cancellati.length, 'cancellati']
     ].filter(c => c[0] > 0).map(c => c[0] + ' ' + c[1]);
 
