@@ -1,5 +1,8 @@
 # Changelog App Magazzino
 
+## v8.2.7 - 2026-11-27 (PRODUZIONE)
+cartellini promo
+
 ## v8.2.6 - 2026-11-27 (PRODUZIONE)
 rapportini tecnici
 
