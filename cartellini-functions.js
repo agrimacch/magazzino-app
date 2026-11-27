@@ -12,11 +12,12 @@
 // logo, garanzia e assistenza valgono per tutta la marca (tabella cartellini_marche).
 // L'app segna quando un cartellino e' stato stampato e cosi' sa quali sono da ristampare
 // (prezzo, promo, scheda o marca cambiati dopo la stampa) o da togliere (promo finita).
-// Per ora solo admin: CART_RUOLI qui e cartellini_puo_gestire() su Supabase (supabase/cartellini-setup.sql).
+// Admin e operatori (dalla v8.3.0): CART_RUOLI qui e cartellini_puo_gestire() su Supabase
+// (supabase/cartellini-setup.sql + supabase/cartellini-operatori.sql). I tecnici no.
 // Il PDF si crea con html2canvas + jsPDF (pdfCaricaLibrerie / pdfApriInScheda in ordini-functions.js).
 // ========================================
 
-const CART_RUOLI = ['admin'];
+const CART_RUOLI = ['admin', 'operatore'];
 const CART_MAX_ELENCO = 300;
 // Cartellino bianco: angolo del foglio A4 (mm) in cui si stampa
 const CART_POSIZIONI_BIANCO = { as: [0, 0], ad: [105, 0], bs: [0, 148.5], bd: [105, 148.5] };
@@ -476,6 +477,10 @@ async function cartCreaPdf(tipo, lista) {
     try {
         const immagini = Array.from(foglio.querySelectorAll('img'));
         await Promise.all(immagini.map(img => img.complete ? Promise.resolve() : new Promise(r => { img.onload = r; img.onerror = r; })));
+        // Roboto Mono deve essere caricato prima della "foto" (altrimenti esce un altro carattere)
+        if (document.fonts && document.fonts.load) {
+            try { await Promise.all(['400', '700'].map(p => document.fonts.load(p + ' 20px "Roboto Mono"'))); } catch (e) { /* niente */ }
+        }
         if (document.fonts && document.fonts.ready) { try { await document.fonts.ready; } catch (e) { /* niente */ } }
         window.scrollTo(0, 0);
         const carte = Array.from(foglio.children);
@@ -573,7 +578,7 @@ function cartApri(id) {
     if (p && p.scaduta) avvisi.push('La promo del listino &#232; <strong>scaduta</strong>: il cartellino giallo non si stampa.');
     if (p && !p.data && !p.scaduta) avvisi.push('Nella SCADENZA PROMO del listino non c&#39;&#232; una data: sul giallo non si stampa &quot;FINO AL&quot;.');
 
-    document.getElementById('cart-m-titolo').innerHTML = '&#127991;&#65039; ' + cartEsc(a.marchio) + ' ' + cartEsc(a.modello || a.note || '');
+    document.getElementById('cart-m-titolo').innerHTML = '&#128204; ' + cartEsc(a.marchio) + ' ' + cartEsc(a.modello || a.note || '');
     document.getElementById('cart-m-corpo').innerHTML =
         '<div class="cart-m-griglia">' +
             '<div class="cart-m-form">' +

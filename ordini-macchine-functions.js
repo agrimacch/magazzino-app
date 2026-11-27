@@ -218,8 +218,10 @@ function omRender() {
             : '&#9989; Nessuna macchina da ordinare.';
     }
 
+    const colori = typeof macColoriDivisori === 'function' ? macColoriDivisori(marchi) : {};
     divisori.innerHTML = marchi.map(m =>
-        '<button type="button" class="mac-divisorio' + (m === marchio ? ' active' : '') + '" data-om-marchio="' + macEsc(m) + '">' +
+        '<button type="button" class="mac-divisorio' + (m === marchio ? ' active' : '') + '" data-om-marchio="' + macEsc(m) + '"' +
+            (colori[m] ? ' style="' + colori[m] + '"' : '') + '>' +
             '<span>' + macEsc(m) + '</span>' + (conta[m] ? '<span class="om-badge">' + conta[m] + '</span>' : '') + '</button>'
     ).join('');
 

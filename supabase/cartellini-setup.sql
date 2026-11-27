@@ -5,7 +5,7 @@
 --   non ha (tipo, nome sul cartellino, caratteristiche) e quando e' stato stampato
 --   (per sapere quali cartellini sono da ristampare). I PREZZI si leggono sempre dal listino.
 -- cartellini_marche: logo, testo garanzia e assistenza per ogni marchio.
--- Per ora solo admin (cartellini_puo_gestire()).
+-- Admin e operatori (cartellini_puo_gestire()); i tecnici no.
 --
 -- Come si usa: Supabase > SQL Editor > New query, incolla tutto e premi Run.
 -- Si puo' rieseguire senza problemi.
@@ -53,7 +53,7 @@ drop trigger if exists cartellini_marche_updated on public.cartellini_marche;
 create trigger cartellini_marche_updated before update on public.cartellini_marche
     for each row execute function public.cartellini_set_updated_at();
 
--- Chi puo' usare i cartellini (deve corrispondere a CART_RUOLI in cartellini-functions.js)
+-- Chi puo' usare i cartellini: admin e operatori (deve corrispondere a CART_RUOLI in cartellini-functions.js)
 create or replace function public.cartellini_puo_gestire()
 returns boolean
 language sql
@@ -61,7 +61,11 @@ stable
 security definer
 set search_path = public
 as $$
-    select public.is_admin();
+    select exists (
+        select 1 from public.user_roles
+        where lower(email) = lower(coalesce(auth.jwt() ->> 'email', ''))
+          and role in ('admin', 'operatore')
+    );
 $$;
 
 alter table public.cartellini_negozio enable row level security;

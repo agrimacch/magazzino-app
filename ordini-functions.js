@@ -2126,6 +2126,13 @@ function pdfSuIos() {
     return /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 }
 
+// Safari sul Mac: stampando il PDF mostrato dentro la pagina (iframe) esce un foglio BIANCO.
+// Li' il pulsante apre il PDF da solo nella scheda e si stampa con Cmd+P (v8.3.0).
+function pdfSuSafariMac() {
+    const ua = navigator.userAgent || '';
+    return !pdfSuIos() && /Safari\//.test(ua) && !/Chrome|Chromium|CriOS|FxiOS|Edg\/|OPR\/|Firefox/.test(ua);
+}
+
 function pdfEscNome(v) {
     return String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
@@ -2140,13 +2147,16 @@ function pdfPaginaScheda(url, nomeFile) {
         '.nome{flex:1 1 220px;font-weight:700;font-size:14px;overflow-wrap:anywhere}' +
         '.btn{display:inline-block;background:#fff;color:#3f5a2c;border:none;border-radius:8px;padding:9px 14px;font-weight:700;font-size:14px;text-decoration:none;cursor:pointer}' +
         'iframe{flex:1;width:100%;border:0;background:#fff}' +
-        '.ios{padding:30px 18px;color:#fff;text-align:center;font-size:15px;line-height:1.5}';
+        '.ios{padding:30px 18px;color:#fff;text-align:center;font-size:15px;line-height:1.5}' +
+        '.nota{font-size:13px;opacity:.9}';
     return '<!DOCTYPE html><html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">' +
         '<title>' + nome + '</title><style>' + stile + '</style></head><body>' +
         '<div class="barra"><span class="nome">&#128196; ' + nome + '</span>' +
             '<a class="btn" href="' + url + '" download="' + nome + '">&#11015;&#65039; Scarica PDF</a>' +
             (ios ? '<a class="btn" href="' + url + '">&#128065;&#65039; Apri il PDF</a>'
-                 : '<button class="btn" type="button" onclick="try{document.getElementById(\'pdf\').contentWindow.print()}catch(e){window.print()}">&#128424;&#65039; Stampa</button>') +
+                 : (pdfSuSafariMac()
+                    ? '<a class="btn" href="' + url + '">&#128424;&#65039; Apri per stampare</a><span class="nota">poi premi Cmd+P</span>'
+                    : '<button class="btn" type="button" onclick="try{document.getElementById(\'pdf\').contentWindow.print()}catch(e){window.print()}">&#128424;&#65039; Stampa</button>')) +
         '</div>' +
         (ios ? '<div class="ios">Il PDF &egrave; pronto.<br>Tocca <strong>Scarica PDF</strong> per salvarlo con il suo nome, oppure <strong>Apri il PDF</strong> per vederlo e stamparlo.</div>'
              : '<iframe id="pdf" src="' + url + '" title="' + nome + '"></iframe>') +

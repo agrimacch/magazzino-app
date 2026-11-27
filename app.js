@@ -11,7 +11,7 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 // ========================================
 // VARIABILI GLOBALI
 // ========================================
-const CURRENT_VERSION = '8.2.7';
+const CURRENT_VERSION = '8.2.8';
 const SHOW_WHATS_NEW_POPUP = false;
 
 let currentUser = null;
@@ -70,7 +70,7 @@ function sezioneConsentita(sectionName) {
     if (sectionName === 'tecnici') sectionName = 'assistenza';
     // Magazzino esterno mezzi (v8.1.0): MZ_RUOLI in mezzi-functions.js (dalla v8.5.0 admin, operatori e tecnici)
     if (sectionName === 'mezzi') return typeof mzPuoVedere === 'function' && mzPuoVedere();
-    // Cartellini negozio (v8.3.0): CART_RUOLI in cartellini-functions.js (per ora solo admin)
+    // Cartellini negozio (v8.3.0): CART_RUOLI in cartellini-functions.js (admin e operatori)
     if (sectionName === 'cartellini') return typeof cartPuoVedere === 'function' && cartPuoVedere();
     if (SEZIONI_ASSISTENZA_RUOLI[sectionName]) return SEZIONI_ASSISTENZA_RUOLI[sectionName].includes(currentUserRole);
     if (sectionName === 'buoni-regalo') return BUONI_RUOLI.includes(currentUserRole);

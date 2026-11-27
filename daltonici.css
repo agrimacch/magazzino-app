@@ -59,7 +59,7 @@ body.daltonici .mac-excel-err .mac-excel-tag {
     color: #8a3300;
 }
 
-body.daltonici .mac-divisorio.active { border-bottom-color: #D55E00; }
+body.daltonici .mac-divisorio.active { border-bottom-color: #000; }
 body.daltonici .mac-raf-riga-allarme { background: #fbe3d4; }
 body.daltonici .mac-raf-ok { color: #0072B2; }
 body.daltonici .mac-raf-ok::before { content: '\2714\00a0'; }

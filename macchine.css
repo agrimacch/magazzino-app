@@ -391,9 +391,9 @@
 
 .mac-divisorio {
     flex: 0 0 auto;
-    background: #f8fafc;
-    border: 2px solid #cbd5e1;
-    border-bottom: 4px solid var(--mac-blu);
+    background: var(--div-sfondo, #f8fafc);
+    border: 2px solid var(--div-forte, #cbd5e1);
+    border-bottom: 4px solid var(--div-forte, var(--mac-blu));
     border-radius: 8px 8px 0 0;
     padding: 8px 12px;
     font-family: 'Roboto Mono', monospace;
@@ -404,11 +404,13 @@
     white-space: nowrap;
 }
 
+/* Linguetta aperta: piena del suo colore (v8.3.0, linguette colorate per marchio) */
 .mac-divisorio.active {
-    background: white;
-    border-color: var(--primary);
-    border-bottom-color: #dc2626;
-    color: var(--primary);
+    background: var(--div-forte, white);
+    border-color: var(--div-forte, var(--primary));
+    border-bottom-color: #1f2937;
+    color: white;
+    box-shadow: 0 -2px 6px rgba(15, 23, 42, 0.18);
 }
 
 /* La pagina */
@@ -635,16 +637,16 @@
     .mac-divisorio {
         writing-mode: vertical-rl;
         border-radius: 0 8px 8px 0;
-        border: 2px solid #cbd5e1;
+        border: 2px solid var(--div-forte, #cbd5e1);
         border-left: none;
-        border-right: 4px solid var(--mac-blu);
+        border-right: 4px solid var(--div-forte, var(--mac-blu));
         padding: 12px 8px;
         min-height: 70px;
         text-align: center;
     }
 
     .mac-divisorio.active {
-        border-right-color: #dc2626;
+        border-right-color: #1f2937;
         margin-left: -2px;
         box-shadow: 3px 2px 6px rgba(15, 23, 42, 0.12);
     }

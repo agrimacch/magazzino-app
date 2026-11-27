@@ -65,6 +65,34 @@ function macPuoGestire() {
     return currentUserRole === 'admin' || (MACCHINE_PER_OPERATORI && currentUserRole === 'operatore');
 }
 
+// Linguette del quaderno di colori diversi (v8.3.0). Ogni marchio prende il colore dal suo nome
+// (cosi' non cambia quando arrivano marchi nuovi); se la linguetta prima ha lo stesso colore
+// passa al successivo, cosi' due linguette vicine non sono mai uguali. [sfondo chiaro, colore forte]
+const MAC_COLORI_DIVISORI = [
+    ['#fef08a', '#ca8a04'], ['#fed7aa', '#ea580c'], ['#fecaca', '#dc2626'], ['#fbcfe8', '#db2777'],
+    ['#e9d5ff', '#9333ea'], ['#bfdbfe', '#2563eb'], ['#a5f3fc', '#0e7490'], ['#bbf7d0', '#15803d'],
+    ['#e7d3c1', '#92400e'], ['#e2e8f0', '#475569']
+];
+function macColoreIndice(marchio) {
+    const t = String(marchio || '').trim().toUpperCase();
+    let h = 0;
+    for (let i = 0; i < t.length; i++) h = (h * 31 + t.charCodeAt(i)) >>> 0;
+    return h % MAC_COLORI_DIVISORI.length;
+}
+// marchi: tutti i marchi delle linguette, nell'ordine in cui si vedono -> { marchio: 'style' }
+function macColoriDivisori(marchi) {
+    const out = {};
+    let prima = -1;
+    marchi.forEach(m => {
+        let k = macColoreIndice(m);
+        if (k === prima) k = (k + 1) % MAC_COLORI_DIVISORI.length;
+        prima = k;
+        const c = MAC_COLORI_DIVISORI[k];
+        out[m] = '--div-sfondo:' + c[0] + ';--div-forte:' + c[1];
+    });
+    return out;
+}
+
 function macEsc(v) { return listinoEsc(v); }
 
 function macArticolo(id) {
@@ -883,8 +911,9 @@ function macRenderQuaderno() {
     let marchioScelto = macSessione('macchineMarchio');
     if (!marchioScelto || marchi.indexOf(marchioScelto) === -1) marchioScelto = marchi[0] || '';
 
+    const colori = macColoriDivisori(marchi);
     divisori.innerHTML = marchi.map(m =>
-        '<button type="button" class="mac-divisorio' + (!ricerca && m === marchioScelto ? ' active' : '') + '" data-marchio="' + macEsc(m) + '">' +
+        '<button type="button" class="mac-divisorio' + (!ricerca && m === marchioScelto ? ' active' : '') + '" data-marchio="' + macEsc(m) + '" style="' + colori[m] + '">' +
             '<span>' + macEsc(m) + '</span></button>'
     ).join('');
 

@@ -1,5 +1,11 @@
 # Changelog App Magazzino
 
+## v8.2.8 - 2026-11-27 (PRODUZIONE)
+cartellini ok
+
+## v - 2026-11-27 (PRODUZIONE)
+
+
 ## v8.2.7 - 2026-11-27 (PRODUZIONE)
 cartellini promo
 
