@@ -2366,3 +2366,17 @@
 .mac-multi-msg-info { background: #eff6ff; color: #1e40af; border-radius: 8px; padding: 8px 10px; }
 .mac-multi-msg-ok { background: #f0fdf4; color: #166534; border-radius: 8px; padding: 8px 10px; }
 .mac-multi-msg-avviso { background: #fffbeb; color: #92400e; border-radius: 8px; padding: 8px 10px; }
+
+/* Articoli cancellati nel listino con macchine + Sposta su (v8.9.1) */
+.mac-orfano {
+    display: inline-block; margin-left: 6px; padding: 1px 6px; border-radius: 8px;
+    background: #fee2e2; color: #991b1b; font-size: 11px; font-weight: 700; white-space: nowrap;
+}
+.mac-sposta-link { font-size: 12px; white-space: nowrap; }
+.mac-sposta-da { background: #fef2f2; border-radius: 8px; padding: 8px 10px; margin-bottom: 8px; }
+.mac-sposta-simile {
+    display: block; width: 100%; text-align: left; margin-bottom: 6px; padding: 8px 10px;
+    border: 1px solid #c7d7bd; border-radius: 8px; background: #fafcf8; cursor: pointer;
+    font-family: 'Roboto Mono', monospace; font-size: 13px;
+}
+.mac-sposta-simile:hover { background: #eef5e9; }

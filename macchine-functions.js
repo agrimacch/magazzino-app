@@ -646,6 +646,20 @@ function macCorrispondeFiltri(a, valori, escludi) {
 
 // Un articolo "conta" nell'inventario se ha pezzi non ancora consegnati
 // (oppure e' un set componibile)
+// Articolo tolto dal listino (cancellato) che ha ancora macchine non consegnate
+function macArticoloOrfano(a) {
+    if (!a || a.attivo) return false;
+    const c = macConteggi(a.id);
+    return (c.inCasa + c.ordinate + c.daOrdinare) > 0;
+}
+
+// Etichetta + pulsante "Sposta su..." per gli articoli cancellati con macchine
+function macHtmlOrfano(a) {
+    if (!macArticoloOrfano(a)) return '';
+    return ' <span class="mac-orfano" title="Questo articolo &egrave; tra gli Articoli cancellati del listino">&#128465;&#65039; cancellato nel listino</span>' +
+        (macPuoSpostare() ? ' <button type="button" class="mac-link mac-sposta-link" data-sposta="' + a.id + '">&#128256; Sposta su...</button>' : '');
+}
+
 function macArticoloHaPezzi(a) {
     if (macIsSet(a.id)) return macSetComponibili(a.id) > 0;
     const c = macConteggi(a.id);
@@ -680,8 +694,10 @@ function macRenderInventario() {
     const soloPezzi = soloPezziEl ? soloPezziEl.checked : true;
     const valori = macValoriFiltri();
 
-    const attivi = listinoArticoli.filter(a => a.attivo);
-    const base = soloPezzi ? attivi.filter(macArticoloHaPezzi) : attivi;
+    // v8.9.1: anche gli articoli CANCELLATI nel listino che hanno ancora macchine (es. rinominati nell'Excel):
+    // prima sparivano dall'inventario e si vedevano solo nel quaderno
+    const attivi = listinoArticoli.filter(a => a.attivo || macArticoloOrfano(a));
+    const base = soloPezzi ? attivi.filter(a => macArticoloHaPezzi(a) || macArticoloOrfano(a)) : attivi;
     macPopolaFiltri(base, ricerca, valori);
 
     const filtrati = base.filter(a => listinoCorrispondeRicerca(a, ricerca) && macCorrispondeFiltri(a, valori, null));
@@ -768,7 +784,7 @@ function macRenderInventario() {
                 '<td>' + listinoVal(a.marchio) + '</td>' +
                 '<td>' + listinoVal(a.alimentazione) + '</td>' +
                 '<td>' + listinoVal(a.tipologia_alimentazione) + '</td>' +
-                '<td><strong>' + listinoVal(a.modello) + '</strong></td>' +
+                '<td><strong>' + listinoVal(a.modello) + '</strong>' + macHtmlOrfano(a) + '</td>' +
                 '<td class="listino-col-note">' + listinoVal(a.note) + '</td>' +
                 numeri +
                 '<td class="mac-col-azioni">' + (isSet ? '<button type="button" class="mac-azione" data-carico="' + a.id + '" title="Carica set">&#10133;</button>' : azioni) + '</td>' +
@@ -778,7 +794,7 @@ function macRenderInventario() {
             schede +=
                 '<div class="mac-inv-card">' +
                     '<div class="mac-inv-card-top">' +
-                        '<div>' + macNomeHtml(a) + (sotto ? '<div class="mac-inv-card-sub">' + sotto + '</div>' : '') + '</div>' +
+                        '<div>' + macNomeHtml(a) + macHtmlOrfano(a) + (sotto ? '<div class="mac-inv-card-sub">' + sotto + '</div>' : '') + '</div>' +
                         '<div class="mac-inv-card-btns">' + (isSet ? '<button type="button" class="mac-azione" data-carico="' + a.id + '" title="Carica set">&#10133;</button>' : azioni) + '</div>' +
                     '</div>' +
                     (isSet
@@ -3128,7 +3144,13 @@ document.addEventListener('DOMContentLoaded', () => {
         if ((el = t.closest('[data-carico]'))) { macApriCarico(parseInt(el.dataset.carico, 10)); return; }
         if ((el = t.closest('[data-quaderno]'))) { macApriQuadernoArticolo(parseInt(el.dataset.quaderno, 10)); return; }
         if ((el = t.closest('[data-set-modifica]'))) { macApriSet(parseInt(el.dataset.setModifica, 10)); return; }
+        if ((el = t.closest('[data-sposta]'))) { macSpostaApri(parseInt(el.dataset.sposta, 10)); return; }
     });
+
+    // Sposta le macchine da un articolo cancellato a un altro (v8.9.1)
+    macPickerImposta('mac-sposta-search', 'mac-sposta-results', a => a.attivo, macSpostaScelto);
+    document.getElementById('mac-sposta-close').addEventListener('click', macSpostaChiudi);
+    document.getElementById('mac-sposta-annulla').addEventListener('click', macSpostaChiudi);
 
     // Set: scegli un altro articolo da configurare come set
     macPickerImposta('mac-set-nuovo-search', 'mac-set-nuovo-results', null, (a) => {
@@ -3788,4 +3810,64 @@ async function macMultiSalva() {
     await macRicarica();
     await showCustomAlert(riepilogo.join('<br>'), 'Carico registrato', '&#10004;');
     macArriviMostra();
+}
+
+// ========================================
+// SPOSTA SU UN ALTRO ARTICOLO (v8.9.1, solo admin)
+// ----------------------------------------
+// Articolo rinominato nell'Excel (prima della v8.8.3) o cancellato: le macchine restano sul vecchio articolo,
+// che e' tra gli Articoli cancellati. "Sposta su..." porta macchine, ordini clienti, storico netti,
+// codice a barre ecc. sull'articolo giusto e poi elimina il vecchio (script supabase/listino-sposta-articolo.sql).
+// ========================================
+let macSpostaDa = null;
+
+function macPuoSpostare() {
+    return typeof currentUserRole !== 'undefined' && currentUserRole === 'admin';
+}
+
+function macSpostaApri(id) {
+    const a = macArticolo(id);
+    if (!a || a.attivo || !macPuoSpostare()) return;
+    macSpostaDa = a;
+    const c = macConteggi(a.id);
+    document.getElementById('mac-sposta-da').innerHTML = '<strong>' + macEsc(macNome(a)) + '</strong> &middot; ' +
+        (c.inCasa + c.ordinate + c.daOrdinare + c.consegnate) + ' macchine';
+    // suggerimenti: articoli attivi dello stesso marchio con il modello simile
+    const parola = String(a.modello || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 5);
+    const simili = parola.length >= 3 ? listinoArticoli.filter(x => x.attivo && x.marchio === a.marchio &&
+        String(x.modello || '').toUpperCase().replace(/[^A-Z0-9]/g, '').indexOf(parola) === 0).slice(0, 6) : [];
+    document.getElementById('mac-sposta-simili').innerHTML = simili.length
+        ? '<p class="mac-aiuto">Forse &egrave; uno di questi:</p>' + simili.map(x =>
+            '<button type="button" class="mac-sposta-simile" onclick="macSpostaScelto(macArticolo(' + x.id + '))">' + macNomeHtml(x) + '</button>').join('')
+        : '';
+    document.getElementById('mac-sposta-search').value = '';
+    document.getElementById('mac-sposta-modal').classList.remove('hidden');
+    setTimeout(() => document.getElementById('mac-sposta-search').focus(), 50);
+}
+
+function macSpostaChiudi() {
+    document.getElementById('mac-sposta-modal').classList.add('hidden');
+    macPickerChiudi('mac-sposta-search');
+    macSpostaDa = null;
+}
+
+async function macSpostaScelto(a) {
+    const da = macSpostaDa;
+    if (!da || !a) return;
+    if (a.id === da.id) return;
+    if (!window.confirm('Spostare tutto da\n"' + macNome(da) + '"\nsu\n"' + macNome(a) + '"?\n\n' +
+        'Passano macchine, ordini dei clienti, storico dei netti e codice a barre; poi il vecchio articolo viene eliminato.')) return;
+    const { data, error } = await supabaseClient.rpc('listino_sposta_articolo', { p_da: da.id, p_a: a.id });
+    if (error) {
+        const manca = /listino_sposta_articolo|schema cache|does not exist/i.test(error.message || '');
+        await showCustomAlert(manca
+            ? 'Per usare questa funzione esegui una volta su Supabase lo script <strong>supabase/listino-sposta-articolo.sql</strong>.'
+            : 'Non spostato:<br>' + macEsc(error.message), 'Sposta su altro articolo', '&#10060;');
+        return;
+    }
+    macSpostaChiudi();
+    await loadListino();
+    await macRicarica();
+    await showCustomAlert('Fatto: <strong>' + ((data && data.macchine) || 0) + '</strong> macchine ora sono su <strong>' + macEsc(macNome(a)) + '</strong>' +
+        (data && data.righe_ordini ? ' (e ' + data.righe_ordini + ' righe di ordini clienti)' : '') + '.', 'Sposta su altro articolo', '&#10004;');
 }

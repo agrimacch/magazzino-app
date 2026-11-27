@@ -2585,6 +2585,27 @@
         </div>
     </div>
 
+    <!-- Sposta le macchine da un articolo cancellato a un altro (v8.9.1, solo admin) -->
+    <div id="mac-sposta-modal" class="modal hidden">
+        <div class="modal-content mac-modal-content">
+            <div class="modal-header">
+                <h3>&#128256; Sposta su un altro articolo</h3>
+                <button type="button" class="modal-close" id="mac-sposta-close">&times;</button>
+            </div>
+            <p class="mac-aiuto">Articolo cancellato nel listino (per esempio rinominato nell&#39;Excel):</p>
+            <div id="mac-sposta-da" class="mac-sposta-da"></div>
+            <p class="mac-aiuto">Scegli l&#39;articolo giusto: ci passano macchine, ordini dei clienti, storico dei netti e codice a barre, poi il vecchio viene eliminato. Non serve rifare il carico.</p>
+            <div id="mac-sposta-simili"></div>
+            <div class="mac-picker">
+                <input type="text" id="mac-sposta-search" placeholder="&#128269; Cerca l&#39;articolo giusto..." autocomplete="off">
+                <div id="mac-sposta-results" class="mac-picker-lista hidden"></div>
+            </div>
+            <div class="modal-buttons" style="grid-template-columns: 1fr;">
+                <button type="button" id="mac-sposta-annulla" class="btn-secondary">Annulla</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Carico di piu' modelli insieme, cercando per descrizione (v8.8.0) -->
     <div id="mac-multi-modal" class="modal hidden">
         <div class="modal-content mac-multi-content">

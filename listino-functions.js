@@ -744,6 +744,8 @@ function renderListinoCancellati() {
             '<td class="listino-col-netto"><span class="netto-val">' + listinoFormatEuro(a.netto_1) + '</span></td>' +
             '<td class="listino-col-prezzo">' + listinoFormatEuro(a.listino) + '</td>' +
             '<td class="listino-col-azioni"><button type="button" class="listino-restore-btn btn-back" data-id="' + a.id + '">&#9851;&#65039; Ripristina</button>' +
+                (listinoPuoEliminareDefinitivo() && listinoMacchineTutte(a.id) > 0 && typeof macSpostaApri === 'function'
+                    ? '<button type="button" class="listino-sposta-btn" data-id="' + a.id + '" title="Ha macchine in Inventario Macchine: spostale sull\'articolo giusto">&#128256; Sposta su... (' + listinoMacchineTutte(a.id) + ' macchine)</button>' : '') +
                 (listinoPuoEliminareDefinitivo() ? '<button type="button" class="listino-elimina-btn" data-id="' + a.id + '" title="Elimina per sempre (solo admin)">&#128465;&#65039; Elimina per sempre</button>' : '') + '</td>' +
             '</tr>';
     });
@@ -1120,6 +1122,12 @@ function listinoElenco(titolo, voci, aperto) {
         '<summary>' + titolo + ' (' + voci.length + ')</summary>' +
         '<ul>' + voci.map(v => '<li>' + v + '</li>').join('') + '</ul>' +
         '</details>';
+}
+
+// Tutte le macchine di un articolo (anche consegnate)
+function listinoMacchineTutte(articoloId) {
+    if (typeof macPezzi === 'undefined' || !Array.isArray(macPezzi)) return 0;
+    return macPezzi.filter(p => p.articolo_id === articoloId).length;
 }
 
 // Macchine non ancora consegnate di un articolo (in casa, ordinate, da ordinare), se l'inventario e' caricato
@@ -2737,6 +2745,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 ripristinaListino(parseInt(restore.dataset.id, 10));
                 return;
             }
+            const sposta = e.target.closest('.listino-sposta-btn');
+            if (sposta) { macSpostaApri(parseInt(sposta.dataset.id, 10)); return; }
             const elimina = e.target.closest('.listino-elimina-btn');
             if (elimina) eliminaDefinitivoListino(parseInt(elimina.dataset.id, 10));
         });
