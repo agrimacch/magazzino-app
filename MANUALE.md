@@ -820,3 +820,28 @@ git rm --cached localhost.pem localhost-key.pem
 - **v1.0.0 (gen 2025)** - Prima versione.
 
 Storico completo in `VERSION.md`.
+---
+
+## Cartellini negozio (v8.3.0)
+
+**Dove:** Dashboard > Listini Vendite > **Cartellini negozio** (per ora solo admin). Si apre anche dal pulsante cartellino su ogni riga del Listino Agrimacch.
+
+**Prima volta:** eseguire su Supabase lo script `supabase/cartellini-setup.sql` (SQL Editor > New query > Run).
+
+**Due cartellini:**
+- **Bianco** (10,5 x 14,85 cm): si stampa su A4 normale in un quarto del foglio e poi si piega il foglio in quattro. Contiene logo della marca, tipo, modello, caratteristiche, prezzo LISTINO barrato, riquadro giallo "Per promozioni in corso chiedere al personale", garanzia e assistenza della marca.
+- **Promo** (10 x 10,5 cm): 4 per foglio A4 di **carta gialla**, si stampa solo il testo e si taglia lungo il tratteggio. Contiene FINO AL (data presa da SCADENZA PROMO), prezzo VENDITA PROMO e "(salvo esaurimento scorte)".
+
+**I prezzi arrivano sempre dal listino.** Per ogni modello si scrivono e si salvano solo tipo, nome e caratteristiche (una per riga). Dopo l'import del nuovo Excel basta ristampare.
+
+**Marche e loghi:** per ogni marca si carica il logo (meglio PNG con sfondo trasparente) e si scrivono garanzia (es. GARANZIA FINO A 5 ANNI) e assistenza (predefinita ASSISTENZA DIRETTA). Un campo vuoto non viene stampato.
+
+**Stampa:**
+- dalla finestra del modello: Stampa bianco / Stampa promo (salva anche le modifiche);
+- da elenco: spunta i modelli e premi "Cartellini bianchi" o "Promo gialli";
+- in alto si sceglie in quale quarto del foglio va il bianco e da quale posto (1-4) partire sul foglio giallo gia' usato in parte.
+- Stampare il PDF al **100% / dimensioni reali** (non "adatta alla pagina").
+
+**Da ristampare / togliere:** l'app segna quando un cartellino e' stato stampato. Il filtro "Da ristampare / togliere" mostra i modelli con prezzo listino, scheda o marca cambiati dopo la stampa, promo cambiata, promo nuova su un modello gia' esposto, oppure promo finita (cartellino giallo da togliere: nella finestra premere "Giallo tolto").
+
+**File:** `cartellini-functions.js`, `cartellini.css`, `supabase/cartellini-setup.sql`; collegamenti in `index.html`, `app.js` (permessi e apertura sezione) e `listino-functions.js` (pulsante nel listino).

@@ -70,6 +70,8 @@ function sezioneConsentita(sectionName) {
     if (sectionName === 'tecnici') sectionName = 'assistenza';
     // Magazzino esterno mezzi (v8.1.0): MZ_RUOLI in mezzi-functions.js (dalla v8.5.0 admin, operatori e tecnici)
     if (sectionName === 'mezzi') return typeof mzPuoVedere === 'function' && mzPuoVedere();
+    // Cartellini negozio (v8.3.0): CART_RUOLI in cartellini-functions.js (per ora solo admin)
+    if (sectionName === 'cartellini') return typeof cartPuoVedere === 'function' && cartPuoVedere();
     if (SEZIONI_ASSISTENZA_RUOLI[sectionName]) return SEZIONI_ASSISTENZA_RUOLI[sectionName].includes(currentUserRole);
     if (sectionName === 'buoni-regalo') return BUONI_RUOLI.includes(currentUserRole);
     // Listini Vendite > Listini Fornitori (prezzi): LF_RUOLI_VEDERE in listini-fornitori-functions.js (admin e operatori)
@@ -867,6 +869,12 @@ function applyRolePermissions() {
         lfCard.style.display = sezioneConsentita('listini-prezzi') ? 'flex' : 'none';
     }
 
+    // Card Cartellini negozio (dentro Listini Vendite): CART_RUOLI
+    const cartCard = document.getElementById('vendite-cart-card');
+    if (cartCard) {
+        cartCard.style.display = sezioneConsentita('cartellini') ? 'flex' : 'none';
+    }
+
     // Card Buoni Regalo (dentro Ordini): BUONI_RUOLI
     const buoniCard = document.getElementById('vendite-buoni-card');
     if (buoniCard) {
@@ -1071,6 +1079,10 @@ function openSection(sectionName) {
     } else if (sectionName === 'buoni-regalo') {
         if (typeof openBuoniRegalo === 'function') {
             openBuoniRegalo();
+        }
+    } else if (sectionName === 'cartellini') {
+        if (typeof openCartellini === 'function') {
+            openCartellini();
         }
     } else if (sectionName === 'mezzi') {
         if (typeof openMagazzinoMezzi === 'function') {

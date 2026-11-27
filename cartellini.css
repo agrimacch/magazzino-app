@@ -1,0 +1,258 @@
+/* ============================================ */
+/* CARTELLINI NEGOZIO (v8.3.0)                  */
+/* cartellini-functions.js                      */
+/* ============================================ */
+#section-cartellini,
+#cart-modal,
+.cart-toast {
+    font-family: 'Roboto Mono', monospace;
+}
+#section-cartellini input,
+#section-cartellini select,
+#section-cartellini button,
+#cart-modal input,
+#cart-modal textarea,
+#cart-modal button {
+    font-family: 'Roboto Mono', monospace;
+}
+
+.cart-vuoto { color: var(--gray, #6b7280); padding: 12px 4px; }
+.cart-aiuto { font-size: 13px; color: var(--gray, #6b7280); margin: 8px 0 12px; line-height: 1.5; }
+.cart-conta { font-size: 13px; color: var(--gray, #6b7280); margin: 6px 0 10px; }
+
+.cart-strumenti { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 8px; }
+.cart-cerca { flex: 1 1 260px; min-width: 0; margin: 0 !important; }
+.cart-filtro { width: auto; margin: 0; }
+
+.cart-stampa-opz { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-bottom: 10px; }
+.cart-stampa-opz label { display: flex; align-items: center; gap: 6px; margin: 0; font-size: 12px; color: #4b5563; font-weight: 500; }
+.cart-stampa-opz select { width: auto; margin: 0; padding: 4px 6px; font-size: 12px; }
+
+.cart-azioni { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 4px; }
+.cart-btn { width: auto !important; margin: 0 !important; padding: 8px 12px !important; font-size: 13px !important; }
+.cart-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.cart-btn-giallo { background: #facc15 !important; color: #1f2937 !important; border-color: #eab308 !important; }
+
+/* Elenco modelli */
+.cart-elenco { display: flex; flex-direction: column; gap: 8px; }
+.cart-riga {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-left: 4px solid var(--primary, #688E53);
+    border-radius: 12px;
+    padding: 10px 12px;
+    cursor: pointer;
+}
+.cart-riga:hover { background: #f8fbf5; }
+.cart-sel { width: 20px !important; height: 20px; min-width: 0 !important; margin: 2px 0 0 !important; padding: 0 !important; flex-shrink: 0; }
+.cart-riga-testo { flex: 1; min-width: 0; }
+.cart-riga-nome { font-size: 15px; overflow-wrap: anywhere; }
+.cart-riga-marca { font-size: 12px; color: #6b7280; font-weight: 700; }
+.cart-riga-sub { font-size: 12px; color: #6b7280; margin-top: 1px; }
+.cart-riga-badge { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 5px; }
+.cart-badge { font-size: 11px; padding: 2px 8px; border-radius: 999px; font-weight: 600; white-space: nowrap; }
+.cart-badge-grigio { background: #f3f4f6; color: #6b7280; }
+.cart-badge-ok { background: #dcfce7; color: #166534; }
+.cart-badge-giallo { background: #fef9c3; color: #854d0e; }
+.cart-badge-rosso { background: #fee2e2; color: #b91c1c; }
+.cart-riga-prezzi { text-align: right; font-size: 13px; white-space: nowrap; }
+.cart-riga-prezzi span { font-size: 11px; color: #6b7280; }
+.cart-riga-prezzi small { font-size: 11px; color: #6b7280; font-weight: 400; }
+.cart-promo-prezzo { color: #a16207; font-weight: 700; }
+.cart-promo-scaduta { color: #9ca3af; text-decoration: line-through; }
+
+/* Pulsante cartellino nel Listino Agrimacch */
+.listino-cart-btn {
+    background: white;
+    border: 2px solid #eab308;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 15px;
+    line-height: 1;
+    padding: 5px 8px;
+    margin-left: 4px;
+}
+.listino-cart-btn:hover { background: #fef9c3; }
+.listino-card-btns .listino-cart-btn { width: 32px; height: 32px; padding: 0; margin: 0; }
+
+/* Finestra del modello */
+.cart-modal-content { max-width: 940px; }
+.cart-m-griglia { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 18px; align-items: start; }
+.cart-m-form label { margin-top: 10px; }
+.cart-m-form textarea { width: 100%; font-size: 14px; line-height: 1.5; resize: vertical; }
+.cart-m-info { font-size: 13px; margin: 0 0 8px; }
+.cart-m-avvisi { font-size: 12px; background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 8px 10px; line-height: 1.5; color: #78350f; }
+.cart-m-avvisi a { color: #1d4ed8; }
+.cart-m-stato { font-size: 12px; color: #4b5563; margin-top: 10px; line-height: 1.6; }
+.cart-m-anteprime { display: flex; flex-direction: column; gap: 12px; align-items: center; }
+.cart-m-ant-tit { font-size: 11px; color: #6b7280; text-align: center; margin-bottom: 4px; }
+.cart-zoom { zoom: 0.6; box-shadow: 0 2px 12px rgba(0, 0, 0, 0.22); }
+.cart-zoom-giallo .cart-promo { background: #fde047; }
+.cart-m-pulsanti { display: flex; flex-wrap: wrap; gap: 8px; }
+.cart-m-pulsanti button { width: auto; margin: 0; }
+
+@media (max-width: 760px) {
+    .cart-m-griglia { grid-template-columns: 1fr; }
+    .cart-m-anteprime { flex-direction: row; flex-wrap: wrap; justify-content: center; align-items: flex-start; }
+    .cart-zoom { zoom: 0.48; }
+}
+@media (max-width: 600px) {
+    .cart-riga { flex-wrap: wrap; }
+    .cart-riga-prezzi { width: 100%; text-align: left; display: flex; flex-wrap: wrap; gap: 4px 14px; padding-left: 30px; }
+    .cart-stampa-opz label { width: 100%; justify-content: space-between; }
+    .cart-azioni .cart-btn { flex: 1 1 auto; }
+    .cart-m-pulsanti button { flex: 1 1 auto; }
+}
+
+/* Marche e loghi */
+.cart-marche { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.cart-marca { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 12px; display: flex; flex-direction: column; }
+.cart-marca-testa { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.cart-marca-testa span { font-size: 11px; color: #6b7280; }
+.cart-marca-logo {
+    height: 74px;
+    border: 1px dashed #d1d5db;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 8px 0;
+    background: #fff;
+    color: #9ca3af;
+    font-size: 12px;
+}
+.cart-marca-logo img { max-height: 62px; max-width: 90%; object-fit: contain; }
+.cart-marca-logo-btn { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
+.cart-marca-logo-btn label.cart-btn { display: inline-flex; align-items: center; cursor: pointer; }
+.cart-marca label { font-size: 12px; margin: 6px 0 2px; }
+.cart-marca input[type="text"] { margin-bottom: 4px; }
+.cart-marca > .btn-primary { margin-top: 8px !important; align-self: flex-start; }
+
+/* Avviso in basso */
+.cart-toast {
+    position: fixed;
+    left: 50%;
+    bottom: 24px;
+    transform: translateX(-50%) translateY(20px);
+    background: #1f2937;
+    color: #fff;
+    padding: 10px 16px;
+    border-radius: 10px;
+    font-size: 14px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s, transform 0.25s;
+    z-index: 100001;          /* sopra le finestre (10000) */
+    max-width: 90vw;
+}
+.cart-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ============================================ */
+/* CARTELLINO BIANCO: 105 x 148,5 mm            */
+/* ============================================ */
+.cart-bianco {
+    width: 105mm;
+    height: 148.5mm;
+    box-sizing: border-box;
+    padding: 10mm 8mm 9mm;
+    background: #fff;
+    color: #111;
+    font-family: Arial, Helvetica, sans-serif;
+    font-weight: 700;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    text-align: left;
+    line-height: 1.25;
+    letter-spacing: 0;
+}
+.cart-bianco * { box-sizing: border-box; font-family: inherit; }
+.cart-bi-logo { height: 15mm; display: flex; align-items: center; flex-shrink: 0; }
+.cart-bi-logo img { max-height: 15mm; max-width: 65mm; width: auto; height: auto; display: block; object-fit: contain; }
+.cart-bi-marca { display: block; max-width: 89mm; font-size: 10mm; font-weight: 900; font-style: italic; white-space: nowrap; overflow: hidden; }
+.cart-bi-titolo { display: flex; align-items: baseline; justify-content: space-between; gap: 3mm; margin-top: 6mm; flex-shrink: 0; }
+.cart-bi-tipo { display: block; max-width: 46%; flex-shrink: 0; font-size: 4.3mm; white-space: nowrap; overflow: hidden; }
+.cart-bi-modello { display: block; flex: 1; min-width: 0; font-size: 6.2mm; white-space: nowrap; overflow: hidden; text-align: right; }
+.cart-bi-titolo-due { flex-direction: column; align-items: stretch; gap: 1mm; }
+.cart-bi-titolo-due .cart-bi-tipo { max-width: 100%; }
+.cart-bi-titolo-due .cart-bi-modello { flex: none; width: 100%; text-align: left; }
+.cart-bi-car { flex: 1; min-height: 0; overflow: hidden; margin-top: 6mm; font-size: 3.7mm; line-height: 1.5; }
+.cart-bi-car-tit { margin-bottom: 0.3em; }
+.cart-bi-listino {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    border-bottom: 0.4mm solid #111;
+    padding: 0 1mm 1mm;
+    margin-top: 3mm;
+    font-size: 4.3mm;
+    flex-shrink: 0;
+}
+.cart-bi-prezzo { position: relative; font-size: 5.6mm; padding: 0 1mm; }
+/* prezzo barrato con una riga spessa (text-decoration non viene bene nel PDF) */
+.cart-bi-prezzo::after {
+    content: "";
+    position: absolute;
+    left: -1mm;
+    right: -1mm;
+    top: 50%;
+    border-top: 0.5mm solid #111;
+    transform: rotate(-4deg);
+}
+.cart-bi-promo {
+    margin-top: 2.5mm;
+    background: #ffe600;
+    border: 0.5mm solid #111;
+    padding: 1.5mm 2mm;
+    font-size: 4.5mm;
+    line-height: 1.25;
+    text-align: center;
+    flex-shrink: 0;
+}
+.cart-bi-icona { display: flex; align-items: center; gap: 3mm; margin-top: 3mm; font-size: 4.6mm; flex-shrink: 0; }
+.cart-bi-ic {
+    width: 9mm;
+    height: 9mm;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #e5e7eb;
+    border-radius: 1mm;
+    font-size: 5.5mm;
+    line-height: 1;
+}
+
+/* ============================================ */
+/* CARTELLINO PROMO: 100 x 105 mm (carta gialla) */
+/* ============================================ */
+.cart-promo {
+    width: 100mm;
+    height: 105mm;
+    box-sizing: border-box;
+    padding: 9mm 6mm 8mm;
+    background: #fff;
+    color: #111;
+    font-family: Calibri, Carlito, Arial, Helvetica, sans-serif;
+    font-weight: 700;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    text-align: center;
+    overflow: hidden;
+    line-height: 1.1;
+}
+.cart-promo * { box-sizing: border-box; font-family: inherit; }
+.cart-pr-fino { font-size: 8mm; }
+.cart-pr-data { font-size: 11mm; }
+.cart-pr-prezzo { display: block; width: 100%; font-size: 25mm; white-space: nowrap; overflow: hidden; }
+.cart-pr-scorte { font-size: 4.2mm; }
+.cart-pr-vuota { margin: auto; font-size: 4mm; color: #6b7280; }
+
+/* Foglio usato per creare il PDF (.pdf-foglio in macchine.css) */
+.cart-foglio { width: auto; }
+.cart-foglio > div { margin: 0; }
