@@ -1,5 +1,8 @@
 # Changelog App Magazzino
 
+## v8.3.0 - 2026-11-28 (PRODUZIONE)
+modifiche ordine cliente
+
 ## v8.2.9 - 2026-11-28 (PRODUZIONE)
 fornitori
 
