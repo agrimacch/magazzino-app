@@ -3,6 +3,9 @@
 ## v8.2.9 - 2026-11-28 (PRODUZIONE)
 fornitori
 
+## v8.2.9 - 2026-11-28 (PRODUZIONE)
+fornitori
+
 ## v8.2.8 - 2026-11-27 (PRODUZIONE)
 CONANTI
 
