@@ -895,6 +895,8 @@ File: `contanti-functions.js`, `contanti.css`, `supabase/contanti-setup.sql`, `s
 
 - **Riquadro Pagamento del PDF:** compaiono i pagamenti fatti con la data dello scontrino: "Acconto del 21/11/2026 EUR 200 (CONTANTI)", e quando e' pagato "Saldo del 28/11/2026 EUR 800 (CARTA)" (senza acconti: "Pagato il ..."). Non compare piu' "Saldo EUR ..." da pagare: il resto e' nei totali (DA SALDARE).
 - **Fattura:** spuntando Fattura compare "Aggiungi fattura": tipo (di acconto / di saldo / complessiva), numero e data. Si possono scrivere anche dopo (modifica dell'ordine). Compaiono nel dettaglio e nel PDF accanto alla casella Fattura. Script: `supabase/ordini-fatture.sql`.
-- **Manuale:** se nell'ordine ci sono macchine o accessori presi dal listino, sul PDF sotto gli articoli: "Si consegna completa di manuale uso e manutenzione" (piu' pezzi: "Per tutte le macchine si consegna manuale uso e manutenzione").
+- **Manuale:** se nell'ordine ci sono macchine o accessori presi dal listino, nella tabella del PDF, subito sotto l'ultima macchina: "Si consegna completa di manuale uso e manutenzione" (piu' pezzi: "Per tutte le macchine si consegna manuale uso e manutenzione").
 - **MACCHINA DA PROVE:** con questo nome cliente (anche MACCHINA DA PROVA / MACCHINE DA PROVE) Scontrino o Fattura non e' obbligatorio.
 - **Ordini lunghi:** se le righe non stanno in un foglio a grandezza normale, il PDF va su piu' pagine (taglio sempre tra una riga e l'altra, numero di pagina "1 / 2" in basso, totali, condizioni e firma alla fine; il timbro PAGATO sotto la tabella). Gli ordini corti restano su una pagina con le righe vuote come prima.
+
+**Prove dei contanti:** finite le prove, eseguire su Supabase `supabase/contanti-azzera.sql`: cancella incassi, QR e passaggi e fa ripartire il conteggio da quel momento (gli ordini non vengono toccati). L'ordine di prova si elimina dall'app (Elimina ordine, solo admin).

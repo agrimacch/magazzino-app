@@ -2113,12 +2113,12 @@ function ordMetodiPdfHtml(o) {
     return parti.length ? '<div class="ordd-metodo-riga">' + parti.join(' &middot; ') + '</div>' : '';
 }
 
-// v8.3.0: macchine e accessori presi dal listino = si consegnano con il manuale (frase una volta sola)
-function ordManualeHtml(righe) {
+// v8.3.0: macchine e accessori presi dal listino = si consegnano con il manuale.
+// La frase e' UNA riga della tabella articoli, subito sotto l'ultima macchina (prima delle righe libere che seguono)
+function ordManualeTesto(righe) {
     const n = righe.filter(r => r.articolo_id).reduce((t, r) => t + (Number(r.quantita) || 1), 0);
     if (!n) return '';
-    return '<p class="ordd-manuale">' + (n > 1 ? 'Per tutte le macchine si consegna manuale uso e manutenzione.'
-        : 'Si consegna completa di manuale uso e manutenzione.') + '</p>';
+    return n > 1 ? 'Per tutte le macchine si consegna manuale uso e manutenzione.' : 'Si consegna completa di manuale uso e manutenzione.';
 }
 
 function ordHtmlStampa(o, righeTotali) {
@@ -2130,7 +2130,10 @@ function ordHtmlStampa(o, righeTotali) {
     const casella = (spuntata) => '<span class="ordd-casella">' + (spuntata ? '&#10005;' : '') + '</span>';
     const campo = (etichetta, valore, colspan) => '<td class="ordd-etich">' + etichetta + '</td><td class="ordd-val"' + (colspan ? ' colspan="' + colspan + '"' : '') + '>' + macEsc(valore || '') + '</td>';
 
-    let tabella = righe.map(r => {
+    const manuale = ordManualeTesto(righe);
+    let ultimaMacchina = -1;
+    righe.forEach((r, i) => { if (r.articolo_id) ultimaMacchina = i; });
+    let tabella = righe.map((r, i) => {
         const matricole = pezzi.filter(p => p.ordine_riga_id === r.id && p.matricola).map(p => p.matricola);
         const magazzino = r.disponibilita === 'DA_ORDINARE' ? 'Da ordinare' : (r.disponibilita === 'DISPONIBILE' ? 'Disponibile' : '');
         return '<tr><td>' + macEsc(r.descrizione) +
@@ -2139,11 +2142,12 @@ function ordHtmlStampa(o, righeTotali) {
             '<td>' + macEsc(r.codice || '') + '</td>' +
             '<td class="rpt-n">' + (r.quantita ? r.quantita : '') + '</td>' +
             '<td class="ordd-mag">' + magazzino + '</td>' +
-            '<td class="rpt-n">' + (r.prezzo_totale !== null && r.prezzo_totale !== undefined ? repEuroPdf(r.prezzo_totale) : '') + '</td></tr>';
+            '<td class="rpt-n">' + (r.prezzo_totale !== null && r.prezzo_totale !== undefined ? repEuroPdf(r.prezzo_totale) : '') + '</td></tr>' +
+            (manuale && i === ultimaMacchina ? '<tr class="ordd-manuale-riga"><td colspan="5">' + manuale + '</td></tr>' : '');
     }).join('');
     // righeTotali = 0: solo le righe dell'ordine (PDF su piu' pagine), altrimenti si riempie il foglio
     const totaleRighe = righeTotali === 0 ? righe.length : Math.max(righeTotali || ORD_MIN_RIGHE_STAMPA, righe.length);
-    for (let i = righe.length; i < totaleRighe; i++) tabella += '<tr class="ordd-vuota"><td></td><td></td><td></td><td></td><td></td></tr>';
+    for (let i = righe.length + (manuale ? 1 : 0); i < totaleRighe; i++) tabella += '<tr class="ordd-vuota"><td></td><td></td><td></td><td></td><td></td></tr>';
 
     // righeTotali = 0: PDF su piu' pagine (ordd-lungo: il timbro PAGATO va sotto la tabella, non sopra le righe)
     return '<div class="rpt-pagina ordd' + (righeTotali === 0 ? ' ordd-lungo' : '') + '">' +
@@ -2190,7 +2194,6 @@ function ordHtmlStampa(o, righeTotali) {
         (o.pagato ? '<div class="ordd-timbro-box">' + (ordTimbroPronto ? '<img src="' + ORD_TIMBRO_PAGATO + '" alt="PAGATO" class="ordd-timbro">'
             : '<span class="ordd-timbro-testo">PAGATO</span>') + '</div>' : '') +
         '</div>' +
-        ordManualeHtml(righe) +
         '<p class="ordd-condizioni">' + ORD_CONDIZIONI + '</p>' +
         '<table class="ordd-firme"><tr>' +
             '<td class="ordd-firme-sx"></td>' +
@@ -2465,7 +2468,7 @@ async function ordCreaPdf(o, formato) {
         // Si taglia sotto una riga (mai a meta'), niente righe vuote, numero di pagina in basso.
         pdf = await pdfCreaDaHtml(ordHtmlStampa(o, 0), {
             margini: margini,
-            tagli: 'tr, .ordd-manuale, .ordd-condizioni',
+            tagli: 'tr, .ordd-condizioni',
             numeriPagina: true
         });
     } else {
