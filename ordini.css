@@ -1307,7 +1307,7 @@
 .ordd-fatture { font-size: 11px; }
 /* v8.3.0: manuale uso e manutenzione (PDF): riga della tabella sotto l'ultima macchina */
 .pdf-foglio .ordd-righe tr.ordd-manuale-riga td,
-.ordd-righe tr.ordd-manuale-riga td { font-style: italic; font-weight: 700; }
+.ordd-righe tr.ordd-manuale-riga td { font-family: 'Roboto Mono', monospace !important; font-style: normal; font-weight: 700; }
 
 /* v8.3.0: ordine su piu' pagine: timbro PAGATO sotto la tabella (non sopra le righe) */
 .ordd-lungo .ordd-timbro-box { position: static; text-align: right; margin: 8px 30px 0; }
