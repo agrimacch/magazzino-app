@@ -599,7 +599,7 @@ function ordAggiungiArticolo(a) {
 
 function ordAggiungiLibera() {
     // v7.11.7: riga libera con quantita' 0 se non la scrivi (cosi' si usa anche come riga di solo testo)
-    ordFormRighe.push({ articolo_id: null, descrizione: '', codice: '', quantita: 0, prezzo_totale: null, disponibilita: 'LIBERA', prezzoManuale: true });
+    ordFormRighe.push({ articolo_id: null, descrizione: '', codice: '', quantita: 0, prezzo_totale: null, disponibilita: 'LIBERA', prezzoManuale: true, unitario: null });
     ordRenderFormRighe();
     const inputs = document.querySelectorAll('#ord-righe [data-campo="descrizione"]');
     if (inputs.length) inputs[inputs.length - 1].focus();
@@ -797,9 +797,15 @@ function ordRenderFormRighe() {
                     '<input type="text" data-campo="codice" data-i="' + i + '" value="' + macEsc(r.codice || '') + '" autocomplete="off"></div>' +
                 '<div class="ord-campo ord-campo-qta"><label>Q.t&agrave;</label>' +
                     '<input type="number" min="' + ordQtaMinima(r) + '" max="999" inputmode="numeric" data-campo="quantita" data-i="' + i + '" value="' + r.quantita + '" autocomplete="off"></div>' +
-                '<div class="ord-campo ord-campo-prezzo"><label>P. totale &#8364;</label>' +
-                    '<input type="text" inputmode="decimal" data-campo="prezzo_totale" data-i="' + i + '" value="' + listinoNumeroPerForm(r.prezzo_totale) + '" autocomplete="off"></div>' +
-                '<div class="ord-campo ord-campo-disp"><label>Magazzino</label>' + sceltaDisp + '</div>' +
+                (a
+                    ? '<div class="ord-campo ord-campo-prezzo"><label>P. totale &#8364;</label>' +
+                        '<input type="text" inputmode="decimal" data-campo="prezzo_totale" data-i="' + i + '" value="' + listinoNumeroPerForm(r.prezzo_totale) + '" autocomplete="off"></div>' +
+                      '<div class="ord-campo ord-campo-disp"><label>Magazzino</label>' + sceltaDisp + '</div>'
+                    // v8.4.0: riga libera: prezzo a pezzo, il totale si calcola da solo (quantita' x prezzo)
+                    : '<div class="ord-campo ord-campo-prezzo"><label>P. cad. &#8364;</label>' +
+                        '<input type="text" inputmode="decimal" data-campo="unitario" data-i="' + i + '" value="' + listinoNumeroPerForm(r.unitario) + '" placeholder="a pezzo" autocomplete="off"></div>' +
+                      '<div class="ord-campo ord-campo-disp"><label>P. totale &#8364;</label>' +
+                        '<input type="text" inputmode="decimal" data-campo="prezzo_totale" data-i="' + i + '" value="' + listinoNumeroPerForm(r.prezzo_totale) + '" autocomplete="off" title="Si calcola da solo: quantit&agrave; x prezzo a pezzo"></div>') +
                 '<button type="button" class="mac-set-togli ord-togli" data-togli="' + i + '" title="Togli riga">&times;</button>' +
             '</div>' + ordHtmlMontaggio(r, i) + giaHtml + info +
         '</div>';
@@ -1068,7 +1074,10 @@ function ordCampoRigaCambiato(e) {
         // Riga gia' salvata: per le macchine in piu' propongo da dove arrivano (in casa / in arrivo / da ordinare)
         if (r.rigaId && r.articolo_id && !r.dispScelta && ordQtaNuove(r) > 0) r.disponibilita = ordDisponibilitaProposta(r);
         ordSistemaScelte(r);
-        if (!r.prezzoManuale && r.articolo_id) {
+        if (!r.articolo_id && r.unitario !== null && r.unitario !== undefined) {
+            // v8.4.0: riga libera: totale = quantita' x prezzo a pezzo (quantita' 0 = riga di testo: il prezzo una volta)
+            r.prezzo_totale = Math.round(r.unitario * (r.quantita > 0 ? r.quantita : 1) * 100) / 100;
+        } else if (!r.prezzoManuale && r.articolo_id) {
             const unit = ordPrezzoUnitario(macArticolo(r.articolo_id));
             r.prezzo_totale = unit !== null ? Math.round(unit * r.quantita * 100) / 100 : null;
         } else if (r.rigaId && !r.prezzoToccato && r.prezzoOrig !== null && r.prezzoOrig !== undefined && r.quantitaOrig > 0) {
@@ -1077,11 +1086,26 @@ function ordCampoRigaCambiato(e) {
         }
         if (e.type === 'change') ordRidisegnaRighe();
         else { ordAggiornaTotale(); ordAggiornaPrezzoVisibile(i); }
+    } else if (campo === 'unitario') {
+        // v8.4.0: riga libera: prezzo a pezzo -> totale
+        const n = listinoParseNumero(el.value);
+        r.unitario = (typeof n === 'number' && !isNaN(n)) ? n : null;
+        r.prezzo_totale = r.unitario !== null ? Math.round(r.unitario * (r.quantita > 0 ? r.quantita : 1) * 100) / 100 : null;
+        r.prezzoManuale = true;
+        r.prezzoToccato = true;
+        ordAggiornaTotale();
+        ordAggiornaPrezzoVisibile(i);
     } else if (campo === 'prezzo_totale') {
         const n = listinoParseNumero(el.value);
         r.prezzo_totale = (typeof n === 'number' && !isNaN(n)) ? n : null;
         r.prezzoManuale = true;
         r.prezzoToccato = true;
+        // riga libera: se scrivi il totale, il prezzo a pezzo si adegua
+        if (!r.articolo_id) {
+            r.unitario = r.prezzo_totale !== null ? Math.round(r.prezzo_totale / (r.quantita > 0 ? r.quantita : 1) * 100) / 100 : null;
+            const u = document.querySelector('#ord-righe [data-campo="unitario"][data-i="' + i + '"]');
+            if (u && document.activeElement !== u) u.value = listinoNumeroPerForm(r.unitario);
+        }
         ordAggiornaTotale();
     } else if (campo === 'disponibilita') {
         r.disponibilita = el.value;
@@ -1465,7 +1489,10 @@ function ordApriModifica(id) {
         articolo_id: r.articolo_id, descrizione: r.descrizione, codice: r.codice, quantita: r.quantita,
         prezzo_totale: r.prezzo_totale, disponibilita: r.disponibilita === 'LIBERA' ? 'LIBERA' : (r.disponibilita || 'DA_ORDINARE'),
         disponibilitaDb: r.disponibilita, prezzoManuale: true, prezzoOrig: r.prezzo_totale,
-        montaggio: r.montaggio || null
+        montaggio: r.montaggio || null,
+        // v8.4.0: riga libera = prezzo a pezzo ricavato dal totale
+        unitario: !r.articolo_id && r.prezzo_totale !== null && r.prezzo_totale !== undefined
+            ? Math.round(Number(r.prezzo_totale) / (r.quantita > 0 ? r.quantita : 1) * 100) / 100 : null
     }));
     document.getElementById('ord-data').value = o.data || '';
     document.getElementById('ord-operatore').value = o.operatore || '';

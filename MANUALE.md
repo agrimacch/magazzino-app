@@ -918,3 +918,5 @@ Macchine nostre messe presso collaboratori / altri negozi. **Restano nostre**: c
 ## Contanti: versamento anche per gli operatori (v8.4.0)
 
 **Su Supabase:** `supabase/contanti-versa-operatori.sql`. Il pulsante **Versato in cassa / banca** c'e' per admin e operatori, ma versa SOLO i contanti che ha in mano chi lo preme.
+
+**Righe libere con prezzo a pezzo (v8.4.0):** nelle righe libere dell'ordine cliente ci sono "P. cad." e "P. totale". Si scrive il prezzo a pezzo e la quantita': il totale si calcola da solo (5 x 10 = 50) e si aggiorna se cambia la quantita'. Se si scrive direttamente il totale, il prezzo a pezzo si adegua. Quantita' 0 (riga di solo testo): il prezzo vale una volta.
