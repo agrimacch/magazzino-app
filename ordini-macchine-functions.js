@@ -472,6 +472,17 @@ function omHtmlOrdiniFatti(marchio, sezioneId) {
     // dal piu' vecchio (in alto) al piu' recente (in basso)
     const chiave = b => String(b[0].data) + String(Math.min.apply(null, b.map(o => o.id))).padStart(9, '0');
     blocchi.sort((a, b) => chiave(a).localeCompare(chiave(b)));
+    // v8.4.0: nelle sezioni (prestagionali) in ordine di CONSEGNA: in alto la prima che arriva.
+    // La data si legge dal testo della consegna (es. "CONSEGNA SETTEMBRE 2026", "GEN 27", "15/02/2027");
+    // senza una data riconoscibile vanno in fondo, per data dell'ordine.
+    if (sezioneId) {
+        const k = b => omConsegnaChiave(b[0].consegna);
+        blocchi.sort((a, b) => {
+            const ka = k(a), kb = k(b);
+            if (ka !== kb) return ka === null ? 1 : kb === null ? -1 : ka - kb;
+            return chiave(a).localeCompare(chiave(b));
+        });
+    }
     const visibili = blocchi.filter(b => mostraArrivati || !b.every(omOfArrivato));
     const nascosti = blocchi.length - visibili.length;
     let html = '<div class="om-fatti-titolo">Ordini fatti' + (nascosti ? ' <small>(' + nascosti + ' gi&agrave; arrivati nascosti)</small>' : '') + '</div>';
@@ -481,6 +492,38 @@ function omHtmlOrdiniFatti(marchio, sezioneId) {
     }
     visibili.forEach(b => { html += omHtmlOf(b); });
     return html;
+}
+
+// Data della consegna dal testo (aaaammgg come numero), null se non si capisce
+const OM_MESI_CONSEGNA = { GEN: 1, FEB: 2, MAR: 3, APR: 4, MAG: 5, GIU: 6, LUG: 7, AGO: 8, SET: 9, OTT: 10, NOV: 11, DIC: 12,
+    JAN: 1, MAY: 5, JUN: 6, JUL: 7, AUG: 8, SEP: 9, OCT: 10, DEC: 12 };
+// Nomi dei mesi interi o abbreviati a 3 lettere (non "SETTIMANA", "MARCHIO"...)
+const OM_RE_MESE = '(GENNAIO|FEBBRAIO|MARZO|APRILE|MAGGIO|GIUGNO|LUGLIO|AGOSTO|SETTEMBRE|OTTOBRE|NOVEMBRE|DICEMBRE|' +
+    'JANUARY|MAY|JUNE|JULY|AUGUST|SEPTEMBER|OCTOBER|DECEMBER|GEN|FEB|MAR|APR|MAG|GIU|LUG|AGO|SET|OTT|NOV|DIC|JAN|JUN|JUL|AUG|SEP|OCT|DEC)';
+function omConsegnaChiave(testo) {
+    const t = String(testo || '').toUpperCase();
+    if (!t) return null;
+    let m = t.match(/\b(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{4}|\d{2})\b/);          // 15/02/2027
+    if (m) {
+        let a = parseInt(m[3], 10); if (a < 100) a += 2000;
+        const me = parseInt(m[2], 10), g = parseInt(m[1], 10);
+        if (me >= 1 && me <= 12) return a * 10000 + me * 100 + g;
+    }
+    m = t.match(/\b(\d{1,2})[\/.\-](\d{4})\b/);                                   // 02/2027
+    if (m && +m[1] >= 1 && +m[1] <= 12) return parseInt(m[2], 10) * 10000 + parseInt(m[1], 10) * 100;
+    m = t.match(new RegExp('\\b' + OM_RE_MESE + '\\.?[\\s\\-\\/\']*(\\d{4}|\\d{2})\\b'));   // SETTEMBRE 2026, GEN-27
+    if (m) {
+        let a = parseInt(m[2], 10); if (a < 100) a += 2000;
+        return a * 10000 + OM_MESI_CONSEGNA[m[1].slice(0, 3)] * 100;
+    }
+    m = t.match(new RegExp('\\b' + OM_RE_MESE + '\\b'));                         // solo il mese: il prossimo che viene
+    if (m) {
+        const oggi = new Date();
+        const me = OM_MESI_CONSEGNA[m[1].slice(0, 3)];
+        const a = oggi.getFullYear() + (me < oggi.getMonth() + 1 ? 1 : 0);
+        return a * 10000 + me * 100;
+    }
+    return null;
 }
 
 // lista: un ordine o gli ordini dello stesso gruppo (uno per marchio)
