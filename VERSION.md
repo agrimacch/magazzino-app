@@ -1,5 +1,8 @@
 # Changelog App Magazzino
 
+## v8.3.8 - 2026-11-28 (PRODUZIONE)
+ok netti prest
+
 ## v8.3.7 - 2026-11-28 (PRODUZIONE)
 ok ordine prestagionale
 

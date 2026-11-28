@@ -759,3 +759,19 @@
 .om-forn-tag { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
 .om-forn-tag .om-marca-tag { font-size: 12px; padding: 3px 4px 3px 8px; }
 .om-forn-x { border: none; background: none; color: #b91c1c; font-size: 15px; line-height: 1; cursor: pointer; padding: 0 2px; width: auto; margin: 0; }
+
+
+/* v8.4.0: netto d'acquisto e codice articolo nell'ordine al fornitore */
+.om-of-prezzi { margin-top: 12px; }
+.om-of-prezzi:empty { display: none; }
+.om-prezzi-tab { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
+.om-prezzi-riga { display: grid; grid-template-columns: minmax(0, 1fr) 150px 110px; gap: 8px; align-items: center; }
+.om-prezzi-riga input { margin: 0; }
+.om-prezzi-nome { font-size: 13px; min-width: 0; overflow-wrap: anywhere; }
+.om-prezzi-nome small { color: #6b7280; white-space: nowrap; }
+.om-prezzi-diverso { border-color: #f59e0b !important; background: #fffbeb !important; }
+.om-prezzo-riga { font-size: 11px; font-weight: 700; color: #3f5a2c; background: #eef3ea; border-radius: 4px; padding: 1px 5px; white-space: nowrap; }
+@media (max-width: 600px) {
+    .om-prezzi-riga { grid-template-columns: 1fr 1fr; }
+    .om-prezzi-nome { grid-column: 1 / -1; }
+}

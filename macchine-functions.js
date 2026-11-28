@@ -1498,6 +1498,17 @@ function macInAttesa(articoloId) {
     return clienti.concat(libere);
 }
 
+// v8.4.0: netto d'acquisto scritto nell'ordine al fornitore (macchine_pezzi.netto_ordine) della prima macchina
+// ordinata che arriva per questo articolo: { netto, of } oppure null. Al carico si propone al posto del netto 1.
+function macNettoOrdine(articoloId) {
+    const p = macInAttesa(articoloId).find(x => x.stato === 'ORDINATA' && x.netto_ordine !== null && x.netto_ordine !== undefined);
+    return p ? { netto: Number(p.netto_ordine), of: typeof macOf === 'function' ? macOf(p.ordine_fornitore_id) : null } : null;
+}
+function macNettoProposto(a) {
+    const o = a ? macNettoOrdine(a.id) : null;
+    return o ? o.netto : (a ? a.netto_1 : null);
+}
+
 // Nome da mostrare per un pezzo in attesa
 function macNomeAttesa(p) {
     return p.cliente || 'ordinata senza cliente';
@@ -1572,7 +1583,12 @@ function macCaricoAggiorna() {
 
     const isSet = macIsSet(a.id);
     const nettoEl = document.getElementById('mac-carico-netto');
-    if (!isSet && !nettoEl.value) nettoEl.value = listinoNumeroPerForm(a.netto_1);
+    // v8.4.0: se c'e' una macchina ordinata con il prezzo dell'ordine, si propone quello (si puo' cambiare)
+    const nOrd = isSet ? null : macNettoOrdine(a.id);
+    if (!isSet && !nettoEl.value) nettoEl.value = listinoNumeroPerForm(nOrd ? nOrd.netto : a.netto_1);
+    const nettoDa = document.getElementById('mac-carico-netto-da');
+    if (nettoDa) nettoDa.innerHTML = nOrd ? '(proposto il prezzo dell\'ordine' + (nOrd.of ? ' del ' + macDataCorta(nOrd.of.data) : '') +
+        (a.netto_1 !== null && a.netto_1 !== undefined && !listinoStessoNumero(a.netto_1, nOrd.netto) ? '; netto 1 del listino ' + macEuro(a.netto_1) : '') + ')' : '(proposto il netto 1)';
     document.getElementById('mac-carico-netto-box').classList.toggle('hidden', isSet);
     document.getElementById('mac-carico-qta-label').innerHTML = isSet ? 'Quanti set *' : 'Quantit&agrave; *';
 
@@ -1812,7 +1828,9 @@ async function macCaricaPezzi(opz) {
     for (let i = 0; i < attesa.length; i++) {
         const p = attesa[i];
         const statoPrima = p.stato;
-        const agg = { stato: 'IN_CASA', data_carico: adesso, netto_carico: opz.netto, updated_at: adesso, updated_by: utente };
+        // v8.4.0: opz.nettoOrdine = ogni macchina ordinata prende il netto del suo ordine (se c'e')
+        const nettoP = opz.nettoOrdine && p.netto_ordine !== null && p.netto_ordine !== undefined ? Number(p.netto_ordine) : opz.netto;
+        const agg = { stato: 'IN_CASA', data_carico: adesso, netto_carico: nettoP, updated_at: adesso, updated_by: utente };
         if (matricole[i]) agg.matricola = matricole[i];
         const passa = piano.passaggi.find(x => x.pezzo === p);
         if (passa) agg.ordine_fornitore_id = passa.of;
@@ -1822,7 +1840,7 @@ async function macCaricaPezzi(opz) {
         Object.assign(p, agg);
         log.push({
             pezzo_id: p.id, articolo_id: opz.art.id, tipo: 'CARICO', stato_prima: statoPrima, stato_dopo: 'IN_CASA',
-            cliente: p.cliente, matricola: p.matricola, netto: opz.netto,
+            cliente: p.cliente, matricola: p.matricola, netto: nettoP,
             dettaglio: (p.cliente ? 'ARRIVATA PER ' + p.cliente : 'ARRIVATA (ORDINATA AL FORNITORE) - DISPONIBILE') + extra
         });
     }
@@ -1917,6 +1935,7 @@ async function macSalvaCarico(e) {
     }
 
     const elenco = macCaricoElenco();
+    const notaNetto = macNotaCarico(a);   // v8.4.0: per l'eventuale aggiornamento del netto 1
     // Arrivate al posto di altre macchine (solo modello singolo): vanno per prime, con le prime matricole
     const sost = isSet ? [] : macSostScelti.map(id => macPezzi.find(p => p.id === id))
         .filter(p => p && (p.stato === 'ORDINATA' || p.stato === 'DA_ORDINARE')).slice(0, qta);
@@ -1955,9 +1974,58 @@ async function macSalvaCarico(e) {
     }
     btn.disabled = false;
     macChiudiCarico();
+    if (!isSet) await macProponiNetto1([{ art: a, netto: elenco[0] ? listinoParseNumero(elenco[0].netto) : null }], notaNetto);
     await macRicarica();
     await showCustomAlert(riepilogo.join('<br>'), 'Carico registrato', '&#10004;');
     macArriviMostra();
+}
+
+// v8.4.0: dopo un carico, se il netto confermato e' diverso dal netto 1 del listino, si chiede se aggiornarlo.
+// Si' = netto 1 -> netto 2 -> netto 3 (come l'import del listino) e riga nello storico dei netti (origine CARICO).
+// Poi si chiede la nota 1 del nuovo netto, proposta = nota 1 di adesso (la vecchia resta anche in nota 2).
+// No = il netto resta solo sulle macchine caricate. voci: [{ art, netto }] (i set no: i componenti hanno il loro netto 1)
+async function macProponiNetto1(voci, dettaglio) {
+    const viste = {};
+    for (const v of voci) {
+        const a = v.art;
+        if (!a || macIsSet(a.id) || viste[a.id]) continue;
+        viste[a.id] = true;
+        const n = v.netto;
+        if (n === null || n === undefined || isNaN(n) || listinoStessoNumero(a.netto_1, n)) continue;
+        if (!window.confirm(macNome(a) + ': hai caricato a EUR ' + String(n).replace('.', ',') +
+            (a.netto_1 !== null && a.netto_1 !== undefined ? ', nel listino il netto 1 e\' EUR ' + String(a.netto_1).replace('.', ',') : ', nel listino il netto 1 e\' vuoto') + '.\n\n' +
+            'Aggiorno il NETTO 1 del listino a EUR ' + String(n).replace('.', ',') + '?\n' +
+            '(il netto 1 di adesso passa a netto 2, e resta nello storico)\n\nAnnulla = resta solo sulle macchine caricate.')) continue;
+        // Nota 1 del nuovo netto: proposta la nota 1 di adesso (es. condizioni di pagamento), si corregge o si aggiunge.
+        // Vuota = si propone l'ordine / consegna. Annulla = nota 1 di adesso cosi' com'e'.
+        const proposta = a.note_1 || listinoPulisciTesto(dettaglio || '') || '';
+        const scritta = window.prompt('Nota 1 per il nuovo netto 1 di ' + macNome(a) + ' (EUR ' + String(n).replace('.', ',') + '):\n' +
+            'proposta la nota 1 di adesso; correggila o aggiungi (es. ordine / consegna: ' + (dettaglio || '-') + ')', proposta);
+        const nota = listinoPulisciTesto(scritta === null ? proposta : scritta) || null;
+        const agg = { netto_1: n, note_1: nota };
+        if (a.netto_1 !== null && a.netto_1 !== undefined) {
+            agg.netto_2 = a.netto_1; agg.note_2 = a.note_1;
+            agg.netto_3 = a.netto_2; agg.note_3 = a.note_2;
+        }
+        try {
+            const { error } = await supabaseClient.from('listino_articoli').update(agg).eq('id', a.id);
+            if (error) throw error;
+            Object.assign(a, agg);
+            const st = await supabaseClient.from('listino_storico_netti').insert([{
+                articolo_id: a.id, modello: a.modello, netto: n, note: agg.note_1, origine: 'CARICO MACCHINE', utente: macUtente()
+            }]);
+            if (st.error) console.warn('Storico netti non scritto:', st.error.message);
+        } catch (err) {
+            await showCustomAlert('Netto 1 di ' + macEsc(macNome(a)) + ' non aggiornato:<br>' + macEsc(err.message), 'Listino', '&#10060;');
+        }
+    }
+}
+
+// Testo per la nota del netto 1: ordine e consegna della prima macchina ordinata di quell'articolo
+function macNotaCarico(art) {
+    const o = art ? macNettoOrdine(art.id) : null;
+    if (!o || !o.of) return 'CARICO ' + macDataCorta(new Date().toISOString());
+    return 'ORDINE ' + macDataCorta(o.of.data) + (o.of.consegna ? ' ' + o.of.consegna : '');
 }
 
 // Articolo non presente nel listino: si crea dal Listino Agrimacch (stessa finestra)
@@ -3609,7 +3677,8 @@ async function macMultiAggiungi(a) {
         // la riga toccata di nuovo torna in cima
         macMultiRighe = [gia].concat(macMultiRighe.filter(r => r !== gia));
     } else {
-        macMultiRighe.unshift({ art: a, n: 1, netto: macIsSet(a.id) || a.netto_1 === null || a.netto_1 === undefined ? '' : String(a.netto_1).replace('.', ','), matricole: [] });
+        const np = macIsSet(a.id) ? null : macNettoProposto(a);   // v8.4.0: prezzo dell'ordine se c'e'
+        macMultiRighe.unshift({ art: a, n: 1, netto: np === null || np === undefined ? '' : String(np).replace('.', ','), matricole: [] });
     }
     macMultiRender();
     setTimeout(() => document.getElementById('mac-multi-search').focus(), 30);
@@ -3836,6 +3905,8 @@ async function macMultiSalva() {
     const tot = elenco.reduce((t, x) => t + x.n, 0);
     if (!window.confirm('Caricare ' + tot + (tot === 1 ? ' macchina' : ' macchine') + ' di ' + macMultiRighe.length + (macMultiRighe.length === 1 ? ' modello' : ' modelli') + '?')) return;
     const assegna = document.getElementById('mac-multi-assegna').checked;
+    const noteNetto = {};   // v8.4.0: nota per l'eventuale aggiornamento del netto 1
+    elenco.forEach(x => { if (!x.setArt && !noteNetto[x.art.id]) noteNetto[x.art.id] = macNotaCarico(x.art); });
     const btn = document.getElementById('mac-multi-salva');
     btn.disabled = true;
     const riepilogo = [];
@@ -3860,6 +3931,9 @@ async function macMultiSalva() {
     }
     btn.disabled = false;
     macMultiChiudi();
+    for (const x of elenco.filter(y => !y.setArt)) {
+        await macProponiNetto1([{ art: x.art, netto: typeof x.netto === 'number' ? x.netto : listinoParseNumero(x.netto) }], noteNetto[x.art.id]);
+    }
     await macRicarica();
     await showCustomAlert(riepilogo.join('<br>'), 'Carico registrato', '&#10004;');
     macArriviMostra();

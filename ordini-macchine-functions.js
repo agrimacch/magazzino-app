@@ -526,6 +526,13 @@ function omConsegnaChiave(testo) {
     return null;
 }
 
+// v8.4.0: netto d'acquisto dell'ordine sulla riga del libro ("EUR 450 cad.", se diversi "450 / 480")
+function omPrezzoRigaHtml(pezzi) {
+    const v = [...new Set(pezzi.map(p => p.netto_ordine).filter(x => x !== null && x !== undefined).map(Number))].sort((a, b) => a - b);
+    if (!v.length) return '';
+    return ' <span class="om-prezzo-riga" title="Netto d\'acquisto dell\'ordine (proposto al carico)">' + v.map(x => macEuro(x)).join(' / ') + ' cad.</span>';
+}
+
 // lista: un ordine o gli ordini dello stesso gruppo (uno per marchio)
 function omHtmlOf(lista) {
     if (!Array.isArray(lista)) lista = [lista];
@@ -550,6 +557,7 @@ function omHtmlOf(lista) {
             '<span class="om-riga-testo"><strong class="om-qta">' + g.pezzi.length + '</strong> ' +
                 omDescrizioneHtml(a) +
                 (arrivate.length && !tutto ? ' <span class="om-arrivate">(arrivat' + (arrivate.length === 1 ? 'a 1' : 'e ' + arrivate.length) + ' su ' + g.pezzi.length + ')</span>' : '') +
+                omPrezzoRigaHtml(g.pezzi) +
                 ((conCliente.length || libere) ? '<span class="om-clienti">' + omClienteTesto(conCliente) +
                     (libere ? (conCliente.length ? ' &middot; ' : '') + '<em>' + libere + ' in arrivo ' + (libere === 1 ? 'libera' : 'libere') + '</em>' : '') + '</span>' : '') +
             '</span>' +
@@ -596,9 +604,117 @@ function omApriSegna() {
 let omFinestraModo = null;
 let omFinestraPezzi = [];
 
+// ---------- v8.4.0: netto d'acquisto e codice articolo per modello (nella finestra dell'ordine) ----------
+// Il netto va sulle macchine dell'ordine (macchine_pezzi.netto_ordine) e al carico viene proposto.
+// Il codice articolo, se diverso da quello del listino, aggiorna il listino dopo una conferma (doppio controllo).
+let omOfPrezzi = {};   // articolo_id -> { netto: testo, codice: testo }
+
+function omNormCodice(c) { return String(c || '').toUpperCase().replace(/\s+/g, ''); }
+
+// Modelli dell'ordine aperto (i set no: il prezzo dei componenti si mette al carico)
+function omOfArticoli() {
+    const ids = [];
+    const aggiungi = id => { if (id && ids.indexOf(id) === -1) ids.push(id); };
+    if (omFinestraModo === 'segna') omFinestraPezzi.forEach(p => aggiungi(p.articolo_id));
+    if (omFinestraModo === 'modifica' && omOfInModifica) omOrdiniGruppo(omOfInModifica).forEach(o => omPezziOf(o).forEach(p => aggiungi(p.articolo_id)));
+    omOfRighe.forEach(r => aggiungi(r.art.id));
+    return listinoOrdina(ids.map(id => macArticolo(id)).filter(a => a && !macIsSet(a.id)));
+}
+
+// Netto gia' scritto sulle macchine (ancora ordinate) di questo ordine
+function omOfNettoSalvato(articoloId) {
+    if (omFinestraModo !== 'modifica' || !omOfInModifica) return null;
+    let n = null;
+    omOrdiniGruppo(omOfInModifica).forEach(o => omPezziOf(o).forEach(p => {
+        if (n === null && p.articolo_id === articoloId && p.netto_ordine !== null && p.netto_ordine !== undefined) n = Number(p.netto_ordine);
+    }));
+    return n;
+}
+
+function omRenderOfPrezzi() {
+    const box = document.getElementById('om-of-prezzi');
+    if (!box) return;
+    const arts = omOfArticoli();
+    if (!arts.length) { box.innerHTML = ''; return; }
+    arts.forEach(a => {
+        if (omOfPrezzi[a.id]) return;
+        const salvato = omOfNettoSalvato(a.id);
+        const netto = salvato !== null ? salvato : a.netto_1;
+        omOfPrezzi[a.id] = { netto: netto === null || netto === undefined ? '' : String(netto).replace('.', ','), codice: a.codice_articolo || '' };
+    });
+    box.innerHTML = '<label>&#128182; Netto d\'acquisto a pezzo e codice articolo <small>(proposti dal listino: cambiali se per questa consegna sono diversi)</small></label>' +
+        '<div class="om-prezzi-tab">' + arts.map(a => {
+            const x = omOfPrezzi[a.id];
+            const diverso = x.codice && a.codice_articolo && omNormCodice(x.codice) !== omNormCodice(a.codice_articolo);
+            return '<div class="om-prezzi-riga">' +
+                '<span class="om-prezzi-nome">' + macNomeHtml(a) +
+                    (a.netto_1 !== null && a.netto_1 !== undefined ? ' <small>netto 1: ' + macEuro(a.netto_1) + '</small>' : '') + '</span>' +
+                '<input type="text" class="om-prezzi-cod' + (diverso ? ' om-prezzi-diverso' : '') + '" placeholder="codice articolo" value="' + macEsc(x.codice) + '" ' +
+                    'oninput="omOfPrezzoCampo(' + a.id + ', \'codice\', this.value)" title="' + (a.codice_articolo ? 'Nel listino: ' + macEsc(a.codice_articolo) : 'Nel listino non c\'e\'') + '">' +
+                '<input type="text" class="om-prezzi-netto" inputmode="decimal" placeholder="netto &#8364;" value="' + macEsc(x.netto) + '" ' +
+                    'oninput="omOfPrezzoCampo(' + a.id + ', \'netto\', this.value)">' +
+            '</div>';
+        }).join('') + '</div>';
+}
+
+function omOfPrezzoCampo(id, campo, valore) {
+    if (!omOfPrezzi[id]) omOfPrezzi[id] = { netto: '', codice: '' };
+    omOfPrezzi[id][campo] = valore;
+    if (campo === 'codice') {
+        const a = macArticolo(id);
+        const el = document.querySelector('#om-of-prezzi input.om-prezzi-cod[oninput*="(' + id + ',"]');
+        if (el && a) el.classList.toggle('om-prezzi-diverso', !!(valore && a.codice_articolo && omNormCodice(valore) !== omNormCodice(a.codice_articolo)));
+    }
+}
+
+// Controllo prima di salvare: { netti: {id: numero}, codici: [{ art, nuovo }], errore }
+function omOfLeggiPrezzi() {
+    const out = { netti: {}, codici: [], errore: null };
+    omOfArticoli().forEach(a => {
+        const x = omOfPrezzi[a.id];
+        if (!x) return;
+        const t = String(x.netto || '').trim();
+        if (t) {
+            const n = listinoParseNumero(t);
+            if (typeof n !== 'number' || isNaN(n) || n < 0) { out.errore = out.errore || 'Netto non valido per ' + macEsc(macNome(a)) + ' (es. 450 o 450,50)'; return; }
+            out.netti[a.id] = n;
+        }
+        const c = listinoPulisciTesto(x.codice);
+        if (c && omNormCodice(c) !== omNormCodice(a.codice_articolo)) out.codici.push({ art: a, nuovo: c });
+    });
+    return out;
+}
+
+// Dopo il salvataggio: netto sulle macchine ancora ordinate dei modelli, negli ordini indicati
+async function omOfSalvaNetti(netti, ordini) {
+    const ids = [...new Set(ordini.map(o => o.id))];
+    if (!ids.length) return;
+    // direttamente sul database: le righe libere appena create non sono ancora in memoria
+    for (const id of Object.keys(netti)) {
+        const { error } = await supabaseClient.from('macchine_pezzi').update({ netto_ordine: netti[id] })
+            .eq('articolo_id', Number(id)).eq('stato', 'ORDINATA').in('ordine_fornitore_id', ids);
+        if (error) {
+            if (/netto_ordine/i.test(error.message || '')) throw new Error('Manca la colonna del prezzo: esegui su Supabase lo script supabase/ordini-fornitore-prezzi.sql');
+            throw error;
+        }
+        macPezzi.forEach(p => { if (p.articolo_id === Number(id) && p.stato === 'ORDINATA' && ids.indexOf(p.ordine_fornitore_id) !== -1) p.netto_ordine = netti[id]; });
+    }
+}
+
+// Codici articolo nuovi o cambiati: si scrivono nel listino (gia' confermati)
+async function omOfSalvaCodici(codici) {
+    if (!codici.length || (typeof listinoHaCodiceArticolo === 'function' && !listinoHaCodiceArticolo())) return;
+    for (const x of codici) {
+        const { error } = await supabaseClient.from('listino_articoli').update({ codice_articolo: x.nuovo }).eq('id', x.art.id);
+        if (error) throw error;
+        x.art.codice_articolo = x.nuovo;
+    }
+}
+
 function omApriFinestraOf(modo, marchio, pezzi) {
     omFinestraModo = modo;
     omFinestraPezzi = pezzi || [];
+    omOfPrezzi = {};
     const of = omOfInModifica;
     const sezioneCorrente = omSessione('omSezione');
     const sezioni = omSezioniMarchio(marchio).filter(s => !s.chiusa || (of && s.id === of.sezione_id));
@@ -641,6 +757,7 @@ function omApriFinestraOf(modo, marchio, pezzi) {
     const veloce = document.getElementById('om-of-veloce');
     if (veloce) veloce.value = '';
     omRenderOfRighe();
+    omRenderOfPrezzi();
     document.getElementById('om-of-elimina').classList.toggle('hidden', modo !== 'modifica');
     document.getElementById('om-of-salva').disabled = false;
     document.getElementById('om-of-modal').classList.remove('hidden');
@@ -653,11 +770,15 @@ function omChiudiFinestraOf() {
     omOfInModifica = null;
     omOfRighe = [];
     omFinestraPezzi = [];
+    omOfPrezzi = {};
+    const bp = document.getElementById('om-of-prezzi');
+    if (bp) bp.innerHTML = '';
 }
 
 function omRenderOfRighe() {
     const box = document.getElementById('om-of-righe');
     if (!box) return;
+    if (typeof omRenderOfPrezzi === 'function' && omFinestraModo) setTimeout(omRenderOfPrezzi, 0);
     if (omOfRighe.length === 0) {
         box.innerHTML = '<p class="mac-aiuto">Cerca qui sotto i modelli da ordinare.</p>';
         return;
@@ -759,7 +880,14 @@ async function omSalvaFinestraOf() {
     if (!data) errori.push('Scegli la data dell\'ordine');
     if (!operatore) errori.push('Scrivi le iniziali di chi ha fatto l\'ordine');
     if (omFinestraModo === 'nuovo' && omOfRighe.length === 0) errori.push('Aggiungi almeno una riga');
+    const prezzi = omOfLeggiPrezzi();
+    if (prezzi.errore) errori.push(prezzi.errore);
     if (errori.length) { await showCustomAlert(errori.join('<br>'), 'Controlla', '&#9888;&#65039;'); return; }
+    // v8.4.0: doppio controllo dei codici articolo che vanno nel listino (errori di battitura)
+    if (prezzi.codici.length && !window.confirm('Controlla i CODICI ARTICOLO: verranno scritti nel listino.\n\n' +
+        prezzi.codici.map(x => '- ' + macNome(x.art) + ':  ' + (x.art.codice_articolo ? x.art.codice_articolo + '  ->  ' : '(nuovo)  ') + x.nuovo).join('\n') +
+        '\n\nSono giusti? (Annulla per correggerli)')) return;
+    const ordiniFatti = [];   // ordini toccati: li' si scrive il netto
 
     const btn = document.getElementById('om-of-salva');
     btn.disabled = true;
@@ -792,9 +920,10 @@ async function omSalvaFinestraOf() {
                 }
             }
             if (libere.length) await omRigheLiberePerMarchio(libere, base, creati);
+            creati.forEach(o => ordiniFatti.push(o));
             omSelezione = {};
         } else if (omFinestraModo === 'nuovo') {
-            await omRigheLiberePerMarchio(omOfRighe, base, []);
+            await omRigheLiberePerMarchio(omOfRighe, base, ordiniFatti);
         } else {
             // modifica: data, iniziali, consegna, note e sezione valgono per tutto il gruppo
             const of = omOfInModifica;
@@ -814,7 +943,11 @@ async function omSalvaFinestraOf() {
                 }
                 await omRigheLiberePerMarchio(omOfRighe, { sezioneId: sezioneId, data: data, operatore: operatore, consegna: consegna, note: note, gruppo: of.gruppo || null }, gruppo);
             }
+            gruppo.forEach(o => ordiniFatti.push(o));
         }
+        // v8.4.0: netti sulle macchine dell'ordine e codici nel listino
+        await omOfSalvaNetti(prezzi.netti, ordiniFatti);
+        await omOfSalvaCodici(prezzi.codici);
     } catch (error) {
         console.error('Errore ordine fornitore:', error);
         btn.disabled = false;

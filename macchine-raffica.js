@@ -783,7 +783,7 @@ async function rafConferma() {
                 }
             } else {
                 const res = await macCaricaPezzi({
-                    art: a, n: n, netto: a.netto_1 != null ? a.netto_1 : null,
+                    art: a, n: n, netto: a.netto_1 != null ? a.netto_1 : null, nettoOrdine: true,   // v8.4.0: prezzo dell'ordine se c'e'
                     matricole: g.scatole.map(s => s.matricola || null),
                     assegna: assegna, dettaglio: 'CARICO A RAFFICA'
                 });
