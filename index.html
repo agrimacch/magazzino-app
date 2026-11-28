@@ -17,21 +17,21 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Kalam:wght@400;700&family=Roboto+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=8.2.8">
-    <link rel="stylesheet" href="listino.css?v=8.2.8">
-    <link rel="stylesheet" href="listini-fornitori.css?v=8.2.8">
-    <link rel="stylesheet" href="fornitori.css?v=8.2.8">
-    <link rel="stylesheet" href="interventi.css?v=8.2.8">
-    <link rel="stylesheet" href="macchine.css?v=8.2.8">
-    <link rel="stylesheet" href="ordini.css?v=8.2.8">
-    <link rel="stylesheet" href="ordini-macchine.css?v=8.2.8">
-    <link rel="stylesheet" href="azienda.css?v=8.2.8">
-    <link rel="stylesheet" href="richieste.css?v=8.2.8">
-    <link rel="stylesheet" href="buoni.css?v=8.2.8">
-    <link rel="stylesheet" href="mezzi.css?v=8.2.8">
-    <link rel="stylesheet" href="cartellini.css?v=8.2.8">
-    <link rel="stylesheet" href="contanti.css?v=8.2.8">
-    <link rel="stylesheet" href="daltonici.css?v=8.2.8">
+    <link rel="stylesheet" href="style.css?v=8.2.9">
+    <link rel="stylesheet" href="listino.css?v=8.2.9">
+    <link rel="stylesheet" href="listini-fornitori.css?v=8.2.9">
+    <link rel="stylesheet" href="fornitori.css?v=8.2.9">
+    <link rel="stylesheet" href="interventi.css?v=8.2.9">
+    <link rel="stylesheet" href="macchine.css?v=8.2.9">
+    <link rel="stylesheet" href="ordini.css?v=8.2.9">
+    <link rel="stylesheet" href="ordini-macchine.css?v=8.2.9">
+    <link rel="stylesheet" href="azienda.css?v=8.2.9">
+    <link rel="stylesheet" href="richieste.css?v=8.2.9">
+    <link rel="stylesheet" href="buoni.css?v=8.2.9">
+    <link rel="stylesheet" href="mezzi.css?v=8.2.9">
+    <link rel="stylesheet" href="cartellini.css?v=8.2.9">
+    <link rel="stylesheet" href="contanti.css?v=8.2.9">
+    <link rel="stylesheet" href="daltonici.css?v=8.2.9">
 
     <!-- SheetJS per import Excel -->
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
@@ -92,7 +92,7 @@
 
 <body class="loading">
     <!-- Version badge -->
-    <div class="version-badge">v8.2.8</div>
+    <div class="version-badge">v8.2.9</div>
 
     <!-- SCHERMATA LOGIN -->
     <div id="login-screen" class="screen">
@@ -427,6 +427,12 @@
                 <div id="om-avviso-sql" class="mac-info hidden">&#9888;&#65039; Per segnare gli ordini e creare le sezioni va eseguito su Supabase lo script <strong>supabase/ordini-macchine-setup.sql</strong>. Per ora vedi solo le macchine da ordinare.</div>
                 <div id="om-riepilogo" class="om-riepilogo"></div>
                 <div class="om-barra">
+                    <!-- v8.3.0: libro per fornitore (default) o per marchio -->
+                    <div id="om-vista" class="om-vista hidden">
+                        <button type="button" data-om-vista="fornitore">&#127970; Per fornitore</button>
+                        <button type="button" data-om-vista="marchio">&#127991;&#65039; Per marchio</button>
+                    </div>
+                    <button type="button" class="btn-back mac-btn-piccolo" data-om-azione="fornitori">&#9881;&#65039; Fornitori</button>
                     <select id="om-vai-marchio"></select>
                     <label class="mac-check"><input type="checkbox" id="om-mostra-arrivati"> Mostra ordini gi&agrave; arrivati</label>
                 </div>
@@ -3478,7 +3484,7 @@
         <div class="modal-content whats-new-content">
             <div class="whats-new-header">
                 <h3>&#127881; AGRIDESK v - Aggiornamento!</h3>
-                <p class="version-date">27 Novembre 2026</p>
+                <p class="version-date">28 Novembre 2026</p>
             </div>
 
             <!-- INIZIO_FEATURES -->
@@ -3590,6 +3596,29 @@
             <div id="mz-inv-reader"></div>
             <div class="modal-buttons" style="grid-template-columns: 1fr;">
                 <button type="button" class="btn-secondary" onclick="mzInvChiudiScanner()">Chiudi</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Ordini Fornitore: fornitori e i loro marchi (ordini-macchine-functions.js, v8.3.0) -->
+    <div id="om-forn-modal" class="modal hidden">
+        <div class="modal-content mac-modal-content">
+            <div class="modal-header">
+                <h3>&#127970; Fornitori e marchi</h3>
+                <button type="button" class="modal-close" onclick="omChiudiFornitori()">&times;</button>
+            </div>
+            <p class="mac-aiuto">Ogni marchio ha il suo fornitore (es. <strong>ECHO</strong>, <strong>AS MOTOR</strong>, <strong>WEIBANG</strong> da <strong>CORMIK</strong>).
+                Nel libro i marchi dello stesso fornitore stanno in una linguetta sola e si ordinano insieme. Compila man mano che serve:
+                i marchi senza fornitore restano linguette da sole.</p>
+            <div class="om-forn-form">
+                <select id="om-forn-marchio"></select>
+                <input type="text" id="om-forn-nome" list="om-forn-lista-nomi" placeholder="Fornitore (es. CORMIK)" autocomplete="off">
+                <datalist id="om-forn-lista-nomi"></datalist>
+                <button type="button" class="btn-primary mac-btn-piccolo" onclick="omFornAssegna()">&#10004; Assegna</button>
+            </div>
+            <div id="om-forn-elenco" class="om-forn-elenco"></div>
+            <div class="modal-buttons">
+                <button type="button" class="btn-secondary" onclick="omChiudiFornitori()">Chiudi</button>
             </div>
         </div>
     </div>
@@ -4069,22 +4098,22 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- Versione bloccata (la libreria non e' piu' mantenuta: cosi' non cambia mai da sola) -->
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-    <script src="ricambi-functions.js?v=8.2.8"></script>
-    <script src="listino-functions.js?v=8.2.8"></script>
-    <script src="fornitori-functions.js?v=8.2.8"></script>
-    <script src="interventi-functions.js?v=8.2.8"></script>
-    <script src="macchine-functions.js?v=8.2.8"></script>
-    <script src="macchine-report.js?v=8.2.8"></script>
-    <script src="macchine-raffica.js?v=8.2.8"></script>
-    <script src="listini-fornitori-functions.js?v=8.2.8"></script>
-    <script src="ordini-functions.js?v=8.2.8"></script>
-    <script src="ordini-macchine-functions.js?v=8.2.8"></script>
-    <script src="azienda-functions.js?v=8.2.8"></script>
-    <script src="richieste-robot-functions.js?v=8.2.8"></script>
-    <script src="buoni-functions.js?v=8.2.8"></script>
-    <script src="mezzi-functions.js?v=8.2.8"></script>
-    <script src="cartellini-functions.js?v=8.2.8"></script>
-    <script src="contanti-functions.js?v=8.2.8"></script>
-    <script src="app.js?v=8.2.8"></script>
+    <script src="ricambi-functions.js?v=8.2.9"></script>
+    <script src="listino-functions.js?v=8.2.9"></script>
+    <script src="fornitori-functions.js?v=8.2.9"></script>
+    <script src="interventi-functions.js?v=8.2.9"></script>
+    <script src="macchine-functions.js?v=8.2.9"></script>
+    <script src="macchine-report.js?v=8.2.9"></script>
+    <script src="macchine-raffica.js?v=8.2.9"></script>
+    <script src="listini-fornitori-functions.js?v=8.2.9"></script>
+    <script src="ordini-functions.js?v=8.2.9"></script>
+    <script src="ordini-macchine-functions.js?v=8.2.9"></script>
+    <script src="azienda-functions.js?v=8.2.9"></script>
+    <script src="richieste-robot-functions.js?v=8.2.9"></script>
+    <script src="buoni-functions.js?v=8.2.9"></script>
+    <script src="mezzi-functions.js?v=8.2.9"></script>
+    <script src="cartellini-functions.js?v=8.2.9"></script>
+    <script src="contanti-functions.js?v=8.2.9"></script>
+    <script src="app.js?v=8.2.9"></script>
 </body>
 </html>

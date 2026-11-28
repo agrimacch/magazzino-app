@@ -31,6 +31,10 @@
 // (es. PRESTAGIONALE) e viceversa: colonna macchine_pezzi.sezione_da_ordinare (script supabase/ordini-fornitore-da-ordinare.sql).
 // Ogni pagina ha il suo blocco "Da ordinare"; "Segna come ordinate" propone la sezione della pagina e poi la colonna si svuota.
 // I nuovi "da ordinare" degli ordini clienti arrivano sempre in ORDINI NORMALE. Funzioni omDaoSposta*.
+// Fornitori con piu' marchi (v8.3.0): tabella of_fornitori_marchi (es. ECHO, AS MOTOR, WEIBANG -> CORMIK), compilata
+// dall'app (pulsante Fornitori). Libro per FORNITORE (default) o per MARCHIO (interruttore). Gli ordini restano uno per
+// marchio, ma quelli fatti insieme hanno lo stesso "gruppo" e sono UN blocco. Pagina = marchio oppure 'F:' + fornitore;
+// sezioni del fornitore: macchine_of_sezioni.marchio = 'F:CORMIK' (supabase/ordini-fornitore-fornitori.sql). Funzioni omForn*.
 // Usa: macchine-functions.js (macPezzi, macOrdiniFornitore, macOfSezioni, macSegnaOrdinate...)
 // Tabelle: macchine_of_ordini, macchine_of_sezioni, macchine_pezzi.ordine_fornitore_id
 // (supabase/ordini-macchine-setup.sql)
@@ -50,6 +54,60 @@ let omOfInModifica = null;        // ordine al fornitore aperto nella finestra (
 let omOfRighe = [];               // righe nuove della finestra: [{ art, n }]
 let omSezioneInModifica = null;
 let omRigaAperta = null;          // { ofId, articoloId }
+
+// ========================================
+// FORNITORI CON PIU' MARCHI (v8.3.0)
+// ========================================
+let omFornMarchi = {};            // MARCHIO -> FORNITORE
+let omFornPronto = false;         // false = script ordini-fornitore-fornitori.sql non eseguito: solo vista per marchio
+
+async function omCaricaFornitori() {
+    const { data, error } = await supabaseClient.from('of_fornitori_marchi').select('*');
+    if (error) {
+        omFornPronto = false;
+        omFornMarchi = {};
+        console.log('Fornitori dei marchi non caricati (manca supabase/ordini-fornitore-fornitori.sql?):', error.message);
+        return;
+    }
+    omFornMarchi = {};
+    (data || []).forEach(r => { omFornMarchi[r.marchio] = r.fornitore; });
+    omFornPronto = true;
+}
+// Vista del libro: 'fornitore' (default) o 'marchio'
+function omVista() { return omFornPronto && omSessione('omVista') !== 'marchio' ? 'fornitore' : 'marchio'; }
+function omEFornitore(k) { return String(k || '').indexOf('F:') === 0; }
+function omNomePagina(k) { return omEFornitore(k) ? String(k).slice(2) : String(k || ''); }
+function omFornitoreDi(marchio) { return omFornMarchi[marchio] || null; }
+// Pagina (linguetta) di un marchio nella vista attuale
+function omChiaveDi(marchio) {
+    const f = omVista() === 'fornitore' ? omFornitoreDi(marchio) : null;
+    return f ? 'F:' + f : marchio;
+}
+// Marchi di una pagina
+function omMarchiDi(k) {
+    if (!omEFornitore(k)) return [k];
+    const f = omNomePagina(k);
+    return Object.keys(omFornMarchi).filter(m => omFornMarchi[m] === f).sort(listinoConfronta);
+}
+function omInPagina(marchio, k) { return omMarchiDi(k).indexOf(marchio) !== -1; }
+function omChiave() { return omSessione('omMarchio') || ''; }
+function omNuovoGruppo() { return 'G' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
+// Ordini fatti insieme (stesso gruppo)
+function omOrdiniGruppo(of) {
+    return of && of.gruppo ? macOrdiniFornitore.filter(o => o.gruppo === of.gruppo) : (of ? [of] : []);
+}
+// Sezioni che si vedono in una pagina: quelle della pagina, e (fornitore) quelle vecchie dei suoi marchi,
+// (marchio) quelle del suo fornitore
+function omSezioneInPagina(s, k) {
+    if (s.marchio === k) return true;
+    if (omEFornitore(k)) return omInPagina(s.marchio, k);
+    const f = omFornitoreDi(k);
+    return !!f && s.marchio === 'F:' + f;
+}
+function omNomeSezione(s, k) {
+    if (!s) return 'ORDINI NORMALE';
+    return s.marchio === k ? s.nome : s.nome + ' (' + omNomePagina(s.marchio) + ')';
+}
 
 // ========================================
 // UTILITA'
@@ -86,7 +144,7 @@ function omPaginaCorrente() {
 function omDaOrdinare(marchio, pagina) {
     if (!marchio) return macPezzi.filter(p => p.stato === 'DA_ORDINARE');
     const pg = pagina === undefined ? omPaginaCorrente() : pagina;
-    return macPezzi.filter(p => p.stato === 'DA_ORDINARE' && omMarchioDi(p) === marchio && (Number(p.sezione_da_ordinare) || null) === pg);
+    return macPezzi.filter(p => p.stato === 'DA_ORDINARE' && omInPagina(omMarchioDi(p), marchio) && (Number(p.sezione_da_ordinare) || null) === pg);
 }
 
 function omArrivato(p) {
@@ -108,7 +166,7 @@ function omSessione(nome, valore) {
 }
 
 function omSezioniMarchio(marchio) {
-    return macOfSezioni.filter(s => s.marchio === marchio)
+    return macOfSezioni.filter(s => omSezioneInPagina(s, marchio))
         .sort((a, b) => (a.chiusa === b.chiusa ? listinoConfronta(a.nome, b.nome) : (a.chiusa ? 1 : -1)));
 }
 
@@ -136,6 +194,8 @@ function omPerArticolo(pezzi) {
     const per = {};
     pezzi.forEach(p => { (per[p.articolo_id] = per[p.articolo_id] || []).push(p); });
     const articoli = listinoOrdina(Object.keys(per).map(id => macArticolo(Number(id))).filter(Boolean));
+    // pagina di un fornitore: i modelli raggruppati per marchio
+    if (omEFornitore(omChiave())) articoli.sort((x, y) => listinoConfronta(x.marchio, y.marchio));
     const senza = Object.keys(per).filter(id => !macArticolo(Number(id)));
     return articoli.map(a => ({ art: a, pezzi: per[a.id] })).concat(senza.map(id => ({ art: null, pezzi: per[id] })));
 }
@@ -143,7 +203,7 @@ function omPerArticolo(pezzi) {
 // "TOSASIEPI <b>HSA 140 T</b> SENZA BATTERIA  STIHA02-011-3515" (attrezzo, modello in grassetto, note, codice articolo)
 function omDescrizioneHtml(a) {
     if (!a) return 'ARTICOLO NON PIU&#39; NEL LISTINO';
-    return (a.attrezzo ? macEsc(a.attrezzo) + ' ' : '') + '<span class="om-codice">' + macEsc(a.modello || '') + '</span>' +
+    return (omEFornitore(omChiave()) && a.marchio ? '<span class="om-marca-tag">' + macEsc(a.marchio) + '</span> ' : '') + (a.attrezzo ? macEsc(a.attrezzo) + ' ' : '') + '<span class="om-codice">' + macEsc(a.modello || '') + '</span>' +
         (a.note ? ' ' + macEsc(a.note) : '') +
         (a.codice_articolo ? ' <span class="om-codart" title="Codice articolo">' + macEsc(a.codice_articolo) + '</span>'
             : ' <span class="om-codart om-codart-manca" title="Manca il codice articolo: scrivilo nel Listino Agrimacch (Modifica articolo)">cod. ?</span>');
@@ -159,6 +219,7 @@ async function openOrdiniMacchine() {
     try {
         await listinoArticoliAggiorna();   // v8.8.2: sempre gli articoli aggiornati
         await macCaricaDati();
+        await omCaricaFornitori();
         if (typeof loadAllUsers === 'function' && Object.keys(userInitials || {}).length === 0) await loadAllUsers();
     } catch (error) {
         console.error('Errore caricamento ordini macchine:', error);
@@ -180,16 +241,29 @@ async function omRicarica() {
 // ========================================
 function omMarchi() {
     const conta = {};
-    const aggiungi = m => { if (!(m in conta)) conta[m] = 0; };
-    omDaOrdinare().forEach(p => { const m = omMarchioDi(p); conta[m] = (conta[m] || 0) + 1; });
+    const aggiungi = k => { if (k && !(k in conta)) conta[k] = 0; };
+    omDaOrdinare().forEach(p => { const k = omChiaveDi(omMarchioDi(p)); conta[k] = (conta[k] || 0) + 1; });
     const mostraArrivati = document.getElementById('om-mostra-arrivati') && document.getElementById('om-mostra-arrivati').checked;
-    macOrdiniFornitore.forEach(of => { if (mostraArrivati || !omOfArrivato(of)) aggiungi(of.marchio); });
-    macOfSezioni.forEach(s => { if (!s.chiusa) aggiungi(s.marchio); });
-    // Marchio aperto con "Vai al marchio": resta solo se e' ancora un marchio del listino
+    macOrdiniFornitore.forEach(of => { if (mostraArrivati || !omOfArrivato(of)) aggiungi(omChiaveDi(of.marchio)); });
+    macOfSezioni.forEach(s => {
+        if (s.chiusa) return;
+        if (omEFornitore(s.marchio)) { if (omVista() === 'fornitore' && omMarchiDi(s.marchio).length) aggiungi(s.marchio); }
+        else aggiungi(omChiaveDi(s.marchio));
+    });
+    // Pagina aperta con "Vai a...": resta se e' ancora un marchio del listino o un fornitore con marchi
     // (un marchio di prova cancellato non deve restare tra i divisori)
-    const scelto = omSessione('omMarchio');
-    if (scelto && listinoArticoli.some(a => a.attivo && a.marchio === scelto)) aggiungi(scelto);
+    const scelto = omChiave();
+    if (scelto && (omEFornitore(scelto) ? omMarchiDi(scelto).length > 0 : listinoArticoli.some(a => a.attivo && a.marchio === scelto))) aggiungi(scelto);
     return conta;
+}
+
+// Pagina salvata adattata alla vista (marchio di un fornitore -> pagina del fornitore e viceversa)
+function omAdattaChiave() {
+    let k = omChiave();
+    if (!k) return;
+    if (!omEFornitore(k) && omVista() === 'fornitore') k = omChiaveDi(k);
+    else if (omEFornitore(k) && omVista() === 'marchio') k = omMarchiDi(k)[0] || '';
+    if (k !== omChiave()) omSessione('omMarchio', k || null);
 }
 
 function omRender() {
@@ -200,9 +274,12 @@ function omRender() {
     const avviso = document.getElementById('om-avviso-sql');
     if (avviso) avviso.classList.toggle('hidden', macOfPronto);
 
+    omAdattaChiave();
+    omAggiornaBarraVista();
+    omPopolaVaiMarchio();
     const conta = omMarchi();
-    const marchi = Object.keys(conta).sort(listinoConfronta);
-    let marchio = omSessione('omMarchio');
+    const marchi = Object.keys(conta).sort((a, b) => listinoConfronta(omNomePagina(a), omNomePagina(b)));
+    let marchio = omChiave();
     if (!marchio || marchi.indexOf(marchio) === -1) {
         marchio = marchi.find(m => conta[m] > 0) || marchi[0] || '';
         if (marchio) omSessione('omMarchio', marchio);
@@ -214,20 +291,20 @@ function omRender() {
     if (riep) {
         riep.innerHTML = daFare.length
             ? '&#128276; Ordini da fare: ' + daFare.map(m => '<button type="button" class="om-riep-marchio" data-om-marchio="' + macEsc(m) + '">' +
-                macEsc(m) + ' <span>' + conta[m] + '</span></button>').join(' ')
+                (omEFornitore(m) ? '&#127970; ' : '') + macEsc(omNomePagina(m)) + ' <span>' + conta[m] + '</span></button>').join(' ')
             : '&#9989; Nessuna macchina da ordinare.';
     }
 
     const colori = typeof macColoriDivisori === 'function' ? macColoriDivisori(marchi) : {};
     divisori.innerHTML = marchi.map(m =>
         '<button type="button" class="mac-divisorio' + (m === marchio ? ' active' : '') + '" data-om-marchio="' + macEsc(m) + '"' +
-            (colori[m] ? ' style="' + colori[m] + '"' : '') + '>' +
-            '<span>' + macEsc(m) + '</span>' + (conta[m] ? '<span class="om-badge">' + conta[m] + '</span>' : '') + '</button>'
+            (colori[m] ? ' style="' + colori[m] + '"' : '') + (omEFornitore(m) ? ' title="' + macEsc(omMarchiDi(m).join(', ')) + '"' : '') + '>' +
+            '<span>' + macEsc(omNomePagina(m)) + '</span>' + (conta[m] ? '<span class="om-badge">' + conta[m] + '</span>' : '') + '</button>'
     ).join('');
 
     if (!marchio) {
-        pagina.innerHTML = '<p class="mac-q-vuoto">Nessun ordine.<br>Le macchine <strong>da ordinare</strong> degli ordini clienti compaiono qui da sole, divise per marchio.<br>' +
-            'Per un prestagionale scegli il marchio da <strong>Vai al marchio</strong> e crea una sezione.</p>';
+        pagina.innerHTML = '<p class="mac-q-vuoto">Nessun ordine.<br>Le macchine <strong>da ordinare</strong> degli ordini clienti compaiono qui da sole, divise per ' + (omVista() === 'fornitore' ? 'fornitore' : 'marchio') + '.<br>' +
+            'Per un prestagionale scegli il fornitore o il marchio da <strong>Vai a...</strong> e crea una sezione.</p>';
         return;
     }
     pagina.innerHTML = omHtmlMarchio(marchio);
@@ -240,7 +317,13 @@ function omHtmlMarchio(marchio) {
     if (sezione !== OM_NORMALE && !sezScelta) { sezione = OM_NORMALE; omSessione('omSezione', OM_NORMALE); }
     const daOrdinare = omDaOrdinare(marchio, null);
 
-    let html = '<div class="om-testa"><h3 class="mac-evidenziatore">' + macEsc(marchio) + '</h3></div>';
+    let html = '<div class="om-testa"><h3 class="mac-evidenziatore">' + (omEFornitore(marchio) ? '&#127970; ' : '') + macEsc(omNomePagina(marchio)) + '</h3>' +
+        (omEFornitore(marchio)
+            ? '<div class="om-forn-marchi">' + omMarchiDi(marchio).map(m => '<span class="om-marca-tag">' + macEsc(m) + '</span>').join(' ') +
+                ' <button type="button" class="mac-link" data-om-azione="fornitori">&#9881;&#65039; marchi</button></div>'
+            : (omFornPronto && omVista() === 'fornitore' && !omFornitoreDi(marchio)
+                ? '<div class="om-forn-marchi"><button type="button" class="mac-link" data-om-azione="assegna-fornitore">&#127970; Assegna a un fornitore</button></div>' : '')) +
+        '</div>';
     // Pagine del marchio (come le pagine di OneNote)
     html += '<div class="om-pagine">' +
         '<button type="button" class="om-pagina-btn' + (sezione === OM_NORMALE ? ' active' : '') + '" data-om-sezione="' + OM_NORMALE + '">ORDINI NORMALE' +
@@ -248,7 +331,7 @@ function omHtmlMarchio(marchio) {
         sezioni.map(s => {
             const n = omDaOrdinare(marchio, s.id).length;
             return '<button type="button" class="om-pagina-btn' + (String(s.id) === String(sezione) ? ' active' : '') + (s.chiusa ? ' om-chiusa' : '') +
-                '" data-om-sezione="' + s.id + '">' + macEsc(s.nome) + (n ? ' <span class="om-badge">' + n + '</span>' : '') + '</button>';
+                '" data-om-sezione="' + s.id + '">' + macEsc(omNomeSezione(s, marchio)) + (n ? ' <span class="om-badge">' + n + '</span>' : '') + '</button>';
         }).join('') +
         (macOfPronto ? '<button type="button" class="om-pagina-btn om-pagina-nuova" data-om-azione="nuova-sezione">&#10133; Sezione</button>' : '') +
     '</div>';
@@ -263,7 +346,7 @@ function omHtmlMarchio(marchio) {
         html += omHtmlDaOrdinare(daOrdinare, null);
     } else {
         html += '<div class="om-sez-testa">' +
-            '<div><strong>' + macEsc(sezScelta.nome) + '</strong>' + (sezScelta.chiusa ? ' <span class="om-tag-chiusa">chiusa</span>' : '') +
+            '<div><strong>' + macEsc(omNomeSezione(sezScelta, marchio)) + '</strong>' + (sezScelta.chiusa ? ' <span class="om-tag-chiusa">chiusa</span>' : '') +
                 (sezScelta.note ? '<div class="om-sez-note">' + macEsc(sezScelta.note) + '</div>' : '') + '</div>' +
             '<div class="om-sez-azioni">' +
                 (!sezScelta.chiusa ? '<button type="button" class="btn-primary mac-btn-piccolo" data-om-azione="nuovo-of">&#10133; Nuovo ordine</button>' +
@@ -283,7 +366,7 @@ function omHtmlMarchio(marchio) {
 function omHtmlDaOrdinare(pezzi, sezione) {
     if (pezzi.length === 0) {
         if (sezione && sezione.chiusa) return '';
-        return '<div class="om-blocco om-blocco-daord"><div class="om-blocco-titolo">&#9989; Niente da ordinare ' + (sezione ? 'in questa sezione' : 'per questo marchio') +
+        return '<div class="om-blocco om-blocco-daord"><div class="om-blocco-titolo">&#9989; Niente da ordinare ' + (sezione ? 'in questa sezione' : (omEFornitore(omChiave()) ? 'per questo fornitore' : 'per questo marchio')) +
             (macOfPronto ? '<button type="button" class="btn-back mac-btn-piccolo om-dao-btn" data-om-azione="aggiungi-dao">&#10133; Aggiungi riga</button>' : '') + '</div></div>';
     }
     const gruppi = omPerArticolo(pezzi);
@@ -328,7 +411,7 @@ function omHtmlDaoSposta(totSel, sezione) {
     if (!macOfPronto) return '';
     const marchio = omSessione('omMarchio');
     const qui = sezione ? sezione.id : null;
-    const pagine = [{ id: null, nome: 'ORDINI NORMALE' }].concat(omSezioniMarchio(marchio).filter(s => !s.chiusa).map(s => ({ id: s.id, nome: s.nome })))
+    const pagine = [{ id: null, nome: 'ORDINI NORMALE' }].concat(omSezioniMarchio(marchio).filter(s => !s.chiusa).map(s => ({ id: s.id, nome: omNomeSezione(s, marchio) })))
         .filter(pg => pg.id !== qui);
     if (!pagine.length) return '';
     return '<div class="om-dao-sposta">' +
@@ -377,26 +460,40 @@ async function omDaoSposta() {
 // ---------- Ordini fatti (blocchi con data e iniziali) ----------
 function omHtmlOrdiniFatti(marchio, sezioneId) {
     const mostraArrivati = document.getElementById('om-mostra-arrivati') && document.getElementById('om-mostra-arrivati').checked;
-    const tutti = macOrdiniFornitore.filter(of => of.marchio === marchio && (of.sezione_id || null) === (sezioneId || null))
-        // v8.3.0: dal piu' vecchio (in alto) al piu' recente (in basso)
-        .sort((a, b) => (String(a.data) + String(a.id).padStart(9, '0')).localeCompare(String(b.data) + String(b.id).padStart(9, '0')));
-    const visibili = tutti.filter(of => mostraArrivati || !omOfArrivato(of));
-    const nascosti = tutti.length - visibili.length;
+    const tutti = macOrdiniFornitore.filter(of => omInPagina(of.marchio, marchio) && (of.sezione_id || null) === (sezioneId || null));
+    // v8.3.0: gli ordini fatti insieme (stesso gruppo, piu' marchi dello stesso fornitore) sono UN blocco
+    const blocchi = [];
+    const perGruppo = {};
+    tutti.forEach(of => {
+        if (!of.gruppo) { blocchi.push([of]); return; }
+        if (!perGruppo[of.gruppo]) { perGruppo[of.gruppo] = []; blocchi.push(perGruppo[of.gruppo]); }
+        perGruppo[of.gruppo].push(of);
+    });
+    // dal piu' vecchio (in alto) al piu' recente (in basso)
+    const chiave = b => String(b[0].data) + String(Math.min.apply(null, b.map(o => o.id))).padStart(9, '0');
+    blocchi.sort((a, b) => chiave(a).localeCompare(chiave(b)));
+    const visibili = blocchi.filter(b => mostraArrivati || !b.every(omOfArrivato));
+    const nascosti = blocchi.length - visibili.length;
     let html = '<div class="om-fatti-titolo">Ordini fatti' + (nascosti ? ' <small>(' + nascosti + ' gi&agrave; arrivati nascosti)</small>' : '') + '</div>';
     if (visibili.length === 0) {
         html += '<p class="mac-aiuto">' + (sezioneId ? 'Nessun ordine in questa sezione: usa <strong>Nuovo ordine</strong>.' : 'Nessun ordine in corso.') + '</p>';
         return html;
     }
-    visibili.forEach(of => { html += omHtmlOf(of); });
+    visibili.forEach(b => { html += omHtmlOf(b); });
     return html;
 }
 
-function omHtmlOf(of) {
-    const pezzi = omPezziOf(of);
-    const gruppi = omPerArticolo(pezzi);
-    const arrivato = omOfArrivato(of);
+// lista: un ordine o gli ordini dello stesso gruppo (uno per marchio)
+function omHtmlOf(lista) {
+    if (!Array.isArray(lista)) lista = [lista];
+    lista = lista.slice().sort((x, y) => listinoConfronta(x.marchio, y.marchio));
+    const of = lista[0];
+    const arrivato = lista.every(omOfArrivato);
     let html = '<div class="om-blocco' + (arrivato ? ' om-blocco-arrivato' : '') + '">';
-    if (gruppi.length === 0) html += '<p class="mac-aiuto">Nessuna riga.</p>';
+    let nRighe = 0;
+    lista.forEach(o => {
+    const gruppi = omPerArticolo(omPezziOf(o));
+    nRighe += gruppi.length;
     gruppi.forEach(g => {
         const a = g.art;
         const arrivate = g.pezzi.filter(omArrivato);
@@ -405,7 +502,7 @@ function omHtmlOf(of) {
         const libere = attesa.filter(p => !p.cliente).length;
         const tutto = arrivate.length === g.pezzi.length;
         const quadro = tutto ? '<span class="mac-quadro om-quadro-ok">&#10003;</span>' : '<span class="mac-quadro st-ordinata"></span>';
-        html += '<button type="button" class="om-riga om-riga-of" data-om-riga="' + of.id + '|' + (a ? a.id : 0) + '">' +
+        html += '<button type="button" class="om-riga om-riga-of" data-om-riga="' + o.id + '|' + (a ? a.id : 0) + '">' +
             '<span class="om-riga-check">' + quadro + '</span>' +
             '<span class="om-riga-testo"><strong class="om-qta">' + g.pezzi.length + '</strong> ' +
                 omDescrizioneHtml(a) +
@@ -415,7 +512,10 @@ function omHtmlOf(of) {
             '</span>' +
         '</button>';
     });
+    });
+    if (nRighe === 0) html += '<p class="mac-aiuto">Nessuna riga.</p>';
     html += '<div class="om-firma"><span class="om-firma-data">' + macDataCorta(of.data) + ' ' + macEsc(of.operatore || '') + '</span>' +
+        (lista.length > 1 ? ' <span class="om-of-marchi">' + lista.map(o => macEsc(o.marchio)).join(' + ') + '</span>' : '') +
         (of.consegna ? ' <span class="om-consegna">&#128666; ' + macEsc(of.consegna) + '</span>' : '') +
         (of.note ? ' <span class="om-of-note">' + macEsc(of.note) + '</span>' : '') +
         '<button type="button" class="mac-link om-of-modifica" data-om-of="' + of.id + '">&#9997;&#65039; modifica</button></div>';
@@ -459,8 +559,9 @@ function omApriFinestraOf(modo, marchio, pezzi) {
     const of = omOfInModifica;
     const sezioneCorrente = omSessione('omSezione');
     const sezioni = omSezioniMarchio(marchio).filter(s => !s.chiusa || (of && s.id === of.sezione_id));
-    document.getElementById('om-of-titolo').innerHTML = modo === 'segna' ? '&#9745;&#65039; Segna come ordinate - ' + macEsc(marchio)
-        : modo === 'nuovo' ? '&#10133; Nuovo ordine - ' + macEsc(marchio) : '&#9997;&#65039; Ordine del ' + macDataCorta(of.data) + ' - ' + macEsc(marchio);
+    const nomeTit = modo === 'modifica' ? omOrdiniGruppo(of).map(o => o.marchio).join(' + ') : omNomePagina(marchio);
+    document.getElementById('om-of-titolo').innerHTML = modo === 'segna' ? '&#9745;&#65039; Segna come ordinate - ' + macEsc(nomeTit)
+        : modo === 'nuovo' ? '&#10133; Nuovo ordine - ' + macEsc(nomeTit) : '&#9997;&#65039; Ordine del ' + macDataCorta(of.data) + ' - ' + macEsc(nomeTit);
     document.getElementById('om-of-data').value = of ? String(of.data).slice(0, 10) : omOggiISO();
     document.getElementById('om-of-operatore').value = of ? (of.operatore || '') : macIniziali();
     document.getElementById('om-of-consegna').value = of ? (of.consegna || '') : '';
@@ -469,7 +570,7 @@ function omApriFinestraOf(modo, marchio, pezzi) {
     // v7.11.6: anche "Segna come ordinate" propone la pagina aperta (le righe da ordinare di una sezione restano li')
     let scelta = of ? (of.sezione_id || OM_NORMALE) : ((modo === 'nuovo' || modo === 'segna') ? (sezioneCorrente || OM_NORMALE) : OM_NORMALE);
     sel.innerHTML = '<option value="' + OM_NORMALE + '">ORDINI NORMALE</option>' +
-        sezioni.map(s => '<option value="' + s.id + '">' + macEsc(s.nome) + '</option>').join('');
+        sezioni.map(s => '<option value="' + s.id + '">' + macEsc(omNomeSezione(s, marchio)) + '</option>').join('');
     sel.value = String(scelta);
     if (!sel.value) sel.value = OM_NORMALE;
     sel.disabled = modo === 'nuovo';
@@ -546,8 +647,8 @@ function omOfVeloceRighe(testo) {
 }
 
 function omOfVeloceTrova(nome) {
-    const marchio = omSessione('omMarchio');
-    const tutti = listinoArticoli.filter(a => a.attivo && a.marchio === marchio);
+    const marchio = omChiave();
+    const tutti = listinoArticoli.filter(a => a.attivo && omInPagina(a.marchio, marchio));
     const norm = t => String(t || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
     const n = norm(nome);
     if (!n) return { art: null, quanti: 0 };
@@ -579,7 +680,7 @@ async function omOfVeloceAggiungi() {
         const t = omOfVeloceTrova(r.nome);
         if (!t.art) {
             restano.push(r.riga);
-            problemi.push(macEsc(r.riga) + ': ' + (t.quanti > 1 ? t.quanti + ' modelli trovati, scrivi il codice o il nome completo' : 'modello non trovato in questo marchio'));
+            problemi.push(macEsc(r.riga) + ': ' + (t.quanti > 1 ? t.quanti + ' modelli trovati, scrivi il codice o il nome completo' : (omEFornitore(omChiave()) ? 'modello non trovato tra i marchi di questo fornitore' : 'modello non trovato in questo marchio')));
             return;
         }
         const gia = omOfRighe.find(x => x.art.id === t.art.id);
@@ -622,6 +723,9 @@ async function omSalvaFinestraOf() {
     const adesso = new Date().toISOString();
     const utente = macUtente();
     try {
+        // v8.3.0: nella pagina di un fornitore gli ordini (uno per marchio) fatti insieme hanno lo stesso gruppo
+        const gruppoNuovo = omFornPronto && omEFornitore(marchio) ? omNuovoGruppo() : null;
+        const base = { sezioneId: sezioneId, data: data, operatore: operatore, consegna: consegna, note: note, gruppo: gruppoNuovo };
         if (omFinestraModo === 'segna') {
             // ricontrollo: devono essere ancora da ordinare
             const ancora = omFinestraPezzi.filter(p => p.stato === 'DA_ORDINARE');
@@ -631,9 +735,11 @@ async function omSalvaFinestraOf() {
                 const x = libere.find(e => e.art.id === r.art.id);
                 if (x) x.n += r.n; else libere.push({ art: r.art, n: r.n });
             });
-            let of = null;
+            let creati = [];
             if (ancora.length) {
-                const creati = await macSegnaOrdinate(ancora, { data: data, operatore: operatore, sezione_id: sezioneId, consegna: consegna, note: note });
+                const dati = { data: data, operatore: operatore, sezione_id: sezioneId, consegna: consegna, note: note };
+                if (gruppoNuovo) dati.gruppo = gruppoNuovo;
+                creati = await macSegnaOrdinate(ancora, dati);
                 // ordinate: non sono piu' "da ordinare" di una sezione (se tornano da ordinare vanno in ORDINI NORMALE)
                 const conSez = ancora.filter(p => p.sezione_da_ordinare);
                 if (conSez.length) {
@@ -641,24 +747,30 @@ async function omSalvaFinestraOf() {
                     if (eSez) console.log('sezione_da_ordinare non svuotata:', eSez.message);
                     else conSez.forEach(p => { p.sezione_da_ordinare = null; });
                 }
-                of = creati.find(o => o.marchio === marchio) || creati[0] || null;
             }
-            if (libere.length) {
-                if (!of) of = await omCreaOf(marchio, sezioneId, data, operatore, consegna, note);
-                await omAggiungiRigheLibere(of, libere);
-            }
+            if (libere.length) await omRigheLiberePerMarchio(libere, base, creati);
             omSelezione = {};
+        } else if (omFinestraModo === 'nuovo') {
+            await omRigheLiberePerMarchio(omOfRighe, base, []);
         } else {
-            let of = omOfInModifica;
-            if (!of) {
-                of = await omCreaOf(marchio, sezioneId, data, operatore, consegna, note);
-            } else {
-                const agg = { data: data, operatore: operatore, consegna: consegna, note: note, sezione_id: sezioneId, updated_at: adesso, updated_by: utente };
-                const { error } = await supabaseClient.from('macchine_of_ordini').update(agg).eq('id', of.id);
-                if (error) throw error;
-                Object.assign(of, agg);
+            // modifica: data, iniziali, consegna, note e sezione valgono per tutto il gruppo
+            const of = omOfInModifica;
+            const gruppo = omOrdiniGruppo(of);
+            const agg = { data: data, operatore: operatore, consegna: consegna, note: note, sezione_id: sezioneId, updated_at: adesso, updated_by: utente };
+            const { error } = await supabaseClient.from('macchine_of_ordini').update(agg).in('id', gruppo.map(o => o.id));
+            if (error) throw error;
+            gruppo.forEach(o => Object.assign(o, agg));
+            if (omOfRighe.length) {
+                // righe di un altro marchio dello stesso fornitore: nuovo ordine nello stesso gruppo
+                const altroMarchio = omOfRighe.some(r => !gruppo.some(o => o.marchio === (r.art.marchio || 'SENZA MARCHIO')));
+                if (altroMarchio && !of.gruppo && omFornPronto) {
+                    const g = omNuovoGruppo();
+                    const { error: eG } = await supabaseClient.from('macchine_of_ordini').update({ gruppo: g }).eq('id', of.id);
+                    if (eG) throw eG;
+                    of.gruppo = g;
+                }
+                await omRigheLiberePerMarchio(omOfRighe, { sezioneId: sezioneId, data: data, operatore: operatore, consegna: consegna, note: note, gruppo: of.gruppo || null }, gruppo);
             }
-            await omAggiungiRigheLibere(of, omOfRighe);
         }
     } catch (error) {
         console.error('Errore ordine fornitore:', error);
@@ -678,7 +790,7 @@ let omDaoRighe = [];
 
 function omApriDao() {
     omDaoRighe = [];
-    document.getElementById('om-dao-titolo').innerHTML = '&#10133; Da ordinare per il magazzino - ' + macEsc(omSessione('omMarchio') || '');
+    document.getElementById('om-dao-titolo').innerHTML = '&#10133; Da ordinare per il magazzino - ' + macEsc(omNomePagina(omChiave()));
     document.getElementById('om-dao-search').value = '';
     omRenderDao();
     document.getElementById('om-dao-modal').classList.remove('hidden');
@@ -842,7 +954,7 @@ function omComeSetProsegui() {
     // gli altri componenti del set: righe libere (arrivano disponibili)
     omOfRighe = comp.filter(r => r.componente_id !== s.comp.id).map(r => ({ art: macArticolo(r.componente_id), n: (r.quantita || 1) * nSet })).filter(r => r.art);
     omApriFinestraOf('segna', marchio, pezzi);
-    document.getElementById('om-of-titolo').innerHTML = '&#129513; Ordina come set - ' + macEsc(marchio);
+    document.getElementById('om-of-titolo').innerHTML = '&#129513; Ordina come set - ' + macEsc(omNomePagina(marchio));
     document.getElementById('om-of-note').value = 'COME SET: ' + nSet + ' X ' + macNome(set) + (set.codice_articolo ? ' (' + set.codice_articolo + ')' : '');
     const riep = document.getElementById('om-of-riepilogo');
     riep.innerHTML = '<div class="om-set-avviso">&#129513; Al fornitore ordini <strong>' + nSet + ' x ' + macEsc(macNome(set)) + '</strong>' +
@@ -863,15 +975,32 @@ function omExtraSelezione(marchio) {
     return out;
 }
 
-async function omCreaOf(marchio, sezioneId, data, operatore, consegna, note) {
+async function omCreaOf(marchio, sezioneId, data, operatore, consegna, note, gruppo) {
     const utente = macUtente();
-    const { data: nuovo, error } = await supabaseClient.from('macchine_of_ordini').insert([{
+    const riga = {
         marchio: marchio, sezione_id: sezioneId || null, data: data, operatore: operatore, consegna: consegna || null, note: note || null,
         created_by: utente, updated_by: utente
-    }]).select('*').single();
+    };
+    if (gruppo) riga.gruppo = gruppo;
+    const { data: nuovo, error } = await supabaseClient.from('macchine_of_ordini').insert([riga]).select('*').single();
     if (error) throw error;
     macOrdiniFornitore.push(nuovo);
     return nuovo;
+}
+
+// Righe libere di piu' marchi (pagina del fornitore): ognuna nell'ordine del suo marchio.
+// ordini: ordini gia' fatti insieme (si cerca li' quello del marchio, altrimenti se ne crea uno con i dati di base)
+async function omRigheLiberePerMarchio(righe, base, ordini) {
+    const per = {};
+    righe.forEach(r => { const m = (r.art && r.art.marchio) || 'SENZA MARCHIO'; (per[m] = per[m] || []).push(r); });
+    for (const m of Object.keys(per)) {
+        let of = ordini.find(o => o.marchio === m);
+        if (!of) {
+            of = await omCreaOf(m, base.sezioneId, base.data, base.operatore, base.consegna, base.note, base.gruppo);
+            ordini.push(of);
+        }
+        await omAggiungiRigheLibere(of, per[m]);
+    }
 }
 
 // Righe senza cliente in un ordine al fornitore: macchine ORDINATE libere (un set = i suoi componenti)
@@ -907,19 +1036,21 @@ async function omAggiungiRigheLibere(of, righe) {
 async function omEliminaOf() {
     const of = omOfInModifica;
     if (!of) return;
-    const pezzi = omPezziOf(of);
+    const gruppo = omOrdiniGruppo(of);   // v8.3.0: ordine di piu' marchi = si elimina tutto
+    const pezzi = [].concat.apply([], gruppo.map(omPezziOf));
     const attesa = pezzi.filter(p => p.stato === 'ORDINATA');
     const clienti = attesa.filter(p => p.cliente).length;
     const libere = attesa.length - clienti;
     const arrivate = pezzi.length - attesa.length;
-    if (!window.confirm('Eliminare l\'ordine del ' + macDataCorta(of.data) + ' ' + of.operatore + '?\n\n' +
+    if (!window.confirm('Eliminare l\'ordine del ' + macDataCorta(of.data) + ' ' + of.operatore +
+        (gruppo.length > 1 ? ' (' + gruppo.map(o => o.marchio).join(' + ') + ')' : '') + '?\n\n' +
         (clienti ? '- ' + clienti + ' macchine dei clienti tornano DA ORDINARE\n' : '') +
         (libere ? '- ' + libere + ' righe in arrivo libere vengono tolte\n' : '') +
         (arrivate ? '- ' + arrivate + ' macchine gia\' arrivate restano come sono\n' : '') +
         '\nL\'operazione non si pu\u00f2 annullare.')) return;
     try {
         await macRiportaDaOrdinare(attesa, 'ORDINE FORNITORE ELIMINATO', false);
-        const { error } = await supabaseClient.from('macchine_of_ordini').delete().eq('id', of.id);
+        const { error } = await supabaseClient.from('macchine_of_ordini').delete().in('id', gruppo.map(o => o.id));
         if (error) throw error;
     } catch (error) {
         console.error('Errore eliminazione ordine fornitore:', error);
@@ -1100,7 +1231,7 @@ async function omRigaSposta() {
 // ========================================
 function omApriSezione(sezione) {
     omSezioneInModifica = sezione || null;
-    document.getElementById('om-sez-titolo').innerHTML = sezione ? '&#9997;&#65039; Sezione ' + macEsc(sezione.nome) : '&#10133; Nuova sezione - ' + macEsc(omSessione('omMarchio') || '');
+    document.getElementById('om-sez-titolo').innerHTML = sezione ? '&#9997;&#65039; Sezione ' + macEsc(sezione.nome) : '&#10133; Nuova sezione - ' + macEsc(omNomePagina(omChiave()));
     document.getElementById('om-sez-nome').value = sezione ? sezione.nome : '';
     document.getElementById('om-sez-note').value = sezione ? (sezione.note || '') : '';
     document.getElementById('om-sez-chiusa').checked = !!(sezione && sezione.chiusa);
@@ -1122,7 +1253,7 @@ async function omSalvaSezione() {
     const chiusa = document.getElementById('om-sez-chiusa').checked;
     if (!nome) { await showCustomAlert('Scrivi il nome della sezione (es. OPG, TRATTORINI 2026)', 'Sezione', '&#9888;&#65039;'); return; }
     if (nome === 'ORDINI NORMALE' || omSezioniMarchio(marchio).some(s => s.nome === nome && (!omSezioneInModifica || s.id !== omSezioneInModifica.id))) {
-        await showCustomAlert('C\'&egrave; gi&agrave; una sezione con questo nome in ' + macEsc(marchio), 'Sezione', '&#9888;&#65039;');
+        await showCustomAlert('C\'&egrave; gi&agrave; una sezione con questo nome in ' + macEsc(omNomePagina(marchio)), 'Sezione', '&#9888;&#65039;');
         return;
     }
     const utente = macUtente();
@@ -1166,7 +1297,93 @@ function omPopolaVaiMarchio() {
     const sel = document.getElementById('om-vai-marchio');
     if (!sel) return;
     const marchi = [...new Set(listinoArticoli.filter(a => a.attivo && a.marchio).map(a => a.marchio))].sort(listinoConfronta);
-    sel.innerHTML = '<option value="">&#128269; Vai al marchio...</option>' + marchi.map(m => '<option value="' + macEsc(m) + '">' + macEsc(m) + '</option>').join('');
+    let html = '';
+    if (omVista() === 'fornitore') {
+        const fornitori = [...new Set(Object.values(omFornMarchi))].sort(listinoConfronta);
+        const liberi = marchi.filter(m => !omFornitoreDi(m));
+        html = '<option value="">&#128269; Vai a fornitore / marchio...</option>' +
+            (fornitori.length ? '<optgroup label="Fornitori">' + fornitori.map(f => '<option value="F:' + macEsc(f) + '">' + macEsc(f) + ' (' +
+                macEsc(omMarchiDi('F:' + f).join(', ')) + ')</option>').join('') + '</optgroup>' : '') +
+            '<optgroup label="Marchi senza fornitore">' + liberi.map(m => '<option value="' + macEsc(m) + '">' + macEsc(m) + '</option>').join('') + '</optgroup>';
+    } else {
+        html = '<option value="">&#128269; Vai al marchio...</option>' + marchi.map(m => '<option value="' + macEsc(m) + '">' + macEsc(m) + '</option>').join('');
+    }
+    sel.innerHTML = html;
+}
+
+// Interruttore Per fornitore / Per marchio e pulsante Fornitori
+function omAggiornaBarraVista() {
+    const box = document.getElementById('om-vista');
+    if (!box) return;
+    box.classList.toggle('hidden', !omFornPronto);
+    box.querySelectorAll('[data-om-vista]').forEach(b => b.classList.toggle('active', b.dataset.omVista === omVista()));
+}
+
+function omCambiaVista(v) {
+    if (v === omVista()) return;
+    omSessione('omVista', v === 'marchio' ? 'marchio' : 'fornitore');
+    omSelezione = {};
+    omRender();
+}
+
+// ========================================
+// FORNITORI E MARCHI (finestra): si compila man mano che serve
+// ========================================
+function omApriFornitori(marchio) {
+    if (!omFornPronto) {
+        showCustomAlert('Per raggruppare i marchi per fornitore esegui su Supabase lo script <strong>supabase/ordini-fornitore-fornitori.sql</strong>.', 'Fornitori', '&#8505;&#65039;');
+        return;
+    }
+    const marchi = [...new Set(listinoArticoli.filter(a => a.attivo && a.marchio).map(a => a.marchio))].sort(listinoConfronta);
+    document.getElementById('om-forn-marchio').innerHTML = '<option value="">- marchio -</option>' +
+        marchi.map(m => '<option value="' + macEsc(m) + '">' + macEsc(m) + (omFornitoreDi(m) ? ' (' + macEsc(omFornitoreDi(m)) + ')' : '') + '</option>').join('');
+    const sel = document.getElementById('om-forn-marchio');
+    sel.value = marchio && !omEFornitore(marchio) ? marchio : '';
+    // pagina di un fornitore: il nome e' gia' scritto (per aggiungere un marchio)
+    document.getElementById('om-forn-nome').value = omEFornitore(marchio) ? omNomePagina(marchio) : (marchio && omFornitoreDi(marchio)) || '';
+    omRenderFornitori();
+    document.getElementById('om-forn-modal').classList.remove('hidden');
+}
+
+function omChiudiFornitori() {
+    document.getElementById('om-forn-modal').classList.add('hidden');
+}
+
+function omRenderFornitori() {
+    const fornitori = [...new Set(Object.values(omFornMarchi))].sort(listinoConfronta);
+    document.getElementById('om-forn-lista-nomi').innerHTML = fornitori.map(f => '<option value="' + macEsc(f) + '">').join('');
+    document.getElementById('om-forn-elenco').innerHTML = fornitori.length
+        ? fornitori.map(f => '<div class="om-forn-voce"><strong>&#127970; ' + macEsc(f) + '</strong><div class="om-forn-tag">' +
+            omMarchiDi('F:' + f).map(m => '<span class="om-marca-tag">' + macEsc(m) +
+                ' <button type="button" class="om-forn-x" data-om-forn-togli="' + macEsc(m) + '" title="Togli ' + macEsc(m) + ' da ' + macEsc(f) + '">&times;</button></span>').join(' ') +
+            '</div></div>').join('')
+        : '<p class="mac-aiuto">Nessun fornitore ancora. Scegli un marchio, scrivi il fornitore e premi <strong>Assegna</strong>.</p>';
+}
+
+async function omFornAssegna() {
+    const marchio = document.getElementById('om-forn-marchio').value;
+    const fornitore = listinoPulisciTesto(document.getElementById('om-forn-nome').value);
+    if (!marchio || !fornitore) { await showCustomAlert('Scegli il marchio e scrivi il fornitore (es. CORMIK).', 'Fornitori', '&#9888;&#65039;'); return; }
+    if (fornitore.indexOf('F:') === 0) return;
+    const prima = omFornitoreDi(marchio);
+    if (prima && prima !== fornitore && !window.confirm(marchio + ' adesso e\' di ' + prima + '. Passarlo a ' + fornitore + '?\n\nGli ordini gia\' fatti non cambiano.')) return;
+    const { error } = await supabaseClient.from('of_fornitori_marchi')
+        .upsert([{ marchio: marchio, fornitore: fornitore, updated_at: new Date().toISOString(), updated_by: macUtente() }], { onConflict: 'marchio' });
+    if (error) { await showCustomAlert('Errore:<br>' + macEsc(error.message), 'Fornitori', '&#10060;'); return; }
+    omFornMarchi[marchio] = fornitore;
+    document.getElementById('om-forn-marchio').value = '';
+    omApriFornitori('F:' + fornitore);
+    omRender();
+}
+
+async function omFornTogli(marchio) {
+    const f = omFornitoreDi(marchio);
+    if (!f || !window.confirm('Togliere ' + marchio + ' da ' + f + '?\n\nTorna una linguetta da sola. Gli ordini non cambiano.')) return;
+    const { error } = await supabaseClient.from('of_fornitori_marchi').delete().eq('marchio', marchio);
+    if (error) { await showCustomAlert('Errore:<br>' + macEsc(error.message), 'Fornitori', '&#10060;'); return; }
+    delete omFornMarchi[marchio];
+    omRenderFornitori();
+    omRender();
 }
 
 function omScegliMarchio(m) {
@@ -1308,7 +1525,7 @@ function omXlsApri() {
     omXlsWb = null;
     omXlsPiano = null;
     omXlsFile = '';
-    document.getElementById('om-xls-titolo').innerHTML = '&#128229; Carica Excel - ' + macEsc(marchio) + ' &middot; ' + macEsc(sez.nome);
+    document.getElementById('om-xls-titolo').innerHTML = '&#128229; Carica Excel - ' + macEsc(omNomePagina(marchio)) + ' &middot; ' + macEsc(sez.nome);
     document.getElementById('om-xls-file-nome').innerHTML = '';
     document.getElementById('om-xls-impostazioni').classList.add('hidden');
     document.getElementById('om-xls-anteprima').innerHTML = '';
@@ -1465,8 +1682,8 @@ function omXlsRenderAnteprima() {
     }
     const marchio = omSessione('omMarchio');
     const sez = macOfSezione(Number(omSessione('omSezione')));
-    const gia = macOrdiniFornitore.filter(of => sez && of.sezione_id === sez.id).length;
-    const opzioni = listinoOrdina(listinoArticoli.filter(a => a.attivo && a.marchio === marchio))
+    const gia = new Set(macOrdiniFornitore.filter(of => sez && of.sezione_id === sez.id).map(of => of.gruppo || ('#' + of.id))).size;
+    const opzioni = listinoOrdina(listinoArticoli.filter(a => a.attivo && omInPagina(a.marchio, marchio)))
         .map(a => '<option value="' + a.id + '">' + macEsc(macNome(a)) + '</option>').join('');
     const nonTrovati = p.righe.filter(x => !x.art);
     let html = '';
@@ -1531,8 +1748,11 @@ async function omXlsConferma() {
             }
         }
         for (const x of perMese) {
-            const of = await omCreaOf(marchio, sez.id, data, operatore, 'CONSEGNA ' + omXlsMeseTesto(x.m), 'DA EXCEL: ' + omXlsFile.toUpperCase().slice(0, 80));
-            await omAggiungiRigheLibere(of, x.righe);
+            // pagina di un fornitore: un ordine per marchio, legati nello stesso gruppo
+            await omRigheLiberePerMarchio(x.righe, {
+                sezioneId: sez.id, data: data, operatore: operatore, consegna: 'CONSEGNA ' + omXlsMeseTesto(x.m),
+                note: 'DA EXCEL: ' + omXlsFile.toUpperCase().slice(0, 80), gruppo: omFornPronto && omEFornitore(marchio) ? omNuovoGruppo() : null
+            }, []);
         }
     } catch (error) {
         console.error('Errore caricamento Excel ordini:', error);
@@ -1554,6 +1774,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!section) return;
 
     section.addEventListener('click', (e) => {
+        const bv = e.target.closest('[data-om-vista]');
+        if (bv) { omCambiaVista(bv.dataset.omVista); return; }
         const bm = e.target.closest('[data-om-marchio]');
         if (bm) { omScegliMarchio(bm.dataset.omMarchio); return; }
         const bs = e.target.closest('[data-om-sezione]');
@@ -1585,6 +1807,8 @@ document.addEventListener('DOMContentLoaded', () => {
         else if (az === 'modifica-sezione') omApriSezione(macOfSezione(Number(omSessione('omSezione'))));
         else if (az === 'carica-xls') omXlsApri();
         else if (az === 'aggiungi-dao') omApriDao();
+        else if (az === 'fornitori') omApriFornitori(omChiave());
+        else if (az === 'assegna-fornitore') omApriFornitori(omChiave());
         else if (az === 'dao-sposta') omDaoSposta();
         else if (az === 'nuovo-of') {
             omOfInModifica = null;
@@ -1625,7 +1849,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('om-set-prosegui').addEventListener('click', omComeSetProsegui);
 
     // Finestra ordine
-    macPickerImposta('om-of-art-search', 'om-of-art-results', a => a.marchio === omSessione('omMarchio'), omOfAggiungiArticolo);
+    macPickerImposta('om-of-art-search', 'om-of-art-results', a => omInPagina(a.marchio, omChiave()), omOfAggiungiArticolo);
     document.getElementById('om-of-close').addEventListener('click', omChiudiFinestraOf);
     document.getElementById('om-of-annulla').addEventListener('click', omChiudiFinestraOf);
     document.getElementById('om-of-salva').addEventListener('click', omSalvaFinestraOf);
@@ -1660,7 +1884,17 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('om-sez-elimina').addEventListener('click', omEliminaSezione);
 
     // Righe da ordinare per il magazzino
-    macPickerImposta('om-dao-search', 'om-dao-results', a => a.marchio === omSessione('omMarchio'), omDaoAggiungi);
+    macPickerImposta('om-dao-search', 'om-dao-results', a => omInPagina(a.marchio, omChiave()), omDaoAggiungi);
+
+    // Fornitori e marchi
+    const fm = document.getElementById('om-forn-modal');
+    if (fm) {
+        fm.addEventListener('click', (e) => {
+            if (e.target === fm) { omChiudiFornitori(); return; }
+            const t = e.target.closest('[data-om-forn-togli]');
+            if (t) omFornTogli(t.dataset.omFornTogli);
+        });
+    }
     document.getElementById('om-dao-close').addEventListener('click', omChiudiDao);
     document.getElementById('om-dao-annulla').addEventListener('click', omChiudiDao);
     document.getElementById('om-dao-salva').addEventListener('click', omSalvaDao);

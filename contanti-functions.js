@@ -8,7 +8,7 @@
 //   Solo chi riceve cambia chi ha i soldi (funzione contanti_ricevi su Supabase).
 // L'admin alla fine segna "Versato in cassa / banca" i contanti che ha lui.
 // Chi riceve i soldi NON compare sul PDF del cliente.
-// Admin e operatori (CONT_RUOLI qui, contanti_puo() su Supabase: supabase/contanti-setup.sql).
+// Admin e operatori (CONT_RUOLI qui, contanti_puo() su Supabase: supabase/contanti-setup.sql), solo da telefono / tablet.
 // ========================================
 
 const CONT_RUOLI = ['admin', 'operatore'];
@@ -24,8 +24,15 @@ let contScanner = null;
 let contLetto = null;        // QR letto da chi riceve: { token, da, importo, n, scade, timer }
 let contCaricato = false;
 
+// Solo su smartphone e tablet (v8.3.0): sul PC la sezione non si vede (servono fotocamera e QR a mano)
+// iPad recenti si presentano come Mac: li riconosco dallo schermo touch
+function contSuTelefono() {
+    const ua = navigator.userAgent || '';
+    return /iPhone|iPad|iPod|Android/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+}
+
 function contPuoVedere() {
-    return typeof currentUserRole !== 'undefined' && CONT_RUOLI.includes(currentUserRole);
+    return typeof currentUserRole !== 'undefined' && CONT_RUOLI.includes(currentUserRole) && contSuTelefono();
 }
 function contAdmin() { return typeof currentUserRole !== 'undefined' && currentUserRole === 'admin'; }
 function contMe() { return String((typeof currentUser !== 'undefined' && currentUser && currentUser.email) || '').toLowerCase(); }

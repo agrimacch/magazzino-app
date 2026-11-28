@@ -859,7 +859,7 @@ Nel quaderno di Inventario Macchine e nel libro Ordini Fornitore ogni marchio ha
 
 **Iniziali:** ogni acconto e ogni saldo registrati mostrano nell'app le iniziali di chi li ha registrati (chi ha ricevuto i soldi). Sul PDF del cliente NON compaiono.
 
-**Dove:** Dashboard > Ordini > **Contanti** (admin e operatori; i tecnici no).
+**Dove:** Dashboard > Ordini > **Contanti** (admin e operatori; i tecnici no). Solo da **smartphone e tablet**: sul PC la card non c'e'.
 - In alto: i **tuoi contanti** (totale e incassi), poi i contanti in mano a ciascun collega e gli ultimi passaggi.
 - Contano solo acconti e saldi in **CONTANTI** registrati da quando la sezione e' attiva.
 
@@ -873,3 +873,18 @@ Nel quaderno di Inventario Macchine e nel libro Ordini Fornitore ogni marchio ha
 File: `contanti-functions.js`, `contanti.css`, `supabase/contanti-setup.sql`, `supabase/ordini-incasso.sql`.
 
 **update-version.sh:** ora si ferma se la versione e' vuota o scritta male (es. va scritto 8.3.0).
+
+---
+
+## Ordini Fornitore: fornitori con piu' marchi (v8.3.0)
+
+**Prima volta su Supabase:** `supabase/ordini-fornitore-fornitori.sql`.
+
+**Fornitori e marchi:** pulsante **&#9881; Fornitori** in alto nel libro. Scegli il marchio, scrivi il fornitore (es. ECHO -> CORMIK) e premi **Assegna**. Si compila man mano che serve; i marchi senza fornitore restano linguette da sole. Un marchio ha un solo fornitore (si puo' cambiare: gli ordini gia' fatti non cambiano).
+
+**Vista:** interruttore **Per fornitore** (di default) / **Per marchio**.
+- Per fornitore: una linguetta per fornitore (es. CORMIK) con dentro le righe da ordinare di tutti i suoi marchi (con l'etichetta del marchio).
+- **Segna come ordinate** con righe di piu' marchi = **un solo ordine** al fornitore: nel libro e' un blocco unico (es. "ECHO + WEIBANG") con una data e le iniziali. Nel database resta un ordine per marchio, legati dallo stesso "gruppo" (quaderno, carichi e storico non cambiano).
+- **Modifica** di un ordine di piu' marchi: data, iniziali, consegna, note e sezione cambiano per tutti; **Elimina** elimina tutto il blocco.
+- **Sezioni** (prestagionali) create nella pagina del fornitore valgono per tutti i suoi marchi; le sezioni vecchie dei singoli marchi si vedono con il nome del marchio tra parentesi.
+- **Carica Excel** in una sezione del fornitore: per ogni mese un ordine con tutti i marchi.

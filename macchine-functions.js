@@ -304,6 +304,7 @@ async function macSegnaOrdinate(pezzi, dati) {
             marchio: marchio, sezione_id: dati.sezione_id || null, data: dati.data, operatore: dati.operatore,
             consegna: dati.consegna || null, note: dati.note || null, created_by: utente, updated_by: utente
         };
+        if (dati.gruppo) riga.gruppo = dati.gruppo;   // v8.3.0: ordini fatti insieme allo stesso fornitore (uno per marchio)
         const { data: of, error } = await supabaseClient.from('macchine_of_ordini').insert([riga]).select('*').single();
         if (error) throw error;
         macOrdiniFornitore.push(of);

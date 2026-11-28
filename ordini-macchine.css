@@ -718,3 +718,44 @@
 .om-veloce summary { cursor: pointer; font-weight: 700; font-size: 13px; }
 .om-veloce textarea { margin: 6px 0 8px; text-transform: uppercase; font-family: 'Roboto Mono', monospace; }
 .om-veloce .mac-btn-piccolo { width: auto; }
+
+
+/* ============================================ */
+/* v8.3.0: fornitori con piu' marchi            */
+/* ============================================ */
+.om-vista { display: inline-flex; border: 2px solid var(--primary, #688E53); border-radius: 10px; overflow: hidden; }
+.om-vista button {
+    background: #fff;
+    color: var(--primary, #688E53);
+    border: none;
+    padding: 7px 12px;
+    font-family: 'Roboto Mono', monospace;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    width: auto;
+    margin: 0;
+}
+.om-vista button.active { background: var(--primary, #688E53); color: #fff; }
+.om-forn-marchi { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: -6px 0 10px; }
+.om-marca-tag {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: #eef2ff;
+    color: #3730a3;
+    border: 1px solid #c7d2fe;
+    vertical-align: middle;
+    white-space: nowrap;
+}
+.om-of-marchi { font-size: 11px; font-weight: 700; color: #3730a3; }
+.om-forn-form { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
+.om-forn-form select, .om-forn-form input { flex: 1 1 160px; margin: 0; }
+.om-forn-form button { width: auto; margin: 0; }
+.om-forn-elenco { display: flex; flex-direction: column; gap: 8px; margin-bottom: 8px; }
+.om-forn-voce { border: 1px solid #e5e7eb; border-radius: 10px; padding: 8px 10px; background: #fafafa; }
+.om-forn-tag { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.om-forn-tag .om-marca-tag { font-size: 12px; padding: 3px 4px 3px 8px; }
+.om-forn-x { border: none; background: none; color: #b91c1c; font-size: 15px; line-height: 1; cursor: pointer; padding: 0 2px; width: auto; margin: 0; }
