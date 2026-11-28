@@ -1,5 +1,8 @@
 # Changelog App Magazzino
 
+## v8.3.2 - 2026-11-28 (PRODUZIONE)
+carattere robotomono
+
 ## v8.3.1 - 2026-11-28 (PRODUZIONE)
 modifica ordine
 
