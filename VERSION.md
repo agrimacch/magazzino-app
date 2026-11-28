@@ -1,5 +1,8 @@
 # Changelog App Magazzino
 
+## v8.3.5 - 2026-11-28 (PRODUZIONE)
+q ordine cliente
+
 ## v8.3.4 - 2026-11-28 (PRODUZIONE)
 quantità ordine singolo
 
