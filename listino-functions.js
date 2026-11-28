@@ -940,6 +940,20 @@ function listinoCostruisciPiano(righeFile, articoliDb) {
             rinominatiId.add(candidati[0].id);
         }
     });
+    // v8.4.0: NOTE CAMBIATE. Senza codici in comune: se per lo stesso MARCHIO + MODELLO c'e' UN solo articolo
+    // sparito dal file e UNA sola riga nuova, e' lo stesso articolo con le note cambiate (non si cancella).
+    // Se ce ne sono di piu' (es. stesso modello con note diverse) non si indovina: restano nuovo + cancellato.
+    const mm = x => String(x.marchio || '') + '|' + String(x.modello || '');
+    const righeNuove = righeFile.filter(r => !dbPerChiave.has(r.chiave) && !rinominaDi.has(r.chiave) && r.modello);
+    const orfaniLiberi = orfani.filter(a => !rinominatiId.has(a.id) && a.modello);
+    righeNuove.forEach(r => {
+        const stessi = righeNuove.filter(x => mm(x) === mm(r));
+        const candidati = orfaniLiberi.filter(a => !rinominatiId.has(a.id) && mm(a) === mm(r));
+        if (stessi.length === 1 && candidati.length === 1) {
+            rinominaDi.set(r.chiave, candidati[0]);
+            rinominatiId.add(candidati[0].id);
+        }
+    });
 
     righeFile.forEach(r => {
         const rinominato = rinominaDi.get(r.chiave) || null;

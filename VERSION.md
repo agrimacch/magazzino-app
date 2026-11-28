@@ -1,5 +1,8 @@
 # Changelog App Magazzino
 
+## v8.3.6 - 2026-11-28 (PRODUZIONE)
+agg carico con excel
+
 ## v8.3.5 - 2026-11-28 (PRODUZIONE)
 q ordine cliente
 
