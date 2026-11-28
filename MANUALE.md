@@ -888,3 +888,13 @@ File: `contanti-functions.js`, `contanti.css`, `supabase/contanti-setup.sql`, `s
 - **Modifica** di un ordine di piu' marchi: data, iniziali, consegna, note e sezione cambiano per tutti; **Elimina** elimina tutto il blocco.
 - **Sezioni** (prestagionali) create nella pagina del fornitore valgono per tutti i suoi marchi; le sezioni vecchie dei singoli marchi si vedono con il nome del marchio tra parentesi.
 - **Carica Excel** in una sezione del fornitore: per ogni mese un ordine con tutti i marchi.
+
+---
+
+## Ordini clienti: pagamenti, fatture, manuale (v8.3.0)
+
+- **Riquadro Pagamento del PDF:** compaiono i pagamenti fatti con la data dello scontrino: "Acconto del 21/11/2026 EUR 200 (CONTANTI)", e quando e' pagato "Saldo del 28/11/2026 EUR 800 (CARTA)" (senza acconti: "Pagato il ..."). Non compare piu' "Saldo EUR ..." da pagare: il resto e' nei totali (DA SALDARE).
+- **Fattura:** spuntando Fattura compare "Aggiungi fattura": tipo (di acconto / di saldo / complessiva), numero e data. Si possono scrivere anche dopo (modifica dell'ordine). Compaiono nel dettaglio e nel PDF accanto alla casella Fattura. Script: `supabase/ordini-fatture.sql`.
+- **Manuale:** se nell'ordine ci sono macchine o accessori presi dal listino, sul PDF sotto gli articoli: "Si consegna completa di manuale uso e manutenzione" (piu' pezzi: "Per tutte le macchine si consegna manuale uso e manutenzione").
+- **MACCHINA DA PROVE:** con questo nome cliente (anche MACCHINA DA PROVA / MACCHINE DA PROVE) Scontrino o Fattura non e' obbligatorio.
+- **Ordini lunghi:** se le righe non stanno in un foglio a grandezza normale, il PDF va su piu' pagine (taglio sempre tra una riga e l'altra, numero di pagina "1 / 2" in basso, totali, condizioni e firma alla fine; il timbro PAGATO sotto la tabella). Gli ordini corti restano su una pagina con le righe vuote come prima.

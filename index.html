@@ -1361,6 +1361,11 @@
                             <label class="ord-mont"><input type="checkbox" data-documento="SCONTRINO"> Scontrino</label>
                             <label class="ord-mont"><input type="checkbox" data-documento="FATTURA"> Fattura</label>
                         </div>
+                        <!-- v8.3.0: con Fattura si scrivono numero e data (anche dopo); colonna fatture, supabase/ordini-fatture.sql -->
+                        <div id="ord-fatture-box" class="ord-fatture hidden">
+                            <div id="ord-fatture-lista"></div>
+                            <button type="button" class="btn-back ord-acconto-aggiungi" onclick="ordAggiungiFattura()">&#10133; Aggiungi fattura</button>
+                        </div>
                         <label>Note</label>
                         <textarea autocomplete="off" id="ord-note" rows="2"></textarea>
                         <label>Pagamento</label>

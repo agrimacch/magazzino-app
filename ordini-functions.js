@@ -467,6 +467,82 @@ function ordImpostaDocumento(val) {
         el.checked = el.dataset.documento === val;
         el.closest('label').classList.toggle('scelta', el.checked);
     });
+    ordRenderFatture();
+}
+
+// ---------- Fatture (v8.3.0): con "Fattura" si scrivono numero e data (anche dopo) ----------
+// Colonna fatture di macchine_ordini: [{ tipo: ACCONTO | SALDO | COMPLESSIVA, numero, data }] (supabase/ordini-fatture.sql)
+const ORD_TIPI_FATTURA = { ACCONTO: 'di acconto', SALDO: 'di saldo', COMPLESSIVA: 'complessiva' };
+let ordFatture = [];   // fatture nel modulo: { tipo, numero, data }
+
+function ordRenderFatture() {
+    const box = document.getElementById('ord-fatture-box');
+    if (!box) return;
+    const fattura = ordLeggiDocumento() === 'FATTURA';
+    box.classList.toggle('hidden', !fattura);
+    if (!fattura) return;
+    const lista = document.getElementById('ord-fatture-lista');
+    lista.innerHTML = !ordFatture.length
+        ? '<div class="ord-acconti-vuoto">Nessuna fattura ancora: aggiungila quando la fai (anche dopo).</div>'
+        : ordFatture.map((f, i) => '<div class="ord-fattura-riga">' +
+            '<select title="Tipo di fattura" onchange="ordFatturaCampo(' + i + ', \'tipo\', this.value)">' +
+                Object.keys(ORD_TIPI_FATTURA).map(t => '<option value="' + t + '"' + (f.tipo === t ? ' selected' : '') + '>' + ORD_TIPI_FATTURA[t] + '</option>').join('') + '</select>' +
+            '<input type="text" autocomplete="off" placeholder="numero" value="' + macEsc(f.numero || '') + '" oninput="ordFatturaCampo(' + i + ', \'numero\', this.value)">' +
+            '<input type="date" value="' + macEsc(f.data || '') + '" max="' + ordOggiISO() + '" title="Data della fattura" onchange="ordFatturaCampo(' + i + ', \'data\', this.value)">' +
+            '<button type="button" class="ord-acconto-togli" title="Togli questa fattura" onclick="ordTogliFattura(' + i + ')">&#10006;</button>' +
+        '</div>').join('');
+}
+
+function ordAggiungiFattura() {
+    // la prima e' di solito complessiva; se c'e' gia' un acconto propongo "di acconto"
+    const tipo = !ordFatture.length && ordAcconti.length && !document.getElementById('ord-pagato').checked ? 'ACCONTO' : 'COMPLESSIVA';
+    ordFatture.push({ tipo: tipo, numero: '', data: ordOggiISO() });
+    ordRenderFatture();
+    const campi = document.querySelectorAll('#ord-fatture-lista .ord-fattura-riga input[type="text"]');
+    if (campi.length) campi[campi.length - 1].focus();
+}
+
+function ordTogliFattura(i) {
+    ordFatture.splice(i, 1);
+    ordRenderFatture();
+}
+
+function ordFatturaCampo(i, campo, valore) {
+    if (ordFatture[i]) ordFatture[i][campo] = valore;
+}
+
+// Fatture del modulo: { lista, errore }
+function ordLeggiFatture() {
+    if (ordLeggiDocumento() !== 'FATTURA') return { lista: [], errore: null };
+    const lista = [];
+    let errore = null;
+    ordFatture.forEach((f, i) => {
+        const numero = listinoPulisciTesto(f.numero);
+        if (!numero) return;   // senza numero la riga si ignora (la fattura si scrive anche dopo)
+        if (!f.data) { errore = errore || 'Fattura ' + (i + 1) + ': manca la data'; return; }
+        if (f.data > ordOggiISO()) { errore = errore || 'Fattura ' + (i + 1) + ': la data &egrave; nel futuro'; return; }
+        lista.push({ tipo: ORD_TIPI_FATTURA[f.tipo] ? f.tipo : 'COMPLESSIVA', numero: numero, data: f.data });
+    });
+    lista.sort((x, y) => String(x.data).localeCompare(String(y.data)));
+    return { lista: errore ? [] : lista, errore: errore };
+}
+
+// Mandate solo se ci sono (o se c'erano): l'app funziona anche prima dello script
+function ordCampiFatture(prima) {
+    const f = ordLeggiFatture();
+    if (f.lista.length || (prima && Array.isArray(prima.fatture) && prima.fatture.length)) return { fatture: f.lista };
+    return {};
+}
+
+// "n. 120 del 21/11/2026 (di acconto)"
+function ordFattureTesto(o) {
+    const lista = o && Array.isArray(o.fatture) ? o.fatture : [];
+    return lista.map(f => 'n. ' + f.numero + ' del ' + ordDataIt(f.data) + ' (' + (ORD_TIPI_FATTURA[f.tipo] || 'complessiva') + ')').join('; ');
+}
+
+// Cliente "MACCHINA DA PROVE" (macchine per le prove): scontrino / fattura non obbligatori
+function ordMacchinaDaProve(cliente) {
+    return /^MACCHIN[AE]\s+(DA|PER)\s+PROV[AE]$/.test(String(cliente || '').trim().toUpperCase().replace(/\s+/g, ' '));
 }
 
 // La colonna c'e' su Supabase? (se gli ordini caricati hanno il campo)
@@ -486,6 +562,7 @@ function ordNuovoModulo() {
     document.getElementById('ord-annulla-form').innerHTML = 'Svuota';
     document.getElementById('ord-aggiungi-box').classList.remove('hidden');
     ordFirmaPulisci();
+    ordFatture = [];
     ordImpostaDocumento(null);
     document.getElementById('ord-senza-installazione').checked = false;
     document.getElementById('ord-sconto').value = '';
@@ -757,6 +834,7 @@ function ordLeggiSconto() {
 function ordSuggerisciScript(error) {
     const msg = String(error && error.message || '');
     if (/quantita_check/i.test(msg)) return '<br><br>Esegui su Supabase lo script <strong>supabase/ordini-riga-testo.sql</strong> (righe libere con quantit&agrave; 0).';
+    if (/fatture/i.test(msg)) return '<br><br>Esegui su Supabase lo script <strong>supabase/ordini-fatture.sql</strong> (numero e data delle fatture).';
     if (/saldo_operatore/i.test(msg)) return '<br><br>Esegui su Supabase lo script <strong>supabase/ordini-incasso.sql</strong> (iniziali di chi riceve il saldo).';
     if (/acconti|saldo_data/i.test(msg)) return '<br><br>Esegui su Supabase lo script <strong>supabase/ordini-acconti.sql</strong> (acconti con la data e data del saldo).';
     return '';
@@ -1158,6 +1236,10 @@ function ordLeggiTesta() {
 
 // Controllo del documento (scontrino / fattura)
 function ordControllaDocumento(testa, errori) {
+    const f = ordLeggiFatture();
+    if (f.errore) errori.push(f.errore);
+    // v8.3.0: "MACCHINA DA PROVE" non ha scontrino ne' fattura
+    if (!testa.documento && ordMacchinaDaProve(testa.cliente)) return;
     if (!testa.documento) errori.push('Scegli il documento: <strong>Scontrino</strong> oppure <strong>Fattura</strong>');
     else if (ordOrdini.length && !ordColonnaDocumento()) {
         errori.push('Manca la colonna del documento su Supabase: esegui <strong>supabase/ordini-documento.sql</strong>');
@@ -1245,7 +1327,7 @@ async function ordSalva() {
         for (let tentativo = 0; tentativo < 3 && !ordine; tentativo++) {
             const numero = await ordProssimoNumero(anno);
             const riga = Object.assign({}, testa, {
-                anno: anno, numero: numero, totale: ordAggiornaTotale(), firma: ordFirmaDati(), ...ordCampiInstallazione(null), ...ordCampiSconto(null), ...ordCampiPagamento(null),
+                anno: anno, numero: numero, totale: ordAggiornaTotale(), firma: ordFirmaDati(), ...ordCampiInstallazione(null), ...ordCampiSconto(null), ...ordCampiPagamento(null), ...ordCampiFatture(null),
                 created_by: utente, updated_by: utente, updated_at: adesso
             });
             const { data, error } = await supabaseClient.from('macchine_ordini').insert([riga]).select('*').single();
@@ -1394,6 +1476,7 @@ function ordApriModifica(id) {
     document.getElementById('ord-cf').value = o.codice_fiscale || '';
     document.getElementById('ord-piva').value = o.partita_iva || '';
     document.getElementById('ord-note').value = o.note || '';
+    ordFatture = (Array.isArray(o.fatture) ? o.fatture : []).map(f => ({ tipo: f.tipo || 'COMPLESSIVA', numero: f.numero || '', data: f.data || '' }));
     ordImpostaDocumento(o.documento || null);
     document.getElementById('ord-pagamento').value = o.pagamento || '';
     document.getElementById('ord-form-titolo').innerHTML = '&#9997;&#65039; Modifica ordine N. ' + ordNumero(o);
@@ -1499,7 +1582,7 @@ async function ordSalvaModifica() {
     const log = [];
     try {
         const agg = Object.assign({}, testa, { firma: ordFirmaDati(), totale: ordAggiornaTotale(), updated_at: adesso, updated_by: utente },
-            ordCampiInstallazione(o), ordCampiSconto(o), ordCampiPagamento(o));
+            ordCampiInstallazione(o), ordCampiSconto(o), ordCampiPagamento(o), ordCampiFatture(o));
         const { error } = await supabaseClient.from('macchine_ordini').update(agg).eq('id', o.id);
         if (error) throw error;
         // Cliente cambiato: aggiorna anche il nome nel quaderno
@@ -1594,7 +1677,7 @@ function ordApriDettaglio(id) {
 
     const dati = [
         ['Data', ordDataIt(o.data)], ['Operatore', o.operatore], ['Indirizzo', o.indirizzo], ['Tel / Cell', o.telefono], ['E-mail', o.email],
-        ['C.F.', o.codice_fiscale], ['P.IVA', o.partita_iva], ['Documento', ORD_DOCUMENTI[o.documento] || ''], ['Pagamento', o.pagamento], ['Note', o.note]
+        ['C.F.', o.codice_fiscale], ['P.IVA', o.partita_iva], ['Documento', (ORD_DOCUMENTI[o.documento] || '') + (o.documento === 'FATTURA' && ordFattureTesto(o) ? ': ' + ordFattureTesto(o) : '')], ['Pagamento', o.pagamento], ['Note', o.note]
     ].filter(d => d[1]);
 
     let html =
@@ -2013,19 +2096,29 @@ function ordTotaliPdfHtml(o, caselle) {
         '<td class="rpt-n' + (r.tot ? ' ordd-tot' : '') + '">' + r.v + '</td></tr>').join('');
 }
 
-// Metodo di pagamento nel riquadro Pagamento del PDF
+// Riquadro Pagamento del PDF (v8.3.0): i pagamenti fatti, ognuno con la data dello scontrino
+// (acconti e saldo). Niente "Saldo" da pagare: quello che resta e' nei totali (DA SALDARE).
 function ordMetodiPdfHtml(o) {
     const parti = [];
-    if (o.pagato) parti.push('<strong>PAGATO</strong>' + (o.saldo_data ? ' il <strong>' + ordDataIt(o.saldo_data) + '</strong>' : '') + (o.metodo_pagamento ? ' con <strong>' + macEsc(o.metodo_pagamento) + '</strong>' : ''));
-    else {
-        if (o.metodo_pagamento) parti.push('Metodo di pagamento: <strong>' + macEsc(o.metodo_pagamento) + '</strong>');
-        if (Number(o.acconto) > 0) {
-            parti.push((ordAccontiOrdine(o).length > 1 ? 'Acconti ' : 'Acconto ') + repEuroPdf(o.acconto) + (o.metodo_acconto ? ' con <strong>' + macEsc(o.metodo_acconto) + '</strong>' : ''));
-            parti.push('Saldo ' + repEuroPdf(Math.round((Number(o.totale) - Number(o.acconto)) * 100) / 100) +
-                (o.metodo_saldo ? ' con <strong>' + macEsc(o.metodo_saldo) + '</strong>' : ''));
-        }
+    const acconti = ordAccontiOrdine(o);
+    if (!o.pagato && o.metodo_pagamento) parti.push('Metodo di pagamento: <strong>' + macEsc(o.metodo_pagamento) + '</strong>');
+    acconti.forEach(a => parti.push(ordEtichettaAcconto(a) + ' <strong>' + repEuroPdf(a.importo) + '</strong>' + (a.metodo ? ' (' + macEsc(a.metodo) + ')' : '')));
+    if (o.pagato) {
+        const resto = Math.round((Number(o.totale) - Number(o.acconto || 0)) * 100) / 100;
+        const metodo = Number(o.acconto) > 0 ? (o.metodo_saldo || o.metodo_pagamento) : o.metodo_pagamento;
+        const etich = Number(o.acconto) > 0 ? 'Saldo' : 'Pagato';
+        if (resto > 0) parti.push(etich + (o.saldo_data ? (etich === 'Saldo' ? ' del ' : ' il ') + ordDataIt(o.saldo_data) : '') + ' <strong>' + repEuroPdf(resto) + '</strong>' +
+            (metodo ? ' (' + macEsc(metodo) + ')' : ''));
     }
     return parti.length ? '<div class="ordd-metodo-riga">' + parti.join(' &middot; ') + '</div>' : '';
+}
+
+// v8.3.0: macchine e accessori presi dal listino = si consegnano con il manuale (frase una volta sola)
+function ordManualeHtml(righe) {
+    const n = righe.filter(r => r.articolo_id).reduce((t, r) => t + (Number(r.quantita) || 1), 0);
+    if (!n) return '';
+    return '<p class="ordd-manuale">' + (n > 1 ? 'Per tutte le macchine si consegna manuale uso e manutenzione.'
+        : 'Si consegna completa di manuale uso e manutenzione.') + '</p>';
 }
 
 function ordHtmlStampa(o, righeTotali) {
@@ -2048,10 +2141,12 @@ function ordHtmlStampa(o, righeTotali) {
             '<td class="ordd-mag">' + magazzino + '</td>' +
             '<td class="rpt-n">' + (r.prezzo_totale !== null && r.prezzo_totale !== undefined ? repEuroPdf(r.prezzo_totale) : '') + '</td></tr>';
     }).join('');
-    const totaleRighe = Math.max(righeTotali || ORD_MIN_RIGHE_STAMPA, righe.length);
+    // righeTotali = 0: solo le righe dell'ordine (PDF su piu' pagine), altrimenti si riempie il foglio
+    const totaleRighe = righeTotali === 0 ? righe.length : Math.max(righeTotali || ORD_MIN_RIGHE_STAMPA, righe.length);
     for (let i = righe.length; i < totaleRighe; i++) tabella += '<tr class="ordd-vuota"><td></td><td></td><td></td><td></td><td></td></tr>';
 
-    return '<div class="rpt-pagina ordd">' +
+    // righeTotali = 0: PDF su piu' pagine (ordd-lungo: il timbro PAGATO va sotto la tabella, non sopra le righe)
+    return '<div class="rpt-pagina ordd' + (righeTotali === 0 ? ' ordd-lungo' : '') + '">' +
         '<table class="rpt-testa"><tr>' +
             '<td class="rpt-testa-logo"><img src="' + aziendaLogo() + '" alt="" class="rpt-logo ordd-logo"></td>' +
             '<td class="rpt-titoli">' +
@@ -2070,7 +2165,8 @@ function ordHtmlStampa(o, righeTotali) {
             '<tr>' + campo('Tel / Cell', o.telefono) + '<td class="ordd-etich">E-mail</td><td class="ordd-val ordd-email' + (String(o.email || '').length > 26 ? ' ordd-email-lunga' : '') + '">' + macEsc(o.email || '') + '</td></tr>' +
             '<tr>' + campo('C.F.', o.codice_fiscale) + campo('P.IVA', o.partita_iva) + '</tr>' +
             '<tr><td class="ordd-etich">Documento</td><td class="ordd-val" colspan="3">' +
-                casella(o.documento === 'SCONTRINO') + ' Scontrino &nbsp;&nbsp;&nbsp; ' + casella(o.documento === 'FATTURA') + ' Fattura</td></tr>' +
+                casella(o.documento === 'SCONTRINO') + ' Scontrino &nbsp;&nbsp;&nbsp; ' + casella(o.documento === 'FATTURA') + ' Fattura' +
+                (o.documento === 'FATTURA' && ordFattureTesto(o) ? ' &nbsp;<span class="ordd-fatture">' + macEsc(ordFattureTesto(o)) + '</span>' : '') + '</td></tr>' +
             '<tr>' + campo('Note', o.note, 3) + '</tr>' +
         '</table>' +
         '<div class="rpt-sezione">Pagamento</div>' +
@@ -2094,6 +2190,7 @@ function ordHtmlStampa(o, righeTotali) {
         (o.pagato ? '<div class="ordd-timbro-box">' + (ordTimbroPronto ? '<img src="' + ORD_TIMBRO_PAGATO + '" alt="PAGATO" class="ordd-timbro">'
             : '<span class="ordd-timbro-testo">PAGATO</span>') + '</div>' : '') +
         '</div>' +
+        ordManualeHtml(righe) +
         '<p class="ordd-condizioni">' + ORD_CONDIZIONI + '</p>' +
         '<table class="ordd-firme"><tr>' +
             '<td class="ordd-firme-sx"></td>' +
@@ -2106,6 +2203,19 @@ function ordHtmlStampa(o, righeTotali) {
 
 // Quante righe deve avere la tabella articoli per riempire il foglio A4:
 // prova il modulo fuori dallo schermo e aggiunge righe vuote finche' c'e' spazio
+// Altezza del modulo con le sole righe dell'ordine (senza righe vuote): serve a capire se sta in una pagina
+function ordAltezzaModulo(o) {
+    const prova = document.createElement('div');
+    prova.className = 'pdf-foglio pdf-misura';
+    document.body.appendChild(prova);
+    try {
+        prova.innerHTML = ordHtmlStampa(o, 0);
+        return prova.firstElementChild.offsetHeight || 0;
+    } finally {
+        prova.remove();
+    }
+}
+
 function ordRigheCheRiempiono(o) {
     // Il modulo si prova fuori dallo schermo con la stessa larghezza del PDF (718 px)
     const prova = document.createElement('div');
@@ -2348,10 +2458,19 @@ async function ordCreaPdfBase64(o) {
 
 // formato: 'base64' (per Drive) oppure 'blob' (per aprirlo / stamparlo)
 async function ordCreaPdf(o, formato) {
-    const pdf = await pdfCreaDaHtml(ordHtmlStampa(o, ordRigheCheRiempiono(o)), {
-        margini: { alto: 10, sx: 10, basso: 10, dx: 10 },
-        unaPagina: true
-    });
+    const margini = { alto: 10, sx: 10, basso: 10, dx: 10 };
+    let pdf;
+    if (ordAltezzaModulo(o) > ORD_ALTEZZA_A4_PX) {
+        // v8.3.0: tante righe = piu' pagine a grandezza normale (prima si rimpiccioliva tutto in una pagina).
+        // Si taglia sotto una riga (mai a meta'), niente righe vuote, numero di pagina in basso.
+        pdf = await pdfCreaDaHtml(ordHtmlStampa(o, 0), {
+            margini: margini,
+            tagli: 'tr, .ordd-manuale, .ordd-condizioni',
+            numeriPagina: true
+        });
+    } else {
+        pdf = await pdfCreaDaHtml(ordHtmlStampa(o, ordRigheCheRiempiono(o)), { margini: margini, unaPagina: true });
+    }
     if (formato === 'blob') return pdf.output('blob');
     return String(pdf.output('datauristring')).split(',')[1];
 }
