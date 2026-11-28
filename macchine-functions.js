@@ -55,6 +55,15 @@ const MAC_STATI = {
 const MAC_ORDINE_STATI = ['DA_ORDINARE', 'ORDINATA', 'IN_CASA', 'CONSEGNATA'];
 const MAC_MAX_QTA = 50;
 
+// v8.4.0: macchina in conto esposizione presso un collaboratore (resta nostra, non vendibile)
+function macInEsposizione(p) {
+    return !!(p && p.stato === 'IN_CASA' && !p.cliente && p.esposizione_id);
+}
+function macEspNome(p) {
+    const c = p && typeof macCollaboratori !== 'undefined' ? macCollaboratori.find(x => x.id === p.esposizione_id) : null;
+    return c ? c.nome : 'COLLABORATORE';
+}
+
 // Parole che fanno pensare a un set nel listino
 const MAC_REGEX_SET = /\b(SET|KIT|CPL|COMPLET[AOE])\b/;
 
@@ -168,6 +177,7 @@ async function macCaricaDati() {
     const comp = await macFetchAll('macchine_composizione', 'set_id');
     macPezzi = pezzi;
     macComposizione = comp;
+    if (typeof macEspCarica === 'function') await macEspCarica();
     macCaricato = true;
     await macCaricaOrdiniFornitore();
 }
@@ -482,13 +492,15 @@ function macAnnoCorrente() {
 }
 
 function macConteggi(articoloId) {
-    const c = { disponibili: 0, assegnate: 0, ordinate: 0, daOrdinare: 0, consegnate: 0, inCasa: 0, venduti: 0 };
+    const c = { disponibili: 0, assegnate: 0, ordinate: 0, daOrdinare: 0, consegnate: 0, inCasa: 0, venduti: 0, esposizione: 0 };
     const anno = macAnnoCorrente();
     macPezzi.forEach(p => {
         if (p.articolo_id !== articoloId) return;
         if (p.stato === 'IN_CASA') {
             c.inCasa++;
-            if (p.cliente) { c.assegnate++; c.venduti++; } else c.disponibili++;
+            if (p.cliente) { c.assegnate++; c.venduti++; }
+            else if (macInEsposizione(p)) c.esposizione++;   // v8.4.0: nostra ma presso un collaboratore (non vendibile)
+            else c.disponibili++;
         } else if (p.stato === 'ORDINATA') c.ordinate++;
         else if (p.stato === 'DA_ORDINARE') c.daOrdinare++;
         else if (p.stato === 'CONSEGNATA') {
@@ -602,7 +614,7 @@ async function openInventarioMacchine() {
 }
 
 function macSwitchTab(tab, senzaRender) {
-    if (['inventario', 'situazione', 'quaderno', 'excel', 'set', 'movimenti', 'report', 'valore', 'correzioni'].indexOf(tab) === -1) tab = 'inventario';
+    if (['inventario', 'situazione', 'quaderno', 'esposizione', 'excel', 'set', 'movimenti', 'report', 'valore', 'correzioni'].indexOf(tab) === -1) tab = 'inventario';
     if (tab === 'correzioni' && !macCorrPuo()) tab = 'inventario';
     macSessione('macchineTab', tab);
     document.querySelectorAll('#tabs-macchine .tab-btn').forEach(b => {
@@ -628,6 +640,7 @@ function macRenderTutto() {
     else if (tab === 'situazione' && typeof sitApri === 'function') sitApri();
     else if (tab === 'movimenti') macCaricaMovimenti();
     else if (tab === 'correzioni') macCorrApri();
+    else if (tab === 'esposizione' && typeof macEspRender === 'function') macEspRender();
 }
 
 async function macRicarica() {
@@ -732,10 +745,10 @@ function macRenderInventario() {
     const filtrati = base.filter(a => listinoCorrispondeRicerca(a, ricerca) && macCorrispondeFiltri(a, valori, null));
 
     // Riepilogo generale (tutto l'inventario, non solo il filtro)
-    let tot = { disponibili: 0, assegnate: 0, ordinate: 0, daOrdinare: 0, valore: 0, senzaNetto: 0 };
+    let tot = { disponibili: 0, assegnate: 0, ordinate: 0, daOrdinare: 0, valore: 0, senzaNetto: 0, esposizione: 0 };
     macPezzi.forEach(p => {
         if (p.stato === 'IN_CASA') {
-            if (p.cliente) tot.assegnate++; else tot.disponibili++;
+            if (p.cliente) tot.assegnate++; else if (macInEsposizione(p)) tot.esposizione++; else tot.disponibili++;
             let netto = p.netto_carico;
             if (netto === null || netto === undefined) {
                 const a = macArticolo(p.articolo_id);
@@ -751,9 +764,11 @@ function macRenderInventario() {
         riepilogo.innerHTML =
             '<div class="mac-riep-box"><span class="mac-quadro st-incasa"></span><div><strong>' + tot.disponibili + '</strong><span>Disponibili</span></div></div>' +
             '<div class="mac-riep-box"><span class="mac-quadro st-incasa"></span><div><strong>' + tot.assegnate + '</strong><span>In casa assegnate</span></div></div>' +
+            (tot.esposizione ? '<div class="mac-riep-box"><span class="mac-quadro st-esposizione"></span><div><strong>' + tot.esposizione + '</strong><span>In esposizione</span></div></div>' : '') +
             '<div class="mac-riep-box"><span class="mac-quadro st-ordinata"></span><div><strong>' + tot.ordinate + '</strong><span>Ordinate</span></div></div>' +
             '<div class="mac-riep-box"><span class="mac-quadro st-daordinare"></span><div><strong>' + tot.daOrdinare + '</strong><span>Da ordinare</span></div></div>' +
             '<div class="mac-riep-box mac-riep-valore"><div><strong>' + macEuro(tot.valore) + '</strong><span>Valore in casa (netti)' +
+                (tot.esposizione ? ', esposizione compresa' : '') +
                 (tot.senzaNetto > 0 ? ' &#9888;&#65039; ' + tot.senzaNetto + ' senza netto' : '') + '</span></div></div>';
     }
 
@@ -989,11 +1004,13 @@ function macRenderQuaderno() {
 
 function macSlotHtml(p) {
     const st = MAC_STATI[p.stato] || MAC_STATI.IN_CASA;
-    const disponibile = p.stato === 'IN_CASA' && !p.cliente;
+    const espo = macInEsposizione(p);   // v8.4.0: quadratino giallo, "c/o" collaboratore
+    const disponibile = p.stato === 'IN_CASA' && !p.cliente && !espo;
     const inArrivoLibera = p.stato === 'ORDINATA' && !p.cliente;
     const daOrdinareMagazzino = p.stato === 'DA_ORDINARE' && !p.cliente;   // riga "per il magazzino" del libro ordini
     const titolo = [
-        st.etichetta + (disponibile ? ' - disponibile' : '') + (inArrivoLibera ? ' - in arrivo, libera' : ''),
+        st.etichetta + (disponibile ? ' - disponibile' : '') + (inArrivoLibera ? ' - in arrivo, libera' : '') +
+            (espo ? ' - in conto esposizione presso ' + macEspNome(p) + (p.esposizione_dal ? ' dal ' + macDataCorta(p.esposizione_dal) : '') : ''),
         (p.stato === 'ORDINATA' && macOfTesto(p)) ? macOfTesto(p) : '',
         p.cliente ? 'Cliente: ' + p.cliente : '',
         p.matricola ? 'Matricola: ' + p.matricola : '',
@@ -1002,9 +1019,9 @@ function macSlotHtml(p) {
         p.note ? 'Note: ' + p.note : ''
     ].filter(Boolean).join('\n');
     return '<button type="button" class="mac-slot" data-pezzo="' + p.id + '" title="' + macEsc(titolo) + '">' +
-        '<span class="mac-quadro ' + st.classe + '">' + (p.stato === 'CONSEGNATA' ? '&#10005;' : '') + '</span>' +
-        '<span class="mac-nome' + (disponibile || inArrivoLibera || daOrdinareMagazzino ? ' mac-nome-libera' : '') + '">' +
-            (disponibile ? 'disponibile' : inArrivoLibera ? 'in arrivo' : daOrdinareMagazzino ? 'da ordinare' : macEsc(p.cliente || '')) +
+        '<span class="mac-quadro ' + (espo ? 'st-esposizione' : st.classe) + '">' + (p.stato === 'CONSEGNATA' ? '&#10005;' : '') + '</span>' +
+        '<span class="mac-nome' + (disponibile || inArrivoLibera || daOrdinareMagazzino ? ' mac-nome-libera' : '') + (espo ? ' mac-nome-espo' : '') + '">' +
+            (espo ? 'c/o ' + macEsc(macEspNome(p)) : disponibile ? 'disponibile' : inArrivoLibera ? 'in arrivo' : daOrdinareMagazzino ? 'da ordinare' : macEsc(p.cliente || '')) +
             (p.set_id ? '<span class="mac-tag-set">SET</span>' : '') +
             (p.matricola ? '<span class="mac-tag-matr" title="Matricola ' + macEsc(p.matricola) + '">&#35;</span>' : '') +
         '</span></button>';
@@ -1105,13 +1122,14 @@ function macPickerMostra(inputId) {
         htmlPezzi = pezzi.map(p => {
             const a = macArticolo(p.articolo_id);
             const nome = a ? macNomeHtml(a) : 'articolo non trovato';
-            const libera = p.stato === 'IN_CASA' && !p.cliente;
+            const libera = p.stato === 'IN_CASA' && !p.cliente && !macInEsposizione(p);
             if (libera) {
                 return '<button type="button" class="mac-picker-voce mac-picker-matr" data-pezzo="' + p.id + '">' +
                     '<span class="mac-picker-attrezzo">MATR. ' + macEsc(p.matricola) + '</span><span>' + nome + '</span>' +
                     '<span class="mac-picker-disp">in casa</span></button>';
             }
-            const dove = p.stato === 'CONSEGNATA' ? 'consegnata' : (p.stato === 'IN_CASA' ? 'gi&agrave; assegnata' : 'ordinata');
+            const dove = p.stato === 'CONSEGNATA' ? 'consegnata' : macInEsposizione(p) ? 'in esposizione presso ' + macEsc(macEspNome(p))
+                : (p.stato === 'IN_CASA' ? 'gi&agrave; assegnata' : 'ordinata');
             return '<div class="mac-picker-vuoto">Matr. ' + macEsc(p.matricola) + ' &middot; ' + nome + ' &middot; ' + dove +
                 (p.cliente ? ' a ' + macEsc(p.cliente) : '') + '</div>';
         }).join('');
@@ -1216,6 +1234,7 @@ function macApriNuovaVoce(articoloId) {
     document.getElementById('mac-pezzo-qta-box').classList.remove('hidden');
     document.getElementById('mac-pezzo-elimina').classList.add('hidden');
     document.getElementById('mac-pezzo-storico').innerHTML = '';
+    if (typeof macEspRenderBox === 'function') macEspRenderBox(null);
     document.getElementById('mac-pezzo-art-search').value = '';
     macPezzoAggiornaArticolo();
     macPezzoAggiornaStato();
@@ -1239,6 +1258,7 @@ function macApriPezzo(id) {
     macPezzoAggiornaArticolo();
     macPezzoAggiornaStato();
     macPezzoCaricaStorico(p.id);
+    if (typeof macEspRenderBox === 'function') macEspRenderBox(p);
     document.getElementById('mac-pezzo-modal').classList.remove('hidden');
 }
 
@@ -1385,6 +1405,8 @@ async function macSalvaPezzo(e) {
             if (oraInCasa && agg.netto_carico === null && a) agg.netto_carico = a.netto_1;
             // Tornata da ordinare: non e' piu' legata all'ordine al fornitore
             if (stato === 'DA_ORDINARE' && p.ordine_fornitore_id) agg.ordine_fornitore_id = null;
+            // v8.4.0: assegnata a un cliente o non piu' in casa = non e' piu' in esposizione
+            if (p.esposizione_id && (stato !== 'IN_CASA' || cliente)) { agg.esposizione_id = null; agg.esposizione_dal = null; }
 
             const { error } = await supabaseClient.from('macchine_pezzi').update(agg).eq('id', p.id);
             if (error) throw error;
@@ -3328,13 +3350,14 @@ function macCorrNorm(v) {
 
 // Macchine che si possono togliere
 function macCorrTogliibile(p) {
-    return p.stato === 'IN_CASA' && !String(p.cliente || '').trim() && !p.ordine_id;
+    return p.stato === 'IN_CASA' && !String(p.cliente || '').trim() && !p.ordine_id && !macInEsposizione(p);
 }
 
 function macCorrPerche(p) {
     if (p.stato !== 'IN_CASA') return macStatoTesto(p.stato).toLowerCase();
     if (String(p.cliente || '').trim()) return 'assegnata a ' + p.cliente;
     if (p.ordine_id) return 'legata a un ordine';
+    if (macInEsposizione(p)) return 'in esposizione presso ' + macEspNome(p);
     return '';
 }
 

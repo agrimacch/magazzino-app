@@ -6,7 +6,7 @@
 //   chi DA' preme "Dai contanti" -> l'app mostra un QR che vale 60 secondi;
 //   chi RICEVE preme "Ricevo contanti", legge il QR e conferma con "Ricevo EUR ...".
 //   Solo chi riceve cambia chi ha i soldi (funzione contanti_ricevi su Supabase).
-// L'admin alla fine segna "Versato in cassa / banca" i contanti che ha lui.
+// Chi ha i soldi (admin o operatore) alla fine segna "Versato in cassa / banca" (solo i suoi).
 // Chi riceve i soldi NON compare sul PDF del cliente.
 // Admin e operatori (CONT_RUOLI qui, contanti_puo() su Supabase: supabase/contanti-setup.sql), solo da telefono / tablet.
 // ========================================
@@ -146,7 +146,7 @@ function contRender() {
             '<div class="cont-pulsanti">' +
                 '<button type="button" class="btn-primary cont-btn-dai"' + (scelti.length ? '' : ' disabled') + ' onclick="contDai()">&#128228; Dai contanti ' + contEuro(totScelti) + '</button>' +
                 '<button type="button" class="btn-primary cont-btn-ricevi" onclick="contApriLettore()">&#128229; Ricevo contanti</button>' +
-                (contAdmin() ? '<button type="button" class="btn-back cont-btn-versa"' + (scelti.length ? '' : ' disabled') + ' onclick="contVersa()">&#127974; Versato in cassa / banca</button>' : '') +
+                '<button type="button" class="btn-back cont-btn-versa"' + (scelti.length ? '' : ' disabled') + ' onclick="contVersa()">&#127974; Versato in cassa / banca</button>' +
             '</div>' +
         '</div>' +
         (miei.length
@@ -373,7 +373,7 @@ function contChiudiRicevi() {
     document.getElementById('cont-ricevi-modal').classList.add('hidden');
 }
 
-// ---------- Admin: versato in cassa / banca ----------
+// ---------- Versato in cassa / banca (v8.4.0: admin e operatori, solo i soldi che ha in mano chi preme) ----------
 async function contVersa() {
     const scelti = contMiei().filter(i => contSel.has(i.id));
     if (!scelti.length) return;

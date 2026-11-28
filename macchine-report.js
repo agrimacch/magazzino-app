@@ -708,6 +708,7 @@ function valPdf() {
 //   Impegnati in arrivo  ORDINATA con cliente
 //   Prenotati da ordinare DA_ORDINARE con cliente
 //   Liberi in casa       IN_CASA senza cliente (da vendere)
+//   In conto esposizione IN_CASA presso un collaboratore (v8.4.0, colonna solo se ce ne sono)
 //   Liberi in arrivo     ORDINATA senza cliente (prestagionale / magazzino)
 //   Da ordinare magazzino DA_ORDINARE senza cliente (colonna solo se ce ne sono)
 // I set si contano come stanno in magazzino: pezzi singoli.
@@ -718,6 +719,7 @@ const SIT_COLONNE = [
     { k: 'impArrivo', t: 'Impegnati in arrivo', breve: 'Imp. arrivo' },
     { k: 'prenotati', t: 'Prenotati da ordinare', breve: 'Pren. da ord.' },
     { k: 'liberiCasa', t: 'Liberi in casa', breve: 'Liberi casa' },
+    { k: 'esposizione', t: 'In conto esposizione', breve: 'Espos.' },
     { k: 'liberiArrivo', t: 'Liberi in arrivo', breve: 'Liberi arrivo' },
     { k: 'daOrdMag', t: 'Da ordinare per il magazzino', breve: 'Da ord. mag.' }
 ];
@@ -789,7 +791,7 @@ function sitCalcola() {
             const g = giorno(p.data_consegna);
             if (!g || (da && g < da) || (a && g > a)) return;
             k = 'consegnati';
-        } else if (p.stato === 'IN_CASA') k = p.cliente ? 'impCasa' : 'liberiCasa';
+        } else if (p.stato === 'IN_CASA') k = p.cliente ? 'impCasa' : (typeof macInEsposizione === 'function' && macInEsposizione(p) ? 'esposizione' : 'liberiCasa');
         else if (p.stato === 'ORDINATA') k = p.cliente ? 'impArrivo' : 'liberiArrivo';
         else if (p.stato === 'DA_ORDINARE') k = p.cliente ? 'prenotati' : 'daOrdMag';
         if (!k) return;
@@ -825,7 +827,7 @@ function sitCalcola() {
         return gm;
     });
     // la colonna "Da ordinare per il magazzino" solo se serve
-    const colonne = SIT_COLONNE.filter(c => c.k !== 'daOrdMag' || tot.daOrdMag > 0);
+    const colonne = SIT_COLONNE.filter(c => (c.k !== 'daOrdMag' || tot.daOrdMag > 0) && (c.k !== 'esposizione' || tot.esposizione > 0));
     return { da: da, a: a, marchio: marchio, tipologia: tipologia, ricerca: ricerca, marchi: elenco, tot: tot, colonne: colonne };
 }
 

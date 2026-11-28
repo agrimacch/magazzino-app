@@ -900,3 +900,21 @@ File: `contanti-functions.js`, `contanti.css`, `supabase/contanti-setup.sql`, `s
 - **Ordini lunghi:** se le righe non stanno in un foglio a grandezza normale, il PDF va su piu' pagine (taglio sempre tra una riga e l'altra, numero di pagina "1 / 2" in basso, totali, condizioni e firma alla fine; il timbro PAGATO sotto la tabella). Gli ordini corti restano su una pagina con le righe vuote come prima.
 
 **Prove dei contanti:** finite le prove, eseguire su Supabase `supabase/contanti-azzera.sql`: cancella incassi, QR e passaggi e fa ripartire il conteggio da quel momento (gli ordini non vengono toccati). L'ordine di prova si elimina dall'app (Elimina ordine, solo admin).
+
+---
+
+## Macchine in conto esposizione (v8.4.0)
+
+**Prima volta su Supabase:** `supabase/macchine-esposizione.sql`.
+
+Macchine nostre messe presso collaboratori / altri negozi. **Restano nostre**: contano nell'inventario e nel valore di magazzino, ma **non sono disponibili alla vendita** (non si scelgono negli ordini clienti, non contano nei set componibili ne' nel badge del listino). Nel quaderno: **quadratino giallo** con "c/o NOME". Il DDT si fa a parte.
+
+- **Collaboratori:** elenco fisso, si aggiunge con "Nuovo collaboratore" man mano (si puo' rinominare; si toglie solo se non ha macchine).
+- **Manda in esposizione:** Inventario Macchine > scheda **Esposizione** (scegli collaboratore, macchina disponibile, data), oppure dalla finestra della macchina nel quaderno (solo macchine in casa senza cliente).
+- **Rientrata:** torna disponibile in negozio.
+- **Venduta (dal collaboratore):** la macchina esce dal magazzino (CONSEGNATA, cliente = collaboratore) e l'app propone di mandargliene subito un'altra uguale disponibile.
+- La scheda Esposizione mostra le macchine per collaboratore con data e giorni, e il valore totale in esposizione. In "Situazione" c'e' la colonna "In conto esposizione".
+
+## Contanti: versamento anche per gli operatori (v8.4.0)
+
+**Su Supabase:** `supabase/contanti-versa-operatori.sql`. Il pulsante **Versato in cassa / banca** c'e' per admin e operatori, ma versa SOLO i contanti che ha in mano chi lo preme.

@@ -1,5 +1,8 @@
 # Changelog App Magazzino
 
+## v8.3.3 - 2026-11-28 (PRODUZIONE)
+modifica banca + conto esposizione
+
 ## v8.3.2 - 2026-11-28 (PRODUZIONE)
 carattere robotomono
 

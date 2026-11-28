@@ -4,7 +4,7 @@
 -- Ogni acconto / saldo pagato in CONTANTI (registrato da oggi in poi) e' un "incasso".
 -- All'inizio i soldi sono di chi l'ha registrato (le sue iniziali). Per passarli a un collega:
 --   chi DA' mostra un QR (vale 60 secondi), chi RICEVE lo legge con l'app e preme "Ricevo EUR ...".
---   Solo chi riceve cambia il detentore. L'admin alla fine segna "Versato in cassa / banca".
+--   Solo chi riceve cambia il detentore. Chi ha i soldi alla fine segna "Versato in cassa / banca".
 -- Admin e operatori. Le tabelle si cambiano SOLO con le funzioni qui sotto (nessuno scrive a mano).
 --
 -- Come si usa: Supabase > SQL Editor > New query, incolla tutto e premi Run.
@@ -173,7 +173,7 @@ begin
 end;
 $$;
 
--- ---------- Fine del giro: versato in cassa / banca (solo admin, solo i soldi che ha lui) ----------
+-- ---------- Fine del giro: versato in cassa / banca (admin e operatori, solo i soldi che ha lui) ----------
 create or replace function public.contanti_versa(p_incassi bigint[])
 returns numeric language plpgsql security definer set search_path = public as $$
 declare
@@ -181,7 +181,7 @@ declare
     n    integer;
     tot  numeric;
 begin
-    if not public.is_admin() then raise exception 'Solo l''admin segna i contanti versati'; end if;
+    if not public.contanti_puo() then raise exception 'Non autorizzato'; end if;
     with u as (
         update public.contanti_incassi set versato_at = now(), versato_da = me
         where id = any(p_incassi) and lower(detentore) = me and versato_at is null

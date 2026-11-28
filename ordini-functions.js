@@ -252,7 +252,7 @@ function ordQtaMinima(r) {
 }
 
 function ordDisponibiliArticolo(articoloId) {
-    return macPezzi.filter(p => p.articolo_id === articoloId && p.stato === 'IN_CASA' && !p.cliente)
+    return macPezzi.filter(p => p.articolo_id === articoloId && p.stato === 'IN_CASA' && !p.cliente && !(typeof macInEsposizione === 'function' && macInEsposizione(p)))
         .sort((x, y) => x.id - y.id);
 }
 
@@ -1403,7 +1403,7 @@ async function ordCreaPezziRiga(r, rigaDb, ordine, cliente, numeroTesto, adesso,
         if (r.disponibilita === 'DISPONIBILE') {
             // Solo le macchine scelte dall'operatore (ancora libere in casa)
             const scelti = ordSceltiDi(r, f.art.id).map(id => macPezzi.find(p => p.id === id))
-                .filter(p => p && p.stato === 'IN_CASA' && !p.cliente);
+                .filter(p => p && p.stato === 'IN_CASA' && !p.cliente && !(typeof macInEsposizione === 'function' && macInEsposizione(p)));
             if (scelti.length < f.n) throw new Error('Una macchina scelta per ' + macNome(f.art) + ' non &egrave; pi&ugrave; disponibile (qualcuno l&#39;ha appena presa?): riapri l&#39;ordine e scegline un&#39;altra');
             for (const p of scelti) {
                 const agg = {

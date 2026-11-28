@@ -144,6 +144,7 @@
 .mac-quadro.st-ordinata   { background: linear-gradient(to bottom left, var(--mac-verde-scuro) 0, var(--mac-verde-scuro) 34%, white 34%); }
 .mac-quadro.st-incasa     { background: var(--mac-verde); border-color: var(--mac-verde-scuro); }
 .mac-quadro.st-consegnata { background: var(--mac-verde); border-color: var(--mac-verde-scuro); color: #14532d; }
+.mac-quadro.st-esposizione { background: #facc15; border-color: #ca8a04; }   /* v8.4.0: conto esposizione */
 
 .mac-quadro-mini {
     width: 12px;
@@ -2382,3 +2383,32 @@
     font-family: 'Roboto Mono', monospace; font-size: 13px;
 }
 .mac-sposta-simile:hover { background: #eef5e9; }
+
+
+/* ============================================ */
+/* v8.4.0: MACCHINE IN CONTO ESPOSIZIONE        */
+/* ============================================ */
+.mac-nome-espo { color: #854d0e; font-weight: 700; }
+.mac-esp-box { margin-top: 12px; padding: 10px 12px; border: 1px dashed #eab308; border-radius: 10px; background: #fefce8; }
+.mac-esp-box.mac-esp-attiva { border-style: solid; }
+.mac-esp-box strong { display: flex; align-items: center; gap: 6px; font-size: 14px; }
+.mac-esp-form { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 4px; align-items: center; }
+.mac-esp-form select, .mac-esp-form input { flex: 1 1 160px; margin: 0; width: auto; }
+.mac-esp-form button { width: auto; margin: 0; }
+.mac-esp-azioni { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.mac-esp-azioni button { width: auto; margin: 0; }
+.mac-esp-tot { display: flex; align-items: center; gap: 10px; font-size: 15px; }
+.mac-esp-tot .mac-quadro { flex-shrink: 0; }
+.mac-esp-coll-testa { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 14px; margin-bottom: 8px; }
+.mac-esp-coll-testa strong { font-size: 15px; }
+.mac-esp-coll-testa span { font-size: 12px; color: #6b7280; }
+.mac-esp-coll-az { margin-left: auto; display: flex; gap: 10px; }
+.mac-esp-riga { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; padding: 8px 0; border-top: 1px solid #f1f5f9; }
+.mac-esp-nome {
+    display: flex; align-items: center; gap: 8px; flex: 1 1 260px; min-width: 0;
+    background: none; border: none; padding: 0; margin: 0; width: auto; text-align: left; cursor: pointer;
+    font-family: 'Roboto Mono', monospace; font-size: 13px; color: #1f2937;
+}
+.mac-esp-nome small { color: #6b7280; }
+.mac-esp-dal { font-size: 12px; color: #854d0e; white-space: nowrap; }
+.mac-esp-riga .mac-esp-azioni { margin-top: 0; }
